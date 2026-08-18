@@ -1,0 +1,10 @@
+# 全無視
+/*
+
+# 管理対象
+
+!lib/
+!.gitignore
+!index.cgi
+!LICENSE
+!設計メモ.md
