@@ -665,17 +665,7 @@ sub create_tables {
 	my $r=0;
 
   { # 記事テーブル
-	my %info;
-	$info{text}    = [ qw(title parser tags name id ip host agent link_key ctype main_image description) ];
-	$info{ltext}   = [ qw(text text_s _text) ];
-	$info{int}     = [ qw(yyyymmdd tm update_tm coms coms_all revision upnode priority) ];
-	$info{flag}    = [ qw(enable com_ok hcom_ok) ];
-	$info{idx}     = [ qw(name id link_key ctype upnode yyyymmdd tm update_tm coms coms_all enable priority) ];
-	$info{idx_tdb} = [ qw(title tags) ];
-	$info{unique}  = [ qw(link_key) ];
-	$info{notnull} = [ qw(enable com_ok hcom_ok coms coms_all yyyymmdd link_key) ];
-	$info{ref}     = { };	# upnode => "${table}_art.pkey" をすると記事が削除できなくなる
-	$r = $DB->create_table_wrapper("${table}_art", \%info);
+	$r = $DB->create_table_wrapper("${table}_art", $self->art_table_info($table));
 	if ($r) { return 100 + $r; }
   }
 
@@ -703,6 +693,46 @@ sub create_tables {
   }
 
   { # コメントテーブル
+	$r = $DB->create_table_wrapper("${table}_com", $self->com_table_info($table));
+	if ($r) { return 800 + $r; }
+  }
+
+	# 記事の更新履歴テーブル
+	$r = $self->create_rev_table($table);
+	if ($r) { return 900 + $r; }
+
+	# ゴミ箱テーブル
+	$r = $self->create_trash_tables($table);
+	if ($r) { return 1000 + $r; }
+
+	# ブログリストに登録
+	$self->insert_bloglist($table);
+
+	return 0;
+} # End of create_tanble
+
+#-------------------------------------------------------------------------------
+# ●記事テーブル、コメントテーブルの定義
+#-------------------------------------------------------------------------------
+# ※ゴミ箱テーブルも同じ定義から作る。
+#   既存ブログにカラムを追加するとき（sys_update_* の add_column）は、
+#   ゴミ箱テーブル（_trash, _trashcom）にも同じカラムを追加すること。
+sub art_table_info {
+	my ($self, $table) = @_;
+	my %info;
+	$info{text}    = [ qw(title parser tags name id ip host agent link_key ctype main_image description) ];
+	$info{ltext}   = [ qw(text text_s _text) ];
+	$info{int}     = [ qw(yyyymmdd tm update_tm coms coms_all revision upnode priority) ];
+	$info{flag}    = [ qw(enable com_ok hcom_ok) ];
+	$info{idx}     = [ qw(name id link_key ctype upnode yyyymmdd tm update_tm coms coms_all enable priority) ];
+	$info{idx_tdb} = [ qw(title tags) ];
+	$info{unique}  = [ qw(link_key) ];
+	$info{notnull} = [ qw(enable com_ok hcom_ok coms coms_all yyyymmdd link_key) ];
+	$info{ref}     = { };	# upnode => "${table}_art.pkey" をすると記事が削除できなくなる
+	return \%info;
+}
+sub com_table_info {
+	my ($self, $table) = @_;
 	my %info;
 	$info{text}    = [ qw(text email url name id ip host agent a_title a_elink_key) ];
 	$info{int}     = [ qw(tm num a_pkey a_yyyymmdd) ];
@@ -712,15 +742,62 @@ sub create_tables {
 	$info{unique}  = [ ];
 	$info{notnull} = [ qw(enable hidden text tm a_pkey a_yyyymmdd) ];
 	$info{ref}     = { a_pkey => "${table}_art.pkey" };
-	$r = $DB->create_table_wrapper("${table}_com", \%info);
-	if ($r) { return 800 + $r; }
-  }
+	return \%info;
+}
+# 定義からカラム名の一覧を得る
+sub table_info_cols {
+	my ($self, $info) = @_;
+	return [ 'pkey', map { @{ $info->{$_} || [] } } qw(text ltext int float flag) ];
+}
 
-	# ブログリストに登録
-	$self->insert_bloglist($table);
+#-------------------------------------------------------------------------------
+# ●ゴミ箱テーブルの作成
+#-------------------------------------------------------------------------------
+# 記事テーブル、コメントテーブルと同じカラム構成。pkeyは元の記事/コメントのpkey。
+# 同じcontent keyの記事を複数入れられるよう、unique制約や参照制約は付けない。
+sub create_trash_tables {
+	my ($self, $table) = @_;
+	my $DB = $self->{DB};
 
+	my $art = $self->art_table_info($table);
+	push(@{ $art->{int}  }, 'deleted_tm');	# 削除日時
+	push(@{ $art->{text} }, 'deleted_id');	# 削除したユーザー
+	$art->{idx}     = [ qw(id deleted_tm) ];
+	$art->{idx_tdb} = [ ];
+	$art->{unique}  = [ ];
+	$art->{notnull} = [ ];
+	$art->{ref}     = { };
+	my $r = $DB->create_table_wrapper("${table}_trash", $art);
+	if ($r) { return 10 + $r; }
+
+	my $com = $self->com_table_info($table);
+	$com->{idx}     = [ qw(a_pkey) ];
+	$com->{idx_tdb} = [ ];
+	$com->{unique}  = [ ];
+	$com->{notnull} = [ ];
+	$com->{ref}     = { };
+	$r = $DB->create_table_wrapper("${table}_trashcom", $com);
+	if ($r) { return 20 + $r; }
 	return 0;
-} # End of create_tanble
+}
+
+#-------------------------------------------------------------------------------
+# ●記事の更新履歴テーブルの作成
+#-------------------------------------------------------------------------------
+# tm        履歴に追加した日時
+# update_tm その版が保存された日時
+# ※記事を削除しても履歴は残す（ゴミ箱から戻すため）ので、記事pkeyへの参照は張らない
+sub create_rev_table {
+	my ($self, $table) = @_;
+	my %info;
+	$info{text}    = [ qw(title) ];
+	$info{ltext}   = [ qw(_text) ];
+	$info{int}     = [ qw(a_pkey tm update_tm) ];
+	$info{idx}     = [ qw(a_pkey tm) ];
+	$info{notnull} = [ qw(a_pkey tm) ];
+	$info{ref}     = { };
+	return $self->{DB}->create_table_wrapper("${table}_rev", \%info);
+}
 
 #-------------------------------------------------------------------------------
 # ●ブログテーブルの削除
@@ -730,6 +807,9 @@ sub drop_tables {
 	my $DB = $self->{DB};
 
 	my $r = 0;	# blog_create の copy も変更するの忘れず
+	$r += $DB->drop_table("${table}_trashcom");
+	$r += $DB->drop_table("${table}_trash");
+	$r += $DB->drop_table("${table}_rev");
 	$r += $DB->drop_table("${table}_com");
 	$r += $DB->drop_table("${table}_tagart");
 	$r += $DB->drop_table("${table}_tag");
@@ -748,7 +828,7 @@ sub copy_tables {
 	my ($self, $src, $des) = @_;
 	my $DB = $self->{DB};
 
-	my @tables = qw(_art _tag _tagart _com);
+	my @tables = qw(_art _tag _tagart _com _rev _trash _trashcom);
 	$DB->begin();
 	foreach my $table (@tables) {
 		my $items = $DB->select("${src}$table");

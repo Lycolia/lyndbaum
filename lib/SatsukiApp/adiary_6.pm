@@ -43,7 +43,8 @@ my @update_versions = (
 	{ ver => 3.32, plugin=>1 },
 	{ ver => 3.34, plugin=>1 },
 	{ ver => 3.40, plugin=>1 },
-	{ ver => 3.50, plugin=>1, func => 'sys_update_350' }
+	{ ver => 3.50, plugin=>1, func => 'sys_update_350' },
+	{ ver => 3.52, func => 'sys_update_352' }
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -103,7 +104,7 @@ sub system_update {
 			$ROBJ->message("Rebuild '%d articles' of all blogs", $cnt);
 		}
 		$opt{info} = 0;
-	
+
 	}
 	# プラグイン再インストール
 	if ($opt{plugin}) {
@@ -247,6 +248,23 @@ sub sys_update_350 {
 	# DB変更
 	my $r = $auth->{DB}->add_column($auth->{table}, {name=>'email', type=>'text'});
 	if ($r) { $ROBJ->message("ALTER TABLE $auth->{table} add column error($r)"); }
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver3.52
+#-------------------------------------------------------------------------------
+sub sys_update_352 {
+	my $self  = shift;
+	my $blogs = shift;
+	my $ROBJ  = $self->{ROBJ};
+
+	# 記事の更新履歴テーブル、ゴミ箱テーブル追加
+	foreach(@$blogs) {
+		my $r = 0;
+		$r += $self->create_rev_table($_);
+		$r += $self->create_trash_tables($_);
+		if ($r) { $ROBJ->message("Blog '$_' database error($r)"); }
+	}
 }
 
 ################################################################################

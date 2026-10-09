@@ -40,6 +40,19 @@
 	seemore_msg:max_chars = 40
 	seemore_msg:filter0 = trim
 	seemore_msg:filter1 = tag
+
+	<@>更新履歴
+	rev_cycle = 履歴を残す間隔
+	rev_cycle:type = int
+	rev_cycle:default = 3
+	rev_cycle:min = 0
+	rev_cycle:max = 720
+
+	rev_max = 保存する履歴の数
+	rev_max:type = int
+	rev_max:default = 120
+	rev_max:min = 0
+	rev_max:max = 10000
 <$end>
 <$ifbreak(form_error())>
 

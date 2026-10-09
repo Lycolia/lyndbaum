@@ -1,0 +1,12 @@
+<@7>
+<$ifbreak(!v.allow_edit)>
+
+<@> rev指定時は履歴1件（本文込み）、それ以外は記事pkeyの履歴一覧
+<$data = if(Form.rev, v.load_revision_json(Form.rev), v.load_revisions_json(Form.pkey))>
+
+<$ifset_status(data eq '', 404)>
+<$v.action_is_main=1>
+<$v.frame_skeleton=''>
+<$set_content_type('application/json')>
+<@data || 'null'>
+<@ifcall(Develop, '_sub/ajax_debug')>

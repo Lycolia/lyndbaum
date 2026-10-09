@@ -369,15 +369,18 @@ sub parse_block {
 			my $blank=0;
 			my $ul_indent = -1;
 			my %p;
+			my %li_indent;
 			while(@list) {
 				$x = shift(@list);
-				if ($x =~ /^( ? ?)(?:\*|\+|\-|\d+\.) +(.*)$/
+				if ($x =~ /^( ? ?)(\*|\+|\-|\d+\.)( +)(.*)$/
 				 && ($ul_indent == -1 || length($1) == $ul_indent)) {
 					if (@$li) {
 						push(@ul, $li);
 					}
-					$li = [$2];
+					$li = [$4];
 					$ul_indent = length($1);
+					# 項目内容の開始位置（記号の幅 + 空白。空白5つ以上は1つとみなす）
+					$li_indent{$li} = length($2) + (length($3) > 4 ? 1 : length($3));
 					if ($blank) { $p{$li} = 1; }
 					$blank=0;
 					next;
@@ -414,8 +417,10 @@ sub parse_block {
 					next;
 				}
 				# [M] リストネスト時は先頭スペースを最大3つ除去する
+				# 「10. 」のように記号が長い場合は、項目内容の開始位置まで除去する
+				my $n = $li_indent{$li} > 3 ? $li_indent{$li} : 3;
 				foreach(@$li) {
-					$_ =~ s/^   ?//;
+					$_ =~ s/^ {1,$n}//;
 				}
 
 				my $blk = $self->parse_nest_block( $li );
@@ -683,8 +688,11 @@ sub parse_inline {
 		$_ =~ s/\\([`'\*_\[\]\(\)>#\+\-\.\~!])/"\x03" . ord($1) . "\x03"/eg;
 
 		# inline code
-		$_ =~ s|(`+)([^`]+?)\1|
+		# 開始と同じ長さのバッククォート列で閉じる。中身には長さの異なるバッククォートを含められる
+		$_ =~ s|(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)|
 			my $s = $2;
+			# 前後が共に空白なら1つずつ除去する（空白のみの場合は除く）
+			if ($s =~ /[^ ]/ && $s =~ /^ (.*) $/) { $s = $1; }
 			$self->escape_in_code($s);
 			$s =~ s/([`'\*_\{\}\[\]\(\)>#\+\-\.\~!])/"\x03" . ord($1) . "\x03"/eg;
 			"<code>$s</code>";

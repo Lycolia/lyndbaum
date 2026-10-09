@@ -521,6 +521,188 @@ article.edit span.tag {
 	padding:		0px 4px;
 	margin-right:		6px;
 }
+/* タグ追加ダイアログ */
+#tag-select-form #input-new-tag {
+	width:			100%;
+	box-sizing:		border-box;
+}
+.ui-dialog ul#tag-candidates {
+	list-style:		none;
+	margin:			4px 0;
+	padding:		0;
+	max-height:		16em;
+	overflow-y:		auto;
+}
+#tag-candidates:empty {
+	display:		none;
+}
+#tag-candidates li {
+	display:		flex;
+	justify-content:	space-between;
+	padding:		2px 6px;
+	cursor:			pointer;
+	border-radius:		4px;
+}
+#tag-candidates li:hover {
+	background-color:	#e4e8f4;
+}
+#tag-candidates li.selected {
+	background-color:	#c8d4f8;
+}
+#tag-candidates li .qt {
+	color:			#888;
+	margin-left:		1em;
+}
+#tag-candidates li.new-tag {
+	color:			#36c;
+}
+#tag-select-details {
+	margin-top:		0.5em;
+}
+#tag-select-details summary {
+	cursor:			pointer;
+}
+/* サムネイル選択 */
+ul#thumbnail-picker {
+	list-style:		none;
+	display:		flex;
+	flex-wrap:		wrap;
+	gap:			6px;
+	margin:			4px 0;
+	padding:		0;
+}
+#thumbnail-picker li {
+	position:		relative;
+	width:			80px;
+	height:			60px;
+	margin:			0;
+	padding:		0;
+	border:			2px solid #ccc;
+	border-radius:		4px;
+	overflow:		hidden;
+	cursor:			pointer;
+	background-color:	#f4f4f4;
+}
+#thumbnail-picker li:hover {
+	border-color:		#93b3ff;
+}
+#thumbnail-picker li.selected {
+	border-color:		#36c;
+	box-shadow:		0 0 0 1px #36c;
+}
+#thumbnail-picker img {
+	width:			100%;
+	height:			100%;
+	object-fit:		cover;
+	display:		block;
+}
+#thumbnail-picker .label {
+	position:		absolute;
+	left:			0;
+	right:			0;
+	bottom:			0;
+	font-size:		9pt;
+	text-align:		center;
+	color:			#fff;
+	background-color:	rgba(0,0,0,0.55);
+}
+#thumbnail-direct summary {
+	cursor:			pointer;
+	font-size:		9pt;
+}
+/* 更新履歴ダイアログ */
+#revision-dialog .rev-wrap {
+	display:		flex;
+	gap:			8px;
+	height:			60vh;
+}
+.ui-dialog ul#revision-list {
+	list-style:		none;
+	margin:			0;
+	padding:		0;
+	width:			220px;
+	flex-shrink:		0;
+	overflow-y:		auto;
+	border:			1px solid #ccc;
+}
+#revision-list li {
+	padding:		4px 6px;
+	border-bottom:		1px solid #e4e4e4;
+	cursor:			pointer;
+	font-size:		9pt;
+}
+#revision-list li:hover {
+	background-color:	#e4e8f4;
+}
+#revision-list li.selected {
+	background-color:	#c8d4f8;
+}
+#revision-list li.rev-empty {
+	cursor:			default;
+	background-color:	transparent;
+}
+#revision-list .rev-len {
+	float:			right;
+	color:			#888;
+}
+#revision-list .rev-title {
+	color:			#555;
+	overflow:		hidden;
+	text-overflow:		ellipsis;
+	white-space:		nowrap;
+}
+#revision-view {
+	flex-grow:		1;
+	min-width:		0;
+	display:		flex;
+	flex-direction:		column;
+}
+#revision-view .rev-mode {
+	font-size:		9pt;
+	margin-bottom:		4px;
+}
+#revision-title {
+	font-weight:		bold;
+}
+#revision-title .rev-note {
+	font-weight:		normal;
+	font-size:		9pt;
+	color:			#888;
+}
+#revision-body {
+	flex-grow:		1;
+	overflow:		auto;
+	margin:			4px 0 0 0;
+	padding:		4px;
+	border:			1px solid #ccc;
+	background-color:	#fff;
+	font-size:		9pt;
+	white-space:		pre-wrap;
+	word-break:		break-all;
+}
+#revision-body .rev-del {
+	display:		block;
+	background-color:	#fdd;
+}
+#revision-body .rev-add {
+	display:		block;
+	background-color:	#dfd;
+}
+#revision-body .rev-ctx {
+	display:		block;
+	color:			#666;
+}
+#revision-body .rev-skip {
+	display:		block;
+	color:			#aaa;
+}
+.sp #revision-dialog .rev-wrap {
+	flex-direction:		column;
+}
+.sp .ui-dialog ul#revision-list {
+	width:			auto;
+	max-height:		30vh;
+}
 
 /*--------------------------------------------------------------------
 ●フォームポップアップ

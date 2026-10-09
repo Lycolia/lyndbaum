@@ -119,6 +119,25 @@
 	</tbody>
 	</table>
 
+<h3>更新履歴の設定</h3>
+
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>履歴を残す間隔<span class="help" data-help="前回履歴を残してからこの時間内の保存では、新しい履歴を作りません。続けて何度も保存した場合に、履歴が増えすぎるのを防ぎます。0にすると変更のたびに残します。">?</span></th>
+		<td<@err.c_rev_cycle>>
+			<input type="number" class="int w50" name="rev_cycle" value="<@if(s.rev_cycle eq '', 3, s.rev_cycle)>" min="0" max="720">時間
+		</td>
+	</tr>
+	<tr>
+		<th>保存する履歴の数<span class="help" data-help="記事ごとに保存する履歴の上限です。超えた分は古い順に削除します。0にすると無制限になります。">?</span></th>
+		<td<@err.c_rev_max>>
+			<input type="number" class="int w50" name="rev_max" value="<@if(s.rev_max eq '', 120, s.rev_max)>" min="0" max="10000">件（0で無制限）
+		</td>
+	</tr>
+	</tbody>
+	</table>
+
 	<button type="submit">この設定を保存する</button>
 
 	</form>

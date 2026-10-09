@@ -201,9 +201,12 @@
 		<$end>
 	</select></span>
 
-	<button type="button" id="edit-file-upload" class="fileup" data-folder="<@if(s.edit_upload ne '', s.edit_upload, 'adiary/%y/')>" data-title="ファイルを選択">Upload</button><span class="help" data-help="ファイルを直接アップロードして記事に貼付けます。記事エリアに直接ドラッグ＆ドロップしてもアップロードできます。">?</span>
+	<button type="button" id="edit-file-upload" class="fileup" data-folder="<@if(s.edit_upload ne '', s.edit_upload, 'adiary/%y/')>" data-title="ファイルを選択">Upload</button>
+	<@ifexec(edit_pkey, begin)>
+	<button type="button" id="edit-revision" data-title="更新履歴">履歴</button>
+	<$end>
 	<@ifexec(!edit_pkey || art.draft, begin)>
-	<button type="submit" name="draft" value="1" id="save-draft">下書き<@if(edit_pkey, '保存', '作成')></button><span class="help" data-help="下書きは記事一覧にも表示されません。下書き記事は、テンプレートとして使用することもできます。">?</span>
+	<button type="submit" name="draft" value="1" id="save-draft">下書き<@if(edit_pkey, '保存', '作成')></button>
 	<$end>
 
 	<!--=================================================================-->
@@ -241,11 +244,13 @@
 			<li>コンテンツkey<span class="help" data-help='"http://", "https://" や "/" ではじまるkeyを指定すると指定URLへのリンクになります。"FrontPage", "top", "index"のいずれかを指定するとブログトップの固定記事になります。'>?</span><input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"></li>
 		</ul>
 		</li>
-		<li>
-			<label>
-				<span class="edit-caption">サムネ</span>
-				<input class="w360" type="text" name="ogp" value="<@art.main_image>" placeholder="[image:S:adiary/2025/01/:20241225_195853281.JPG:20241225_195853281.JPG]">
-			</label>
+		<li id="edit-thumbnail">
+			<span class="edit-caption">サムネ</span>
+			<ul id="thumbnail-picker"></ul>
+			<details id="thumbnail-direct">
+				<summary>直接指定</summary>
+				<input class="w360" type="text" name="ogp" id="ogp-input" value="<@art.main_image>" placeholder="[image:S:adiary/2025/01/:20241225_195853281.JPG:20241225_195853281.JPG]">
+			</details>
 		</li>
 	</ul>
 
@@ -267,7 +272,7 @@
 			<li>AGENT <@art.agent></li>
 		</ul></li>
 	</ul>
-<form method="POST" action="<@v.myself2>" class="delete js-check-form" data-confirm="本当にこの記事を削除しますか？" data-focus="cancel">
+<form method="POST" action="<@v.myself2>" class="delete js-check-form" data-confirm="この記事をゴミ箱へ移動しますか？<br>ゴミ箱から戻せます。" data-focus="cancel">
 	<input type="hidden" name="action" value="delete">
 	<input type="hidden" name="delete_pkey_ary" value="<@edit_pkey>">
 	<input type="hidden" name="title" value="<@art.title>">
@@ -281,6 +286,12 @@
 <div style="display:none"><!-- display none -->
 <span id="new-tag-append">追加</span>
 <span id="new-tag-cancel">キャンセル</span>
+<span id="new-tag-close">閉じる</span>
+<span id="new-tag-create">「%t」を新規タグとして追加</span>
+<span id="thumbnail-auto">自動</span>
+<span id="thumbnail-auto-help">記事の最初の画像</span>
+<span id="thumbnail-none">記事に画像がありません</span>
+<span id="thumbnail-direct-label">直接指定</span>
 <span id="edit-confirm">他にこの記事を編集している人がいますが、編集を継続しますか？%u</span>
 <span id="msg-multiline">複数行を一度に処理できません。</span>
 <span id="msg-upload-error">アップロードに失敗しました。</span>
@@ -292,12 +303,19 @@
 
 <@> タグ追加フォーム
 <form id="tag-select-form">
+<div>
+<input id="input-new-tag" type="text" class="w200 mono" placeholder="入力して絞り込み" autocomplete="off">
+<ul id="tag-candidates"></ul>
+</div>
+<details id="tag-select-details">
+<summary>一覧から選ぶ</summary>
 <div><select name="taglist" id="tag-select" data-url="<@Basepath><@v.blogpub_dir>taglist.json?<@v.blog.json_tm>">
-	<option value="" class="special" data-new="1">【タグを選択か入力】</option>
+	<option value="" class="special" data-new="1">【タグを選択】</option>
 </select></div>
+</details>
 <div style="margin-top: 1em;">
-入力 <input id="input-new-tag" type="text" class="w200 mono"><br>
-※階層の区切りは「<span class="mono">::</span>」です。<br>※「,」は使用できません。</span>
+※↑↓で選択、Enterで追加します。続けて追加できます。<br>
+※階層の区切りは「<span class="mono">::</span>」です。<br>※「,」は使用できません。
 </div>
 </form>
 
@@ -342,5 +360,27 @@
 <div id="size-other" data-title="サムネイルサイズ">
 <input type="number" value="120" class="w50" min="60" max="800">px （60～800）
 </div>
+
+<@> 更新履歴ダイアログ
+<div id="revision-dialog">
+<div class="rev-wrap">
+	<ul id="revision-list"></ul>
+	<div id="revision-view">
+		<div class="rev-mode">
+			<label><input type="radio" name="rev_mode" value="diff" checked>現在の本文との差分</label>
+			<label><input type="radio" name="rev_mode" value="full">この版の全文</label>
+		</div>
+		<div id="revision-title"></div>
+		<pre id="revision-body"></pre>
+	</div>
+</div>
+</div>
+<span id="rev-load">この版を本文に読み込む</span>
+<span id="rev-confirm">本文を %t の版に置き換えます。保存するまでは確定しません。よろしいですか？</span>
+<span id="rev-empty">この記事の履歴はまだありません。</span>
+<span id="rev-select">左の一覧から版を選んでください。</span>
+<span id="rev-same">現在の本文と同じです。</span>
+<span id="rev-too-large">差分を出すには大きすぎるため、全文を表示しています。</span>
+<span id="rev-chars">%n文字</span>
 
 </div><!-- display none end -->

@@ -1,0 +1,25 @@
+<@20>
+<@local(mode,msg,c)>
+<$ifbreak(!v.allow_edit)>
+
+<$mode = Form.mode>
+<$ifexec(mode eq 'restore', begin)>
+	<$msg = '%d件の記事を戻しました'>
+	<$(action_return,c) = v.restore_articles(Form.pkey_ary)>
+<$end>
+<$ifexec(mode eq 'purge', begin)>
+	<$msg = '%d件の記事を完全に削除しました'>
+	<$(action_return,c) = v.purge_trash(Form.pkey_ary)>
+<$end>
+<$ifexec(mode eq 'purge_all', begin)>
+	<$msg = 'ゴミ箱を空にしました（%d件）'>
+	<$(action_return,c) = v.purge_trash(undef, 1)>
+<$end>
+
+<@>
+<@> POST成功時の処理
+<@>
+<$ifexec(action_return eq '0', begin)>
+	<$message(msg, c)>
+	<$jump('_sub/reload_message', "<@v.myself>?" . esc(v.query))>
+<$end>

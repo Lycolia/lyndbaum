@@ -4,7 +4,7 @@
 <@> 
 <@> POST成功時の処理
 <$ifexec(action_return eq '0' && num==1, begin)>
-	<$message("記事「<@Form.title>」を削除しました")>
+	<$message("記事「<@Form.title>」をゴミ箱へ移動しました")>
 	<$jump('_sub/reload_message')>
 <$end>
 

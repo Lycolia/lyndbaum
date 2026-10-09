@@ -1,0 +1,71 @@
+<@7>
+<@local(logs,t)>
+<$ifredirect(!v.blogid, v.myself)>
+<$ifbreak(!v.allow_edit)>
+
+<@> システムモード
+<$v.system_mode("ゴミ箱")>
+
+<$no_robots=0>
+<$v.add_header(#'<meta name="robots" content="noindex">\n')>
+
+<$logs = v.load_trash_list()>
+
+<!--=========================================================================-->
+<@> 階層ツリー
+<@call("_sub/menu_tree")>
+
+<!--=========================================================================-->
+<article class="system setting">
+<h2><@v.title></h2>
+<div class="body">
+	<p>削除した記事はここに入ります。「戻す」で元の記事番号・コメント・タグごと戻せます。<br>
+	ゴミ箱の記事は、手動で完全に削除するまで残ります。</p>
+
+	<form action="<@v.myself>?<@v.skeleton>" method="POST" class="js-check-form" data-target="#trash-table .pkey-ary">
+	<input type="hidden" name="action" value="trash">
+	<table id="trash-table" class="list-table">
+	<thead><tr>
+		<th><input type="checkbox" name="all_check" class="js-checked" data-target="#trash-table .pkey-ary"></th>
+		<th>削除日時</th>
+		<th>日付</th>
+		<th>種類</th>
+		<th>タイトル</th>
+		<th>タグ</th>
+		<th>投稿者</th>
+		<th>コメ<br>ント</th>
+	</tr></thead>
+	<tbody class="small">
+	<@forexec(t, logs, begin)>
+	<tr>
+		<td class="c"><input type="checkbox" name="pkey_ary" value="<@t.pkey>" class="pkey-ary" id="trash-<@t.pkey>"></td>
+		<td class="c" nowrap><label for="trash-<@t.pkey>"><@print_tmf('%Y/%m/%d %H:%M', t.deleted_tm)></label></td>
+		<td class="c" nowrap><label for="trash-<@t.pkey>"><@v.format_ymd(t.yyyymmdd)></label></td>
+		<td class="c"><label for="trash-<@t.pkey>"><@t.ctype></label></td>
+		<td><label for="trash-<@t.pkey>" title="<@t.pkey>"><@t.title></label></td>
+		<td class="c"><label for="trash-<@t.pkey>"><@t.tags></label></td>
+		<td><@t.name></td>
+		<td class="r"><@t.coms_all></td>
+	</tr>
+	<$end>
+	</tbody>
+	</table>
+
+	<p>Total <@##logs+1> articles.</p>
+
+	<div>
+	<button type="submit" name="mode" value="restore" class="js-check-form" data-confirm="%c件の記事を戻しますか？">戻す</button>
+	<button type="submit" name="mode" value="purge"   class="js-check-form" data-confirm="%c件の記事を完全に削除しますか？<br>元に戻せません。" data-focus="cancel">完全に削除</button>
+	</div>
+	</form>
+
+	<@ifexec(v.blog_admin && ##logs>=0, begin)>
+	<form action="<@v.myself>?<@v.skeleton>" method="POST" class="js-check-form" style="margin-top: 1em;">
+	<input type="hidden" name="action" value="trash">
+	<button type="submit" name="mode" value="purge_all" class="js-check-form" data-confirm="ゴミ箱を空にしますか？<br>すべての記事が完全に削除され、元に戻せません。" data-focus="cancel">ゴミ箱を空にする</button>
+	</form>
+	<$end>
+
+	<p><a href="<@v.myself>?artlist">記事一覧へ戻る</a></p>
+</div>
+</article>

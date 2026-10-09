@@ -3,12 +3,14 @@
 <$h = begin_hash>
 	album/index = 画像管理
 	artlist = 記事一覧
+	trash = ゴミ箱
 	comlist = コメント一覧
 	blogs_sys = ブログ一覧
 <$end>
 <$order = array()>
 <$ifpush(v.blog.album_open_access || v.allow_edit, order, 'album/index')>
 <$ifpush(v.blogid, order, 'artlist')>
+<$ifpush(v.blogid && v.allow_edit, order, 'trash')>
 <$ifpush(v.blogid, order, 'comlist')>
 <$ifpush(v.allow_blogs(), order, 'blogs_sys')>
 <$h._order = order>

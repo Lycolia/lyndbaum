@@ -170,7 +170,8 @@
 	<@if(s.edit_by_author_only && !v.blog_admin, '<span class="help" data-help="他人の記事の状態は変更できません。">?</span>')>
 	<button type="submit" name="mode" value="disable" class="js-check-form" data-confirm="">非表示に設定</button>
 	<button type="button" data-target="#tag-form" class="js-switch">タグ設定</button>
-	<button type="submit" name="mode" value="delete"  class="js-check-form" id="del-submit" data-confirm="%c件の記事を削除しますか？" data-focus="cancel">削除</button>
+	<button type="submit" name="mode" value="delete"  class="js-check-form" id="del-submit" data-confirm="%c件の記事をゴミ箱へ移動しますか？" data-focus="cancel">削除</button>
+	<a href="<@v.myself>?trash">ゴミ箱</a>
 	</div>
 	</form>
 <$end>

@@ -515,6 +515,11 @@ sub regist_article {
 			return 11;
 		}
 		$art{pkey} = $pkey;
+
+		# 本文かタイトルが変わったら、変更前の版を履歴に残す
+		if ($old->{_text} ne $art{_text} || $old->{title} ne $art{title}) {
+			$self->save_revision($blogid, $old);
+		}
 	} else {
 		$self->set_ip_host_agent(\%art, $form, $opt->{iha_default});
 		$art{pkey} = $pkey;
@@ -605,6 +610,95 @@ sub get_main_image_from_input {
 			# 画像なし
 			return '';
         }
+}
+
+################################################################################
+# ■記事の更新履歴
+################################################################################
+#-------------------------------------------------------------------------------
+# ●履歴の保存
+#-------------------------------------------------------------------------------
+# $old : 更新前の記事データ
+#
+# PukiWikiのバックアップと同様に、前回履歴に追加してから rev_cycle 時間以内なら
+# 追加しない（連続した保存を1つの版にまとめる）。rev_max を超えた古い版は削除する。
+#
+sub save_revision {
+	my ($self, $blogid, $old) = @_;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+	if ($self->{require_update}) { return; }	# 履歴テーブル未作成
+
+	my $blog  = $self->load_blogset($blogid);
+	my $cycle = $blog->{rev_cycle} eq '' ?   3 : int($blog->{rev_cycle});
+	my $max   = $blog->{rev_max}   eq '' ? 120 : int($blog->{rev_max});
+	my $a_pkey= $old->{pkey};
+	my $now   = $ROBJ->{TM};
+
+	if ($cycle > 0) {
+		my $last = $DB->select_match_limit1("${blogid}_rev", 'a_pkey', $a_pkey, '*sort', '-tm', '*cols', ['tm']);
+		if ($last && $now - $last->{tm} < $cycle * 3600) { return; }
+	}
+
+	$DB->insert("${blogid}_rev", {
+		a_pkey    => $a_pkey,
+		tm        => $now,
+		update_tm => $old->{update_tm} || $old->{tm},
+		title     => $old->{title},
+		_text     => $old->{_text}
+	});
+
+	# 上限を超えた古い版を削除（0なら無制限）
+	if ($max > 0) {
+		my $revs = $DB->select_match("${blogid}_rev", 'a_pkey', $a_pkey, '*sort', '-tm', '*sort', '-pkey', '*cols', ['pkey']);
+		if ($#$revs >= $max) {
+			my @del = map { $_->{pkey} } @$revs[$max .. $#$revs];
+			$DB->delete_match("${blogid}_rev", 'pkey', \@del);
+		}
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ●履歴一覧の取得（json）
+#-------------------------------------------------------------------------------
+sub load_revisions_json {
+	my ($self, $a_pkey) = @_;
+	my $DB = $self->{DB};
+	$a_pkey = int($a_pkey);
+	if (!$a_pkey || !$self->check_editor($a_pkey)) { return; }
+
+	my $revs = $DB->select_match("$self->{blogid}_rev", 'a_pkey', $a_pkey, '*sort', '-tm', '*sort', '-pkey',
+		'*cols', ['pkey', 'tm', 'update_tm', 'title', '_text']);
+	foreach(@$revs) {
+		my $text = $_->{_text};
+		utf8::decode($text);
+		$_->{length} = length($text);
+	}
+	return $self->generate_json($revs, ['pkey', 'tm', 'update_tm', 'title', 'length']);
+}
+
+#-------------------------------------------------------------------------------
+# ●履歴1件の取得（json）
+#-------------------------------------------------------------------------------
+sub load_revision_json {
+	my ($self, $pkey) = @_;
+	my $DB = $self->{DB};
+	my $rev = $DB->select_match_limit1("$self->{blogid}_rev", 'pkey', int($pkey));
+	if (!$rev || !$self->check_editor($rev->{a_pkey})) { return; }
+
+	# json_encode() は \ を &#92; にするので、本文はここでエスケープする
+	my $text = $rev->{_text};
+	$text =~ s/\\/\\\\/g;
+	$text =~ s/"/\\"/g;
+	$text =~ s/\n/\\n/g;
+	$text =~ s/\r/\\r/g;
+	$text =~ s/\t/\\t/g;
+	$text =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg;
+
+	my $ROBJ = $self->{ROBJ};
+	my @ary = map { "\"$_\": " . $ROBJ->json_encode($rev->{$_}) } qw(pkey a_pkey tm update_tm title);
+	push(@ary, "\"text\": \"$text\"");
+	return '{' . join(', ', @ary) . '}';
 }
 
 #-------------------------------------------------------------------------------

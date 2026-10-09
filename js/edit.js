@@ -14,7 +14,18 @@ const $upsel  = $secure('#upnode-select');
 const $edit   = $('#editarea');
 const CSRF_key = $('#csrf-key').val();
 
-adiary.load_tags_list($tagsel);
+// タグ一覧 [{ name: "親::子", qt: 使用数 }, ...]
+const all_tags = [];
+adiary.load_tags_list($tagsel, function(data){
+	const r_func = function(ary, head) {
+		for(var i=0; i<ary.length; i++) {
+			const name = head + ary[i].title;
+			all_tags.push({ name: name, lc: name.toLowerCase(), qt: ary[i].qt || 0 });
+			if (ary[i].children) r_func( ary[i].children, name + '::' );
+		}
+	};
+	r_func(data, '');
+});
 adiary.load_contents_list($upsel);
 
 //##############################################################################
@@ -73,40 +84,119 @@ adiary.load_contents_list($upsel);
 	//--------------------------------------------------------------------------------
 	const $addtag  = $secure('#edit-add-tag');
 	const $tagform = $secure('#tag-select-form').detach();
+	const $inp     = $tagform.find('#input-new-tag');
+	const $cands   = $tagform.find('#tag-candidates');
+	const max_cands = 20;
 	var $div;
+
+	//--------------------------------------------------------------------------------
+	// ●候補の絞り込み
+	//--------------------------------------------------------------------------------
+	// 空白区切りの全語を含むタグを、完全一致→階層名の先頭一致→使用数の多い順に並べる
+	function match_rank(t, lc, words) {
+		if (t.lc == lc) return 2;
+		const segs = t.lc.split('::');
+		return words.every(function(w){
+			return segs.some(function(s){ return s.indexOf(w) == 0 });
+		}) ? 1 : 0;
+	}
+	function update_candidates() {
+		$cands.empty();
+		const text  = $inp.val().trim();
+		const words = text.toLowerCase().split(/\s+/).filter(function(w){ return w != '' });
+		if (!words.length) return;
+
+		const added = {};
+		$('#tags input[name="tag_ary"]').each(function(i, obj){ added[obj.value] = true; });
+
+		const lc = text.toLowerCase();
+		const hits = all_tags.filter(function(t){
+			if (added[t.name]) return false;
+			for(var i=0; i<words.length; i++)
+				if (t.lc.indexOf(words[i]) < 0) return false;
+			return true;
+		});
+		hits.forEach(function(t){ t.rank = match_rank(t, lc, words) });
+		hits.sort(function(a, b){
+			return (b.rank - a.rank) || (b.qt - a.qt);
+		});
+
+		for(var i=0; i<hits.length && i<max_cands; i++) {
+			const $li = $('<li>').attr('data-tag', hits[i].name);
+			$li.append( $('<span>').text(hits[i].name) );
+			$li.append( $('<span>').addClass('qt').text(hits[i].qt) );
+			$cands.append($li);
+		}
+		// 一致するタグがなければ新規タグとして追加
+		const exists = all_tags.some(function(t){ return t.name == text });
+		if (!exists && !added[text] && text.indexOf(',') < 0) {
+			const msg = $('#new-tag-create').text().replace('%t', text);
+			$cands.append( $('<li>').addClass('new-tag').attr('data-tag', text).text(msg) );
+		}
+		$cands.children().first().addClass('selected');
+	}
+
+	function move_selected(dir) {
+		const $li  = $cands.children();
+		if (!$li.length) return;
+		const cur  = $li.index( $li.filter('.selected') );
+		const next = (cur + dir + $li.length) % $li.length;
+		$li.removeClass('selected');
+		const $next = $li.eq(next).addClass('selected');
+		$next[0].scrollIntoView({ block: 'nearest' });
+	}
+
+	// 追加したらダイアログは閉じずに次の入力へ
+	function append_and_continue(tag) {
+		if (tag == '' || tag.indexOf(',') >= 0) return;
+		tag_append( tag );
+		$inp.val('');
+		update_candidates();
+		$inp.focus();
+	}
+
+	function append_selected() {
+		const $sel = $cands.children('.selected');
+		if ($sel.length) return append_and_continue( $sel.attr('data-tag') );
+		append_and_continue( $inp.val().trim() );
+	}
+
+	$inp.on('input', update_candidates);
+	$inp.on('keydown', function(evt){
+		// IME変換中のキー操作は無視
+		if (evt.originalEvent.isComposing || evt.keyCode == 229) return;
+		if (evt.keyCode == 38) { move_selected(-1); return false; }	// ↑
+		if (evt.keyCode == 40) { move_selected( 1); return false; }	// ↓
+		if (evt.keyCode != 13) return;
+		append_selected();
+		return false;
+	});
+	$cands.on('click', 'li', function(evt){
+		append_and_continue( $(evt.currentTarget).attr('data-tag') );
+	});
+
 	$addtag.click( function(){
 		$div = $('<div>').append( $tagform );
 
-		// 入力要素
-		var $inp = $tagform.find('#input-new-tag');
-
-		//enterで確定させる
-		function tag_append_func() {
-			var tag = $inp.val();
-			if (tag.match(',')) return false;
-			tag_append( tag );
-			$div.adiaryDialog('close');
-			return false;
-		}
-		$inp.keydown(function(evt){
-			if (evt.keyCode != 13) return;
-			return tag_append_func();
-		});
-
 		// ボタンの設定
 		var buttons = {};
-		var ok_func = buttons[$('#new-tag-append').text()] = tag_append_func;
-		buttons[ adiary.msg('cancel') ] = function(){
+		buttons[ $('#new-tag-append').text() ] = append_selected;
+		buttons[ $('#new-tag-close').text() ] = function(){
 			$div.adiaryDialog( 'close' );
 		};
 		$div.adiaryDialog({
 			modal:	true,
+			width:	Math.min(420, $(window).width() - 20),
 			minHeight: 200,
 			title:   $addtag.data('title'),
 			buttons: buttons,
+			open: function(){
+				$inp.focus();
+			},
 			beforeClose: function(){
 				$tagsel.val('');
 				$inp.val('');
+				$cands.empty();
 				$tagform.detach();
 			}
 		});
@@ -118,7 +208,283 @@ adiary.load_contents_list($upsel);
 	$tagsel.change(function(){
 		if ($(':selected', $tagsel).data('new')) return;
 		tag_append( $tagsel.val() );
-		$div.adiaryDialog( 'close' );
+		$tagsel.val('');
+		update_candidates();
+	});
+}
+
+//##############################################################################
+// ■サムネイル（OGP画像）の選択
+//##############################################################################
+// name="ogp" の入力欄が実体。空なら記事の最初の画像（サーバー側で自動選択）
+{
+	const $picker = $('#thumbnail-picker');
+	const $ogp    = $('#ogp-input');
+	const imgdir  = $('#image-dir').text();		// 画像ディレクトリ（相対）
+	const img_url = adiary.Basepath + imgdir;
+	const img_ext = /\.(?:jpe?g|png|gif|webp|apng|bmp|tiff?|ico)$/i;
+
+	// [image:S:folder/:file:caption] 記法と、画像ディレクトリ内を指すURLを出現順に拾う
+	const dir_re = imgdir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	const img_re = new RegExp('\\[image:[^:\\]]*:([^:\\]]*/):([^:\\]]+)|' + dir_re + '([^\\s"\'<>()\\]]+)', 'g');
+
+	// 画像ディレクトリからの相対パスの一覧を返す（サムネイルは元画像に戻す）
+	function find_images(text) {
+		const list = [];
+		img_re.lastIndex = 0;
+		let m;
+		while((m = img_re.exec(text))) {
+			let path = (m[3] !== undefined) ? m[3] : m[1] + m[2];
+			path = path.replace(/(^|\/)\.thumbnail\/(.+)\.jpg$/, '$1$2');
+			if (img_ext.test(path) && list.indexOf(path) < 0) list.push(path);
+		}
+		return list;
+	}
+
+	// 入力欄の値を画像パスに正規化（記法で入力された場合にも対応）
+	function current_value() {
+		const val = $ogp.val().trim();
+		if (val.indexOf(':') < 0) return val;
+		return find_images(val)[0] || val;
+	}
+
+	function thumb_url(path) {
+		const x = path.lastIndexOf('/');
+		const enc = function(s){ return s.split('/').map(encodeURIComponent).join('/') };
+		return img_url + enc(path.substr(0, x+1) + '.thumbnail/' + path.substr(x+1) + '.jpg');
+	}
+	function full_url(path) {
+		return img_url + path.split('/').map(encodeURIComponent).join('/');
+	}
+
+	function make_item(path, label, value, selected) {
+		const $li = $('<li>').attr('data-value', value).attr('title', label || path);
+		if (selected) $li.addClass('selected');
+		if (path) {
+			const $img = $('<img>').attr({ src: thumb_url(path), alt: '', loading: 'lazy' });
+			$img.one('error', function(){ $img.attr('src', full_url(path)) });
+			$li.append($img);
+		}
+		if (label) $li.append( $('<span>').addClass('label').text(label) );
+		return $li;
+	}
+
+	let images = [];
+	function render() {
+		const cur = current_value();
+		$picker.empty();
+
+		// 自動（記事の最初の画像）
+		const auto_label = $('#thumbnail-auto').text();
+		const $auto = make_item(images[0], auto_label, '', cur == '');
+		$auto.attr('title', auto_label + ' : ' + (images.length ? $('#thumbnail-auto-help').text() : $('#thumbnail-none').text()));
+		$picker.append($auto);
+
+		images.forEach(function(path){
+			$picker.append( make_item(path, '', path, cur == path) );
+		});
+		// 記事にない画像が指定されている
+		if (cur != '' && images.indexOf(cur) < 0) {
+			$picker.append( make_item(cur.indexOf(':') < 0 ? cur : '', $('#thumbnail-direct-label').text(), cur, true) );
+		}
+	}
+
+	$picker.on('click', 'li', function(evt){
+		$ogp.val( $(evt.currentTarget).attr('data-value') );
+		render();
+	});
+	$ogp.on('input', render);
+
+	// 記事本文の変更を反映（アルバムからの挿入等はinputイベントが来ないので定期確認）
+	let last_text;
+	function rescan() {
+		const text = $edit.val();
+		if (text === last_text) return;
+		last_text = text;
+		const list = find_images(text);
+		if (list.join("\n") === images.join("\n")) return;
+		images = list;
+		render();
+	}
+	rescan();
+	render();
+	setInterval(rescan, 1500);
+
+	// 保存済みの値が記事の最初の画像と同じなら「自動」扱いにする
+	if (images.length && current_value() == images[0]) {
+		$ogp.val('');
+		render();
+	}
+}
+
+//##############################################################################
+// ■更新履歴
+//##############################################################################
+{
+	const $btn    = $secure('#edit-revision');
+	const $dialog = $secure('#revision-dialog').detach();
+	const $list   = $dialog.find('#revision-list');
+	const $title  = $dialog.find('#revision-title');
+	const $body   = $dialog.find('#revision-body');
+	const max_cells = 4000000;	// 差分計算の上限（行数の積）
+	let cur_rev;			// 表示中の版
+
+	function ajax_revision(data, callback) {
+		data.action = 'ajax_revision';
+		data.csrf_check_key = CSRF_key;
+		$.ajax({
+			type: 'POST',
+			url:  adiary.myself + '?etc/ajax_dummy',
+			dataType: 'json',
+			data: data,
+			success: callback,
+			error: function(){ callback(null) }
+		});
+	}
+
+	function format_tm(tm) {
+		const d = new Date(tm * 1000);
+		const z = function(n){ return (n < 10 ? '0' : '') + n };
+		return d.getFullYear() + '/' + z(d.getMonth()+1) + '/' + z(d.getDate())
+			+ ' ' + z(d.getHours()) + ':' + z(d.getMinutes());
+	}
+
+	//--------------------------------------------------------------------------
+	// ●行単位の差分（a → b）。大きすぎる場合は null
+	//--------------------------------------------------------------------------
+	function line_diff(a, b) {
+		// 前後の共通部分は比較しない
+		let s = 0;
+		while(s < a.length && s < b.length && a[s] === b[s]) s++;
+		let ea = a.length, eb = b.length;
+		while(ea > s && eb > s && a[ea-1] === b[eb-1]) { ea--; eb--; }
+		const A = a.slice(s, ea), B = b.slice(s, eb);
+		const n = A.length, m = B.length, w = m + 1;
+		if (n * m > max_cells) return null;
+
+		// LCS
+		const L = new Uint32Array((n+1) * w);
+		for(let i=n-1; i>=0; i--)
+			for(let j=m-1; j>=0; j--)
+				L[i*w+j] = (A[i] === B[j]) ? L[(i+1)*w+j+1] + 1 : Math.max(L[(i+1)*w+j], L[i*w+j+1]);
+
+		const out = [];
+		for(let k=0; k<s; k++) out.push([' ', a[k]]);
+		let i=0, j=0;
+		while(i<n && j<m) {
+			if (A[i] === B[j])                  { out.push([' ', A[i]]); i++; j++; }
+			else if (L[(i+1)*w+j] >= L[i*w+j+1]) { out.push(['-', A[i]]); i++; }
+			else                                 { out.push(['+', B[j]]); j++; }
+		}
+		for(; i<n; i++) out.push(['-', A[i]]);
+		for(; j<m; j++) out.push(['+', B[j]]);
+		for(let k=ea; k<a.length; k++) out.push([' ', a[k]]);
+		return out;
+	}
+
+	// 変更行の前後だけを表示する
+	function render_diff(diff) {
+		const ctx = 2;
+		const show = new Array(diff.length).fill(false);
+		diff.forEach(function(d, i){
+			if (d[0] == ' ') return;
+			for(let k=Math.max(0, i-ctx); k<=Math.min(diff.length-1, i+ctx); k++) show[k] = true;
+		});
+		$body.empty();
+		let skipped = false;
+		diff.forEach(function(d, i){
+			if (!show[i]) { skipped = true; return; }
+			if (skipped) { $body.append( $('<span>').addClass('rev-skip').text("…") ); skipped = false; }
+			const cls = d[0] == '-' ? 'rev-del' : d[0] == '+' ? 'rev-add' : 'rev-ctx';
+			$body.append( $('<span>').addClass(cls).text(d[0] + ' ' + d[1]) );
+		});
+		if (skipped) $body.append( $('<span>').addClass('rev-skip').text("…") );
+	}
+
+	function show_revision() {
+		$title.empty();
+		$body.empty().removeClass('rev-full');
+		if (!cur_rev) {
+			$body.text( $('#rev-select').text() );
+			return;
+		}
+		$title.html( cur_rev.title );
+
+		const mode = $dialog.find('input[name="rev_mode"]:checked').val();
+		const text = cur_rev.text;
+		if (mode == 'diff') {
+			const now  = $edit.val().replace(/\r\n?/g, "\n");
+			if (now === text) { $body.text( $('#rev-same').text() ); return; }
+			const diff = line_diff(text.split("\n"), now.split("\n"));
+			if (diff) return render_diff(diff);
+			$title.append( $('<div>').addClass('rev-note').text( $('#rev-too-large').text() ) );
+		}
+		$body.addClass('rev-full').text(text);
+	}
+	$dialog.find('input[name="rev_mode"]').on('change', show_revision);
+
+	//--------------------------------------------------------------------------
+	// ●一覧
+	//--------------------------------------------------------------------------
+	$list.on('click', 'li[data-pkey]', function(evt){
+		const $li = $(evt.currentTarget);
+		$list.children().removeClass('selected');
+		$li.addClass('selected');
+		ajax_revision({ rev: $li.attr('data-pkey') }, function(data){
+			if (!data) return;
+			data.text = data.text.replace(/\r\n?/g, "\n");
+			cur_rev = data;
+			show_revision();
+		});
+	});
+
+	function load_list() {
+		$list.empty();
+		cur_rev = undefined;
+		show_revision();
+		ajax_revision({ pkey: $('#edit-pkey').val() }, function(data){
+			if (!data || !data.length) {
+				$list.append( $('<li>').addClass('rev-empty').text( $('#rev-empty').text() ) );
+				return;
+			}
+			const chars = $('#rev-chars').text();
+			data.forEach(function(r){
+				const $li = $('<li>').attr('data-pkey', r.pkey);
+				$li.append( $('<span>').addClass('rev-tm').text( format_tm(r.update_tm || r.tm) ) );
+				$li.append( $('<span>').addClass('rev-len').text( chars.replace('%n', r.length.toLocaleString()) ) );
+				$li.append( $('<div>').addClass('rev-title').html( r.title ) );
+				$list.append($li);
+			});
+		});
+	}
+
+	//--------------------------------------------------------------------------
+	// ●ダイアログ
+	//--------------------------------------------------------------------------
+	$btn.click(function(){
+		const $div = $('<div>').append($dialog);
+		const buttons = {};
+		buttons[ $('#rev-load').text() ] = function(){
+			if (!cur_rev) return;
+			const msg = $('#rev-confirm').text().replace('%t', format_tm(cur_rev.update_tm || cur_rev.tm));
+			adiary.confirm(msg, function(ok){
+				if (!ok) return;
+				$edit.val(cur_rev.text).trigger('input');
+				$div.adiaryDialog('close');
+			});
+		};
+		buttons[ $('#new-tag-close').text() ] = function(){
+			$div.adiaryDialog('close');
+		};
+		$div.adiaryDialog({
+			modal:	true,
+			width:	Math.min(960, $(window).width() - 20),
+			minHeight: 300,
+			title:	$btn.data('title'),
+			buttons: buttons,
+			beforeClose: function(){ $dialog.detach(); }
+		});
+		load_list();
 	});
 }
 

@@ -553,11 +553,12 @@ $$.init_top_search = function(id, flag) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●タグ一覧のロード
 ////////////////////////////////////////////////////////////////////////////////
-$$.load_tags_list = function(id) {
+$$.load_tags_list = function(id, callback) {
 	const $sel     = $(id);		// セレクトボックス
 	const _default = $sel.data('default') || '';
 
 	$.getJSON( $sel.data('url'), function(data){
+		if (callback) callback(data);
 		var r_func = function(ary, head, tab) {
 			for(var i=0; i<ary.length; i++) {
 				var name= ary[i].title;
