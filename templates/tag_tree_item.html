@@ -1,0 +1,9 @@
+<li><a href="{{ node.url }}">{{ node.name }}</a> <span class="count">({{ node.count }})</span>
+{{# if node.children }}
+<ul>
+{{# for node in node.children }}
+{{> tag_tree_item }}
+{{/ for }}
+</ul>
+{{/ if }}
+</li>

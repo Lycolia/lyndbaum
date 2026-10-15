@@ -1,0 +1,28 @@
+{{! 検索結果の1件。title_html、snippets、source_lines の html は Lyndbaum::Highlight がエスケープ済みで、<mark> だけを含む }}
+<article class="article-summary search-result">
+  <h2 class="summary-title"><a href="{{ article.url }}">{{# if article.title_html }}{{ raw article.title_html }}{{# else }}{{ article.title }}{{/ if }}</a></h2>
+  <p class="article-meta">
+    {{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+    {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
+  </p>
+  {{# if article.source_lines }}
+  <ol class="search-lines">
+    {{# for line in article.source_lines }}
+    <li><span class="search-line-number">{{ line.number }}</span><code>{{ raw line.html }}</code></li>
+    {{/ for }}
+  </ol>
+  {{# if article.omitted_lines }}
+  <p class="search-more">ほかに {{ article.omitted_lines }} 行</p>
+  {{/ if }}
+  {{# else }}
+  {{# if article.snippets }}
+  {{# for s in article.snippets }}
+  <p class="search-snippet">{{ raw s }}</p>
+  {{/ for }}
+  {{# else }}
+  {{# if article.description }}
+  <p class="summary-description">{{ article.description }}</p>
+  {{/ if }}
+  {{/ if }}
+  {{/ if }}
+</article>

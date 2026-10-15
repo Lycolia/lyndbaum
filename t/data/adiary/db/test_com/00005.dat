@@ -1,0 +1,11 @@
+pkey=5
+a_pkey=1
+num=4
+name=保留の人
+enable=0
+hidden=0
+ip=192.0.2.4
+host=
+agent=TestAgent/1.0
+tm=1700004000
+text=承認待ち

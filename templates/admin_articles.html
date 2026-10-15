@@ -1,0 +1,47 @@
+<h1>記事</h1>
+{{# if trashed }}
+<p class="admin-notice" role="status">{{ trashed }}件の記事をゴミ箱へ移しました。<a href="{{ urls.trash }}">ゴミ箱</a>から戻せます。</p>
+{{/ if }}
+{{# if feed_failed }}
+<p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
+{{/ if }}
+<p class="admin-filters"><a href="{{ urls.new_article }}">新しい記事を書く</a> <a href="{{ urls.new_page }}">新しいページを作る</a></p>
+<p class="admin-filters">
+  {{# for filter in filters }}
+  {{# if filter.current }}<strong>{{ filter.label }}（{{ filter.count }}）</strong>{{# else }}<a href="{{ filter.url }}">{{ filter.label }}（{{ filter.count }}）</a>{{/ if }}
+  {{/ for }}
+  <a href="{{ urls.trash }}">ゴミ箱（{{ trash_count }}）</a>
+</p>
+<form class="admin-search" method="get" action="{{ urls.articles }}">
+  {{# if status }}<input type="hidden" name="status" value="{{ status }}">{{/ if }}
+  <input type="search" name="q" value="{{ q }}" aria-label="題名で探す" placeholder="題名で探す">
+  <button type="submit">探す</button>
+</form>
+{{# if not articles }}
+<p>記事はありません。</p>
+{{/ if }}
+{{# if articles }}
+<form method="post" action="{{ urls.trash_selected }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <table class="admin-articles">
+    <thead>
+      <tr><th></th><th>題名</th><th>状態</th><th>公開日時</th><th>更新日時</th><th>コメント</th><th></th></tr>
+    </thead>
+    <tbody>
+      {{# for article in articles }}
+      <tr{{# if article.draft }} class="admin-article-draft"{{/ if }}>
+        <td><input type="checkbox" name="id" value="{{ article.id }}" aria-label="「{{ article.title }}」を選ぶ"></td>
+        <td><a href="{{ article.edit_url }}">{{ article.title }}</a>{{# if article.is_page }} <span class="admin-status">ページ</span>{{/ if }}</td>
+        <td>{{ article.status_label }}</td>
+        <td>{{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.datetime }}</time>{{/ if }}</td>
+        <td><time datetime="{{ article.updated.iso }}">{{ article.updated.datetime }}</time></td>
+        <td>{{ article.comments_count }}</td>
+        <td><a href="{{ article.url }}">見る</a></td>
+      </tr>
+      {{/ for }}
+    </tbody>
+  </table>
+  <p><button type="submit" data-confirm="%c件の記事をゴミ箱へ移動しますか？（ゴミ箱から戻せます）">選んだ記事をゴミ箱へ移動</button></p>
+</form>
+{{/ if }}
+{{> admin_pager }}

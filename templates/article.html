@@ -1,0 +1,17 @@
+<article class="article">
+  {{# if article.is_draft }}
+  <p class="draft-notice" role="status">下書きです。管理者にだけ見えています。<a href="{{ article.edit_url }}">編集する</a></p>
+  {{/ if }}
+  <header>
+    <h1 class="article-title">{{ article.title }}</h1>
+    <p class="article-meta">
+      {{# if not article.is_page }}{{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.datetime }}</time>{{/ if }}{{/ if }}
+      {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
+    </p>
+  </header>
+  <div class="article-body">
+    {{! body はパーサーが作ったHTMLで、パーサーの側でエスケープと許可リストの確認をしている }}
+    {{ raw article.body }}
+  </div>
+  {{# if article.comments }}{{> comments_section }}{{# else }}{{# if article.comment_form }}{{> comments_section }}{{/ if }}{{/ if }}
+</article>

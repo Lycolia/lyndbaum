@@ -1,0 +1,88 @@
+=== 目次
+--- options: sectioning=1
+--- input
+# 見出し
+
+[*toc]
+--- expected
+<section>
+<h3 id="見出し"><a href="#見出し">見出し</a></h3>
+<ul class="toc">
+	<li><a href="#見出し">見出し</a></li>
+</ul>
+</section>
+
+=== 続きを読む
+--- input
+前
+
+====
+
+後
+--- expected
+<p>前</p>
+<!--more-->
+<p>後</p>
+
+=== 画像アルバムの画像
+--- input
+[image:S:adiary/2026/01/:a.png:キャプション]
+--- expected
+<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="キャプション" data-fancybox="k1"><img alt="キャプション" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
+
+=== 画像を並べても参照リンクにならない
+--- input
+[image:S:adiary/2026/01/:a.png:A][image:S:adiary/2026/01/:b.png:B]
+--- expected
+<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="A" data-fancybox="k1"><img alt="A" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><a href="/attachments/adiary/2026/01/b.png" class="tag-image-S" title="B" data-fancybox="k1"><img alt="B" src="/attachments/adiary/2026/01/.thumbnail/b.png.jpg"></a></p>
+
+=== 画像のキャプションがあるときだけ figure で囲む
+# キャプションは、画像の後の2つ目以降の引数に # を付けて書く
+# 画像だけの段落なら <p> で囲まない（<p> の中に <figure> は置けないため）
+--- input
+[image:S:adiary/2026/01/:a.png:代替:#説明]
+--- expected
+<figure><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-fancybox="k1"><img alt="代替" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
+
+=== YouTube
+--- input
+[youtube:abc-DEF_123]
+--- expected
+<p><iframe class="youtube-player" width="480" height="270" src="https://www.youtube.com/embed/abc-DEF_123" frameborder="0" allowfullscreen></iframe></p>
+
+=== URLの埋め込み（YouTube）
+--- input
+[&https://www.youtube.com/watch?v=n_D__CT5-H0&t=4279s]
+--- expected
+<p><iframe class="youtube-player" width="480" height="270" src="https://www.youtube.com/embed/n_D__CT5-H0?start=4279" frameborder="0" allowfullscreen></iframe></p>
+
+=== バナー
+--- input
+[info:お知らせ]
+--- expected
+<div class="notice_banner info">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"></path></svg></div>    <div class="message">お知らせ</div></div>
+
+=== 非対応: 注釈 ((注釈)) は文章
+--- input
+本文((注釈))
+--- expected
+<p>本文((注釈))</p>
+
+
+=== 二重の角括弧で囲んだタグは外側を消す
+--- input
+[[youtube:abc]]
+--- expected
+<p><iframe class="youtube-player" width="480" height="270" src="https://www.youtube.com/embed/abc" frameborder="0" allowfullscreen></iframe></p>
+
+=== 添付ファイルのファイル名はパーセントエンコードする
+--- input
+[image:S:adiary/2024/:image (1).png:図]
+--- expected
+<p><a href="/attachments/adiary/2024/image%20(1).png" class="tag-image-S" title="図" data-fancybox="k1"><img alt="図" src="/attachments/adiary/2024/.thumbnail/image%20(1).png.jpg"></a></p>
+
+=== 代替テキストはファイル名と同じでも書いたとおりに出す（ファイル名と同じものは、旧データの取り込みで落とす）
+--- input
+[image:S:a/:x_(1)!.png:x_(1)!.png][image:S:a/:x,y.png]
+--- expected
+<p><a href="/attachments/a/x_(1)!.png" class="tag-image-S" title="x_(1)!.png" data-fancybox="k1"><img alt="x_(1)!.png" src="/attachments/a/.thumbnail/x_(1)!.png.jpg"></a><a href="/attachments/a/x,y.png" class="tag-image-S" title="" data-fancybox="k1"><img alt="" src="/attachments/a/.thumbnail/x,y.png.jpg"></a></p>

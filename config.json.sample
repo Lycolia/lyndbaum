@@ -1,0 +1,11 @@
+{
+	"site_url": "https://blog.example.jp",
+	"db_path": "var/lyndbaum.db",
+	"base_path": "",
+	"static_path": "/pub/assets",
+	"attachment_path": "/pub/attachments/",
+	"attachment_dir": "pub/attachments",
+	"upload_max_mb": 20,
+	"cookie_secure": true,
+	"secret_key": ""
+}

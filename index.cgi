@@ -1,44 +1,39 @@
 #!/usr/bin/env perl
+# 入口。処理はすべて Lyndbaum::App に任せる
 use strict;
 use warnings;
-
-unshift(@INC, './lib');
+use utf8;
 
 BEGIN {
 	if ($] < 5.032) {
-		my $main_ver = int($]);
-        my $sub_ver = int(($]-$main_ver)*1000);
-        my $full_ver = $main_ver.$sub_ver;
-
-		print "Content-Type: text/html;\n\n";
-		print "Do not work with <u>Perl $full_ver</u>.<br>Requires <strong>Perl 5.32 or newer</strong>.";
-		exit(-1);
+		print "Status: 500 Internal Server Error\r\n";
+		print "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+		printf "Requires Perl 5.32 or newer (this is Perl %vd).\n", $^V;
+		exit;
 	}
-};
-
-# eval {
-# 	require Lyndbaum::Core;
-# 	require Lyndbaum::Route;
-
-# 	my $core = Lyndbaum::Core->new();
-
-# 	Lyndbaum::Route->route($core->request_uri, $core->query_string);
-# }
-require Lyndbaum::Core;
-require Lyndbaum::Response;
-
-my $core = Lyndbaum::Core->new(env => \%ENV);
-my $response = eval { $core->run };
-
-if ($response) {
-	$response = Lyndbaum::Response->send(
-		200,
-		$response,
-	);
-} else {
-	# warn $@ if $@;
-	# $response = Lyndbaum::Response->text(
-	# 	500,
-	# 	'Internal Server Error',
-	# );
 }
+
+use FindBin;
+use lib "$FindBin::Bin/lib", "$FindBin::Bin/extlib";
+
+use Lyndbaum::App;
+use Lyndbaum::Response;
+
+my $response = eval {
+	my $app = Lyndbaum::App->new(
+		root        => $FindBin::Bin,
+		config_file => $ENV{LYNDBAUM_CONFIG} // "$FindBin::Bin/config.json",
+	);
+	$app->handle(\%ENV);
+};
+if (!$response) {
+	warn $@;
+	$response = Lyndbaum::Response->new(
+		status       => 500,
+		content_type => 'text/plain',
+		body         => "Internal Server Error\n",
+	);
+}
+
+binmode STDOUT;
+print $response->as_cgi;

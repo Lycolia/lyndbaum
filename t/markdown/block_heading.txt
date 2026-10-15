@@ -1,0 +1,138 @@
+=== 見出し
+--- input
+# 見出し
+--- expected
+<h3 id="見出し"><a href="#見出し">見出し</a></h3>
+
+=== 見出しレベル1〜6
+--- input
+# h1
+## h2
+### h3
+#### h4
+##### h5
+###### h6
+--- expected
+<h3 id="h1"><a href="#h1">h1</a></h3>
+<h4 id="h2"><a href="#h2">h2</a></h4>
+<h5 id="h3"><a href="#h3">h3</a></h5>
+<h6 id="h4"><a href="#h4">h4</a></h6>
+<h6 id="h5"><a href="#h5">h5</a></h6>
+<h6 id="h6"><a href="#h6">h6</a></h6>
+
+=== 本番設定（section・アンカー付き）
+--- options: sectioning=1
+--- input
+# 見出し1
+
+本文
+
+## 見出し2
+
+本文2
+--- expected
+<section>
+<h3 id="見出し1"><a href="#見出し1">見出し1</a></h3>
+<p>本文</p>
+<h4 id="見出し2"><a href="#見出し2">見出し2</a></h4>
+<p>本文2</p>
+</section>
+
+=== 見出しの末尾の#は消さない
+--- input
+## C#
+--- expected
+<h4 id="c-"><a href="#c-">C#</a></h4>
+
+=== #の後に空白が無いものは文章
+--- input
+#見出し
+--- expected
+<p>#見出し</p>
+
+=== 非対応: 閉じ#は見出しの文字として残る
+--- input
+## 見出し ##
+--- expected
+<h4 id="見出し-"><a href="#見出し-">見出し ##</a></h4>
+
+=== 非対応: 行頭に空白のある見出しは文章
+--- input
+  ### 見出し
+--- expected
+<p>### 見出し</p>
+
+=== 非対応: 下線の見出し(===)は文章
+--- input
+見出し
+===
+--- expected
+<p>見出し<br />
+===</p>
+
+=== 非対応: 下線の見出し(---)は段落と区切り線
+--- input
+見出し
+---
+--- expected
+<p>見出し</p>
+<hr />
+
+
+=== 最初の見出しより前の文章も section で囲む
+--- options: sectioning=1
+--- input
+前書き
+
+# 見出し1
+
+本文
+--- expected
+<section>
+<p>前書き</p>
+</section>
+<section>
+<h3 id="見出し1"><a href="#見出し1">見出し1</a></h3>
+<p>本文</p>
+</section>
+
+=== 見出しのIDでは原文の - を残す
+--- input
+## `sort -r`：逆ソート
+--- expected
+<h4 id="-sort--r-：逆ソート"><a href="#-sort--r-：逆ソート"><code>sort -r</code>：逆ソート</a></h4>
+
+=== 見出しの識別子（行末の [#識別子]）をIDにし、文字には出さない
+--- input
+# 見出し [#l7a712f2]
+## C# の話 [#日本語も可]
+--- expected
+<h3 id="l7a712f2"><a href="#l7a712f2">見出し</a></h3>
+<h4 id="日本語も可"><a href="#日本語も可">C# の話</a></h4>
+
+=== 識別子の前に空白が無いもの、\[# と書いたものは文字
+--- input
+# 見出し[#a1]
+# 見出し \[#a2]
+--- expected
+<h3 id="見出し-a1-"><a href="#見出し-a1-">見出し[#a1]</a></h3>
+<h3 id="見出し-a2-"><a href="#見出し-a2-">見出し [#a2]</a></h3>
+
+=== 同じ識別子が2つあれば、後のものに -2 を付ける
+--- input
+# 一 [#x]
+# 二 [#x]
+--- expected
+<h3 id="x"><a href="#x">一</a></h3>
+<h3 id="x-2"><a href="#x-2">二</a></h3>
+
+=== 目次のリンクも識別子を使う
+--- input
+[*toc]
+
+# 見出し [#a1b2c3d4]
+--- expected
+<ul class="toc">
+	<li><a href="#a1b2c3d4">見出し</a></li>
+</ul>
+<h3 id="a1b2c3d4"><a href="#a1b2c3d4">見出し</a></h3>

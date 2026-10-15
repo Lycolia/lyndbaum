@@ -1,0 +1,49 @@
+<h1>コメント</h1>
+<p class="admin-filters">
+  {{# for filter in filters }}
+  {{# if filter.current }}<strong>{{ filter.label }}（{{ filter.count }}）</strong>{{# else }}<a href="{{ filter.url }}">{{ filter.label }}（{{ filter.count }}）</a>{{/ if }}
+  {{/ for }}
+</p>
+{{# if not comments }}
+<p>コメントはありません。</p>
+{{/ if }}
+{{# for comment in comments }}
+<article class="admin-comment{{# if comment.held }} admin-comment-held{{/ if }}">
+  <p class="comment-meta">
+    <span class="admin-status">{{ comment.status_label }}</span>
+    {{# if comment.url }}<a href="{{ comment.url }}">{{ comment.title }} #{{ comment.num }}</a>{{# else }}{{ comment.title }} #{{ comment.num }}（記事は非公開）{{/ if }}
+  </p>
+  <p class="comment-meta">
+    <span class="comment-author">{{ comment.author_name }}</span>{{# if comment.by_admin }} <span class="comment-badge">管理者</span>{{/ if }}
+    <time datetime="{{ comment.created.iso }}">{{ comment.created.datetime }}</time>
+  </p>
+  {{! 本文はエスケープして文字のまま出す。URLはうっかり開かないようリンクにしない }}
+  <div class="comment-text">{{ comment.body }}</div>
+  <p class="admin-comment-source">IP：{{ comment.ip }}{{# if comment.ip_blocked }}（拒否中）{{/ if }} ／ ホスト：{{ comment.host }} ／ UA：{{ comment.user_agent }}</p>
+  <div class="admin-actions">
+    {{# if comment.held }}
+    <form method="post" action="{{ comment.action_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ back }}">
+      <button type="submit" name="action" value="approve">承認</button>
+    </form>
+    {{# else }}
+    <form method="post" action="{{ comment.action_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ back }}">
+      <button type="submit" name="action" value="hide">非表示</button>
+    </form>
+    {{/ if }}
+    {{# if comment.ip }}{{# if not comment.ip_blocked }}
+    <form method="post" action="{{ comment.action_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ back }}">
+      <button type="submit" name="action" value="block_ip">このIPを拒否</button>
+    </form>
+    {{/ if }}{{/ if }}
+    <form method="post" action="{{ comment.action_url }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ back }}">
+      <label><input type="checkbox" name="confirm" value="1" required>確認</label>
+      <button type="submit" name="action" value="delete">削除</button>
+    </form>
+  </div>
+</article>
+{{/ for }}
+{{> admin_pager }}

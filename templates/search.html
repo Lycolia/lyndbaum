@@ -1,0 +1,31 @@
+<header class="list-header">
+  <h1>{{ title }}</h1>
+</header>
+{{> search_form }}
+{{# if pager }}
+<section class="search-conditions">
+  {{# if selected }}
+  <p class="search-selected">
+    絞り込み：
+    {{# for s in selected }}<span class="search-chip">{{ s.label }} <a href="{{ s.remove_url }}" aria-label="{{ s.label }} の絞り込みを外す">×</a></span> {{/ for }}
+  </p>
+  {{/ if }}
+  {{# if tag_facet }}
+  <p class="search-facet">
+    <span class="search-facet-caption">タグで絞り込み</span>
+    {{# for f in tag_facet }}<a href="{{ f.url }}">{{ f.label }}</a> <span class="count">({{ f.count }})</span> {{/ for }}
+  </p>
+  {{/ if }}
+  {{# if date_facet }}
+  <p class="search-facet">
+    <span class="search-facet-caption">日付で絞り込み</span>
+    {{# for f in date_facet }}<a href="{{ f.url }}">{{ f.label }}</a> <span class="count">({{ f.count }})</span> {{/ for }}
+  </p>
+  {{/ if }}
+  <p>{{ pager.total }} 件</p>
+</section>
+{{# for article in articles }}
+{{> search_result }}
+{{/ for }}
+{{> pager }}
+{{/ if }}

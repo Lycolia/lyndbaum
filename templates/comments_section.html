@@ -1,0 +1,16 @@
+{{! コメントの欄。id="com" は旧システムと同じ。各コメントの id="cN" も、外からのリンクが壊れないよう旧システムと同じにする }}
+<section class="comments" id="com">
+  <h2 class="comments-title">コメント（{{ article.comments_count }}件）</h2>
+  {{# for comment in article.comments }}
+  <article class="comment-entry{{# if comment.by_admin }} comment-admin{{/ if }}" id="c{{ comment.num }}">
+    <p class="comment-meta">
+      <a class="comment-num" href="#c{{ comment.num }}">{{ comment.num }}</a>
+      <span class="comment-author">{{ comment.author_name }}</span>{{# if comment.by_admin }} <span class="comment-badge">管理者</span>{{/ if }}
+      <time datetime="{{ comment.created.iso }}">{{ comment.created.datetime }}</time>
+    </p>
+    {{! html は Lyndbaum::CommentText が作ったもので、そこでエスケープしている }}
+    <div class="comment-text">{{ raw comment.html }}</div>
+  </article>
+  {{/ for }}
+  {{# if article.comment_form }}{{> comment_form }}{{/ if }}
+</section>

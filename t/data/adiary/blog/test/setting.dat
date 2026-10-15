@@ -1,0 +1,10 @@
+blog_name=テストのブログ
+description_txt=
+load_items=3
+rss_items_int=7
+blog_image=pub/test/image/@system/blog.png
+p:des_freetext,1:title=フリーテキスト
+*event:SETTING=<<__END_BLK_DATA
+des_artlist
+des_comlist
+__END_BLK_DATA

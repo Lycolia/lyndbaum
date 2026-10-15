@@ -1,0 +1,28 @@
+{{# if article.comment_form.notice }}
+<p class="comment-notice" role="status">{{ article.comment_form.notice }}</p>
+{{/ if }}
+{{# if article.comment_form.open }}
+<form class="comment-form" id="comment-form" method="post" action="{{ article.comment_form.action }}#comment-form"{{# if article.comment_form.js_token }} data-token="{{ article.comment_form.token }}"{{/ if }}>
+  {{# if article.comment_form.errors }}
+  <div class="comment-errors" role="alert">
+    <ul>
+      {{# for error in article.comment_form.errors }}<li>{{ error }}</li>{{/ for }}
+    </ul>
+  </div>
+  {{/ if }}
+  {{# if article.comment_form.admin }}<p class="comment-help">管理者として書き込みます。</p>{{/ if }}
+  <p><label>名前<br><input type="text" name="name" value="{{ article.comment_form.name }}" required></label></p>
+  <p><label>本文<br><textarea name="body" rows="5" required>{{ article.comment_form.body }}</textarea></label></p>
+  {{! おとりの欄。人には見えないので、何か入っていたらボットとしてはじく }}
+  <div class="comment-hp" aria-hidden="true"><label>Website <input type="text" name="website" value="" tabindex="-1" autocomplete="off"></label></div>
+  {{# if article.comment_form.js_token }}
+  <input type="hidden" name="token" value="">
+  <noscript><p class="comment-help">コメントを書くには、JavaScriptを有効にしてください。</p></noscript>
+  {{# else }}
+  <input type="hidden" name="token" value="{{ article.comment_form.token }}">
+  {{/ if }}
+  <p class="comment-help">URLを含むコメントは、管理者が承認するまで表示されません。<code>&gt;&gt;1</code>と書くと、1番のコメントへのリンクになります。</p>
+  <p><button type="submit">投稿</button></p>
+</form>
+{{# if article.comment_form.js_token }}<script src="{{ article.comment_form.script }}" defer></script>{{/ if }}
+{{/ if }}

@@ -1,0 +1,7 @@
+{{# for article in articles }}
+{{> article_summary }}
+{{/ for }}
+{{# if not articles }}
+<p>記事はまだありません。</p>
+{{/ if }}
+{{> pager }}

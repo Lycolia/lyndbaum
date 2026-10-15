@@ -1,0 +1,81 @@
+=== コードフェンス（言語あり）
+--- input
+```perl
+my $a = 1;
+```
+--- expected
+<pre><code class="language-perl">my $a = 1;
+</code></pre>
+
+=== コードフェンス（言語なし）
+--- input
+```
+text
+```
+--- expected
+<pre><code class="language-">text
+</code></pre>
+
+=== コード内のHTMLはエスケープ
+--- input
+```
+<b>&amp;</b>
+```
+--- expected
+<pre><code class="language-">&lt;b&gt;&amp;amp;&lt;/b&gt;
+</code></pre>
+
+=== 4つのバッククォートで中に```を含める
+--- input
+````md
+```
+code
+```
+````
+--- expected
+<pre><code class="language-md">```
+code
+```
+</code></pre>
+
+=== 非対応: インデントのコードブロックは文章
+--- input
+前
+
+    code
+
+後
+--- expected
+<p>前</p>
+<p>code</p>
+<p>後</p>
+
+=== 非対応: ~~~ のフェンスは文章
+--- input
+~~~
+code
+~~~
+--- expected
+<p>~~~<br />
+code<br />
+~~~</p>
+
+=== 非対応: math のフェンスは普通のコードブロック
+--- input
+```math
+x^2
+```
+--- expected
+<pre><code class="language-math">x^2
+</code></pre>
+
+=== 非対応: 字下げしたフェンスは文章
+--- input
+   ```
+   code
+   ```
+--- expected
+<p>```<br />
+code<br />
+```</p>
+

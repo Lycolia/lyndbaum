@@ -1,0 +1,15 @@
+pkey=3
+link_key=親ページ/子ページ
+title=子ページ
+parser=markdown
+enable=1
+yyyymmdd=20231115
+tm=1700000300
+update_tm=1700000300
+ctype=wiki
+upnode=4
+priority=100000
+main_image=adiary/2023/image.png
+*_text=<<__END_BLK_DATA
+子の本文
+__END_BLK_DATA

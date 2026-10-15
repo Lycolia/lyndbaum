@@ -1,0 +1,11 @@
+pkey=6
+a_pkey=4
+num=1
+name=非公開の人
+enable=0
+hidden=1
+ip=192.0.2.3
+host=
+agent=TestAgent/1.0
+tm=1700006000
+text=取り込まない非公開コメント

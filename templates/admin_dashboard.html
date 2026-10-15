@@ -1,0 +1,20 @@
+<h1>ダッシュボード</h1>
+{{# if rebuilt }}
+<p class="admin-notice" role="status">{{ rebuilt }}件の記事の本文を変換し直しました。</p>
+{{/ if }}
+{{# if feed_failed }}
+<p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
+{{/ if }}
+<ul>
+  <li><a href="{{ urls.articles }}?status=draft">下書き</a>：{{ article_counts.draft }}件</li>
+  <li><a href="{{ urls.articles }}?status=published">公開中の記事</a>：{{ article_counts.published }}件</li>
+  <li><a href="{{ urls.trash }}">ゴミ箱</a>：{{ trash_count }}件</li>
+  <li><a href="{{ urls.comments }}?status=held">承認待ちのコメント</a>：{{ comment_counts.held }}件</li>
+  <li><a href="{{ urls.comments }}?status=public">公開中のコメント</a>：{{ comment_counts.public }}件</li>
+</ul>
+<h2>再構築</h2>
+<p>すべての記事の本文を変換し直し、RSSを書き出し直します。パーサーを直したときに使います（表示や検索のときには本文を変換し直さないため）。</p>
+<form method="post" action="{{ urls.rebuild }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <button type="submit">再構築する</button>
+</form>

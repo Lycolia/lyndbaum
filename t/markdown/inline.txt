@@ -1,0 +1,166 @@
+=== リンク
+--- input
+[文字](https://example.com)
+--- expected
+<p><a href="https://example.com">文字</a></p>
+
+=== リンク（URLを<>で囲む）
+--- input
+[文字](<https://example.com/a_(b)>)
+--- expected
+<p><a href="https://example.com/a_(b)">文字</a></p>
+
+=== 画像
+--- input
+![代替](https://example.com/a.png)
+--- expected
+<p><img src="https://example.com/a.png" alt="代替" /></p>
+
+=== 自動リンク
+--- input
+<https://example.com>
+--- expected
+<p><a href="https://example.com">https://example.com</a></p>
+
+=== 自動リンク（ftp）
+--- input
+<ftp://example.com/file>
+--- expected
+<p><a href="ftp://example.com/file">ftp://example.com/file</a></p>
+
+=== メールアドレスの自動リンク
+# 実際の出力は数値文字参照で難読化される（比較時に文字へ戻している）
+--- input
+<user@example.com>
+--- expected
+<p><a href="mailto:user@example.com">user@example.com</a></p>
+
+=== 囲まないURLはリンクにしない
+--- input
+https://example.com
+--- expected
+<p>https://example.com</p>
+
+=== 太字
+--- input
+**太字**
+--- expected
+<p><strong>太字</strong></p>
+
+=== 強調
+--- input
+_強調_
+--- expected
+<p><em>強調</em></p>
+
+=== 単語内の_は強調にしない
+--- input
+snake_case_name
+--- expected
+<p>snake_case_name</p>
+
+=== 打ち消し線
+--- input
+~~打ち消し~~
+--- expected
+<p><del>打ち消し</del></p>
+
+=== コードスパン
+--- input
+`code`
+--- expected
+<p><code>code</code></p>
+
+=== コードスパン内のバッククォート
+--- input
+`` foo ` bar ``
+--- expected
+<p><code>foo ` bar</code></p>
+
+=== コードスパンの前後の空白
+--- input
+`` `code` ``
+--- expected
+<p><code>`code`</code></p>
+
+=== コードスパン内のHTMLと記号はそのまま
+--- input
+`<b>*a*</b>`
+--- expected
+<p><code>&lt;b&gt;*a*&lt;/b&gt;</code></p>
+
+=== 閉じていないコードスパンは文章
+--- input
+``a`
+--- expected
+<p>``a`</p>
+
+=== エスケープ
+--- input
+\*a\* \[b\]
+--- expected
+<p>*a* [b]</p>
+
+=== インラインHTML
+--- input
+<span class="x">a</span>
+--- expected
+<p><span class="x">a</span></p>
+
+=== * の強調
+--- input
+*強調*
+--- expected
+<p><em>強調</em></p>
+
+=== * の強調は前後が文字でもよい
+--- input
+図にない*libraries*が登場
+--- expected
+<p>図にない<em>libraries</em>が登場</p>
+
+=== 空白に挟まれた * は強調にしない
+--- input
+2 * 3 * 4 と *.txt と *.md
+--- expected
+<p>2 * 3 * 4 と *.txt と *.md</p>
+
+=== 非対応: __太字__ は文章
+--- input
+__太字__
+--- expected
+<p>__太字__</p>
+
+=== 非対応: 参照形式のリンクは文章
+--- input
+[文字][id]
+
+[id]: https://example.com
+--- expected
+<p>[文字][id]</p>
+<p>[id]: https://example.com</p>
+
+=== 非対応: タイトル付きリンクは文章
+--- input
+[文字](https://example.com "タイトル")
+--- expected
+<p>[文字](https://example.com "タイトル")</p>
+
+
+=== リンクの文字の中のコードスパン
+--- input
+[`code` と \*](https://example.com)
+--- expected
+<p><a href="https://example.com"><code>code</code> と *</a></p>
+
+=== 相対リンクは記事の slug へのリンク（旧システムと同じく / を付ける）
+--- input
+[前の記事](0618)と[ページ](管理人について#概要)と[ページ内](#見出し)
+--- expected
+<p><a href="/0618">前の記事</a>と<a href="/管理人について#概要">ページ</a>と<a href="#見出し">ページ内</a></p>
+
+=== _ の強調は前後が文字のときは強調にしない
+--- input
+図にない_libraries_が登場
+--- expected
+<p>図にない_libraries_が登場</p>

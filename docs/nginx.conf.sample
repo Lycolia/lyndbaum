@@ -1,0 +1,23 @@
+server {
+  listen 443 ssl;
+  listen [::]:443 ssl;
+  server_name lyndbaum.example.com;
+
+  ssl_certificate /path/to/fullchain.pem;
+  ssl_certificate_key /path/to/privkey.pem;
+
+  client_max_body_size 20M;
+
+  root /var/www/lyndbaum;
+
+  location /pub/ { try_files $uri =404; }
+
+  location / {
+    fastcgi_pass unix:/var/run/fcgiwrap.socket;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $document_root/index.cgi;
+    fastcgi_param SCRIPT_NAME "";
+    fastcgi_param HTTPS on;
+    fastcgi_param SERVER_PORT 443;
+  }
+}

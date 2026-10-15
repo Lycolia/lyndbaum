@@ -1,0 +1,176 @@
+<h1>{{ title }}</h1>
+{{# if saved }}
+<p class="admin-notice" role="status">保存しました。{{# if article }}<a href="{{ article.url }}">記事を見る</a>{{/ if }}</p>
+{{/ if }}
+{{# if feed_failed }}
+<p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
+{{/ if }}
+{{# if conflict }}
+<div class="admin-error" role="alert">
+  <p>この記事は、ほかの画面で先に保存されています。保存していません。</p>
+  <p>下の欄はこの画面で書いた内容です。<a href="{{ article.url }}">今の記事</a>と見比べてから、もう一度保存してください（もう一度保存すると、この内容で上書きします）。</p>
+</div>
+{{/ if }}
+{{# if errors }}
+<div class="admin-error" role="alert">
+  <p>保存できませんでした。次の点を直してください。</p>
+  <ul>
+    {{# for error in errors }}<li>{{ error.message }}</li>{{/ for }}
+  </ul>
+</div>
+{{/ if }}
+<form class="admin-form article-edit" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="digest" value="{{ form.digest }}">
+  {{# if is_page }}{{# if not article }}<input type="hidden" name="kind" value="page">{{/ if }}{{/ if }}
+  <div class="article-edit-main">
+    <div class="admin-field{{# if error_of.title }} admin-field-error{{/ if }}">
+      <label>題名<br><input type="text" name="title" value="{{ form.title }}" maxlength="200" required></label>
+    </div>
+    <div class="admin-field">
+      <label>本文（Markdown）<br><textarea name="body" rows="25" class="admin-body">{{ form.body }}</textarea></label>
+      {{! 添付ファイルのアップロード。admin-article.js が /admin/upload に送り、返った記法をカーソルの位置に入れる }}
+      <div class="upload-bar" data-upload-url="{{ urls.upload }}">
+        <label class="upload-button">ファイルを上げる<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm"></label>
+        <label>サムネイル <input type="number" class="upload-size" min="60" max="800" value="{{ thumbnail_size }}">px</label>
+        <button type="button" class="media-open" data-base="{{ urls.media }}">メディアから選ぶ</button>
+        <span class="upload-status" role="status"></span>
+      </div>
+      <p class="admin-help">本文の欄にファイルを落とすか、画像を貼り付けても上げられます。上げると、カーソルの位置に記法を入れます。置けるのは jpg、png、gif、webp、apng、mp4、webm です。</p>
+    </div>
+    {{! タグは札（hidden の tag か new_tag）で送る。札の追加と削除、候補は admin-article.js が行う }}
+    <div class="admin-field tag-editor{{# if error_of.tags }} admin-field-error{{/ if }}" data-tags="{{ tag_data }}">
+      <p class="tag-editor-label" id="tag-editor-label">タグ</p>
+      <ul class="tag-chips" aria-labelledby="tag-editor-label">
+        {{# for chip in form.tag_chips }}
+        <li class="tag-chip{{# if chip.new }} tag-chip-new{{/ if }}">
+          {{# if chip.new }}<input type="hidden" name="new_tag" value="{{ chip.name }}"><span class="tag-chip-mark">新</span>{{# else }}<input type="hidden" name="tag" value="{{ chip.name }}">{{/ if }}
+          <span class="tag-chip-name">{{ chip.name }}</span>
+          <button type="button" class="tag-chip-remove" aria-label="「{{ chip.name }}」を外す">×</button>
+        </li>
+        {{/ for }}
+      </ul>
+      <input type="text" class="tag-input" placeholder="入力して絞り込み" autocomplete="off" aria-label="タグを追加" aria-controls="tag-candidates">
+      <ul class="tag-candidates" id="tag-candidates" role="listbox" aria-label="タグの候補"></ul>
+      <details class="tag-select-details">
+        <summary>一覧から選ぶ</summary>
+        <select class="tag-select" aria-label="タグの一覧">
+          <option value="">【タグを選択】</option>
+          {{# for option in tag_options }}<option value="{{ option.name }}">{{ option.label }}</option>{{/ for }}
+        </select>
+      </details>
+      <p class="admin-help">↑↓で候補を選び、Enterで追加します。続けて追加できます。階層の区切りは「::」です。「,」は使えません。無いタグは、候補の「新規タグとして追加」を選んだときだけ作ります。</p>
+    </div>
+  </div>
+
+  {{! WordPress の「公開」の枠のような形。Enter で送ったときは最初のボタン（今の状態のままにするほう）になるので、
+      公開中の記事では「更新」を先に置き、「下書きに戻す」は CSS で上に並べる }}
+  <aside class="article-edit-side">
+    <section class="publish-box">
+      <h2>公開</h2>
+      {{# if article.published }}
+      <div class="publish-box-bottom">
+        <button type="submit" name="status" value="published" class="button-primary">更新</button>
+        {{> admin_trash_button }}
+      </div>
+      <div class="publish-box-top">
+        <button type="submit" name="status" value="draft">下書きに戻す</button>
+        <a href="{{ article.url }}">記事を見る</a>
+      </div>
+      {{# else }}
+      <div class="publish-box-top">
+        <button type="submit" name="status" value="draft">下書きとして保存</button>
+        {{# if article }}<a href="{{ article.url }}">下書きを見る</a>{{/ if }}
+      </div>
+      {{/ if }}
+      <dl class="publish-box-status">
+        <dt>状態</dt><dd>{{# if article.published }}公開中{{# else }}下書き{{# if article }}（管理者にだけ見えます）{{/ if }}{{/ if }}</dd>
+        {{# if article }}<dt>更新日時</dt><dd><time datetime="{{ article.updated.iso }}">{{ article.updated.datetime }}</time></dd>{{/ if }}
+      </dl>
+      <div class="admin-field{{# if error_of.published_at }} admin-field-error{{/ if }}">
+        <label>公開日時（日本時間）<br><input type="datetime-local" name="published_at" value="{{ form.published_at }}"></label>
+        <p class="admin-help">空のまま公開すると、公開した時刻を入れます。</p>
+      </div>
+      {{# if article }}
+      <div class="admin-field">
+        <label><input type="checkbox" name="keep_updated" value="1"{{# if form.keep_updated }} checked{{/ if }}>更新日時を変えない</label>
+      </div>
+      {{/ if }}
+      <div class="admin-field">
+        <label><input type="checkbox" name="comments_open" value="1"{{# if form.comments_open }} checked{{/ if }}>コメントを受け付ける</label>
+      </div>
+      {{# if not article.published }}
+      <div class="publish-box-bottom">
+        <button type="submit" name="status" value="published" class="button-primary" data-confirm="この記事を公開しますか？">公開する</button>
+        {{# if article }}{{> admin_trash_button }}{{/ if }}
+      </div>
+      {{/ if }}
+    </section>
+    {{! OGP の画像（docs/ogp.md）。「メディアから選ぶ」で選ぶと chosen にする（admin-article.js） }}
+    <section class="publish-box ogp-box{{# if error_of.og_image }} admin-field-error{{/ if }}">
+      <h2>OGPの画像</h2>
+      <input type="hidden" name="og_image" value="{{ form.og_image }}">
+      <div class="admin-field ogp-modes">
+        <label><input type="radio" name="og_image_mode" value="auto"{{# if ogp.auto }} checked{{/ if }}>自動（本文の最初の画像）</label>
+        <label><input type="radio" name="og_image_mode" value="chosen"{{# if ogp.chosen }} checked{{/ if }}>選んだ画像</label>
+        <label><input type="radio" name="og_image_mode" value="none"{{# if ogp.none }} checked{{/ if }}>使わない（ブログの画像）</label>
+      </div>
+      <p class="ogp-preview" data-auto="{{ ogp.auto_url }}" data-blog="{{ ogp.blog_url }}" data-attachments="{{ ogp.attachment_base }}">{{# if ogp.preview }}<img src="{{ ogp.preview }}" alt="OGPの画像">{{# else }}<span class="admin-help">画像はありません。</span>{{/ if }}</p>
+      <p><button type="button" class="ogp-pick" data-base="{{ urls.media }}">メディアから選ぶ</button></p>
+      <p class="admin-help">自動は、保存した本文の最初の画像です。</p>
+    </section>
+    {{# if is_page }}
+    <section class="publish-box page-box">
+      <h2>ページの場所</h2>
+      <div class="admin-field">
+        <label>親のページ<br><select name="parent_id">
+          <option value="">（なし）</option>
+          {{# for parent in parents }}<option value="{{ parent.id }}"{{# if parent.selected }} selected{{/ if }}>{{ parent.label }}</option>{{/ for }}
+        </select></label>
+      </div>
+      <div class="admin-field{{# if error_of.page_name }} admin-field-error{{/ if }}">
+        <label>名前（URLになります）<br><input type="text" name="page_name" value="{{ form.page_name }}" maxlength="100" required></label>
+        <p class="admin-help">URLは「/親のページのURL/名前」になります。親や名前を変えると、子のページのURLも変わります。</p>
+      </div>
+      <div class="admin-field{{# if error_of.sort_order }} admin-field-error{{/ if }}">
+        <label>並び順<br><input type="number" name="sort_order" value="{{ form.sort_order }}"></label>
+        <p class="admin-help">小さいほど先に並びます。空なら同じ親のいちばん後ろ。</p>
+      </div>
+    </section>
+    {{/ if }}
+  </aside>
+</form>
+{{# if article }}
+{{! 更新履歴。版を選ぶと、admin-article.js が版を取りに行き、今の本文（編集の欄）との差分か全文を出す }}
+<details class="revisions">
+  <summary>履歴（{{ revision_count }}件）</summary>
+  {{# if not revisions }}
+  <p>この記事の履歴はまだありません。題名か本文を変えて保存すると、保存する前の版が残ります。</p>
+  {{/ if }}
+  {{# if revisions }}
+  <div class="revisions-body">
+    <ul class="revision-list">
+      {{# for rev in revisions }}
+      <li><button type="button" class="revision-item" data-url="{{ rev.url }}">
+        <time datetime="{{ rev.saved.iso }}">{{ rev.saved.datetime }}</time>
+        <span class="revision-meta">{{ rev.length }}文字</span>
+        <span class="revision-title">{{ rev.title }}</span>
+      </button></li>
+      {{/ for }}
+    </ul>
+    <div class="revision-view" hidden>
+      <p class="revision-mode">
+        <label><input type="radio" name="revision_mode" value="diff" checked>今の本文との差分</label>
+        <label><input type="radio" name="revision_mode" value="full">この版の全文</label>
+      </p>
+      <p class="revision-heading"></p>
+      <pre class="revision-text"></pre>
+      <p><button type="button" class="revision-load">この版を本文に読み込む</button></p>
+    </div>
+    <p class="revision-hint">左の一覧から版を選んでください。日時はその版を保存した日時です。</p>
+  </div>
+  {{/ if }}
+</details>
+{{/ if }}
+<script src="{{ urls.media_script }}" defer></script>
+<script src="{{ script }}" defer></script>

@@ -1,0 +1,22 @@
+pkey=1
+link_key=01
+title=最初の記事
+name=テストの人
+parser=markdown
+enable=1
+yyyymmdd=20231115
+tm=1700000000
+update_tm=1700000100
+com_ok=1
+hcom_ok=0
+priority=0
+description=概要
+tags=料理::食材::調味料,料理::調味料
+*_text=<<__END_BLK_DATA
+# 見出し
+
+本文
+__END_BLK_DATA
+*text=<<__END_BLK_DATA
+<h3>変換済みHTMLは移さない</h3>
+__END_BLK_DATA

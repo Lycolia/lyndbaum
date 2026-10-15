@@ -1,0 +1,63 @@
+=== 引用
+--- input
+> 引用文
+--- expected
+<blockquote>
+引用文
+</blockquote>
+
+=== 複数行の引用
+--- input
+> 1行目
+> 2行目
+--- expected
+<blockquote>
+1行目<br />
+2行目
+</blockquote>
+
+=== 引用の入れ子
+--- input
+> 外
+> > 内
+--- expected
+<blockquote>
+外
+<blockquote>
+内
+</blockquote>
+</blockquote>
+
+=== 引用内のリスト
+--- input
+> - a
+> - b
+--- expected
+<blockquote>
+<ul>
+<li>a</li>
+<li>b</li>
+</ul>
+</blockquote>
+
+=== 非対応: >の無い継続行は引用の外
+--- input
+> a
+b
+--- expected
+<blockquote>
+a
+</blockquote>
+<p>b</p>
+
+
+=== 空行を挟んだ引用は段落を p で囲む
+--- input
+> 段落1
+>
+> 段落2
+--- expected
+<blockquote>
+<p>段落1</p>
+<p>段落2</p>
+</blockquote>

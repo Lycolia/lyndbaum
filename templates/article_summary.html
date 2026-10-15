@@ -1,0 +1,10 @@
+<article class="article-summary">
+  <h2 class="summary-title"><a href="{{ article.url }}">{{ article.title }}</a></h2>
+  <p class="article-meta">
+    {{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+    {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
+  </p>
+  {{# if article.description }}
+  <p class="summary-description">{{ article.description }}</p>
+  {{/ if }}
+</article>

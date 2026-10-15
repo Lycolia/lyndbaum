@@ -1,0 +1,7 @@
+{{# if pager.has_more }}
+<nav class="pager">
+  {{# if pager.prev_url }}<a rel="prev" href="{{ pager.prev_url }}">← 新しい記事</a>{{/ if }}
+  <span class="pager-position">{{ pager.page }} / {{ pager.last }}</span>
+  {{# if pager.next_url }}<a rel="next" href="{{ pager.next_url }}">古い記事 →</a>{{/ if }}
+</nav>
+{{/ if }}

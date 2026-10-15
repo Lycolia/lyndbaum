@@ -1,0 +1,30 @@
+<h1>タグ</h1>
+{{# if saved }}
+<p class="admin-notice" role="status">保存しました。</p>
+{{/ if }}
+{{# if feed_failed }}
+<p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
+{{/ if }}
+{{# if errors }}
+<div class="admin-error" role="alert">
+  <p>保存できませんでした。次の点を直してください。</p>
+  <ul>
+    {{# for error in errors }}<li>{{ error }}</li>{{/ for }}
+  </ul>
+</div>
+{{/ if }}
+<p>名前の変更、並び替え（▲▼）、親の付け替え（移動）、削除は、「保存」を押すまで確定しません。記事が付いているタグ（ゴミ箱の中の記事を含む）と、子のタグがあるタグは消せません。新しいタグは、記事の編集画面で作ります。</p>
+<noscript><p class="admin-error">タグの管理にはJavaScriptが必要です。</p></noscript>
+<form class="tag-admin" method="post" action="{{ urls.tags }}" data-tags="{{ tags_json }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="digest" value="{{ digest }}">
+  <input type="hidden" name="tree" value="">
+  <div class="tag-admin-bar">
+    <input type="search" class="tag-admin-filter" placeholder="名前で絞り込み" aria-label="名前で絞り込み">
+    <span class="tag-admin-status" role="status"></span>
+    <button type="submit" class="button-primary">保存</button>
+    <a href="{{ urls.tags }}">変更を取り消す</a>
+  </div>
+  <ul class="tag-admin-tree" aria-label="タグ（{{ count }}件）"></ul>
+</form>
+<script src="{{ script }}" defer></script>

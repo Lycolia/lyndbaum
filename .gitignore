@@ -2,9 +2,34 @@
 /*
 
 # 管理対象
-
-!lib/
+!.vscode/
 !.gitignore
+!.htaccess
+!.prettierrc
+!.proverc
 !index.cgi
+!config.json.sample
+!README.md
 !LICENSE
-!設計メモ.md
+!THIRD_PARTY_LICENSES.md
+!CLAUDE.md
+!lib/
+!docs/
+!db/
+!t/
+!tools/
+!templates/
+!pub/
+!extlib/
+
+# DBなどの置き場所。.htaccess だけを管理する
+!var/
+/var/*
+!/var/.htaccess
+
+# 静的なファイル（/pub/）。CSSとJSだけを管理し、添付ファイルと書き出したRSSは管理しない
+/pub/*
+!/pub/assets/
+
+# 記事データを含むため管理対象外
+/t/corpus/

@@ -1,0 +1,35 @@
+<h1>{{ title }}</h1>
+{{# if saved }}
+<p class="admin-notice" role="status">保存しました。</p>
+{{/ if }}
+{{# if errors }}
+<div class="admin-error" role="alert">
+  <p>保存できませんでした。次の点を直してください。</p>
+  <ul>
+    {{# for error in errors }}<li>{{ error.message }}</li>{{/ for }}
+  </ul>
+</div>
+{{/ if }}
+<form class="admin-form" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {{# for field in fields }}
+  <div class="admin-field{{# if field.errors }} admin-field-error{{/ if }}">
+    {{# if field.is_bool }}
+    <label><input type="checkbox" name="{{ field.key }}" value="1"{{# if field.checked }} checked{{/ if }}>{{ field.label }}</label>
+    {{/ if }}
+    {{# if field.is_int }}
+    <label>{{ field.label }}<br><input type="number" name="{{ field.key }}" value="{{ field.value }}" min="{{ field.min }}" max="{{ field.max }}" required></label>
+    {{/ if }}
+    {{# if field.is_text }}
+    <label>{{ field.label }}<br><input type="text" name="{{ field.key }}" value="{{ field.value }}"{{# if field.max }} maxlength="{{ field.max }}"{{/ if }}{{# if field.required }} required{{/ if }}></label>
+    {{# if field.media }}<button type="button" class="media-field" data-target="{{ field.key }}" data-base="{{ urls.media }}">メディアから選ぶ</button>{{/ if }}
+    {{/ if }}
+    {{# if field.is_lines }}
+    <label>{{ field.label }}<br><textarea name="{{ field.key }}" rows="5">{{ field.value }}</textarea></label>
+    {{/ if }}
+    {{# if field.help }}<p class="admin-help">{{ field.help }}</p>{{/ if }}
+  </div>
+  {{/ for }}
+  <p><button type="submit">保存</button></p>
+</form>
+<script src="{{ script }}" defer></script>

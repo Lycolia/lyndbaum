@@ -1,0 +1,7 @@
+{
+    "name": "Perl Debug",
+    "type": "perl",
+    "request": "launch",
+    "program": "${workspaceFolder}/path/to.pl",
+    "args": ["hoge"]
+}

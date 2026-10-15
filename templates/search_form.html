@@ -1,0 +1,9 @@
+<form class="search-form" method="get" action="{{ urls.search }}">
+  <input type="search" name="q" value="{{ form.q }}" aria-label="検索語">
+  <select name="in" aria-label="検索の範囲">
+    {{# for s in form.scopes }}
+    {{# if s.selected }}<option value="{{ s.value }}" selected>{{ s.label }}</option>{{# else }}<option value="{{ s.value }}">{{ s.label }}</option>{{/ if }}
+    {{/ for }}
+  </select>
+  <button type="submit">検索</button>
+</form>

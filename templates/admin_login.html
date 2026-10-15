@@ -1,0 +1,9 @@
+<h1>ログイン</h1>
+{{# if error }}
+<p class="admin-error" role="alert">{{ error }}</p>
+{{/ if }}
+<form class="admin-form" method="post" action="{{ urls.admin }}/login">
+  <p><label>ログイン名<br><input type="text" name="login" value="{{ login }}" autocomplete="username" required autofocus></label></p>
+  <p><label>パスワード<br><input type="password" name="password" autocomplete="current-password" required></label></p>
+  <p><button type="submit">ログイン</button></p>
+</form>

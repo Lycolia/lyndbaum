@@ -1,0 +1,12 @@
+pkey=2
+a_pkey=1
+num=2
+name=管理者
+id=admin
+enable=1
+hidden=0
+ip=192.0.2.2
+host=
+agent=TestAgent/1.0
+tm=1700002000
+text=&gt;&gt;1<br>ありがとうございます

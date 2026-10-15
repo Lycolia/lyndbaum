@@ -1,0 +1,20 @@
+RewriteEngine On
+
+RewriteRule ^$ index.cgi [END]
+
+RewriteRule ^index\.cgi$ - [END]
+# 旧システム（adiary）の添付ファイルとRSSとサイトマップのURLを転送する（docs/compat-diffs.md）
+RewriteRule ^pub/lycolia/image/adiary/(.*)$ /pub/attachments/posts/$1 [R=301,END]
+RewriteRule ^pub/lycolia/image/(.*)$ /pub/attachments/$1 [R=301,END]
+RewriteRule ^pub/lycolia/rss\.xml$ /pub/rss.xml [R=301,END]
+RewriteRule ^pub/lycolia/sitemap\.xml$ /pub/sitemap.xml [R=301,END]
+
+RewriteRule ^pub(?:/|$) - [END]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.cgi [END]
+
+RewriteRule ^ - [F]
+
+Options -Indexes

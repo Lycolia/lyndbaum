@@ -1,0 +1,11 @@
+pkey=1
+a_pkey=1
+num=1
+name=名無し
+enable=1
+hidden=0
+ip=192.0.2.1
+host=example.jp
+agent=TestAgent/1.0
+tm=1700001000
+text=はじめまして。<br>&lt;b&gt;タグ&lt;/b&gt; &amp; &quot;引用&quot; &#39;単&#39;

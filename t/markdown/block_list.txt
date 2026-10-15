@@ -1,0 +1,397 @@
+=== 箇条書き
+--- input
+- a
+- b
+--- expected
+<ul>
+<li>a</li>
+<li>b</li>
+</ul>
+
+=== 入れ子（2スペース）
+--- input
+- a
+  - b
+    - c
+- d
+--- expected
+<ul>
+<li>a
+<ul>
+<li>b
+<ul>
+<li>c</li>
+</ul></li>
+</ul></li>
+<li>d</li>
+</ul>
+
+=== 番号付きリスト
+--- input
+1. a
+2. b
+--- expected
+<ol>
+<li>a</li>
+<li>b</li>
+</ol>
+
+=== 番号付きリストの入れ子（3スペース）
+--- input
+1. a
+   1. b
+2. c
+--- expected
+<ol>
+<li>a
+<ol>
+<li>b</li>
+</ol></li>
+<li>c</li>
+</ol>
+
+=== 2桁の番号の項目内のコードフェンス（4スペース）
+--- input
+9. a
+10. b
+    ```bash
+    echo
+    ```
+11. c
+--- expected
+<ol start="9">
+<li>a</li>
+<li>b
+<pre><code class="language-bash">echo
+</code></pre></li>
+<li>c</li>
+</ol>
+
+=== 項目の間に空行のあるリスト
+--- input
+- a
+
+- b
+--- expected
+<ul>
+<li><p>a</p></li>
+<li><p>b</p></li>
+</ul>
+
+=== 項目内に空行を挟んでテーブル
+# CommonMark と同じく、1つの項目の中に空行があればリスト全体がゆるいリストになり、b も <p> で囲む
+--- input
+- a
+
+  | A | B |
+  | - | - |
+  | 1 | 2 |
+- b
+--- expected
+<ul>
+<li><p>a</p>
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>1</td>
+	<td>2</td>
+</tr>
+</tbody>
+</table></div></li>
+<li><p>b</p></li>
+</ul>
+
+=== 項目内の続きの行
+--- input
+- a
+  続き
+- b
+--- expected
+<ul>
+<li>a<br />
+続き</li>
+<li>b</li>
+</ul>
+
+=== リストの後の段落
+--- input
+- a
+
+段落
+--- expected
+<ul>
+<li>a</li>
+</ul>
+<p>段落</p>
+
+=== 番号付きリストの開始番号
+--- input
+3. a
+4. b
+--- expected
+<ol start="3">
+<li>a</li>
+<li>b</li>
+</ol>
+
+=== チェックボックス
+--- input
+- [ ] 未完了
+- [x] 完了
+--- expected
+<ul>
+<li class="task-list-item"><label><input type="checkbox">未完了</label></li>
+<li class="task-list-item"><label><input type="checkbox" checked>完了</label></li>
+</ul>
+
+=== チェックボックス（大文字のX）
+--- input
+- [X] 完了
+--- expected
+<ul>
+<li class="task-list-item"><label><input type="checkbox" checked>完了</label></li>
+</ul>
+
+=== チェックボックス（2行目以降もそのまま）
+--- input
+- [ ] 未完了
+  説明
+--- expected
+<ul>
+<li class="task-list-item"><label><input type="checkbox">未完了</label><br />
+説明</li>
+</ul>
+
+=== チェックボックスと普通の項目が混在
+--- input
+- [x] 完了
+- 普通の項目
+--- expected
+<ul>
+<li class="task-list-item"><label><input type="checkbox" checked>完了</label></li>
+<li>普通の項目</li>
+</ul>
+
+=== ]の後に空白が無いものはチェックボックスにしない
+--- input
+- [x]abc
+--- expected
+<ul>
+<li>[x]abc</li>
+</ul>
+
+=== 非対応: * のリストは文章
+--- input
+* a
+* b
+--- expected
+<p>* a<br />
+* b</p>
+
+=== 非対応: + のリストは文章
+--- input
++ a
++ b
+--- expected
+<p>+ a<br />
++ b</p>
+
+=== 非対応: 1) のリストは文章
+--- input
+1) a
+2) b
+--- expected
+<p>1) a<br />
+2) b</p>
+
+=== 非対応: 字下げしない継続行はリストの外
+--- input
+- a
+b
+--- expected
+<ul>
+<li>a</li>
+</ul>
+<p>b</p>
+
+=== 深い入れ子（5段）の後に浅い段へ戻る
+--- input
+- a
+  - b
+    - c
+      - d
+        - e
+    - f
+- g
+--- expected
+<ul>
+<li>a
+<ul>
+<li>b
+<ul>
+<li>c
+<ul>
+<li>d
+<ul>
+<li>e</li>
+</ul></li>
+</ul></li>
+<li>f</li>
+</ul></li>
+</ul></li>
+<li>g</li>
+</ul>
+
+=== 3段目の兄弟の項目の下に子を持つ
+--- input
+- a
+  - b
+    - c
+    - d
+      - e
+- g
+--- expected
+<ul>
+<li>a
+<ul>
+<li>b
+<ul>
+<li>c</li>
+<li>d
+<ul>
+<li>e</li>
+</ul></li>
+</ul></li>
+</ul></li>
+<li>g</li>
+</ul>
+
+=== 項目内のコードフェンスでコードの字下げを保つ
+--- input
+- 例
+  ```json
+  {
+    "a": {
+      "b": 1
+    }
+  }
+  ```
+--- expected
+<ul>
+<li>例
+<pre><code class="language-json">{
+  "a": {
+    "b": 1
+  }
+}
+</code></pre></li>
+</ul>
+
+=== 非対応: 項目内で記号の幅より深く字下げしたフェンスは文章
+# フェンスは項目の内容の開始位置（「- 」なら2スペース）に揃えて書く
+--- input
+- 例
+    ```
+    Host
+    ```
+--- expected
+<ul>
+<li>例<br />
+```<br />
+Host<br />
+```</li>
+</ul>
+
+
+=== 番号付きリストの項目の下の、2スペースの字下げの箇条書きは入れ子にする
+--- input
+1. a
+  - b
+2. c
+--- expected
+<ol>
+<li>a
+<ul>
+<li>b</li>
+</ul></li>
+<li>c</li>
+</ol>
+
+=== 2桁の番号の項目の中は3スペースの字下げでもよい
+--- input
+10. a
+   ```cron
+   x
+   ```
+--- expected
+<ol start="10">
+<li>a
+<pre><code class="language-cron">x
+</code></pre></li>
+</ol>
+
+=== 内容が空や 0 の項目もリストにする
+--- input
+- a
+  - 
+- 0
+--- expected
+<ul>
+<li>a
+<ul>
+<li></li>
+</ul></li>
+<li>0</li>
+</ul>
+
+=== 空行が1か所でもあれば全項目を p で囲む（CommonMark と同じ）
+--- input
+- a
+
+- b
+- c
+--- expected
+<ul>
+<li><p>a</p></li>
+<li><p>b</p></li>
+<li><p>c</p></li>
+</ul>
+
+=== 入れ子のリストの中の空行は外側のリストに影響しない
+--- input
+- a
+  - b
+
+  - c
+- d
+--- expected
+<ul>
+<li>a
+<ul>
+<li><p>b</p></li>
+<li><p>c</p></li>
+</ul></li>
+<li>d</li>
+</ul>
+
+=== コードブロックの中の空行は数えない
+--- input
+- a
+  ```
+  x
+
+  y
+  ```
+- b
+--- expected
+<ul>
+<li>a
+<pre><code class="language-">x
+
+y
+</code></pre></li>
+<li>b</li>
+</ul>

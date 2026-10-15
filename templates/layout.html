@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{{# if noindex }}
+<meta name="robots" content="noindex, nofollow">
+{{/ if }}
+<title>{{# if title }}{{ title }} - {{/ if }}{{ blog.blog_title }}</title>
+{{# if head }}
+{{# if head.description }}<meta name="description" content="{{ head.description }}">{{/ if }}
+<link rel="canonical" href="{{ head.canonical }}">
+{{! OGP と Twitter Card（Lyndbaum::OGP）。attr は property か name の決まった値 }}
+{{# for tag in head.ogp }}<meta {{ tag.attr }}="{{ tag.key }}" content="{{ tag.content }}">
+{{/ for }}
+{{# else }}
+{{# if blog.blog_description }}
+<meta name="description" content="{{ blog.blog_description }}">
+{{/ if }}
+{{/ if }}
+<link rel="stylesheet" href="{{ urls.style }}">
+<link rel="stylesheet" href="{{ urls.fancybox_css }}">
+<link rel="stylesheet" href="{{ urls.prism_css }}">
+{{! Prism は data-manual で自動では色付けしない（article.js が言語の名前を整えてから動かす）。defer なので、この順に動く }}
+<script src="{{ urls.prism_core }}" data-manual defer></script>
+{{# for script in urls.scripts }}<script src="{{ script }}" defer></script>
+{{/ for }}
+<link rel="alternate" type="application/rss+xml" title="{{ blog.blog_title }}" href="{{ urls.feed }}">
+</head>
+<body>
+<header class="site-header">
+  <p class="site-title"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
+  {{# if blog.blog_description }}
+  <p class="site-description">{{ blog.blog_description }}</p>
+  {{/ if }}
+</header>
+<div class="site-body">
+<main class="site-main">
+{{! content は各ページのテンプレートの出力で、エスケープ済み }}
+{{ raw content }}
+</main>
+<aside class="site-sidebar">
+  <section class="sidebar-section">
+    <h2>検索</h2>
+    {{> search_form }}
+  </section>
+  {{# if content_tree }}
+  <section class="sidebar-section">
+    <h2>コンテンツ</h2>
+    <ul class="tree">
+      {{# for node in content_tree }}
+      {{> content_tree_item }}
+      {{/ for }}
+    </ul>
+  </section>
+  {{/ if }}
+  {{# if tag_tree }}
+  <section class="sidebar-section">
+    <h2>タグ</h2>
+    <ul class="tree">
+      {{# for node in tag_tree }}
+      {{> tag_tree_item }}
+      {{/ for }}
+    </ul>
+  </section>
+  {{/ if }}
+  {{# if recent_comments }}
+  <section class="sidebar-section">
+    <h2>最近のコメント</h2>
+    <ul class="recent-comments">
+      {{# for comment in recent_comments }}
+      <li><a href="{{ comment.url }}">{{ comment.title }}</a> <span class="comment-author" title="{{ comment.created.datetime }}">{{ comment.author_name }}</span></li>
+      {{/ for }}
+    </ul>
+  </section>
+  {{/ if }}
+</aside>
+</div>
+<footer class="site-footer">
+  <p>Lyndbaum {{ app_version }}</p>
+</footer>
+</body>
+</html>

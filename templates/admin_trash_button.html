@@ -1,0 +1,3 @@
+{{! 編集のフォームの中に置く。formaction で送り先を変える（フォームを入れ子にできないため）。
+    Enter で送られないよう、保存のボタンより後ろに置き、CSS で左に寄せる }}
+<button type="submit" class="publish-box-trash" formaction="{{ trash_action }}" formnovalidate data-confirm="この記事をゴミ箱へ移動しますか？（ゴミ箱から戻せます。保存していない変更は失われます）">ゴミ箱へ移動</button>

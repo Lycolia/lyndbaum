@@ -1,0 +1,43 @@
+<h1>ゴミ箱</h1>
+{{# if notice }}
+<p class="admin-notice" role="status">{{ notice }}</p>
+{{/ if }}
+{{# if feed_failed }}
+<p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
+{{/ if }}
+<p>ゴミ箱へ移した記事は、公開側には出ません。「戻す」で、記事番号、コメント、タグごと戻せます。完全に削除するまで残ります。</p>
+{{# if not articles }}
+<p>ゴミ箱は空です。</p>
+{{/ if }}
+{{# if articles }}
+<form method="post" action="{{ urls.trash }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <table class="admin-articles">
+    <thead>
+      <tr><th></th><th>削除日時</th><th>日付</th><th>種類</th><th>題名</th><th>タグ</th><th>コメント</th></tr>
+    </thead>
+    <tbody>
+      {{# for article in articles }}
+      <tr>
+        <td><input type="checkbox" name="id" value="{{ article.id }}" id="trash-{{ article.id }}"></td>
+        <td><label for="trash-{{ article.id }}"><time datetime="{{ article.deleted.iso }}">{{ article.deleted.datetime }}</time></label></td>
+        <td>{{# if article.published }}{{ article.published.date }}{{/ if }}</td>
+        <td>{{# if article.is_page }}ページ{{# else }}記事{{/ if }}</td>
+        <td><label for="trash-{{ article.id }}">{{ article.title }}</label></td>
+        <td>{{ article.tags }}</td>
+        <td>{{ article.comments_count }}</td>
+      </tr>
+      {{/ for }}
+    </tbody>
+  </table>
+  <p class="admin-actions">
+    <button type="submit" name="mode" value="restore" data-confirm="%c件の記事を戻しますか？">戻す</button>
+    <button type="submit" name="mode" value="purge" data-confirm="%c件の記事を完全に削除しますか？コメントと履歴も消え、元に戻せません。">完全に削除</button>
+  </p>
+</form>
+<form method="post" action="{{ urls.trash }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p><button type="submit" name="mode" value="purge_all" data-confirm="ゴミ箱を空にしますか？すべての記事が完全に削除され、元に戻せません。">ゴミ箱を空にする</button></p>
+</form>
+{{/ if }}
+<p><a href="{{ urls.articles }}">記事の一覧へ</a></p>

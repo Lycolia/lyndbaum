@@ -1,0 +1,16 @@
+pkey=4
+link_key=親ページ
+title=親ページ
+parser=markdown
+enable=1
+yyyymmdd=20190403
+tm=1700000400
+update_tm=1700000400
+ctype=wiki
+upnode=0
+priority=100000
+*_text=<<__END_BLK_DATA
+親の本文
+![図](/pub/test/image/adiary/a.png) <img src="https://blog.example.com/pub/test/image/b.png"> pub/other/image/c.png
+[image:S:adiary/:a.jpg:a.jpg] [image:M:adiary/:b.jpg:説明] [image:S:/pub/test/image/:c.jpg:c.jpg:#キャプション]
+__END_BLK_DATA

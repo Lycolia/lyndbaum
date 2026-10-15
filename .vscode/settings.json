@@ -1,0 +1,9 @@
+{
+  "[markdown]": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "markdown.copyFiles.destination": {
+    "*": "${documentDirName}/assets/${fileName}"
+  }
+}

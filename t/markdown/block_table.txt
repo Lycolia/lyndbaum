@@ -1,0 +1,166 @@
+=== テーブル
+--- input
+| A | B |
+| - | - |
+| 1 | 2 |
+--- expected
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>1</td>
+	<td>2</td>
+</tr>
+</tbody>
+</table></div>
+
+=== 位置揃え
+--- input
+| L | C | R |
+| :- | :-: | -: |
+| 1 | 2 | 3 |
+--- expected
+<div class="body_table"><table><thead><tr>
+	<th>L</th>
+	<th>C</th>
+	<th>R</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>1</td>
+	<td class="c">2</td>
+	<td class="r">3</td>
+</tr>
+</tbody>
+</table></div>
+
+=== 段落の直後から始める
+--- input
+文章
+| A | B |
+| - | - |
+| 1 | 2 |
+--- expected
+<p>文章</p>
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>1</td>
+	<td>2</td>
+</tr>
+</tbody>
+</table></div>
+
+=== リスト項目の文章の直後から始める
+--- input
+- 項目
+  説明
+  | A | B |
+  | - | - |
+  | 1 | 2 |
+- 次
+--- expected
+<ul>
+<li>項目<br />
+説明
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>1</td>
+	<td>2</td>
+</tr>
+</tbody>
+</table></div></li>
+<li>次</li>
+</ul>
+
+=== セル内のインライン記法
+--- input
+| A |
+| - |
+| `code` と [link](https://example.com) |
+--- expected
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td><code>code</code> と <a href="https://example.com">link</a></td>
+</tr>
+</tbody>
+</table></div>
+
+=== 区切り行が無いものは文章
+--- input
+文章
+| A | B |
+| 1 | 2 |
+--- expected
+<p>文章<br />
+| A | B |<br />
+| 1 | 2 |</p>
+
+=== セル内に-があっても区切り行と誤認しない
+--- input
+文章
+| A | B |
+| x-y | z |
+--- expected
+<p>文章<br />
+| A | B |<br />
+| x-y | z |</p>
+
+=== 非対応: 行頭に|の無いテーブルは文章
+--- input
+A | B
+:-- | --:
+1 | 2
+--- expected
+<p>A | B<br />
+:-- | --:<br />
+1 | 2</p>
+
+
+=== セルの中の \| は | として表示する（コードスパンの中でも。GFM と同じ）
+--- input
+| A | B |
+| - | - |
+| `a \| b` | c \| d |
+--- expected
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td><code>a | b</code></td>
+	<td>c | d</td>
+</tr>
+</tbody>
+</table></div>
+
+=== コードスパンの中でも、エスケープしていない | でセルを分ける（GFM と同じ）
+--- input
+| A | B |
+| - | - |
+| `a | b` |
+--- expected
+<div class="body_table"><table><thead><tr>
+	<th>A</th>
+	<th>B</th>
+</tr></thead>
+<tbody>
+<tr>
+	<td>`a</td>
+	<td>b`</td>
+</tr>
+</tbody>
+</table></div>

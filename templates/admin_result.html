@@ -1,0 +1,10 @@
+<h1>{{ title }}</h1>
+{{# if done }}
+<p class="admin-notice" role="status">{{ done }}</p>
+{{/ if }}
+<div class="admin-error" role="alert">
+  <ul>
+    {{# for error in errors }}<li>{{ error }}</li>{{/ for }}
+  </ul>
+</div>
+<p><a href="{{ urls.articles }}">記事の一覧へ</a> <a href="{{ urls.trash }}">ゴミ箱へ</a></p>

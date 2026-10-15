@@ -1,0 +1,104 @@
+=== 段落
+--- input
+文章
+--- expected
+<p>文章</p>
+
+=== 段落内の改行はbr
+--- input
+a
+b
+--- expected
+<p>a<br />
+b</p>
+
+=== 日本語の段落内の改行
+--- input
+あいう
+えお
+--- expected
+<p>あいう<br />
+えお</p>
+
+=== 空行で段落を分ける
+--- input
+段落1
+
+段落2
+--- expected
+<p>段落1</p>
+<p>段落2</p>
+
+=== 行末の2スペースに特別な意味は無い
+--- input
+a  
+b
+--- expected
+<p>a  <br />
+b</p>
+
+=== 区切り線
+--- input
+前
+
+---
+
+後
+--- expected
+<p>前</p>
+<hr />
+<p>後</p>
+
+=== 非対応: *** は文章
+--- input
+***
+--- expected
+<p>***</p>
+
+=== 非対応: ___ は文章
+--- input
+___
+--- expected
+<p>___</p>
+
+=== HTMLブロック
+--- input
+<div class="x">
+内容
+</div>
+--- expected
+<div class="x">
+内容
+</div>
+
+=== HTMLコメント
+--- input
+前
+
+<!-- コメント -->
+
+後
+--- expected
+<p>前</p>
+<p>後</p>
+
+=== 脚注
+--- input
+本文[^1]
+
+[^1]: 脚注の内容
+--- expected
+<p>本文<sup id="fnref-1"><a href="#fn-1" title="脚注の内容">[1]</a></sup></p>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn-1">脚注の内容 <a href="#fnref-1">&#8617;</a></li>
+</ol>
+</div>
+
+
+=== HTMLブロックの中では Markdown を処理しない
+--- input
+<td><code>toki \(blue\) **x**</code></td>
+--- expected
+<td><code>toki \(blue\) **x**</code></td>
