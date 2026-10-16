@@ -39,7 +39,7 @@ sub set_password {
 }
 
 # ログイン名とパスワードが合えば真
-#   パスワードの決まり（Lyndbaum::Password->format_error）に合わなければ、PBKDF2 をかけずに偽を返す
+#   パスワードの決まり（Lyndbaum::Password->format_error）に合わなければ、bcrypt をかけずに偽を返す
 #   （長いパスワードで重い計算をさせられないように。決まりは公開しているので、早く返しても漏れるものは無い）
 sub authenticate {
 	my ($class, $dbh, $login, $password) = @_;

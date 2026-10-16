@@ -68,6 +68,12 @@ if (eval { require GD; 1 }) {
 	eval { $image->jpeg(85); 1 } ? ok('GD は JPEG を書ける（サムネイル）') : ng('GD は JPEG を書けない');
 }
 
+print "== パスワード\n";
+# 管理者のパスワードは、OS の crypt(3) の bcrypt でハッシュにする（Lyndbaum::Password）
+my $bcrypt = '$2b$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW';
+(crypt('U*U', $bcrypt) // '') eq $bcrypt ? ok('crypt(3) は bcrypt（$2b$）に対応している')
+	: ng('crypt(3) が bcrypt（$2b$）に対応していない（管理者のパスワードを登録できない）');
+
 print "== https\n";
 require HTTP::Tiny;
 my ($can_ssl, $why) = HTTP::Tiny->can_ssl;

@@ -110,6 +110,34 @@ sub recent_comments {
 	} @{ Lyndbaum::Model::Comment->recent_public($app->db, $RECENT_COMMENTS) } ];
 }
 
+# サイドバーの「最近の記事」（コンテンツページは含めない）
+my $RECENT_POSTS = 5;
+sub recent_posts {
+	my ($class, $app) = @_;
+	return [ map {
+		+{ url => $class->article_url($app, $_), title => $_->{title} }
+	} @{ Lyndbaum::Model::Article->list_public_posts($app->db, limit => $RECENT_POSTS) } ];
+}
+
+# サイドバーの「過去ログ」。年ごとに月を並べる（新しい順）。いちばん新しい年は open にする（最初から開く）
+sub archive {
+	my ($class, $app) = @_;
+	my @years;
+	for my $row (@{ Lyndbaum::Model::Article->month_counts($app->db) }) {
+		my ($year, $month, $count) = @$row;
+		if (!@years || $years[-1]{year} != $year) {
+			push @years, { year => $year, count => 0, open => !@years, url => $app->url->search(d => $year), months => [] };
+		}
+		$years[-1]{count} += $count;
+		push @{ $years[-1]{months} }, {
+			label => sprintf('%04d年%02d月', $year, $month),
+			count => $count,
+			url   => $app->url->search(d => sprintf('%04d%02d', $year, $month)),
+		};
+	}
+	return \@years;
+}
+
 # ページ送り。$url_of はページ番号からURLを作る関数
 #   今のページが範囲外なら undef を返す（呼ぶ側で404にする）
 sub pager {

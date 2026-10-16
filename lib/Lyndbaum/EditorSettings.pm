@@ -8,7 +8,7 @@ use utf8;
 use Lyndbaum::SettingsForm;
 
 our @FIELDS = (
-	{ key => 'revision_interval', type => 'int', default => 3, min => 0, max => 720, label => '履歴を残す間隔（時間）',
+	{ key => 'revision_interval', type => 'int', default => 180, min => 0, max => 43200, label => '履歴を残す間隔（分）',
 	  help => '前に履歴を残してからこの時間の中の保存では、新しい履歴を作りません。続けて何度も保存したときに、履歴が増えすぎないようにします。0にすると、題名か本文が変わるたびに残します。' },
 	{ key => 'thumbnail_size',    type => 'int', default => 240, min => 60, max => 800, label => 'サムネイルの大きさ（長い辺、px）',
 	  help => '画像を上げるときの既定の大きさです。上げるときに変えられます。元の画像のほうが小さければ、元の大きさのままにします。' },

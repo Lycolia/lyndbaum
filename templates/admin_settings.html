@@ -22,7 +22,7 @@
     {{/ if }}
     {{# if field.is_text }}
     <label>{{ field.label }}<br><input type="text" name="{{ field.key }}" value="{{ field.value }}"{{# if field.max }} maxlength="{{ field.max }}"{{/ if }}{{# if field.required }} required{{/ if }}></label>
-    {{# if field.media }}<button type="button" class="media-field" data-target="{{ field.key }}" data-base="{{ urls.media }}">メディアから選ぶ</button>{{/ if }}
+    {{# if field.media }}<button type="button" class="media-field" data-target="{{ field.key }}" data-base="{{ urls.media }}">ファイル一覧から選択</button>{{/ if }}
     {{/ if }}
     {{# if field.is_lines }}
     <label>{{ field.label }}<br><textarea name="{{ field.key }}" rows="5">{{ field.value }}</textarea></label>

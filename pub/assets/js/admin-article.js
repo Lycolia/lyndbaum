@@ -1,7 +1,7 @@
 // 管理画面の記事の編集
 //   - タグの入力：付けたタグを札で並べ、入力に合わせて今あるタグの候補を出す（docs/admin.md の「タグの入力」）
 //   - ファイルのアップロード：選ぶ、本文の欄に落とす、貼り付ける。返った記法をカーソルの位置に入れる
-//     「メディアから選ぶ」で、前に上げたファイルを選んで入れる（admin-media.js）
+//     「ファイル一覧から選択」で、前に上げたファイルを選んで入れる（admin-media.js）
 //   - 更新履歴：版を取りに行き、今の本文（編集の欄）との行の差分か全文を出す。版を本文に読み込む（保存するまで確定しない）
 //   （「公開する」を押したときの確認は admin.js の data-confirm）
 'use strict';
@@ -357,7 +357,7 @@
 					csrf: form.elements.csrf_token.value,
 					actions: [
 						{ label: '本文に入れる', when: function (f) { return !!f.tag; }, run: function (f) { insert(f.tag); } },
-						{ label: 'OGPの画像にする', when: function (f) { return f.kind === 'image'; }, run: function (f) { form.ogpChoose && form.ogpChoose(f); } },
+						{ label: 'アイキャッチにする', when: function (f) { return f.kind === 'image'; }, run: function (f) { form.eyecatchChoose && form.eyecatchChoose(f); } },
 					],
 				});
 			});
@@ -387,29 +387,29 @@
 	}
 
 	//----------------------------------------------------------------------
-	// OGP の画像（docs/ogp.md）
+	// アイキャッチ（docs/ogp.md）
 	//----------------------------------------------------------------------
 	function initOgp(form) {
-		var box = form.querySelector('.ogp-box');
+		var box = form.querySelector('.eyecatch-box');
 		if (!box) return;
-		var preview = box.querySelector('.ogp-preview');
-		var hidden  = form.elements.og_image;
+		var preview = box.querySelector('.eyecatch-preview');
+		var hidden  = form.elements.eyecatch;
 		var chosenUrl = null;   // 選んだ画像の URL（今の画面で選んだもの）
 
 		function show() {
-			var mode = form.querySelector('input[name="og_image_mode"]:checked').value;
+			var mode = form.querySelector('input[name="eyecatch_mode"]:checked').value;
 			var url = mode === 'chosen' ? (chosenUrl || (hidden.value ? attachmentUrl(hidden.value) : ''))
 				: mode === 'auto' ? (preview.dataset.auto || preview.dataset.blog) : preview.dataset.blog;
 			preview.textContent = '';
 			if (url) {
 				var img = document.createElement('img');
 				img.src = url;
-				img.alt = 'OGPの画像';
+				img.alt = 'アイキャッチ';
 				preview.appendChild(img);
 			} else {
 				var span = document.createElement('span');
 				span.className = 'admin-help';
-				span.textContent = mode === 'chosen' ? 'まだ選んでいません。「メディアから選ぶ」で選んでください。' : '画像はありません。';
+				span.textContent = mode === 'chosen' ? 'まだ選んでいません。「ファイル一覧から選択」で選んでください。' : '画像はありません。';
 				preview.appendChild(span);
 			}
 		}
@@ -418,20 +418,20 @@
 			return preview.dataset.attachments + path.split('/').map(encodeURIComponent).join('/');
 		}
 
-		form.ogpChoose = function (f) {
+		form.eyecatchChoose = function (f) {
 			hidden.value = f.folder + f.name;
 			chosenUrl = f.thumbnail || f.url;
-			form.querySelector('input[name="og_image_mode"][value="chosen"]').checked = true;
+			form.querySelector('input[name="eyecatch_mode"][value="chosen"]').checked = true;
 			show();
 		};
-		box.addEventListener('change', function (evt) { if (evt.target.name === 'og_image_mode') show(); });
-		var pickButton = box.querySelector('.ogp-pick');
+		box.addEventListener('change', function (evt) { if (evt.target.name === 'eyecatch_mode') show(); });
+		var pickButton = box.querySelector('.eyecatch-pick');
 		if (window.LyndbaumMedia) {
 			pickButton.addEventListener('click', function () {
 				window.LyndbaumMedia.pick({
 					base: pickButton.dataset.base,
 					csrf: form.elements.csrf_token.value,
-					actions: [{ label: 'OGPの画像にする', when: function (f) { return f.kind === 'image'; }, run: form.ogpChoose }],
+					actions: [{ label: 'アイキャッチにする', when: function (f) { return f.kind === 'image'; }, run: form.eyecatchChoose }],
 				});
 			});
 		} else {

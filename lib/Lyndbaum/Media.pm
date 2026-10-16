@@ -50,7 +50,7 @@ sub _path {
 	return encode_utf8(File::Spec->catfile($base, (split m{/}, $folder), defined $name ? $name : ()));
 }
 
-# フォルダの木 [ { folder => 'posts/', name => 'posts', count => ファイルの数, children => [...] }, ... ]
+# フォルダの木 [ { folder => 'posts/', name => 'posts', count => ファイルの数, total => 下のフォルダを含めたファイルの数, children => [...] }, ... ]
 #   名前の逆順（新しい年月を先に）
 sub folders {
 	my ($self) = @_;
@@ -62,7 +62,11 @@ sub folders {
 		return [ map {
 			my $name = decode_utf8($_);
 			my $child = "$folder$name/";
-			+{ folder => $child, name => $name, count => scalar @{ $self->files($child) }, children => __SUB__->($child) }
+			my $count = scalar @{ $self->files($child) };
+			my $children = __SUB__->($child);
+			my $total = $count;
+			$total += $_->{total} for @$children;
+			+{ folder => $child, name => $name, count => $count, total => $total, children => $children }
 		} @names ];
 	};
 	return $walk->('');
@@ -92,19 +96,19 @@ sub files {
 }
 
 # そのファイルを使っている記事（ゴミ箱の中を含む）[ { id, title, deleted_at }, ... ]
-#   本文の記法（[image:S:フォルダ/:名前]）、URL や旧システムのパス（フォルダ/名前）、OGP の画像（og_image）から探す
+#   本文の記法（[image:S:フォルダ/:名前]）、URL や旧システムのパス（フォルダ/名前）、アイキャッチ（eyecatch）から探す
 #   SQL で候補を絞ってから、名前の直後が区切り（記法の : や ]、URL の後ろの空白や " ) など）かを確かめる
 #   （「a.jpg」を探して「a.jpg.bak」を使っている記事が当たらないように）
 sub usage {
 	my ($self, $dbh, $folder, $name) = @_;
 	my $rows = $dbh->selectall_arrayref(<<'SQL', { Slice => {} }, "$folder:$name", "$folder$name", "$folder$name");
-SELECT id, title, deleted_at, body_src, og_image FROM articles
-WHERE instr(body_src, ?) > 0 OR instr(body_src, ?) > 0 OR og_image = ?
+SELECT id, title, deleted_at, body_src, eyecatch FROM articles
+WHERE instr(body_src, ?) > 0 OR instr(body_src, ?) > 0 OR eyecatch = ?
 ORDER BY id DESC
 SQL
 	my $re = qr{(?:\Q$folder:$name\E(?=[:\]])|\Q$folder$name\E(?=[\s"'<>()\]?#]|\z))};
 	return [ map { +{ id => $_->{id}, title => $_->{title}, deleted_at => $_->{deleted_at} } }
-		grep { $_->{og_image} eq "$folder$name" || $_->{body_src} =~ $re } @$rows ];
+		grep { $_->{eyecatch} eq "$folder$name" || $_->{body_src} =~ $re } @$rows ];
 }
 
 # ゴミ箱へ移す（サムネイルも）。ゴミ箱での名前を返す。無ければ die

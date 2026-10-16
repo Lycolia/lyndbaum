@@ -1,0 +1,31 @@
+<h1>{{ title }}</h1>
+{{# if saved }}
+<p class="admin-notice" role="status">保存しました。</p>
+{{/ if }}
+{{# if errors }}
+<div class="admin-error" role="alert">
+  <p>保存できませんでした。次の点を直してください。</p>
+  <ul>
+    {{# for error in errors }}<li>{{ error }}</li>{{/ for }}
+  </ul>
+</div>
+{{/ if }}
+<p>公開側の右のサイドバーに、コンテンツの木の下から、この順に出します（旧システムの「Information」や「カウンター」にあたる欄）。中身はHTMLで書きます。記事に書ける生のHTMLと同じタグだけを通し、ほかのタグは文字として出します。題名も中身も空にすると、その欄は消えます。</p>
+{{! 欄は box_title と box_html を同じ名前で並べて送る。並べ替えは admin-sidebar.js }}
+<form class="admin-form sidebar-boxes" method="post" action="{{ action }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  {{# for box in boxes }}
+  <fieldset class="sidebar-box-edit">
+    <legend>{{# if box.blank }}新しい欄{{# else }}欄{{/ if }}</legend>
+    <div class="admin-field">
+      <label>題名<br><input type="text" name="box_title" value="{{ box.title }}" maxlength="{{ max_title }}"></label>
+    </div>
+    <div class="admin-field">
+      <label>中身（HTML）<br><textarea name="box_html" rows="6">{{ box.html }}</textarea></label>
+    </div>
+    <p class="sidebar-box-move" hidden><button type="button" data-move="-1">上へ</button> <button type="button" data-move="1">下へ</button></p>
+  </fieldset>
+  {{/ for }}
+  <p><button type="submit">保存</button></p>
+</form>
+<script src="{{ script }}" defer></script>

@@ -24,8 +24,8 @@ Lyndbaum::Model::Setting->set($dbh, blog_image => '@system/blog.png');
 
 insert_article($dbh, id => 1, title => '画像のある記事', body_src => "前置き\n\n[image:S:posts/2026/10/:a b.png:代替]\n\n![図](/pub/attachments/posts/2026/10/c.png)");
 insert_article($dbh, id => 2, title => '画像の無い記事', body_src => '本文だけ');
-insert_article($dbh, id => 3, title => '選んだ画像', body_src => '[image:S:posts/2026/10/:a.png]', og_image => 'posts/2026/09/x.jpg', og_image_mode => 'chosen');
-insert_article($dbh, id => 4, title => '使わない', body_src => '[image:S:posts/2026/10/:a.png]', og_image_mode => 'none');
+insert_article($dbh, id => 3, title => '選んだ画像', body_src => '[image:S:posts/2026/10/:a.png]', eyecatch => 'posts/2026/09/x.jpg', eyecatch_mode => 'chosen');
+insert_article($dbh, id => 4, title => '使わない', body_src => '[image:S:posts/2026/10/:a.png]', eyecatch_mode => 'none');
 insert_article($dbh, id => 5, title => '下書き', status => 'draft');
 Lyndbaum::Model::Article->rebuild_all($dbh, $t->app->parser_context);
 
@@ -101,31 +101,31 @@ sub post {
 
 subtest '編集の画面' => sub {
 	my $res = $t->request(GET => '/admin/articles/1', cookie => $cookie);
-	like $res->body, qr{<input type="radio" name="og_image_mode" value="auto" checked>}, '既定は自動';
+	like $res->body, qr{<input type="radio" name="eyecatch_mode" value="auto" checked>}, '既定は自動';
 	like $res->body, qr{data-auto="/pub/attachments/posts/2026/10/a%20b\.png"}, '自動のときの画像';
-	like $res->body, qr{<img src="/pub/attachments/posts/2026/10/a%20b\.png" alt="OGPの画像">};
-	like $t->request(GET => '/admin/articles/3', cookie => $cookie)->body, qr{<input type="hidden" name="og_image" value="posts/2026/09/x\.jpg">};
+	like $res->body, qr{<img src="/pub/attachments/posts/2026/10/a%20b\.png" alt="アイキャッチ">};
+	like $t->request(GET => '/admin/articles/3', cookie => $cookie)->body, qr{<input type="hidden" name="eyecatch" value="posts/2026/09/x\.jpg">};
 
 	my $digest = Lyndbaum::Model::Article->digest($dbh, 2);
-	$res = post('/admin/articles/2', title => '画像の無い記事', og_image_mode => 'chosen', og_image => 'posts/2026/10/a.png', digest => $digest);
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => 'posts/2026/10/a.png', digest => $digest);
 	is $res->status, 303;
-	is_deeply $dbh->selectrow_arrayref('SELECT og_image_mode, og_image FROM articles WHERE id = 2'), ['chosen', 'posts/2026/10/a.png'];
+	is_deeply $dbh->selectrow_arrayref('SELECT eyecatch_mode, eyecatch FROM articles WHERE id = 2'), ['chosen', 'posts/2026/10/a.png'];
 
-	$res = post('/admin/articles/2', title => '画像の無い記事', og_image_mode => 'none', og_image => 'posts/2026/10/a.png', digest => Lyndbaum::Model::Article->digest($dbh, 2));
-	is_deeply $dbh->selectrow_arrayref('SELECT og_image_mode, og_image FROM articles WHERE id = 2'), ['none', ''], '選んでいなければ画像は持たない';
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'none', eyecatch => 'posts/2026/10/a.png', digest => Lyndbaum::Model::Article->digest($dbh, 2));
+	is_deeply $dbh->selectrow_arrayref('SELECT eyecatch_mode, eyecatch FROM articles WHERE id = 2'), ['none', ''], '選んでいなければ画像は持たない';
 
-	$res = post('/admin/articles/2', title => '画像の無い記事', og_image_mode => 'chosen', og_image => '');
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => '');
 	is $res->status, 400;
-	like $res->body, qr{OGPの画像を選んでください。};
-	$res = post('/admin/articles/2', title => '画像の無い記事', og_image_mode => 'chosen', og_image => '../etc/passwd');
-	like $res->body, qr{OGPの画像のパスが正しくありません。};
+	like $res->body, qr{アイキャッチを選んでください。};
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => '../etc/passwd');
+	like $res->body, qr{アイキャッチのパスが正しくありません。};
 };
 
 subtest 'ブログの設定' => sub {
 	my $res = $t->request(GET => '/admin/settings/blog', cookie => $cookie);
 	is $res->status, 200;
 	like $res->body, qr{<input type="text" name="blog_image" value="\@system/blog\.png" maxlength="300">};
-	like $res->body, qr{<button type="button" class="media-field" data-target="blog_image" data-base="/admin/media">メディアから選ぶ</button>};
+	like $res->body, qr{<button type="button" class="media-field" data-target="blog_image" data-base="/admin/media">ファイル一覧から選択</button>};
 	my %form = (csrf_token => $csrf, blog_title => ' 新しい名前 ', blog_description => '説明', blog_author => '', blog_image => '@system/new.png', per_page => 10, feed_items => 20);
 	$res = $t->request(POST => '/admin/settings/blog', cookie => $cookie, body => [ %form ]);
 	is header($res, 'Location'), '/admin/settings/blog?saved=1';

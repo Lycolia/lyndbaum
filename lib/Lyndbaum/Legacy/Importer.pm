@@ -86,7 +86,7 @@ sub _import_articles {
 	my ($class, $dbh, $articles, $rewrite) = @_;
 	my $sth = $dbh->prepare(<<'SQL');
 INSERT INTO articles (
-    id, kind, slug, title, syntax, body_src, description, og_image, og_image_mode,
+    id, kind, slug, title, syntax, body_src, description, eyecatch, eyecatch_mode,
     status, published_at, created_at, updated_at, sort_order,
     comments_open
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -120,7 +120,7 @@ SQL
 			$body,
 			$art->{description} // '',
 			$class->rename_folder($art->{main_image} // ''),
-			# OGP の画像が決まっていれば、その画像を出す（docs/ogp.md）。無ければ本文の最初の画像
+			# アイキャッチが決まっていれば、その画像を出す（docs/ogp.md）。無ければ本文の最初の画像
 			($art->{main_image} // '') ne '' ? 'chosen' : 'auto',
 			$art->{enable} ? 'published' : 'draft',
 			$published_at,
@@ -154,7 +154,7 @@ SQL
 my %FOLDERS = (adiary => 'posts');
 my $FOLDER_RE = join '|', map { quotemeta } sort keys %FOLDERS;
 
-# OGP の画像（旧データの main_image。「adiary/2023/a.png」の形）のフォルダを付け替える
+# アイキャッチ（旧データの main_image。「adiary/2023/a.png」の形）のフォルダを付け替える
 sub rename_folder {
 	my ($class, $path) = @_;
 	$path =~ s{\A($FOLDER_RE)/}{$FOLDERS{$1}/};

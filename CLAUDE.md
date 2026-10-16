@@ -81,7 +81,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
 - HTMLの出力はテンプレートで行い、エスケープは既定で有効にする
 - グローバル状態や、実行時の文字列評価によるコード生成は使わない
 - 設定は一つの設定ファイルにまとめる（秘密情報はリポジトリに入れない）
-  - 設定ファイルは `config.json`（git管理外）。見本は `config.sample.json`
+  - 設定ファイルは `config.json`（git管理外）。見本は `config.json.sample`
   - DBなどの書き込むファイルは `var/` に置く。`var/.htaccess` でWebから読めないようにしている
   - スキーマを最新にするには `perl tools/migrate.pl` を実行する
   - 旧システムのデータの取り込みは `perl tools/import-adiary.pl data lycolia`（取り込み先のDBは空であること）。取り込んだ後、全記事の本文を変換する

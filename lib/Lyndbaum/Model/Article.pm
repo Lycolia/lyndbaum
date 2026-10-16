@@ -15,7 +15,7 @@ use Lyndbaum::Parser::Markdown;
 # 公開中の記事を表す条件
 my $PUBLIC = q{status = 'published' AND deleted_at IS NULL};
 
-my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, og_image, og_image_mode, published_at, updated_at, comments_open';
+my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, eyecatch, eyecatch_mode, published_at, updated_at, comments_open';
 
 # 一覧などで取る列（ほかのモデルから記事を取るときにも使う）
 sub columns { $COLUMNS }
@@ -43,6 +43,21 @@ SQL
 sub count_public_posts {
 	my ($class, $dbh) = @_;
 	return scalar $dbh->selectrow_array("SELECT COUNT(*) FROM articles WHERE kind = 'post' AND $PUBLIC");
+}
+
+# 公開日時の年と月ごとの記事の件数 [ [年, 月, 件数], ... ]（新しい順。日本時間）
+#   旧システムの過去ログと同じく、コンテンツページは数えない（検索 /search?d=YYYYMM の件数はコンテンツページを含む）
+sub month_counts {
+	my ($class, $dbh) = @_;
+	my $jst = 9 * 60 * 60;
+	my $rows = $dbh->selectall_arrayref(<<"SQL");
+SELECT strftime('%Y', published_at + $jst, 'unixepoch') AS y, strftime('%m', published_at + $jst, 'unixepoch') AS m, COUNT(*)
+FROM articles
+WHERE kind = 'post' AND $PUBLIC AND published_at IS NOT NULL
+GROUP BY y, m
+ORDER BY y DESC, m DESC
+SQL
+	return [ map { [ 0 + $_->[0], 0 + $_->[1], $_->[2] ] } @$rows ];
 }
 
 # タグ（その子孫を含む）の付いた記事とコンテンツページ
@@ -184,10 +199,10 @@ sub count_by_status {
 sub digest {
 	my ($class, $dbh, $id) = @_;
 	my $row = $dbh->selectrow_hashref(
-		'SELECT title, body_src, status, published_at, comments_open, og_image, og_image_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
+		'SELECT title, body_src, status, published_at, comments_open, eyecatch, eyecatch_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
 	my $tag_ids = $class->tag_ids_of($dbh, $id)->{$id} // [];
 	return Digest::SHA::sha256_hex(Encode::encode_utf8(join "\0",
-		map { $_ // '' } @$row{qw(title body_src status published_at comments_open og_image og_image_mode updated_at)}, sort { $a <=> $b } @$tag_ids));
+		map { $_ // '' } @$row{qw(title body_src status published_at comments_open eyecatch eyecatch_mode updated_at)}, sort { $a <=> $b } @$tag_ids));
 }
 
 # 記事を保存する。$v は Lyndbaum::ArticleForm->parse の値
@@ -206,7 +221,7 @@ sub digest {
 #   - keep_updated が真なら、更新日時を変えない（誤字の直しなど、更新として扱いたくないとき）
 #   - 識別子の無い見出しに識別子を付ける（見出しの文言を変えても、見出しへのリンクが変わらないように）
 #   - 題名か本文が変わったら、保存する前の版を履歴（revisions）に残す（_save_revision）
-#     %opt の revision_interval（時間）、revision_max（件）は設定の値
+#     %opt の revision_interval（分）、revision_max（件）は設定の値
 #   - 本文を変換し、検索用のテキストを作る
 sub save {
 	my ($class, $dbh, $v, %opt) = @_;
@@ -217,8 +232,8 @@ sub save {
 		status        => $v->{status},
 		published_at  => $v->{published_at} // ($v->{status} eq 'published' ? $now : undef),
 		comments_open => $v->{comments_open},
-		og_image      => $v->{og_image} // '',
-		og_image_mode => $v->{og_image_mode} // 'auto',
+		eyecatch      => $v->{eyecatch} // '',
+		eyecatch_mode => $v->{eyecatch_mode} // 'auto',
 		updated_at    => $now,
 	);
 	delete $row{updated_at} if $v->{keep_updated} && defined $opt{id};
@@ -443,15 +458,15 @@ sub count_trash {
 # 更新履歴（docs/admin.md の「更新履歴」）
 
 # 保存する前の版を履歴に残す。$old は保存する前の記事
-#   前に履歴を残してから revision_interval 時間の中なら残さない（続けて何度も保存した分を1つの版にまとめる）
+#   前に履歴を残してから revision_interval 分の中なら残さない（続けて何度も保存した分を1つの版にまとめる）
 #   記事ごとに revision_max 件を超えたら、古いものから消す。どちらも 0 なら制限しない
 sub _save_revision {
 	my ($class, $dbh, $old, $now, %opt) = @_;
-	my $interval = $opt{revision_interval} // 3;
+	my $interval = $opt{revision_interval} // 180;
 	my $max      = $opt{revision_max} // 120;
 	if ($interval > 0) {
 		my $last = $dbh->selectrow_array('SELECT MAX(created_at) FROM revisions WHERE article_id = ?', undef, $old->{id});
-		return if defined $last && $now - $last < $interval * 3600;
+		return if defined $last && $now - $last < $interval * 60;
 	}
 	$dbh->do('INSERT INTO revisions (article_id, title, body_src, saved_at, created_at) VALUES (?, ?, ?, ?, ?)', undef,
 		$old->{id}, $old->{title}, $old->{body_src}, $old->{updated_at}, $now);

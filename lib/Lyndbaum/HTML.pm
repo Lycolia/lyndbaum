@@ -5,7 +5,7 @@ use warnings;
 use utf8;
 
 use Exporter 'import';
-our @EXPORT_OK = qw(escape_html escape_text sanitize_tag strip_tags is_safe_url);
+our @EXPORT_OK = qw(escape_html escape_text sanitize_tag sanitize_html strip_tags is_safe_url);
 
 my %ENTITY = (
 	'&' => '&amp;',
@@ -101,6 +101,38 @@ sub sanitize_tag {
 		push @attrs, $attr . '="' . escape_html($value) . '"';
 	}
 	return '<' . join(' ', $name, @attrs) . '>';
+}
+
+# 管理者が書いたHTMLの断片（サイドバーの自由欄など）を、許可リストに照らして返す
+#   タグは sanitize_tag に通し、許可しないタグは文字として出す。コメント（<!-- -->）は消す
+#   閉じていないタグは最後に閉じ、対応の無い閉じタグは消す（周りのレイアウトを崩さないため）
+my %VOID_TAGS = map { $_ => 1 } qw(br hr img wbr col source);
+sub sanitize_html {
+	my ($html) = @_;
+	$html =~ s/<!--.*?(?:-->|\z)//gs;
+	my ($out, @open) = ('');
+	for my $part (split /(<[^<>]*>)/, $html) {
+		if ($part !~ /\A</) {
+			$part =~ s/&(?!(?:#\d+|#x[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);)/&amp;/g;
+			$part =~ s/</&lt;/g;
+			$part =~ s/>/&gt;/g;
+			$out .= $part;
+			next;
+		}
+		my $tag = sanitize_tag($part);
+		if (!defined $tag) {
+			$out .= escape_text($part);
+		} elsif (my ($name) = $tag =~ m{\A</(\w+)>\z}) {
+			my ($i) = grep { $open[$_] eq $name } reverse 0 .. $#open;
+			next if !defined $i;
+			$out .= join '', map { "</$_>" } reverse splice @open, $i;
+		} else {
+			($name) = $tag =~ /\A<(\w+)/;
+			push @open, $name if !$VOID_TAGS{$name};
+			$out .= $tag;
+		}
+	}
+	return $out . join '', map { "</$_>" } reverse @open;
 }
 
 sub _safe_url {

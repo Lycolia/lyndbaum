@@ -31,9 +31,9 @@
       <label>本文（Markdown）<br><textarea name="body" rows="25" class="admin-body">{{ form.body }}</textarea></label>
       {{! 添付ファイルのアップロード。admin-article.js が /admin/upload に送り、返った記法をカーソルの位置に入れる }}
       <div class="upload-bar" data-upload-url="{{ urls.upload }}">
-        <label class="upload-button">ファイルを上げる<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm"></label>
+        <label class="upload-button">アップロード<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm"></label>
         <label>サムネイル <input type="number" class="upload-size" min="60" max="800" value="{{ thumbnail_size }}">px</label>
-        <button type="button" class="media-open" data-base="{{ urls.media }}">メディアから選ぶ</button>
+        <button type="button" class="media-open" data-base="{{ urls.media }}">ファイル一覧から選択</button>
         <span class="upload-status" role="status"></span>
       </div>
       <p class="admin-help">本文の欄にファイルを落とすか、画像を貼り付けても上げられます。上げると、カーソルの位置に記法を入れます。置けるのは jpg、png、gif、webp、apng、mp4、webm です。</p>
@@ -63,9 +63,21 @@
     </div>
   </div>
 
-  {{! WordPress の「公開」の枠のような形。Enter で送ったときは最初のボタン（今の状態のままにするほう）になるので、
-      公開中の記事では「更新」を先に置き、「下書きに戻す」は CSS で上に並べる }}
   <aside class="article-edit-side">
+    {{! アイキャッチ（docs/ogp.md）。「ファイル一覧から選択」で選ぶと chosen にする（admin-article.js） }}
+    <section class="publish-box eyecatch-box{{# if error_of.eyecatch }} admin-field-error{{/ if }}">
+      <h2>アイキャッチ</h2>
+      <input type="hidden" name="eyecatch" value="{{ form.eyecatch }}">
+      <div class="admin-field eyecatch-modes">
+        <label><input type="radio" name="eyecatch_mode" value="auto"{{# if eyecatch.auto }} checked{{/ if }}>自動（本文の最初の画像）</label>
+        <label><input type="radio" name="eyecatch_mode" value="chosen"{{# if eyecatch.chosen }} checked{{/ if }}>選んだ画像</label>
+        <label><input type="radio" name="eyecatch_mode" value="none"{{# if eyecatch.none }} checked{{/ if }}>使わない（ブログの画像）</label>
+      </div>
+      <p class="eyecatch-preview" data-auto="{{ eyecatch.auto_url }}" data-blog="{{ eyecatch.blog_url }}" data-attachments="{{ eyecatch.attachment_base }}">{{# if eyecatch.preview }}<img src="{{ eyecatch.preview }}" alt="アイキャッチ">{{# else }}<span class="admin-help">画像はありません。</span>{{/ if }}</p>
+      <p><button type="button" class="eyecatch-pick" data-base="{{ urls.media }}">ファイル一覧から選択</button></p>
+    </section>
+    {{! WordPress の「公開」の枠のような形。Enter で送ったときは最初の送信ボタン（今の状態のままにするほう）になるので、
+        公開中の記事では「更新」を先に置き、「下書きに戻す」は CSS で上に並べる。上のアイキャッチの枠には送信ボタンを置かない }}
     <section class="publish-box">
       <h2>公開</h2>
       {{# if article.published }}
@@ -105,19 +117,6 @@
         {{# if article }}{{> admin_trash_button }}{{/ if }}
       </div>
       {{/ if }}
-    </section>
-    {{! OGP の画像（docs/ogp.md）。「メディアから選ぶ」で選ぶと chosen にする（admin-article.js） }}
-    <section class="publish-box ogp-box{{# if error_of.og_image }} admin-field-error{{/ if }}">
-      <h2>OGPの画像</h2>
-      <input type="hidden" name="og_image" value="{{ form.og_image }}">
-      <div class="admin-field ogp-modes">
-        <label><input type="radio" name="og_image_mode" value="auto"{{# if ogp.auto }} checked{{/ if }}>自動（本文の最初の画像）</label>
-        <label><input type="radio" name="og_image_mode" value="chosen"{{# if ogp.chosen }} checked{{/ if }}>選んだ画像</label>
-        <label><input type="radio" name="og_image_mode" value="none"{{# if ogp.none }} checked{{/ if }}>使わない（ブログの画像）</label>
-      </div>
-      <p class="ogp-preview" data-auto="{{ ogp.auto_url }}" data-blog="{{ ogp.blog_url }}" data-attachments="{{ ogp.attachment_base }}">{{# if ogp.preview }}<img src="{{ ogp.preview }}" alt="OGPの画像">{{# else }}<span class="admin-help">画像はありません。</span>{{/ if }}</p>
-      <p><button type="button" class="ogp-pick" data-base="{{ urls.media }}">メディアから選ぶ</button></p>
-      <p class="admin-help">自動は、保存した本文の最初の画像です。</p>
     </section>
     {{# if is_page }}
     <section class="publish-box page-box">

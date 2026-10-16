@@ -45,6 +45,8 @@ subtest 'フォルダとファイル' => sub {
 	is_deeply [ map { $_->{folder} } @$tree ], ['posts/', '@system/'], '. で始まるフォルダ（.trashbox など）は出さない。名前の逆順';
 	is_deeply [ map { [ $_->{folder}, $_->{count} ] } @{ $tree->[0]{children}[0]{children} } ],
 		[ ['posts/2026/10/', 2], ['posts/2026/09/', 1] ], '新しい年月を先に。ファイルの数（. で始まるものは数えない）';
+	is_deeply [ map { [ $_->{folder}, $_->{count}, $_->{total} ] } $tree->[0], $tree->[0]{children}[0], $tree->[1] ],
+		[ ['posts/', 0, 3], ['posts/2026/', 0, 3], ['@system/', 1, 1] ], 'total は下のフォルダのファイルも数える';
 	my $files = $media->files('posts/2026/10/');
 	is_deeply [ map { $_->{name} } @$files ], ['b.mp4', '写真.jpg'], '新しい順';
 	is_deeply [ @{ $files->[1] }{qw(kind thumbnail size)} ], ['image', 1, 4];
@@ -61,7 +63,7 @@ subtest '使っている記事' => sub {
 	my $dbh = $t->dbh;
 	insert_article($dbh, id => 1, title => '記法', body_src => '[image:S:posts/2026/10/:写真.jpg:代替]');
 	insert_article($dbh, id => 2, title => 'URL', body_src => '![](/pub/attachments/posts/2026/10/写真.jpg)', deleted_at => 1);
-	insert_article($dbh, id => 3, title => 'OGP', og_image => 'posts/2026/10/写真.jpg');
+	insert_article($dbh, id => 3, title => 'OGP', eyecatch => 'posts/2026/10/写真.jpg');
 	insert_article($dbh, id => 4, title => '別の画像', body_src => '[image:S:posts/2026/10/:写真.jpg.bak] /pub/attachments/posts/2026/10/写真.jpg.bak [image:S:posts/2026/09/:写真.jpg]');
 	insert_article($dbh, id => 5, title => '記法だけ', body_src => '[image:L:posts/2026/10/:写真.jpg]');
 	my $used = $media->usage($dbh, 'posts/2026/10/', '写真.jpg');

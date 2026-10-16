@@ -21,6 +21,8 @@ use Lyndbaum::Controller::Admin;
 use Lyndbaum::Controller::AdminArticle;
 use Lyndbaum::Controller::AdminComment;
 use Lyndbaum::Controller::AdminSettings;
+use Lyndbaum::Controller::AdminSidebar;
+use Lyndbaum::SidebarBoxes;
 use Lyndbaum::Controller::AdminTag;
 use Lyndbaum::Controller::AdminUpload;
 use Lyndbaum::Controller::AdminMedia;
@@ -31,7 +33,7 @@ use Lyndbaum::Controller::Comment;
 use Lyndbaum::Controller::Search;
 use Lyndbaum::Controller::Static;
 
-my $APP_VERSION = '0.1.0-beta';
+my $APP_VERSION = '0.2.0-beta';
 
 # ルーティング表。URLから処理を追うときはここを見る
 # URLの組み立ては Lyndbaum::URL にある
@@ -70,6 +72,8 @@ my $ROUTER = Lyndbaum::Router->new(
 	[ POST => qr{\A/admin/rebuild\z},           'Lyndbaum::Controller::AdminArticle', 'rebuild'   ],
 	[ GET  => qr{\A/admin/comments\z},          'Lyndbaum::Controller::AdminComment', 'index'         ],
 	[ POST => qr{\A/admin/comments/(\d+)\z},    'Lyndbaum::Controller::AdminComment', 'update'        ],
+	[ GET  => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'form' ],
+	[ POST => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'save' ],
 	[ GET  => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'form' ],
 	[ POST => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'save' ],
 	# 記事（/0575）とコンテンツページ（/親/子）。パスは slug と同じ
@@ -227,6 +231,9 @@ sub render {
 		content_tree => Lyndbaum::View->content_tree($self),
 		tag_tree     => Lyndbaum::View->tag_tree($self),
 		recent_comments => Lyndbaum::View->recent_comments($self),
+		recent_posts    => Lyndbaum::View->recent_posts($self),
+		archive         => Lyndbaum::View->archive($self),
+		sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($self->settings->{sidebar_boxes}),
 		app_version => $APP_VERSION
 	);
 	my %all = (%common, %$vars);
@@ -261,6 +268,7 @@ sub render_admin {
 			blog_settings    => $self->url->admin('settings/blog'),
 			comment_settings => $self->url->admin('settings/comments'),
 			editor_settings  => $self->url->admin('settings/editor'),
+			sidebar          => $self->url->admin('sidebar'),
 			style  => $self->url->static('css/style.css'),
 		},
 		logged_in  => $session ? 1 : 0,

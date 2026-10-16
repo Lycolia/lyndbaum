@@ -27,7 +27,7 @@ body {
 }
 a { color: var(--link); }
 .site-header, .site-body, .site-footer {
-  max-width: 72rem;
+  max-width: 84rem;
   margin: 0 auto;
   padding: 0 16px;
 }
@@ -35,9 +35,16 @@ a { color: var(--link); }
 .site-title { font-size: 1.5rem; font-weight: bold; margin: 0; }
 .site-title a { color: inherit; text-decoration: none; }
 .site-description { color: var(--muted); margin: .25rem 0 1rem; }
-.site-body { display: grid; grid-template-columns: minmax(0, 1fr) 16rem; gap: 2rem; padding-top: 1.5rem; }
-@media (max-width: 48rem) {
-  .site-body { grid-template-columns: minmax(0, 1fr); }
+/* 狭い画面：本文、左、右の順に縦に並べる。中くらい：本文の右に、左と右のサイドバーを縦に重ねる。広い画面：左｜本文｜右 */
+.site-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2rem; padding-top: 1.5rem; }
+@media (min-width: 48rem) {
+  .site-body { grid-template-columns: minmax(0, 1fr) 16rem; grid-template-rows: auto 1fr; grid-template-areas: "main left" "main right"; column-gap: 2rem; row-gap: 0; }
+  .site-main { grid-area: main; }
+  .sidebar-left { grid-area: left; }
+  .sidebar-right { grid-area: right; }
+}
+@media (min-width: 72rem) {
+  .site-body { grid-template-columns: 14rem minmax(0, 1fr) 16rem; grid-template-rows: auto; grid-template-areas: "left main right"; }
 }
 .site-footer { border-top: 1px solid var(--border); color: var(--muted); margin-top: 2rem; }
 /* Prism.js のトークンのクラス（comment、tag など）とぶつからないよう、記事やコメントの部品の名前には頭を付ける */
@@ -58,6 +65,11 @@ a { color: var(--link); }
 .tree, .tree ul { list-style: none; padding-left: 1rem; margin: 0; }
 .tree { padding-left: 0; }
 .count { color: var(--muted); font-size: .85rem; }
+.recent-posts, .archive, .archive ul { list-style: none; padding-left: 0; margin: 0; }
+.archive ul { padding-left: 1rem; }
+.archive summary { cursor: pointer; }
+.sidebar-box-body { overflow-wrap: anywhere; }
+.sidebar-box-body img { max-width: 100%; height: auto; }
 .search-form { display: flex; flex-wrap: wrap; gap: .25rem; margin: .5rem 0 1rem; }
 .search-form input[type="search"] { flex: 1 1 8rem; min-width: 0; }
 .search-conditions { border-bottom: 1px solid var(--border); margin-bottom: 1rem; }
@@ -137,7 +149,9 @@ mark { background: #ffe066; color: #000; }
 .publish-box-status dd { margin: 0; }
 .publish-box .admin-field { margin-bottom: .75rem; }
 .publish-box-trash { font: inherit; font-size: .85rem; border: 0; background: none; color: #c33; text-decoration: underline; cursor: pointer; padding: 0; }
-.page-box { margin-top: 1rem; }
+.publish-box + .publish-box { margin-top: 1rem; }
+.sidebar-box-edit { border: 1px solid var(--border); border-radius: .25rem; margin: 0 0 1rem; }
+.sidebar-box-edit textarea { width: 100%; font-family: monospace; }
 .page-box select, .page-box input[type="number"] { font: inherit; max-width: 100%; }
 .button-primary { font: inherit; font-weight: bold; padding: .3rem 1rem; background: var(--link); color: var(--bg); border: 1px solid var(--link); border-radius: .25rem; cursor: pointer; }
 
@@ -211,6 +225,12 @@ mark { background: #ffe066; color: #000; }
 .media-folders { font-size: .9rem; max-height: 70vh; overflow-y: auto; }
 .media-folders ul { list-style: none; margin: 0; padding: 0 0 0 .75rem; }
 .media-folders > ul { padding-left: 0; }
+.media-folders li { display: flex; flex-wrap: wrap; align-items: baseline; }
+.media-folders li > ul { flex-basis: 100%; }
+.media-folder-toggle { flex: none; width: 1.25rem; font: inherit; background: none; border: 0; padding: 0; color: var(--muted); }
+button.media-folder-toggle { cursor: pointer; }
+button.media-folder-toggle::before { content: "\25B8"; }
+button.media-folder-toggle[aria-expanded="true"]::before { content: "\25BE"; }
 .media-folder { font: inherit; background: none; border: 0; padding: .1rem .25rem; cursor: pointer; color: var(--link); text-align: left; }
 .media-folder[aria-current] { font-weight: bold; color: var(--text); background: var(--code-bg); }
 .media-trash-button { margin-top: .75rem; }
@@ -239,9 +259,8 @@ a.media-item { text-decoration: none; }
 .media-dialog::backdrop { background: rgb(0 0 0 / .4); }
 .media-dialog-head { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: .5rem 0; }
 .media-dialog-head h2 { font-size: 1rem; margin: 0; }
-.ogp-box { margin-top: 1rem; }
-.ogp-modes label { display: block; font-size: .9rem; }
-.ogp-preview img { max-width: 100%; max-height: 10rem; border: 1px solid var(--border); }
+.eyecatch-modes label { display: block; font-size: .9rem; }
+.eyecatch-preview img { max-width: 100%; max-height: 10rem; border: 1px solid var(--border); }
 
 /* コードブロック（色は pub/assets/js/extlib/prismjs/prism.css）。長い行は、ページではなくコードの中で横にスクロールする */
 .article-body pre { overflow-x: auto; max-width: 100%; }

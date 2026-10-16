@@ -57,7 +57,7 @@ sub _render {
 	push @{ $error_of{ $_->{key} } }, $_->{message} for @$errors;
 	return $app->render_admin('admin_settings', {
 		title  => $page->{title},
-		script => $app->url->static('js/admin-media.js'),   # 「メディアから選ぶ」
+		script => $app->url->static('js/admin-media.js'),   # 「ファイル一覧から選択」
 		action => $app->url->admin("settings/$name"),
 		saved  => $opt{saved},
 		errors => $errors,

@@ -73,18 +73,18 @@ subtest 'ログインの失敗' => sub {
 	is $other->status, 303, 'Origin が無ければ Referer を見る';
 };
 
-subtest 'パスワードの決まりに合わなければ、PBKDF2 をかけずに断る' => sub {
+subtest 'パスワードの決まりに合わなければ、bcrypt をかけずに断る' => sub {
 	my $ip = '192.0.2.30';
-	local $Lyndbaum::Password::ITERATIONS = 10_000_000;   # PBKDF2 をかけたら、テストが終わらなくなる
+	local $Lyndbaum::Password::COST = 31;   # bcrypt をかけたら、テストが終わらなくなる
 	my $start = time;
 	my $res = request(POST => '/admin/login', body => [ login => 'admin', password => 'x' x 100_000 ], ip => $ip);
 	is $res->status, 401, '長すぎるパスワード';
-	is request(POST => '/admin/login', body => [ login => 'admin', password => 'パスワードパスワードパスワード' ], ip => $ip)->status, 401, 'ASCII でない';
+	is request(POST => '/admin/login', body => [ login => 'admin', password => "nul\0inside-password" ], ip => $ip)->status, 401, 'NUL を含む';
 	is request(POST => '/admin/login', body => [ login => 'nobody', password => 'x' x 100_000 ], ip => $ip)->status, 401, 'ログイン名が違っても同じ';
 	ok time - $start < 5, 'すぐに返す';
 	is $dbh->selectrow_array('SELECT COUNT(*) FROM login_failures WHERE ip = ?', undef, $ip), 3, '失敗としては数える';
-	eval { Lyndbaum::Model::Admin->set_password($dbh, 'admin', 'x' x 65, iterations => 1000) };
-	like $@, qr{64文字まで}, '決まりに合わないパスワードは登録できない';
+	eval { Lyndbaum::Model::Admin->set_password($dbh, 'admin', 'x' x 73, cost => 4) };
+	like $@, qr{72バイトまで}, '決まりに合わないパスワードは登録できない';
 	ok(Lyndbaum::Password->verify('correct horse battery', Lyndbaum::Model::Admin->find($dbh)->{password_hash}), '今のパスワードはそのまま');
 };
 
@@ -125,7 +125,7 @@ subtest 'ログアウト' => sub {
 subtest 'パスワードを変えたら、今のセッションをすべて消す' => sub {
 	my ($cookie) = login();
 	is request(GET => '/admin', cookie => $cookie)->status, 200;
-	Lyndbaum::Model::Admin->set_password($dbh, 'admin', 'correct horse battery', iterations => 1000);
+	Lyndbaum::Model::Admin->set_password($dbh, 'admin', 'correct horse battery', cost => 4);
 	is request(GET => '/admin', cookie => $cookie)->status, 303, '盗まれたセッションも使えなくなる';
 	is $dbh->selectrow_array('SELECT COUNT(*) FROM sessions'), 0;
 	my ($again) = login();

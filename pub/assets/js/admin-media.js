@@ -3,7 +3,7 @@
 //     設定：base（/admin/media）、csrf（CSRFトークン）、mode（page＝メディアの画面、picker＝選ぶための窓）、
 //           actions（選んだファイルに対してできること [{ label, when(ファイル), run(ファイル) }]。窓で「本文に入れる」など）
 //   どちらでも、ゴミ箱へ移す、ゴミ箱を見る（戻す、完全に削除）ができる
-//   LyndbaumMedia.pick(設定) で、選ぶための窓（<dialog>）を開く（編集の画面の「メディアから選ぶ」）
+//   LyndbaumMedia.pick(設定) で、選ぶための窓（<dialog>）を開く（編集の画面の「ファイル一覧から選択」）
 'use strict';
 (function () {
 	function el(tag, attrs, children) {
@@ -39,7 +39,7 @@
 
 	function mount(root, opt) {
 		var page = opt.mode !== 'picker';
-		var state = { folder: null, files: [], selected: {}, detail: null, trash: false };
+		var state = { folder: null, files: [], selected: {}, detail: null, trash: false, expanded: {} };
 		root.textContent = '';
 		root.classList.add('media');
 		var nav     = el('nav', { class: 'media-folders', 'aria-label': 'フォルダ' });
@@ -56,20 +56,33 @@
 			return getJSON(opt.base + '/folders').then(function (data) {
 				nav.textContent = '';
 				var list = el('ul', {});
-				(function walk(items, ul) {
+				(function walk(items, ul, depth) {
 					items.forEach(function (f) {
-						var li = el('li', {}, [el('button', {
+						var button = el('button', {
 							type: 'button', class: 'media-folder', 'data-folder': f.folder,
-							onclick: function () { openFolder(f.folder); }, text: f.name + '（' + f.count + '）',
-						})]);
+							onclick: function () { openFolder(f.folder); }, text: f.name + '（' + f.total + '）',
+						});
+						var li = el('li', {});
 						if (f.children.length) {
+							// 下のフォルダは折りたためる。最初は一番上の階層だけ開く。開け閉めは読み込み直しても保つ
 							var sub = el('ul', {});
-							walk(f.children, sub);
+							walk(f.children, sub, depth + 1);
+							var toggle = el('button', {
+								type: 'button', class: 'media-folder-toggle', 'aria-label': f.name + 'の下のフォルダ',
+								onclick: function () { setExpanded(li, sub.hidden); },
+							});
+							li.appendChild(toggle);
+							li.appendChild(button);
 							li.appendChild(sub);
+							li.dataset.folder = f.folder;
+							setExpanded(li, f.folder in state.expanded ? state.expanded[f.folder] : depth === 0);
+						} else {
+							li.appendChild(el('span', { class: 'media-folder-toggle', 'aria-hidden': 'true' }));
+							li.appendChild(button);
 						}
 						ul.appendChild(li);
 					});
-				})(data.folders, list);
+				})(data.folders, list, 0);
 				nav.appendChild(list);
 				nav.appendChild(el('button', { type: 'button', class: 'media-folder media-trash-button', onclick: openTrash, text: 'ゴミ箱' }));
 				// 開くフォルダ：前に開いていたフォルダ、今月のフォルダ、ファイルのある最初のフォルダの順
@@ -88,6 +101,19 @@
 			}
 			return items.length ? items[0].folder : null;
 		}
+		// フォルダの木の枝（子のある li）を開く、または閉じる
+		function setExpanded(li, open) {
+			li.querySelector(':scope > ul').hidden = !open;
+			li.querySelector(':scope > .media-folder-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+			state.expanded[li.dataset.folder] = open;
+		}
+		// 開いたフォルダが見えるよう、上のフォルダを開く
+		function expandTo(folder) {
+			var button = nav.querySelector('.media-folder[data-folder="' + CSS.escape(folder) + '"]');
+			for (var li = button && button.parentNode.parentNode.closest('li'); li && nav.contains(li); li = li.parentNode.closest('li')) {
+				setExpanded(li, true);
+			}
+		}
 		function markCurrent() {
 			nav.querySelectorAll('.media-folder').forEach(function (b) {
 				var current = state.trash ? b.classList.contains('media-trash-button') : b.dataset.folder === state.folder;
@@ -103,6 +129,7 @@
 			if (bulk) bulk.hidden = false;
 			filter.hidden = false;
 			markCurrent();
+			expandTo(folder);
 			title.textContent = folder;
 			grid.textContent = '';
 			return getJSON(opt.base + '/files?folder=' + encodeURIComponent(folder)).then(function (data) {
@@ -248,10 +275,10 @@
 	var dialog, explorer;
 	function pick(opt) {
 		if (!dialog) {
-			dialog = el('dialog', { class: 'media-dialog', 'aria-label': 'メディアから選ぶ' });
+			dialog = el('dialog', { class: 'media-dialog', 'aria-label': 'ファイル一覧から選択' });
 			var body = el('div', { class: 'media-dialog-body' });
 			dialog.appendChild(el('div', { class: 'media-dialog-head' }, [
-				el('h2', { text: 'メディアから選ぶ' }),
+				el('h2', { text: 'ファイル一覧から選択' }),
 				el('button', { type: 'button', text: '閉じる', onclick: function () { dialog.close(); } }),
 			]));
 			dialog.appendChild(body);
@@ -270,7 +297,7 @@
 
 	window.LyndbaumMedia = { mount: mount, pick: pick };
 
-	// 設定の画面などの「メディアから選ぶ」（data-target の欄に、選んだファイルのパス「フォルダ/名前」を入れる）
+	// 設定の画面などの「ファイル一覧から選択」（data-target の欄に、選んだファイルのパス「フォルダ/名前」を入れる）
 	document.querySelectorAll('button.media-field[data-target]').forEach(function (button) {
 		var form = button.closest('form');
 		var input = form && form.elements[button.dataset.target];

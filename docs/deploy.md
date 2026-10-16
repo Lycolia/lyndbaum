@@ -51,7 +51,7 @@ perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'   #
 
 ```sh
 perl tools/migrate.pl          # DB（var/lyndbaum.db）を作る
-perl tools/set-password.pl     # 管理者のログイン名とパスワード（ASCIIの文字で12〜64文字）
+perl tools/set-password.pl     # 管理者のログイン名とパスワード（12文字以上、UTF-8で72バイトまで）
 perl tools/build-feed.pl       # RSS（pub/rss.xml）とサイトマップ（pub/sitemap.xml）。記事を保存するたびにも書き出す
 perl tools/check-env.pl        # 足りないものが無いか確かめる。NG が無ければよい
 ```

@@ -1,7 +1,7 @@
 -- 0001_init.sql
 -- 初期スキーマ
 --   初回のリリースの前に、それまでの 0001〜0007 を1つにまとめた（作者の了承を得て）
---   これより後のスキーマの変更は、0002 から新しいファイルとして足す（このファイルは書き換えない）
+--   正式リリースまでは、このファイルを直接直す（作者の了承を得て）。正式リリースより後の変更は、0002 から新しいファイルとして足す
 --
 -- 前提：
 --   - 接続ごとに PRAGMA foreign_keys = ON; を実行する（SQLiteは既定で無効）
@@ -27,12 +27,12 @@ CREATE TABLE articles (
     body_src      TEXT    NOT NULL DEFAULT '',  -- 本文（原文）。これが正
     body_html     TEXT,                         -- 変換済みHTML。保存時と再構築時に作る。NULLなら未変換
     description   TEXT    NOT NULL DEFAULT '',  -- OGP や meta description 用
-    og_image      TEXT    NOT NULL DEFAULT '',  -- OGP の画像（添付ファイルの中のパス。og_image_mode が chosen のとき）
-    og_image_mode TEXT    NOT NULL DEFAULT 'auto'
-                  CHECK (og_image_mode IN ('auto', 'chosen', 'none')),
-                  -- OGP の画像の決め方（docs/ogp.md）
+    eyecatch      TEXT    NOT NULL DEFAULT '',  -- アイキャッチ（添付ファイルの中のパス。eyecatch_mode が chosen のとき）
+    eyecatch_mode TEXT    NOT NULL DEFAULT 'auto'
+                  CHECK (eyecatch_mode IN ('auto', 'chosen', 'none')),
+                  -- アイキャッチの決め方（docs/ogp.md）
                   -- auto:   本文の最初の画像
-                  -- chosen: og_image の画像（編集の画面でメディアから選んだもの）
+                  -- chosen: eyecatch の画像（編集の画面でメディアから選んだもの）
                   -- none:   使わない（ブログの画像を使う）
     status        TEXT    NOT NULL DEFAULT 'draft'
                   CHECK (status IN ('draft', 'published')),

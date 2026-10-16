@@ -58,9 +58,9 @@ subtest '取り込み' => sub {
 	is $child->{slug}, '親ページ/子ページ';
 	is $child->{parent_id}, 4, '親が後にあっても親子関係を付ける';
 	is $child->{sort_order}, 100000;
-	is $child->{og_image}, 'posts/2023/image.png', 'OGP の画像のフォルダも付け替える（adiary/ → posts/）';
-	is $child->{og_image_mode}, 'chosen', 'OGP の画像が決まっていれば、その画像を出す';
-	is $post->{og_image_mode}, 'auto', '決まっていなければ、本文の最初の画像';
+	is $child->{eyecatch}, 'posts/2023/image.png', 'アイキャッチのフォルダも付け替える（adiary/ → posts/）';
+	is $child->{eyecatch_mode}, 'chosen', 'アイキャッチが決まっていれば、その画像を出す';
+	is $post->{eyecatch_mode}, 'auto', '決まっていなければ、本文の最初の画像';
 	is $article->(4)->{parent_id}, undef, 'upnode が 0 なら親なし';
 	# tm は 2023-11-15 07:20:00（日本時間）、yyyymmdd は 2019-04-03
 	is $article->(4)->{published_at}, 1554243600, '公開日は yyyymmdd、時刻は tm の時刻（日本時間）';

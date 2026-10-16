@@ -7,16 +7,16 @@ use utf8;
 use HTML::Entities qw(decode_entities);
 use URI;
 
-# 記事の OGP の画像（サイトの中のパスか、外部の URL）。無ければ undef
-#   og_image_mode
+# 記事のアイキャッチ（サイトの中のパスか、外部の URL）。無ければ undef
+#   eyecatch_mode
 #     auto    本文の最初の画像。サムネイルを元の画像へのリンクで囲んでいれば、元の画像（旧システムと同じ）
-#     chosen  og_image（添付ファイルの中のパス）
+#     chosen  eyecatch（添付ファイルの中のパス）
 #     none    使わない
 sub article_image {
 	my ($class, $app, $article) = @_;
-	my $mode = $article->{og_image_mode} // 'auto';
+	my $mode = $article->{eyecatch_mode} // 'auto';
 	return undef if $mode eq 'none';
-	return $app->url->attachment($article->{og_image}) if $mode eq 'chosen' && ($article->{og_image} // '') ne '';
+	return $app->url->attachment($article->{eyecatch}) if $mode eq 'chosen' && ($article->{eyecatch} // '') ne '';
 	return $mode eq 'auto' ? $class->first_image($article->{body_html}) : undef;
 }
 

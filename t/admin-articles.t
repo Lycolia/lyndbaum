@@ -217,7 +217,7 @@ subtest '編集の設定' => sub {
 	is $res->status, 200;
 	like $res->body, qr{<h1>編集の設定</h1>};
 	like $res->body, qr{<form class="admin-form" method="post" action="/admin/settings/editor">};
-	like $res->body, qr{name="revision_interval" value="3"};
+	like $res->body, qr{name="revision_interval" value="180"};
 	like $res->body, qr{name="revision_max" value="120"};
 	like $res->body, qr{name="thumbnail_size" value="240"};
 

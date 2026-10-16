@@ -7,7 +7,7 @@ package Lyndbaum::SettingsForm;
 #     int    整数（min以上max以下）
 #     lines  1行に1つの一覧。checkで1行ずつ書き方を確かめる
 #     text   1行の文字。前後の空白を除く。required なら空にできない。max は文字数の上限。check で書き方を確かめる
-#            media が真なら、画面に「メディアから選ぶ」を出す（添付ファイルの中のパスを入れる）
+#            media が真なら、画面に「ファイル一覧から選択」を出す（添付ファイルの中のパスを入れる）
 use strict;
 use warnings;
 use utf8;

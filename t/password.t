@@ -7,18 +7,22 @@ use Test::More;
 use Lyndbaum::Password;
 use TestUtil ();
 
-# PBKDF2-HMAC-SHA256 の試験値（RFC 7914 の 11 節）
-is unpack('H*', Lyndbaum::Password::_pbkdf2('passwd', 'salt', 1)),
-	'55ac046e56e3089fec1691c22544b605f94185216dde0465e68b9d57c20dacbc', 'RFC 7914（反復1回）';
-is unpack('H*', Lyndbaum::Password::_pbkdf2('Password', 'NaCl', 80000)),
-	'4ddcd8f60b98be21830cee5ef22701f9641a4418d04c0414aeff08876b34ab56', 'RFC 7914（反復80000回）';
+# bcrypt の試験値（OpenBSD の bcrypt のテストにある値。$2a$ と $2b$ は、短い ASCII のパスワードなら同じ結果になる）
+my $vector = '$2b$05$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW';
+ok(Lyndbaum::Password->verify('U*U', $vector), '試験値と合う');
+ok(!Lyndbaum::Password->verify('U*V', $vector), '試験値と違う');
 
-my $hash = Lyndbaum::Password->hash('パスワード', iterations => 1000);
-like $hash, qr{\Apbkdf2-sha256\$1000\$[A-Za-z0-9+/=]{24}\$[A-Za-z0-9+/=]{44}\z}, '保存する形';
+my $hash = Lyndbaum::Password->hash('パスワード', cost => 4);
+like $hash, qr{\A\$2b\$04\$[./A-Za-z0-9]{53}\z}, '保存する形';
 ok(Lyndbaum::Password->verify('パスワード', $hash), '合う');
 ok(!Lyndbaum::Password->verify('パスワート', $hash), '違う');
-isnt(Lyndbaum::Password->hash('パスワード', iterations => 1000), $hash, 'ソルトは毎回変わる');
-ok(!Lyndbaum::Password->verify('x', $_), "壊れたハッシュ：$_") for '', 'md5$1$a$b', 'pbkdf2-sha256$0$a$b', 'pbkdf2-sha256$1000$a';
+isnt(Lyndbaum::Password->hash('パスワード', cost => 4), $hash, 'ソルトは毎回変わる');
+like(Lyndbaum::Password->hash('x', cost => 4), qr{\A\$2b\$04\$}, 'コストを変えられる');
+ok(Lyndbaum::Password->verify("\x{30CF}\x{309A}スワード", Lyndbaum::Password->hash("\x{30D1}スワード", cost => 4)), 'NFC にそろえて比べる');
+ok(!Lyndbaum::Password->verify('x', $_), "壊れたハッシュ：$_")
+	for '', 'md5$1$a$b', 'pbkdf2-sha256$1000$a$b', '$2b$05$CCCC', '$2b$03$CCCCCCCCCCCCCCCCCCCCC.E5YPO9kmyuRGyh0XouQYb4YMJKvyOeW';
+
+is Lyndbaum::Password::_bcrypt_base64("\0" x 16), '.' x 22, 'bcrypt の base64';
 
 ok(Lyndbaum::Password::equal('abc', 'abc'));
 ok(!Lyndbaum::Password::equal('abc', 'abd'));
@@ -27,11 +31,14 @@ ok(!Lyndbaum::Password::equal('abc', 'ab'));
 # パスワードの決まり
 is(Lyndbaum::Password->format_error('correct horse battery'), undef, 'ASCII の英数字と記号、空白');
 is(Lyndbaum::Password->format_error('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~'), undef, '印字できる記号はすべて使える');
-is(Lyndbaum::Password->format_error('a' x 64), undef, '64文字まで');
-like(Lyndbaum::Password->format_error('a' x 65), qr{64文字まで}, '65文字は長すぎる');
+is(Lyndbaum::Password->format_error('パスワードパスワードパスワード'), undef, 'ASCII でない文字も使える');
+is(Lyndbaum::Password->format_error("tab\tinside-password"), undef, '制御文字も使える');
+is(Lyndbaum::Password->format_error('a' x 72), undef, '72バイトまで');
+like(Lyndbaum::Password->format_error('a' x 73), qr{72バイトまで}, '73バイトは長すぎる');
+is(Lyndbaum::Password->format_error('あ' x 24), undef, '日本語なら24文字（72バイト）まで');
+like(Lyndbaum::Password->format_error('あ' x 23 . 'abcd'), qr{72バイトまで}, '日本語を混ぜて73バイト');
 like(Lyndbaum::Password->format_error('a' x 11), qr{12文字以上}, '11文字は短すぎる');
-like(Lyndbaum::Password->format_error('パスワードパスワードパスワード'), qr{ASCII}, 'ASCII でない文字は使えない');
-like(Lyndbaum::Password->format_error("tab\tinside-password"), qr{ASCII}, '制御文字も使えない');
+like(Lyndbaum::Password->format_error("nul\0inside-password"), qr{NUL}, 'NUL は使えない');
 like(Lyndbaum::Password->format_error(''), qr{入れてください});
 
 done_testing;

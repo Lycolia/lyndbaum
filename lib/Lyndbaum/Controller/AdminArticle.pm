@@ -269,16 +269,16 @@ sub rebuild {
 	return $app->redirect($app->url->admin(undef, rebuilt => $count, feed => $feed_ok ? undef : 'failed'), 303);
 }
 
-# OGP の画像の欄に出すもの。auto_url は保存した本文の最初の画像、blog_url はブログの画像
-sub _ogp {
+# アイキャッチの欄に出すもの。auto_url は保存した本文の最初の画像、blog_url はブログの画像
+sub _eyecatch {
 	my ($class, $app, $article, $v) = @_;
-	my $mode = $v->{og_image_mode} // 'auto';
+	my $mode = $v->{eyecatch_mode} // 'auto';
 	my $blog = $app->settings->{blog_image} // '';
 	my %urls = (
 		auto_url => $article ? Lyndbaum::OGP->first_image($article->{body_html}) // '' : '',
 		blog_url => $blog ne '' ? $app->url->attachment($blog) : '',
 	);
-	my $preview = $mode eq 'chosen' && ($v->{og_image} // '') ne '' ? $app->url->attachment($v->{og_image})
+	my $preview = $mode eq 'chosen' && ($v->{eyecatch} // '') ne '' ? $app->url->attachment($v->{eyecatch})
 		: $mode eq 'auto' && $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
 	return { %urls, $mode => 1, preview => $preview, attachment_base => $app->url->attachment('') };
 }
@@ -354,7 +354,7 @@ sub _render_form {
 			comments_open  => $v->{comments_open},
 			keep_updated   => $v->{keep_updated},
 			digest         => $v->{digest} // '',
-			og_image       => $v->{og_image} // '',
+			eyecatch       => $v->{eyecatch} // '',
 			page_name      => $v->{page_name} // '',
 			sort_order     => $v->{sort_text} // '',
 		},
@@ -363,7 +363,7 @@ sub _render_form {
 			+{ %$_, saved => format_date($_->{saved_at}), created => format_date($_->{created_at}),
 			   url => $app->url->admin("articles/$id/revisions/$_->{id}") }
 		} @$revisions ],
-		ogp         => $class->_ogp($app, $article, $v),
+		eyecatch         => $class->_eyecatch($app, $article, $v),
 		error_of    => \%error_of,
 		errors      => $opt{errors} // [],
 		saved       => $opt{saved},

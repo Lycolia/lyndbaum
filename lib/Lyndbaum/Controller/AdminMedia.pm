@@ -9,7 +9,7 @@ package Lyndbaum::Controller::AdminMedia;
 #   POST /admin/media/trash/restore    ゴミ箱から戻す（item を複数。「フォルダ/ゴミ箱での名前」）
 #   POST /admin/media/trash/purge      ゴミ箱から完全に消す（item を複数。all=1 ならすべて）
 #
-# 編集の画面の「メディアから選ぶ」も、同じ JSON を使う
+# 編集の画面の「ファイル一覧から選択」も、同じ JSON を使う
 use strict;
 use warnings;
 use utf8;

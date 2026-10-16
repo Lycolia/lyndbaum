@@ -19,8 +19,8 @@ our $ORIGIN   = 'https://blog.example';
 our $LOGIN    = 'admin';
 our $PASSWORD = 'correct horse battery';
 
-# テストを速くするため、反復回数を減らす
-$Lyndbaum::Password::ITERATIONS = 1000;
+# テストを速くするため、コストを下げる
+$Lyndbaum::Password::COST = 4;
 
 sub new {
 	my ($class) = @_;

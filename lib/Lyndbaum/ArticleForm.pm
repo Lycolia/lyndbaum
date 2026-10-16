@@ -25,8 +25,8 @@ my $MAX_TITLE = 200;
 #     published_text  書いたままの公開日時の欄
 #     comments_open   0 か 1
 #     keep_updated    更新日時を変えないなら 1
-#     og_image_mode   OGP の画像の決め方（auto、chosen、none。docs/ogp.md）
-#     og_image        chosen のときの画像（添付ファイルの中のパス「フォルダ/名前」）。ほかのときは空
+#     eyecatch_mode   アイキャッチの決め方（auto、chosen、none。docs/ogp.md）
+#     eyecatch        chosen のときの画像（添付ファイルの中のパス「フォルダ/名前」）。ほかのときは空
 #     digest          フォームを開いたときの記事の中身の要約（ほかの画面で保存されていないかを見るため）
 #     kind            page か post（新しい記事のとき）
 #   コンテンツページのとき
@@ -82,14 +82,14 @@ sub parse {
 
 	$v{comments_open} = ($first->('comments_open') // '') eq '1' ? 1 : 0;
 
-	my $mode = $first->('og_image_mode') // '';
-	$v{og_image_mode} = $mode =~ /\A(?:auto|chosen|none)\z/ ? $mode : 'auto';
-	$v{og_image} = $trim->('og_image');
-	if ($v{og_image_mode} eq 'chosen') {
-		$error->(og_image => 'OGPの画像を選んでください。') if $v{og_image} eq '';
-		$error->(og_image => 'OGPの画像のパスが正しくありません。') if $v{og_image} ne '' && !Lyndbaum::BlogSettings::valid_attachment($v{og_image});
+	my $mode = $first->('eyecatch_mode') // '';
+	$v{eyecatch_mode} = $mode =~ /\A(?:auto|chosen|none)\z/ ? $mode : 'auto';
+	$v{eyecatch} = $trim->('eyecatch');
+	if ($v{eyecatch_mode} eq 'chosen') {
+		$error->(eyecatch => 'アイキャッチを選んでください。') if $v{eyecatch} eq '';
+		$error->(eyecatch => 'アイキャッチのパスが正しくありません。') if $v{eyecatch} ne '' && !Lyndbaum::BlogSettings::valid_attachment($v{eyecatch});
 	} else {
-		$v{og_image} = '';
+		$v{eyecatch} = '';
 	}
 	$v{keep_updated}  = ($first->('keep_updated') // '') eq '1' ? 1 : 0;
 	$v{kind} = $args{page} ? 'page' : 'post';

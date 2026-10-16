@@ -14,6 +14,7 @@ my %DEFAULT = (
 	per_page         => 5,
 	feed_items       => 10,   # RSSに載せる記事の数
 	blog_image       => '',   # ブログの画像（OGP。添付ファイルの中のパス）。Lyndbaum::BlogSettings
+	sidebar_boxes    => '[]', # サイドバーの自由欄（JSON）。Lyndbaum::SidebarBoxes
 	Lyndbaum::CommentSettings->defaults,
 	Lyndbaum::EditorSettings->defaults,
 );
