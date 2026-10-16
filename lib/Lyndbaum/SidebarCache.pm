@@ -15,7 +15,7 @@ use Lyndbaum::SidebarBoxes;
 my @SOURCES = (
 	qw(templates/sidebar_tags.html templates/sidebar_menu.html
 	   templates/tag_tree_item.html templates/content_tree_item.html),
-	map { "lib/Lyndbaum/$_.pm" } qw(SidebarCache View SidebarBoxes HTML URL Date Model/Article Model/Tag Model/Comment),
+	map { "lib/Lyndbaum/$_.pm" } qw(SidebarCache Template View SidebarBoxes HTML URL Date Model/Article Model/Tag Model/Comment),
 );
 
 sub _key {
@@ -38,10 +38,14 @@ sub _read {
 }
 
 # 通常は読み出すだけ。初回、テンプレート変更時、外部ツールで更新された場合もここで補う
+#   ほかの接続が書き込み中などで保存できないときは、保存せずにこの場で作る（閲覧をエラーにしない）
 sub get {
 	my ($class, $app) = @_;
 	my $key = _key($app);
-	return _read($app->db, $key) // $class->rebuild($app, key => $key);
+	my $html = _read($app->db, $key) // eval { $class->rebuild($app, key => $key) };
+	return $html if $html;
+	warn "サイドバーのHTMLを保存できませんでした（保存せずに生成します）: $@";
+	return _render($app);
 }
 
 # 元データの読み出しから保存まで排他する。他の更新より古い結果で上書きしない
@@ -57,22 +61,7 @@ sub rebuild {
 		# get の確認後に、ほかのリクエストがすでに生成していたらそれを使う
 		$html = _read($dbh, $key) if $opt{key};
 		if (!$html) {
-			# 同じリクエスト内の編集前の設定・タグを使わない
-			delete @$app{qw(settings tags)};
-			# テンプレート変更後の手動再生成でも、解析済みの古い構文木を使わない
-			my $template = Lyndbaum::Template->new(dir => File::Spec->catdir($app->{root}, 'templates'));
-			$html = {
-				sidebar_tags => $template->render('sidebar_tags', {
-					tag_tree => Lyndbaum::View->tag_tree($app),
-				}),
-				sidebar_menu => $template->render('sidebar_menu', {
-					content_tree    => Lyndbaum::View->content_tree($app),
-					recent_comments => Lyndbaum::View->recent_comments($app),
-					recent_posts    => Lyndbaum::View->recent_posts($app),
-					archive         => Lyndbaum::View->archive($app),
-					sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($app->settings->{sidebar_boxes}),
-				}),
-			};
+			$html = _render($app);
 			$dbh->do('INSERT OR REPLACE INTO sidebar_cache (id, cache_key, tags_html, menu_html) VALUES (1, ?, ?, ?)',
 				undef, $key, @$html{qw(sidebar_tags sidebar_menu)});
 		}
@@ -84,6 +73,27 @@ sub rebuild {
 		die $error;
 	};
 	return $html;
+}
+
+# サイドバーのテンプレートを描画する。保存はしない
+sub _render {
+	my ($app) = @_;
+	# 同じリクエスト内の編集前の設定・タグを使わない
+	delete @$app{qw(settings tags)};
+	# テンプレート変更後の手動再生成でも、解析済みの古い構文木を使わない
+	my $template = Lyndbaum::Template->new(dir => File::Spec->catdir($app->{root}, 'templates'));
+	return {
+		sidebar_tags => $template->render('sidebar_tags', {
+			tag_tree => Lyndbaum::View->tag_tree($app),
+		}),
+		sidebar_menu => $template->render('sidebar_menu', {
+			content_tree    => Lyndbaum::View->content_tree($app),
+			recent_comments => Lyndbaum::View->recent_comments($app),
+			recent_posts    => Lyndbaum::View->recent_posts($app),
+			archive         => Lyndbaum::View->archive($app),
+			sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($app->settings->{sidebar_boxes}),
+		}),
+	};
 }
 
 1;

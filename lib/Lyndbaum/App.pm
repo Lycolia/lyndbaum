@@ -197,7 +197,11 @@ sub handle {
 	require "$module.pm";
 	my $res = $class->$action($self, $req, @captures);
 	# 更新によって無効になったHTMLは、次の閲覧を待たずに作り直す
-	Lyndbaum::SidebarCache->get($self) if $req->method eq 'POST';
+	#   更新はコミット済みなので、作り直せなくてもエラーにしない（次の閲覧で作る）
+	if ($req->method eq 'POST') {
+		eval { Lyndbaum::SidebarCache->get($self); 1 }
+			or warn "サイドバーのHTMLを作り直せませんでした: $@";
+	}
 	return $res;
 }
 

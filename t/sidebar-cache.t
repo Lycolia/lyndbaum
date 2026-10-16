@@ -3,6 +3,7 @@ use warnings;
 use utf8;
 use Test::More;
 
+use DBI;
 use File::Copy qw(copy);
 use File::Path qw(make_path);
 use File::Spec;
@@ -131,6 +132,38 @@ subtest 'URL設定やテンプレート変更でも再生成する' => sub {
 	print $fh '<p>変更したテンプレート</p>';
 	close $fh;
 	like(Lyndbaum::SidebarCache->get($copy)->{sidebar_menu}, qr/変更したテンプレート/);
+};
+
+subtest 'ほかの接続が書き込み中でも、保存せずに生成して表示する' => sub {
+	my $app = fixture();
+	my $dbh = $app->db;
+	$dbh->sqlite_busy_timeout(100);
+	my $writer = DBI->connect('dbi:SQLite:dbname=' . $dbh->sqlite_db_filename, '', '', { RaiseError => 1 });
+	$writer->begin_work;
+	$writer->do(q{UPDATE articles SET title = '書き込み中' WHERE id = 1});
+	my @warnings;
+	local $SIG{__WARN__} = sub { push @warnings, @_ };
+	my $res = $app->handle({ REQUEST_METHOD => 'GET', PATH_INFO => '/' });
+	is $res->status, 200;
+	like $res->body, qr/&lt;初めの記事&gt;/, 'コミット前の更新は見えない';
+	like $warnings[0], qr/保存できませんでした/;
+	$writer->rollback;
+	is count_cache($dbh), 0, '保存はしていない';
+};
+
+subtest 'POSTの後に作り直せなくても、更新の結果を返す' => sub {
+	my $t = AdminTest->new;
+	my ($cookie) = $t->login;
+	my $csrf = $t->csrf_of($cookie);
+	my @warnings;
+	local $SIG{__WARN__} = sub { push @warnings, @_ };
+	no warnings 'redefine';
+	local *Lyndbaum::SidebarCache::get = sub { die "作り直せない\n" };
+	my $res = $t->request(POST => '/admin/sidebar', cookie => $cookie, body => [
+		csrf_token => $csrf, box_title => 'お知らせ', box_html => '本文',
+	]);
+	is $res->status, 303;
+	like $warnings[0], qr/作り直せませんでした: 作り直せない/;
 };
 
 done_testing;
