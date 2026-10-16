@@ -8,6 +8,7 @@
   --code-bg: #f6f8fa;
   /* 一覧の偶数行の背景。文字の色を少し混ぜるので、暗い画面でもそのまま使える */
   --row-alt: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --admin-bg: #fcfcfe;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,6 +18,7 @@
     --border: #3a3a3a;
     --bg: #181818;
     --code-bg: #222;
+    --admin-bg: #181818;
   }
 }
 * { box-sizing: border-box; }
@@ -154,7 +156,7 @@ mark { background: #ffe066; color: #000; }
 .admin-main { max-width: 48rem; margin: 0 auto; padding: 1.5rem 16px; }
 .admin .site-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1rem; }
 /* 管理画面の枠。上に管理者のメニュー、左にナビ、右に本文（WordPress と同じ並び）。ナビは明るい画面でも暗い画面でも同じ色にする */
-body.admin { padding: 0; }
+body.admin { padding: 0; background: var(--admin-bg); }
 .admin .admin-bar { margin-bottom: 0; }
 .admin-menu { background: #1d2327; color: #f0f0f1; font-size: .9rem; }
 .admin-menu ul { list-style: none; margin: 0; padding: 0; }
@@ -285,7 +287,7 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .tag-select { font: inherit; max-width: 100%; }
 
 /* タグの管理 */
-.tag-admin-bar { position: sticky; top: 0; z-index: 1; background: var(--bg); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.tag-admin-bar { position: sticky; top: 0; z-index: 1; background: var(--admin-bg); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
 .tag-admin-filter { font: inherit; }
 .tag-admin-status { color: #b07800; font-size: .9rem; }
 .tag-admin-tree, .tag-admin-tree ul { list-style: none; margin: 0; padding: 0 0 0 1.25rem; }
