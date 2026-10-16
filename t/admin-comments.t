@@ -43,8 +43,8 @@ subtest 'ダッシュボード' => sub {
 
 subtest '一覧' => sub {
 	my $body = $t->request(GET => '/admin/comments', cookie => $cookie)->body;
-	like $body, qr{<strong>すべて（3）</strong>};
-	like $body, qr{承認待ち（1）};
+	like $body, qr{<strong>すべて\(3\)</strong>};
+	like $body, qr{承認待ち\(1\)};
 	my @authors = $body =~ m{<span class="comment-author">(.*?)</span>}g;
 	is_deeply \@authors, ['下書きの人', '保留の人', '公開の人'], '新しい順';
 	like $body, qr{<div class="comment-text">本文 https://example.com/ &lt;b&gt;</div>}, '本文はエスケープし、URLはリンクにしない';
@@ -66,8 +66,8 @@ subtest '記事ごとの一覧' => sub {
 	my $body = $get->('/admin/comments?article=1')->body;
 	like $body, qr{<h1>「公開の記事」のコメント</h1>};
 	is_deeply [ $body =~ m{<span class="comment-author">(.*?)</span>}g ], ['保留の人', '公開の人'], 'その記事のコメントだけ';
-	like $body, qr{<strong>すべて（2）</strong>.*承認待ち（1）.*公開中（1）}s, '件数もその記事だけ';
-	like $body, qr{<a href="/admin/comments\?article=1&amp;status=held">承認待ち（1）</a>}, '絞り込みも同じ記事のまま';
+	like $body, qr{<strong>すべて\(2\)</strong>.*承認待ち\(1\).*公開中\(1\)}s, '件数もその記事だけ';
+	like $body, qr{<a href="/admin/comments\?article=1&amp;status=held">承認待ち\(1\)</a>}, '絞り込みも同じ記事のまま';
 	like $body, qr{<a href="/admin/articles/1">記事を編集</a>};
 	like $body, qr{<a href="/01">公開側で見る</a>};
 	like $body, qr{<a href="/admin/articles">記事の一覧へ</a>};

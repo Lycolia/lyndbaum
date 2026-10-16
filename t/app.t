@@ -121,7 +121,7 @@ subtest 'コンテンツページ' => sub {
 
 subtest 'コメント' => sub {
 	my $body = get('/01')->body;
-	like $body, qr{<h2 class="comments-title">コメント（2件）</h2>}, '件数は公開中のものだけ';
+	like $body, qr{<h2 class="comments-title">コメント\(2件\)</h2>}, '件数は公開中のものだけ';
 	like $body, qr{<article class="comment-entry" id="c1">.*?<span class="comment-author">&lt;i&gt;名無し&lt;/i&gt;</span>}s, '番号の id、名前をエスケープする';
 	like $body, qr{<div class="comment-text">はじめまして\n<a href="https://example.com/" rel="nofollow ugc noopener noreferrer">https://example.com/</a> を見ました</div>}, '本文の URL はリンク';
 	like $body, qr{<article class="comment-entry comment-admin" id="c3">.*?<span class="comment-badge">管理者</span>}s, '管理者のコメント';
@@ -130,7 +130,7 @@ subtest 'コメント' => sub {
 	like $body, qr{<a class="comment-num" href="#c1">1</a>.*<a class="comment-num" href="#c3">3</a>}s, '番号の順';
 	my $empty = get('/02')->body;
 	unlike $empty, qr{<article class="comment}, 'コメントが無い記事';
-	like $empty, qr{<h2 class="comments-title">コメント（0件）</h2>.*<form class="comment-form"}s, 'コメントが無くても、受け付けるならフォームを出す';
+	like $empty, qr{<h2 class="comments-title">コメント\(0件\)</h2>.*<form class="comment-form"}s, 'コメントが無くても、受け付けるならフォームを出す';
 };
 
 subtest 'サイドバー' => sub {

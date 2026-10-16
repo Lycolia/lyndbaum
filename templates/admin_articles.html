@@ -7,12 +7,12 @@
 <p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
 {{/ if }}
 <p class="admin-filters">{{# if is_page }}<a href="{{ urls.new_page }}">新しいページを作る</a>{{# else }}<a href="{{ urls.new_article }}">新しい記事を書く</a>{{/ if }}</p>
-<p class="admin-filters">
+<ul class="admin-links">
   {{# for filter in filters }}
-  {{# if filter.current }}<strong>{{ filter.label }}（{{ filter.count }}）</strong>{{# else }}<a href="{{ filter.url }}">{{ filter.label }}（{{ filter.count }}）</a>{{/ if }}
+  <li>{{# if filter.current }}<strong>{{ filter.label }}({{ filter.count }})</strong>{{# else }}<a href="{{ filter.url }}">{{ filter.label }}({{ filter.count }})</a>{{/ if }}</li>
   {{/ for }}
-  <a href="{{ urls.trash }}">ゴミ箱（{{ trash_count }}）</a>
-</p>
+  <li><a href="{{ urls.trash }}">ゴミ箱({{ trash_count }})</a></li>
+</ul>
 <form class="admin-search" method="get" action="{{ urls.articles }}">
   {{# if is_page }}<input type="hidden" name="kind" value="page">{{/ if }}
   {{# if status }}<input type="hidden" name="status" value="{{ status }}">{{/ if }}

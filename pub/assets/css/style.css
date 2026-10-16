@@ -162,6 +162,10 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .admin-form input[type="text"], .admin-form input[type="password"] { width: 100%; max-width: 20rem; font: inherit; }
 .admin-notice { border: 1px solid var(--border); padding: .5rem 1rem; }
 .admin-filters { display: flex; flex-wrap: wrap; gap: 0 1rem; }
+/* 横に並べるリンク（絞り込みなど）。WordPress と同じく、あいだに「|」を入れる
+   「|」はリンクの外に置き、読み上げでは読ませない（content の / の後ろが読み上げ用の文字） */
+.admin-links { display: flex; flex-wrap: wrap; list-style: none; margin: 1rem 0; padding: 0; }
+.admin-links li + li::before { content: "|"; content: "|" / ""; margin: 0 .5em; color: var(--muted); }
 .admin-comment { border-bottom: 1px solid var(--border); padding: .75rem; }
 /* 記事の一覧と同じく、偶数番目のコメントの背景を少し変える */
 .admin-comment:nth-of-type(even) { background: var(--row-alt); }
