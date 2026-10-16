@@ -27,6 +27,7 @@ use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::OGP;
 use Lyndbaum::Response;
+use Lyndbaum::SidebarCache;
 use Lyndbaum::UrlTitle;
 use Lyndbaum::View;
 
@@ -278,6 +279,7 @@ sub rebuild {
 	my ($session, $res) = Lyndbaum::Controller::Admin->authorize($app, $req, post => 1);
 	return $res if !$session;
 	my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context);
+	Lyndbaum::SidebarCache->rebuild($app);
 	my $feed_ok = $class->write_static_files($app);
 	return $app->redirect($app->url->admin(undef, rebuilt => $count, feed => $feed_ok ? undef : 'failed'), 303);
 }

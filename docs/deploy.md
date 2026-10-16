@@ -114,6 +114,8 @@ perl tools/check-env.pl
 
 パーサーを直したとき（`docs/markdown-syntax.md`や`lib/Lyndbaum/Parser/`が変わったとき）は、管理画面のダッシュボードの「再構築」か、`perl tools/rebuild-html.pl`を実行する。
 
+サイドバーのタグ一覧・右側メニューは、更新時に生成したHTMLをDBの `sidebar_cache` に保存する。新規DBの作成後は `perl tools/rebuild-sidebar.pl` で先に生成できる。キャッシュが無い場合やサイドバーのテンプレートが変わった場合は、次の閲覧時にも自動生成する。
+
 ## バックアップ
 
 残すのは次の3つ。ほかはリポジトリから戻せる。

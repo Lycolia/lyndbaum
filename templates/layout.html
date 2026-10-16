@@ -59,72 +59,12 @@
     <h2>検索</h2>
     {{> search_form }}
   </section>
-  {{# if tag_tree }}
-  <section class="sidebar-section">
-    <h2>タグ</h2>
-    <ul class="tree">
-      {{# for node in tag_tree }}
-      {{> tag_tree_item }}
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
+  {{! sidebar_tags は保存済みのテンプレート出力で、エスケープ済み }}
+  {{ raw sidebar_tags }}
 </aside>
 <aside class="site-sidebar sidebar-right" id="sidebar-right" aria-label="メニュー">
-  {{# if content_tree }}
-  <section class="sidebar-section">
-    <h2>コンテンツ</h2>
-    <ul class="tree">
-      {{# for node in content_tree }}
-      {{> content_tree_item }}
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# for box in sidebar_boxes }}
-  <section class="sidebar-section sidebar-box">
-    <h2>{{ box.title }}</h2>
-    {{! box.html は管理者が書いたHTMLを、許可リストに通したもの（Lyndbaum::SidebarBoxes->for_display） }}
-    <div class="sidebar-box-body">{{ raw box.html }}</div>
-  </section>
-  {{/ for }}
-  {{# if recent_posts }}
-  <section class="sidebar-section">
-    <h2>最近の記事</h2>
-    <ul class="recent-posts">
-      {{# for post in recent_posts }}
-      <li><a href="{{ post.url }}">{{ post.title }}</a></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# if recent_comments }}
-  <section class="sidebar-section">
-    <h2>最近のコメント</h2>
-    <ul class="recent-comments">
-      {{# for comment in recent_comments }}
-      <li><a href="{{ comment.url }}">{{ comment.title }}</a> <span class="comment-author" title="{{ comment.created.datetime }}">{{ comment.author_name }}</span></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# if archive }}
-  <section class="sidebar-section">
-    <h2>過去ログ</h2>
-    <ul class="archive">
-      {{# for year in archive }}
-      <li><details{{# if year.open }} open{{/ if }}>
-        <summary><a href="{{ year.url }}">{{ year.year }}年</a> <span class="count">({{ year.count }})</span></summary>
-        <ul>
-          {{# for month in year.months }}
-          <li><a href="{{ month.url }}">{{ month.label }}</a> <span class="count">({{ month.count }})</span></li>
-          {{/ for }}
-        </ul>
-      </details></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
+  {{! sidebar_menu は保存済みのテンプレート出力。自由欄も許可リストに通してある }}
+  {{ raw sidebar_menu }}
 </aside>
 </div>
 <footer class="site-footer">

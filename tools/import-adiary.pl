@@ -15,6 +15,7 @@ use Lyndbaum::App;
 use Lyndbaum::StaticFiles;
 use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Model::Article;
+use Lyndbaum::SidebarCache;
 
 my ($data_dir, $blog_id, $config_file) = @ARGV;
 die "使い方: $0 <旧システムの data> <ブログID> [設定ファイル]\n" if !defined $blog_id;
@@ -26,6 +27,7 @@ my %context = $app->parser_context;
 my $result = Lyndbaum::Legacy::Importer->run($app->db, $data_dir, $blog_id,
 	attachment_path => $context{attachment_path});
 my $rebuilt = Lyndbaum::Model::Article->rebuild_all($app->db, %context);
+Lyndbaum::SidebarCache->rebuild($app);
 
 binmode STDOUT, ':encoding(UTF-8)';
 print "記事: $result->{articles} 件（添付ファイルのパスを書き換えた記事: $result->{rewritten} 件、"

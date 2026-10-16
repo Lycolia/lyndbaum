@@ -83,6 +83,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | 値                          | 作る場所                                   |
 | --------------------------- | ------------------------------------------ |
 | `content`                   | 各ページのテンプレートの出力               |
+| `sidebar_tags`、`sidebar_menu` | `Lyndbaum::SidebarCache`（サイドバーのテンプレートの生成済みHTML） |
 | `article.body`              | パーサー（許可リストに通したHTML）         |
 | `box.html`                  | `Lyndbaum::SidebarBoxes->for_display`      |
 | `comment.html`              | `Lyndbaum::CommentText`                    |
@@ -108,16 +109,24 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `urls.fancybox_css`、`urls.prism_css`、`urls.prism_core` | 画像の拡大表示とコードの色付けのファイルのURL      |
 | `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に `defer` で読む）                  |
 | `form`            | 検索フォームの値（下の「form」）。検索のページでは、入力した検索語が入る |
-| `tag_tree`        | サイドバーのタグの木（下の「タグ」）。公開記事の付いたタグだけ            |
-| `content_tree`    | サイドバーのコンテンツの木（下の「コンテンツの木」）                      |
-| `recent_posts`    | 最近の記事（5件）。要素は `url`、`title`                                  |
-| `recent_comments` | 最近のコメント（5件）。要素は `url`（`#cN` 付き）、`title`（記事の題名）、`author_name`、`created`（日時） |
-| `archive`         | 過去ログ（下の「archive」）                                               |
-| `sidebar_boxes`   | サイドバーの自由欄。要素は `title`、`html`（許可リストに通したHTML）      |
+| `sidebar_tags`    | `sidebar_tags.html` の生成済みHTML（エスケープ済み）                     |
+| `sidebar_menu`    | `sidebar_menu.html` の生成済みHTML（自由欄も許可リストに通してある）     |
 | `app_version`     | Lyndbaum の版（`0.2.0-beta` など）                                        |
 | `admin_bar`       | 管理者のメニュー（下の「admin_bar」）。ログインしていなければ空           |
 
 ### layout.html だけで使える変数
+
+サイドバーは `SidebarCache` で生成してDBに保存する。`layout.html` は `sidebar_tags` と `sidebar_menu` を `raw` で埋め込む。検索フォームの `form` はページごとに変わるのでキャッシュしない。
+
+`sidebar_tags.html` では `tag_tree`（公開記事の付いたタグの木）、`sidebar_menu.html` では次の変数を使える。これらは通常のページには渡さない。
+
+| 変数 | 中身 |
+| --- | --- |
+| `content_tree` | サイドバーのコンテンツの木（下の「コンテンツの木」） |
+| `recent_posts` | 最近の記事5件。要素は `url`、`title` |
+| `recent_comments` | 最近のコメント5件。要素は `url`（`#cN` 付き）、`title`、`author_name`、`created` |
+| `archive` | 過去ログ（下の「archive」） |
+| `sidebar_boxes` | 自由欄。要素は `title`、`html`（許可リストに通したHTML） |
 
 | 変数      | 中身                                                  |
 | --------- | ----------------------------------------------------- |

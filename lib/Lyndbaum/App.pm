@@ -16,7 +16,7 @@ use Lyndbaum::Router;
 use Lyndbaum::Template;
 use Lyndbaum::URL;
 use Lyndbaum::View;
-use Lyndbaum::SidebarBoxes;
+use Lyndbaum::SidebarCache;
 use Lyndbaum::OGP;
 use Lyndbaum::SearchForm;
 
@@ -195,7 +195,10 @@ sub handle {
 	# クラス名は上のルーティング表にある固定値。require は読み込み済みなら再実行しない
 	my $module = $class =~ s{::}{/}gr;
 	require "$module.pm";
-	return $class->$action($self, $req, @captures);
+	my $res = $class->$action($self, $req, @captures);
+	# 更新によって無効になったHTMLは、次の閲覧を待たずに作り直す
+	Lyndbaum::SidebarCache->get($self) if $req->method eq 'POST';
+	return $res;
 }
 
 # 公開側のページを出力する。テンプレートの出力を layout.html で包む
@@ -206,6 +209,7 @@ sub handle {
 sub render {
 	my ($self, $name, $vars, %args) = @_;
 	my $session = $args{req} ? $self->admin_session($args{req}) : undef;
+	my $sidebar = Lyndbaum::SidebarCache->get($self);
 	my %common = (
 		blog         => $self->settings,
 		urls         => {
@@ -224,12 +228,7 @@ sub render {
 				'js/article.js', 'js/sidebar.js' ],
 		},
 		form         => Lyndbaum::SearchForm->values,   # サイドバーの検索フォーム
-		content_tree => Lyndbaum::View->content_tree($self),
-		tag_tree     => Lyndbaum::View->tag_tree($self),
-		recent_comments => Lyndbaum::View->recent_comments($self),
-		recent_posts    => Lyndbaum::View->recent_posts($self),
-		archive         => Lyndbaum::View->archive($self),
-		sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($self->settings->{sidebar_boxes}),
+		%$sidebar,
 		app_version => $APP_VERSION,
 		admin_bar   => $session ? $self->_admin_bar($session, %args) : undef,
 	);
