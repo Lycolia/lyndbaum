@@ -1,6 +1,6 @@
 # テンプレート
 
-HTMLは `templates/*.html` のテンプレートから作る。エンジンは自作の小さなもの（`lib/Lyndbaum/Template.pm`）。
+HTMLは`templates/*.html`のテンプレートから作る。エンジンは自作の小さなもの（`lib/Lyndbaum/Template.pm`）。
 ここでは、書き方と、各テンプレートで使える変数をまとめる。変数を足したり変えたりしたら、この資料も直す。
 
 ## 書き方
@@ -12,43 +12,43 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `{{# if a.b }}` … `{{/ if }}`              | 値が真なら中を出す                                           |
 | `{{# if a.b }}` … `{{# else }}` … `{{/ if }}` | 真なら前を、偽なら後ろを出す                              |
 | `{{# if not a.b }}` … `{{/ if }}`          | 値が偽なら中を出す                                           |
-| `{{# for item in a.list }}` … `{{/ for }}` | 配列の要素ごとに中を出す。中では `item` で要素を参照する     |
-| `{{> name }}`                              | 部品 `templates/name.html` を読み込む                        |
+| `{{# for item in a.list }}` … `{{/ for }}` | 配列の要素ごとに中を出す。中では`item`で要素を参照する     |
+| `{{> name }}`                              | 部品`templates/name.html`を読み込む                        |
 | `{{! コメント }}`                           | 何も出さない。複数行にまたがってよい                         |
 
 ### 値の参照
 
-- `a.b.c` は、ハッシュならキーで、配列なら数字の添え字で（`list.0`）たどる。
+- `a.b.c`は、ハッシュならキーで、配列なら数字の添え字で（`list.0`）たどる。
 - 途中で値が無くなったら、空（`undef`）になる。エラーにはならず、出力は空文字列になる。
-- 名前の先頭は、内側のスコープから順に探す。`for` の中では、ループの変数と `loop` が外側の同じ名前より優先される。
-- 使える文字は英数字と `_` だけ。比較（`==`）、演算、関数の呼び出し、フィルタは無い。必要な値は、コントローラか `Lyndbaum::View` で作って渡す（例：`article.show_updated`）。
+- 名前の先頭は、内側のスコープから順に探す。`for`の中では、ループの変数と`loop`が外側の同じ名前より優先される。
+- 使える文字は英数字と`_`だけ。比較（`==`）、演算、関数の呼び出し、フィルタは無い。必要な値は、コントローラか`Lyndbaum::View`で作って渡す（例：`article.show_updated`）。
 
 ### 真と偽
 
-- Perl の真偽と同じ。`undef`、空文字列、`0`、`"0"` は偽。
-- それに加えて、空の配列も偽とする。`{{# if articles }}` で「1件以上あるか」を確かめられる。
-- `else if` は無い。`{{# else }}` の中に `{{# if }}` を入れ子にする。
+- Perlの真偽と同じ。`undef`、空文字列、`0`、`"0"`は偽。
+- それに加えて、空の配列も偽とする。`{{# if articles }}`で「1件以上あるか」を確かめられる。
+- `else if`は無い。`{{# else }}`の中に`{{# if }}`を入れ子にする。
 
 ### for
 
-- 中では `loop` が使える。
+- 中では`loop`が使える。
 
   | 変数          | 意味                     |
   | ------------- | ------------------------ |
-  | `loop.index`  | 0 から数えた番号         |
-  | `loop.number` | 1 から数えた番号         |
+  | `loop.index`  | 0から数えた番号         |
+  | `loop.number` | 1から数えた番号         |
   | `loop.first`  | 最初の要素なら真         |
   | `loop.last`   | 最後の要素なら真         |
 
-- ループの変数の名前に `loop` は使えない。
+- ループの変数の名前に`loop`は使えない。
 - 値が無い（`undef`）ときは何も出さない。配列でない値を渡すとエラーになる。
-- 入れ子にした `for` の `loop` は、内側のものを指す。
+- 入れ子にした`for`の`loop`は、内側のものを指す。
 
 ### 部品（`{{> name }}`）
 
-- 読み込んだ側の変数を、そのまま使える。引数は渡せないので、`for` の変数の名前で受け渡す（例：`{{# for article in articles }}{{> article_summary }}{{/ for }}`）。
-- 名前に使えるのは英数字、`_`、`-`、`/`。`/` で `templates/` の下のフォルダを指せる。
-- 自分自身を読み込んで木を出せる（`tag_tree_item.html` を参照）。深さは 20 段まで。
+- 読み込んだ側の変数を、そのまま使える。引数は渡せないので、`for`の変数の名前で受け渡す（例：`{{# for article in articles }}{{> article_summary }}{{/ for }}`）。
+- 名前に使えるのは英数字、`_`、`-`、`/`。`/`で`templates/`の下のフォルダを指せる。
+- 自分自身を読み込んで木を出せる（`tag_tree_item.html`を参照）。深さは20段まで。
 
 ### 空白と改行
 
@@ -63,7 +63,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 </ul>
 ```
 
-は、次のように出る（`for` の行は残らない）。
+は、次のように出る（`for`の行は残らない）。
 
 ```
 <ul>
@@ -74,30 +74,30 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 
 ### 誤り
 
-閉じていない `{{# if }}`、対応しない `{{/ for }}`、知らないブロック（`{{# unless }}` など）、使えない式は、読み込んだときにエラーになる。メッセージにはファイル名と行が入る。
+閉じていない`{{# if }}`、対応しない`{{/ for }}`、知らないブロック（`{{# unless }}`など）、使えない式は、読み込んだときにエラーになる。メッセージにはファイル名と行が入る。
 
 ### エスケープしない値（`raw`）
 
-`raw` で出してよいのは、作った側でエスケープや許可リストの確認を済ませた値だけ。今 `raw` で出しているのは次のもの。
+`raw`で出してよいのは、作った側でエスケープや許可リストの確認を済ませた値だけ。今`raw`で出しているのは次のもの。
 
 | 値                          | 作る場所                                   |
 | --------------------------- | ------------------------------------------ |
 | `content`                   | 各ページのテンプレートの出力               |
 | `sidebar_tags`、`sidebar_menu` | `Lyndbaum::SidebarCache`（サイドバーのテンプレートの生成済みHTML） |
-| `article.body`              | パーサー（許可リストに通したHTML）。一覧では `Lyndbaum::Parser::Common->excerpt` が印の前で切り、開いているタグを閉じたもの |
+| `article.body`              | パーサー（許可リストに通したHTML）。一覧では`Lyndbaum::Parser::Common->excerpt`が印の前で切り、開いているタグを閉じたもの |
 | `box.html`                  | `Lyndbaum::SidebarBoxes->for_display`      |
 | `comment.html`              | `Lyndbaum::CommentText`                    |
-| `article.title_html`、`s`（`snippets`）、`line.html` | `Lyndbaum::Highlight`（`<mark>` だけを含む） |
+| `article.title_html`、`s`（`snippets`）、`line.html` | `Lyndbaum::Highlight`（`<mark>`だけを含む） |
 
-`article.body_src` や `article.body_html` を `raw` で出してはいけない。本文は `article.body` を使う。
+`article.body_src`や`article.body_html`を`raw`で出してはいけない。本文は`article.body`を使う。
 
 ## 公開側のページ
 
-`Lyndbaum::App->render` が、ページのテンプレートを出力し、それを `layout.html` で包む。
+`Lyndbaum::App->render`が、ページのテンプレートを出力し、それを`layout.html`で包む。
 
 ### すべてのページで使える変数
 
-ページのテンプレートと `layout.html` の両方で使える。同じ名前の変数をページが渡したときは、ページのものが優先される。
+ページのテンプレートと`layout.html`の両方で使える。同じ名前の変数をページが渡したときは、ページのものが優先される。
 
 | 変数              | 中身                                                                      |
 | ----------------- | ------------------------------------------------------------------------- |
@@ -105,44 +105,44 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `urls.top`        | トップページのURL                                                         |
 | `urls.search`     | 検索のURL                                                                 |
 | `urls.feed`       | RSSのURL                                                                  |
-| `urls.style`      | `style.css` のURL                                                         |
+| `urls.style`      | `style.css`のURL                                                         |
 | `urls.fancybox_css`、`urls.prism_css`、`urls.prism_core` | 画像の拡大表示とコードの色付けのファイルのURL      |
-| `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に `defer` で読む）                  |
+| `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に`defer`で読む）                  |
 | `form`            | 検索フォームの値（下の「form」）。検索のページでは、入力した検索語が入る |
-| `sidebar_tags`    | `sidebar_tags.html` の生成済みHTML（エスケープ済み）                     |
-| `sidebar_menu`    | `sidebar_menu.html` の生成済みHTML（自由欄も許可リストに通してある）     |
-| `app_version`     | Lyndbaum の版（`0.2.0-beta` など）                                        |
+| `sidebar_tags`    | `sidebar_tags.html`の生成済みHTML（エスケープ済み）                     |
+| `sidebar_menu`    | `sidebar_menu.html`の生成済みHTML（自由欄も許可リストに通してある）     |
+| `app_version`     | Lyndbaumの版（`0.2.0-beta`など）                                        |
 | `admin_bar`       | 管理者のメニュー（下の「admin_bar」）。ログインしていなければ空           |
 
-### layout.html だけで使える変数
+### layout.htmlだけで使える変数
 
-サイドバーは `SidebarCache` で生成してDBに保存する。`layout.html` は `sidebar_tags` と `sidebar_menu` を `raw` で埋め込む。検索フォームの `form` はページごとに変わるのでキャッシュしない。
+サイドバーは`SidebarCache`で生成してDBに保存する。`layout.html`は`sidebar_tags`と`sidebar_menu`を`raw`で埋め込む。検索フォームの`form`はページごとに変わるのでキャッシュしない。
 
-`sidebar_tags.html` では `tag_tree`（公開記事の付いたタグの木）、`sidebar_menu.html` では次の変数を使える。これらは通常のページには渡さない。
+`sidebar_tags.html`では`tag_tree`（公開記事の付いたタグの木）、`sidebar_menu.html`では次の変数を使える。これらは通常のページには渡さない。
 
 | 変数 | 中身 |
 | --- | --- |
 | `content_tree` | サイドバーのコンテンツの木（下の「コンテンツの木」） |
-| `recent_posts` | 最近の記事5件。要素は `url`、`title` |
-| `recent_comments` | 最近のコメント5件。要素は `url`（`#cN` 付き）、`title`、`author_name`、`created` |
+| `recent_posts` | 最近の記事5件。要素は`url`、`title` |
+| `recent_comments` | 最近のコメント5件。要素は`url`（`#cN`付き）、`title`、`author_name`、`created` |
 | `archive` | 過去ログ（下の「archive」） |
-| `sidebar_boxes` | 自由欄。要素は `title`、`html`（許可リストに通したHTML） |
+| `sidebar_boxes` | 自由欄。要素は`title`、`html`（許可リストに通したHTML） |
 
 | 変数      | 中身                                                  |
 | --------- | ----------------------------------------------------- |
 | `content` | ページのテンプレートの出力（エスケープ済み）          |
 
-ページが渡した `title`、`head`、`noindex` も、`layout.html` で `<title>` や `<meta>` に使う。
+ページが渡した`title`、`head`、`noindex`も、`layout.html`で`<title>`や`<meta>`に使う。
 
 | 変数               | 中身                                                                       |
 | ------------------ | -------------------------------------------------------------------------- |
-| `title`            | ページの題名。あれば `<title>` を「題名 - ブログ名」にする                 |
+| `title`            | ページの題名。あれば`<title>`を「題名-ブログ名」にする                 |
 | `head.canonical`   | このページの絶対URL                                                        |
 | `head.description` | ページの説明                                                               |
-| `head.ogp`         | OGP と Twitter Card のメタタグの配列。要素は `attr`（`property` か `name`）、`key`、`content` |
+| `head.ogp`         | OGPとTwitter Cardのメタタグの配列。要素は`attr`（`property`か`name`）、`key`、`content` |
 | `noindex`          | 真なら検索エンジンに載せない（下書き）                                     |
 
-`head` を渡すのは、トップページと記事のページ。
+`head`を渡すのは、トップページと記事のページ。
 
 ### ページごとの変数
 
@@ -150,7 +150,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | ---------------- | -------------------- | ------------------------------------------------------- |
 | `top.html`       | トップページ         | `articles`（記事の配列）、`pager`、`head`               |
 | `article.html`   | 記事、コンテンツページ | `article`（記事。個別ページの項目を含む）、`title`、`head`、`noindex` |
-| `search.html`    | 検索                 | `title`、`form`、`selected`、`tag_facet`、`date_facet`、`articles`、`pager`。検索の条件が無いときは `title` と `form` だけ |
+| `search.html`    | 検索                 | `title`、`form`、`selected`、`tag_facet`、`date_facet`、`articles`、`pager`。検索の条件が無いときは`title`と`form`だけ |
 | `not_found.html` | 404                  | `title`                                                 |
 
 部品は、読み込んだ側の変数を使う。
@@ -195,7 +195,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 
 #### 記事
 
-一覧（`articles` の要素）、検索結果、個別ページのどれでも使える項目。
+一覧（`articles`の要素）、検索結果、個別ページのどれでも使える項目。
 
 | 変数                   | 中身                                                                 |
 | ---------------------- | -------------------------------------------------------------------- |
@@ -203,33 +203,33 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `article.title`        | 題名                                                                 |
 | `article.url`          | 記事のURL                                                            |
 | `article.slug`         | URLのパス（`0575`、`親/子`）                                         |
-| `article.kind`         | `post`（記事）か `page`（コンテンツページ）                          |
+| `article.kind`         | `post`（記事）か`page`（コンテンツページ）                          |
 | `article.is_page`      | コンテンツページなら真                                               |
 | `article.description`  | 説明。空のこともある                                                 |
 | `article.published`    | 投稿日時（日時の形）                                                 |
 | `article.updated`      | 更新日時（日時の形）                                                 |
 | `article.show_updated` | 更新日を出すなら真（投稿日と日付が違うとき。投稿日が無いときも真）   |
 | `article.tags`         | 付いているタグの配列（下の「タグ」。親を含めた名前の順）             |
-| `article.comments_open`| コメントを受け付ける記事なら 1                                       |
-| `article.eyecatch`、`article.eyecatch_mode` | アイキャッチの設定（OGP で使う。`docs/ogp.md`） |
+| `article.comments_open`| コメントを受け付ける記事なら1                                       |
+| `article.eyecatch`、`article.eyecatch_mode` | アイキャッチの設定（OGPで使う。`docs/ogp.md`） |
 
 個別ページ（`article.html`）だけで使える項目。
 
 | 変数                     | 中身                                                             |
 | ------------------------ | ---------------------------------------------------------------- |
-| `article.body`           | 本文のHTML（続きを読むの印を除いたもの）。`raw` で出す            |
+| `article.body`           | 本文のHTML（続きを読むの印を除いたもの）。`raw`で出す            |
 | `article.comments`       | 公開中のコメントの配列（下の「コメント」）                       |
 | `article.comments_count` | 公開中のコメントの数                                             |
 | `article.comment_form`   | コメントのフォーム（下の「コメントのフォーム」）。出さないときは空 |
 | `article.is_draft`       | 下書きなら真（管理者にだけ見せている）                           |
 | `article.edit_url`       | 編集の画面のURL（下書きのときだけ）                              |
 
-一覧（`articles` の要素。トップと検索結果）だけで使える項目。
+一覧（`articles`の要素。トップと検索結果）だけで使える項目。
 
 | 変数                 | 中身                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | `article.list_image` | 一覧に出すアイキャッチの画像のURL。アイキャッチが添付ファイルのときだけ入る（外部の画像は入れない）。サムネイルがあればサムネイル、無ければ元の画像 |
-| `article.body`       | 本文のHTML。続きを読むの印があればその前まで（印の前で開いているタグは閉じてある）、無ければ全文。`raw` で出す。見出し、目次、脚注のリンクは「記事のURL#ID」なので、一覧に並べても、その記事の見出しや脚注へ行く |
+| `article.body`       | 本文のHTML。続きを読むの印があればその前まで（印の前で開いているタグは閉じてある）、無ければ全文。`raw`で出す。見出し、目次、脚注のリンクは「記事のURL#ID」なので、一覧に並べても、その記事の見出しや脚注へ行く |
 | `article.has_more`   | 続きを読むの印で切ったなら真（「続きを読む」のリンクを出すのに使う）                          |
 
 一覧に本文を出すかどうか、本文を出すときにアイキャッチを出すかどうかは、テンプレートの書き方で決める。今はトップの一覧（`article_summary.html`）では本文と「続きを読む」のリンクを出し、説明とアイキャッチは出さない（旧システムと同じ）。検索結果（`search_result.html`）では説明かその抜粋と、アイキャッチを出す。
@@ -238,23 +238,23 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 
 | 変数                    | 中身                                                                |
 | ----------------------- | ------------------------------------------------------------------- |
-| `article.title_html`    | 検索語を `<mark>` で囲んだ題名。`raw` で出す                         |
-| `article.snippets`      | 範囲が本文のとき、当たった箇所の前後の抜粋の配列。要素は `raw` で出す |
-| `article.source_lines`  | 範囲が原文のとき、当たった行の配列。要素は `number`（行番号）、`html`（`raw` で出す） |
+| `article.title_html`    | 検索語を`<mark>`で囲んだ題名。`raw`で出す                         |
+| `article.snippets`      | 範囲が本文のとき、当たった箇所の前後の抜粋の配列。要素は`raw`で出す |
+| `article.source_lines`  | 範囲が原文のとき、当たった行の配列。要素は`number`（行番号）、`html`（`raw`で出す） |
 | `article.omitted_lines` | 範囲が原文のとき、上限を超えて省いた行の数                          |
 
 #### タグ
 
-`article.tags` の要素と、`tag_tree` の要素（`node`）。
+`article.tags`の要素と、`tag_tree`の要素（`node`）。
 
 | 変数        | 中身                                                       |
 | ----------- | ---------------------------------------------------------- |
 | `name`      | タグの名前（`調味料`）                                     |
 | `full_name` | 親を含めた名前（`料理::食材::調味料`）                     |
 | `url`       | そのタグで絞り込んだ検索のURL                              |
-| `id`、`parent_id` | タグのID と、親のID                                  |
+| `id`、`parent_id` | タグのIDと、親のID                                  |
 
-`tag_tree` の要素には、さらに次のものがある。
+`tag_tree`の要素には、さらに次のものがある。
 
 | 変数       | 中身                                              |
 | ---------- | ------------------------------------------------- |
@@ -263,7 +263,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 
 #### コンテンツの木
 
-`content_tree` の要素（`node`）。`id`、`parent_id`、`title`、`slug`、`url`、`children`（子のページの配列）。
+`content_tree`の要素（`node`）。`id`、`parent_id`、`title`、`slug`、`url`、`children`（子のページの配列）。
 
 #### archive
 
@@ -275,7 +275,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `year.count`          | その年の記事の数                        |
 | `year.url`            | その年で絞り込んだ検索のURL             |
 | `year.open`           | いちばん新しい年なら真                  |
-| `year.months`         | 月の配列。要素は `label`（`2026年10月`）、`count`、`url` |
+| `year.months`         | 月の配列。要素は`label`（`2026年10月`）、`count`、`url` |
 
 #### pager
 
@@ -293,19 +293,19 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | 変数          | 中身                                                                  |
 | ------------- | --------------------------------------------------------------------- |
 | `form.q`      | 検索語                                                                |
-| `form.scopes` | 検索の範囲の選択肢の配列。要素は `value`（`text`、`title`、`source`）、`label`、`selected` |
+| `form.scopes` | 検索の範囲の選択肢の配列。要素は`value`（`text`、`title`、`source`）、`label`、`selected` |
 
 #### 検索の絞り込み
 
 | 変数         | 中身                                                                       |
 | ------------ | -------------------------------------------------------------------------- |
-| `selected`   | 選んでいる条件の配列。要素は `label`、`remove_url`（その条件を外したURL）  |
-| `tag_facet`  | タグの候補の配列。要素は `label`、`count`、`url`（そのタグを足したURL）    |
-| `date_facet` | 年か月の候補の配列。要素は `label`、`count`、`url`                         |
+| `selected`   | 選んでいる条件の配列。要素は`label`、`remove_url`（その条件を外したURL）  |
+| `tag_facet`  | タグの候補の配列。要素は`label`、`count`、`url`（そのタグを足したURL）    |
+| `date_facet` | 年か月の候補の配列。要素は`label`、`count`、`url`                         |
 
 #### admin_bar
 
-ログイン中に、公開側のページと管理画面の上に出す管理者のメニュー（`docs/admin.md`）。公開側では、コントローラが `render` に `req`（リクエスト）を渡したページで入る（404 のページでは入らない）。管理画面では、ログイン中のすべてのページで入る。
+ログイン中に、公開側のページと管理画面の上に出す管理者のメニュー（`docs/admin.md`）。公開側では、コントローラが`render`に`req`（リクエスト）を渡したページで入る（404のページでは入らない）。管理画面では、ログイン中のすべてのページで入る。
 
 | 変数                   | 中身                                                                  |
 | ---------------------- | --------------------------------------------------------------------- |
@@ -316,20 +316,20 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `admin_bar.comments`   | コメントの一覧のURL（承認待ちがあれば、承認待ちの一覧）               |
 | `admin_bar.held_count` | 承認待ちのコメントの数                                                |
 | `admin_bar.edit`       | 今のページの編集の画面のURL（記事とコンテンツページだけ）             |
-| `admin_bar.logout`     | ログアウトのURL（POST で送る）                                        |
-| `admin_bar.csrf_token` | ログアウトのフォームに入れる CSRF のトークン                          |
+| `admin_bar.logout`     | ログアウトのURL（POSTで送る）                                        |
+| `admin_bar.csrf_token` | ログアウトのフォームに入れるCSRFのトークン                          |
 
 #### コメント
 
-`article.comments` の要素。
+`article.comments`の要素。
 
 | 変数          | 中身                                         |
 | ------------- | -------------------------------------------- |
-| `num`         | コメントの番号（`id="cN"` に使う）           |
+| `num`         | コメントの番号（`id="cN"`に使う）           |
 | `author_name` | 名前                                         |
 | `by_admin`    | 管理者が書いたものなら真                     |
 | `created`     | 投稿日時（日時の形）                         |
-| `html`        | 本文のHTML。`raw` で出す                     |
+| `html`        | 本文のHTML。`raw`で出す                     |
 
 #### コメントのフォーム
 
@@ -337,44 +337,44 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 
 | 変数       | 中身                                                                     |
 | ---------- | ------------------------------------------------------------------------ |
-| `open`     | フォームを出すなら真。偽のときは `notice` だけを出す                     |
+| `open`     | フォームを出すなら真。偽のときは`notice`だけを出す                     |
 | `notice`   | 投稿した後の知らせ（承認待ちなど）                                       |
 | `action`   | 送り先のURL                                                              |
 | `token`    | フォームのトークン                                                       |
-| `js_token` | 真なら、トークンを JavaScript（`script`）で入れる                        |
-| `script`   | `comment.js` のURL                                                       |
+| `js_token` | 真なら、トークンをJavaScript（`script`）で入れる                        |
+| `script`   | `comment.js`のURL                                                       |
 | `admin`    | 管理者として書くなら真                                                   |
 | `name`、`body` | 入力欄に戻す値                                                       |
 | `errors`   | 誤りの理由（文字列）の配列                                               |
 
 ## 管理画面
 
-`Lyndbaum::App->render_admin` が、ページのテンプレート（`admin_*.html`）を出力し、それを `admin_layout.html` で包む。
+`Lyndbaum::App->render_admin`が、ページのテンプレート（`admin_*.html`）を出力し、それを`admin_layout.html`で包む。
 
 すべてのページで使える変数は次のもの。
 
 | 変数         | 中身                                                           |
 | ------------ | -------------------------------------------------------------- |
 | `blog`       | ブログの設定（公開側と同じ）                                   |
-| `urls`       | 管理画面の各ページのURL（`admin`、`articles`、`new_article`、`new_page`、`trash`、`tags`、`media`、`comments`、`blog_settings`、`comment_settings`、`editor_settings`、`sidebar`、`rebuild`、`logout` など）と、`top`、`style`、`admin_script`、`media_script` |
-| `logged_in`  | ログインしていれば 1                                           |
-| `csrf_token` | フォームに入れる CSRF のトークン。ログインしていなければ空      |
-| `content`    | ページのテンプレートの出力（`admin_layout.html` だけ）         |
-| `admin_bar`  | 上の管理者のメニュー（公開側の「admin_bar」と同じ形。`home_url` はトップページ、`home_label` は「ブログを表示」）。ログインしていなければ空 |
+| `urls`       | 管理画面の各ページのURL（`admin`、`articles`、`new_article`、`new_page`、`trash`、`tags`、`media`、`comments`、`blog_settings`、`comment_settings`、`editor_settings`、`sidebar`、`rebuild`、`logout`など）と、`top`、`style`、`admin_script`、`media_script` |
+| `logged_in`  | ログインしていれば1                                           |
+| `csrf_token` | フォームに入れるCSRFのトークン。ログインしていなければ空      |
+| `content`    | ページのテンプレートの出力（`admin_layout.html`だけ）         |
+| `admin_bar`  | 上の管理者のメニュー（公開側の「admin_bar」と同じ形。`home_url`はトップページ、`home_label`は「ブログを表示」）。ログインしていなければ空 |
 | `admin_menu` | 左のナビ（下の表）。ログインしていなければ空                   |
 
-`admin_menu` の要素。
+`admin_menu`の要素。
 
 | 変数       | 中身                                                                 |
 | ---------- | -------------------------------------------------------------------- |
-| `key`      | 項目の名前（`dashboard`、`articles`、`settings` など）               |
+| `key`      | 項目の名前（`dashboard`、`articles`、`settings`など）               |
 | `label`    | 表示する名前                                                         |
 | `url`      | 行き先                                                               |
 | `count`    | 件数（コメントの承認待ち）。無ければ空                               |
 | `current`  | 今のページがこの項目か、その子なら真                                 |
-| `children` | 子の配列（今のページがこの項目の子のときだけ。ほかは空）。要素は `key`、`label`、`url`、`current` |
+| `children` | 子の配列（今のページがこの項目の子のときだけ。ほかは空）。要素は`key`、`label`、`url`、`current` |
 
-今のページは、テンプレートの名前から決める（`Lyndbaum::App` の `%NAV_OF`）。同じテンプレートで複数の項目にあたるページ（設定、記事の編集）は、コントローラが `render_admin` に `nav` を渡す。
+今のページは、テンプレートの名前から決める（`Lyndbaum::App`の`%NAV_OF`）。同じテンプレートで複数の項目にあたるページ（設定、記事の編集）は、コントローラが`render_admin`に`nav`を渡す。
 
-ページごとの変数は、そのページを出すコントローラ（`lib/Lyndbaum/Controller/Admin*.pm`）の `render_admin` の呼び出しを見る。
-管理画面のフォームには、必ず `<input type="hidden" name="csrf_token" value="{{ csrf_token }}">` を入れる（`docs/admin.md`）。
+ページごとの変数は、そのページを出すコントローラ（`lib/Lyndbaum/Controller/Admin*.pm`）の`render_admin`の呼び出しを見る。
+管理画面のフォームには、必ず`<input type="hidden" name="csrf_token" value="{{ csrf_token }}">`を入れる（`docs/admin.md`）。

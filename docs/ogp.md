@@ -1,6 +1,6 @@
 # OGP
 
-記事のページ（コンテンツページと下書きを含む）とトップページの`<head>`に、OGPとTwitter Card のメタタグ、`canonical`、`meta description`を出す（`Lyndbaum::OGP`、`Lyndbaum::App->page_head`）。検索の結果などのほかのページには出さない。
+記事のページ（コンテンツページと下書きを含む）とトップページの`<head>`に、OGPとTwitter Cardのメタタグ、`canonical`、`meta description`を出す（`Lyndbaum::OGP`、`Lyndbaum::App->page_head`）。検索の結果などのほかのページには出さない。
 
 ## 出すもの
 

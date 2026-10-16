@@ -48,7 +48,7 @@ RSS 2.0だけを出す（旧システムもRSSだけだった。Atomは作らな
 
 ## サイトマップ
 
-Google Search Console などに登録するためのもの（sitemaps.org の形）。`Lyndbaum::Sitemap`。
+Google Search Consoleなどに登録するためのもの（sitemaps.orgの形）。`Lyndbaum::Sitemap`。
 
 - RSSと同じく、静的なファイル`pub/sitemap.xml`（URLは`/pub/sitemap.xml`）として書き出す。書き出す時機もRSSと同じ（`Lyndbaum::StaticFiles`が両方を書き出す）。書き出す先は`config.json`の`sitemap_file`で変えられる（テスト用）
 - 中身：トップページと、公開している記事とコンテンツページ（下書きとゴミ箱の中は入れない）。記事はIDの順（旧システムと同じ）
