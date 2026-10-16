@@ -5,7 +5,8 @@
   <header>
     <h1 class="article-title">{{ article.title }}</h1>
     <p class="article-meta">
-      {{# if not article.is_page }}{{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.datetime }}</time>{{/ if }}{{/ if }}
+      {{# if article.published }}投稿 <time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+      {{# if article.show_updated }}更新 <time datetime="{{ article.updated.iso }}">{{ article.updated.date }}</time>{{/ if }}
       {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
     </p>
   </header>

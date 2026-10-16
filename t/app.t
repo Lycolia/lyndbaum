@@ -90,7 +90,7 @@ subtest '記事' => sub {
 	$dbh->do(q{UPDATE articles SET body_html = '<p>古いHTML</p>' WHERE id = 1});
 	like get('/01')->body, qr{<p>古いHTML</p>}, '表示のときには変換し直さない';
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 1', undef, $html);
-	like $res->body, qr{<time datetime="2023-11-15T07:13:20\+09:00">2023-11-15 07:13</time>}, '日本時間で表示する';
+	like $res->body, qr{投稿 <time datetime="2023-11-15T07:13:20\+09:00">2023-11-15</time>}, '日本時間で表示する';
 	like $res->body, qr{href="/search\?t=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99">料理::食材::調味料</a>}, 'タグはタグで絞り込んだ検索へのリンク';
 
 	is get('/04')->status, 404, '下書き';
@@ -103,7 +103,7 @@ subtest 'コンテンツページ' => sub {
 	my $res = get('/親ページ/子ページ');
 	is $res->status, 200;
 	like $res->body, qr{<h1 class="article-title">子ページ</h1>};
-	unlike $res->body, qr{<time}, '日付は出さない';
+	like $res->body, qr{投稿 <time}, '記事と同じく日付を出す';
 	is get('/親ページ/')->status, 404, '末尾の / は付けない';
 	is get('/存在しない')->status, 404;
 
@@ -260,6 +260,34 @@ subtest 'パスはREQUEST_URIから、クエリはQUERY_STRINGから取る' => s
 
 	$res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86' });
 	unlike $res->body, qr{<title>料理 - }, 'QUERY_STRINGが無ければ、REQUEST_URIのクエリは使わない';
+};
+
+subtest '投稿日と更新日' => sub {
+	# 記事1：投稿は 2023-11-15 07:13（日本時間）、更新は別の日
+	# 記事2：投稿は 2023-11-15 07:15、更新は同じ日の 2023-11-15 23:59
+	$dbh->do('UPDATE articles SET updated_at = ? WHERE id = ?', undef, @$_) for [1767193200, 1], [1700060340, 2];
+	# コンテンツページ：投稿は 2020-09-13、更新は 2026-01-01
+	$dbh->do('UPDATE articles SET published_at = ?, updated_at = ? WHERE id = ?', undef, 1600000000, 1767193200, 10);
+
+	my $res = get('/01');
+	like $res->body, qr{投稿 <time datetime="2023-11-15T07:13:20\+09:00">2023-11-15</time>}, '投稿日';
+	like $res->body, qr{更新 <time datetime="2026-01-01T00:00:00\+09:00">2026-01-01</time>}, '投稿日と日付が違えば、更新日も出す';
+
+	$res = get('/02');
+	like $res->body, qr{投稿 <time[^>]*>2023-11-15</time>};
+	unlike $res->body, qr{更新 <time}, '投稿した日のうちに直したときは、更新日を出さない';
+
+	$res = get('/親ページ');
+	like $res->body, qr{投稿 <time[^>]*>2020-09-13</time>}, 'コンテンツページにも投稿日を出す';
+	like $res->body, qr{更新 <time[^>]*>2026-01-01</time>}, 'コンテンツページにも更新日を出す';
+
+	$res = get('/', 'page=2');
+	like $res->body, qr{<a href="/01">.*?投稿 <time[^>]*>2023-11-15</time>\s*更新 <time[^>]*>2026-01-01</time>}s, '一覧にも出す';
+
+	$res = get('/search', 'q=%E4%BA%8C%E3%81%A4%E7%9B%AE');
+	my ($result) = $res->body =~ m{(<article class="article-summary search-result">.*?</article>)}s;
+	like $result, qr{投稿 <time[^>]*>2023-11-15</time>}, '検索結果にも出す';
+	unlike $result, qr{更新 <time}, '検索結果でも、同じ日なら更新日を出さない';
 };
 
 done_testing;

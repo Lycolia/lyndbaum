@@ -32,11 +32,15 @@ sub articles {
 sub article {
 	my ($class, $app, $article, $tag_ids) = @_;
 	my $tags = $app->tags;
+	my $published = format_date($article->{published_at});
+	my $updated   = format_date($article->{updated_at});
 	return {
 		%$article,
 		url       => $class->article_url($app, $article),
-		published => format_date($article->{published_at}),
-		updated   => format_date($article->{updated_at}),
+		published => $published,
+		updated   => $updated,
+		# 更新日は、投稿日と日付が違うときだけ出す（投稿した日のうちに直したときは出さない）
+		show_updated => $updated && (!$published || $updated->{date} ne $published->{date}),
 		is_page   => $article->{kind} eq 'page',
 		tags      => [
 			map { $class->tag($app, $_) }

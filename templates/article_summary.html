@@ -1,7 +1,8 @@
 <article class="article-summary">
   <h2 class="summary-title"><a href="{{ article.url }}">{{ article.title }}</a></h2>
   <p class="article-meta">
-    {{# if article.published }}<time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+    {{# if article.published }}投稿 <time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+    {{# if article.show_updated }}更新 <time datetime="{{ article.updated.iso }}">{{ article.updated.date }}</time>{{/ if }}
     {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
   </p>
   {{# if article.description }}
