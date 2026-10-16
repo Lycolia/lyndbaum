@@ -384,6 +384,8 @@ sub _render_form {
 		saved       => $opt{saved},
 		feed_failed => $opt{feed_failed},
 		conflict    => $opt{conflict},
+		# 保存できずに戻ってきた画面。欄の中身はまだ保存していない（離れるときに確かめる）
+		unsaved     => @{ $opt{errors} // [] } || $opt{conflict} ? 1 : 0,
 		# タグの入力の候補（pub/assets/js/admin-article.js が読む）。テンプレートが属性の値としてエスケープする
 		tag_data    => JSON::PP->new->canonical->encode([
 			map { +{ name => $_->{full_name}, count => $counts->{ $_->{id} } // 0 } } @$tree

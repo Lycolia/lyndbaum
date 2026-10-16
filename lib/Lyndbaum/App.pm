@@ -310,6 +310,7 @@ sub render_admin {
 			media            => $self->url->admin('media'),
 			media_script     => $self->url->static('js/admin-media.js'),
 			admin_script     => $self->url->static('js/admin.js'),
+			unsaved_script   => $self->url->static('js/admin-unsaved.js'),
 			rebuild          => $self->url->admin('rebuild'),
 			comments         => $self->url->admin('comments'),
 			blog_settings    => $self->url->admin('settings/blog'),

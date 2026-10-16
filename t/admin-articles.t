@@ -93,7 +93,9 @@ subtest 'ページの一覧' => sub {
 subtest '新しい記事' => sub {
 	my $res = get('/admin/articles/new');
 	is $res->status, 200;
-	like $res->body, qr{<form class="admin-form article-edit" method="post" action="/admin/articles">};
+	like $res->body, qr{<form class="admin-form article-edit" method="post" action="/admin/articles" data-unsaved-warning="">},
+		'保存していない変更があれば離れるときに確かめる（開いたときは保存済みと同じ扱い）';
+	like $res->body, qr{<script src="/pub/assets/js/admin-unsaved\.js" defer></script>};
 	like $res->body, qr{<input type="checkbox" name="comments_open" value="1" checked>}, 'コメントは受け付けるのが既定';
 	unlike $res->body, qr{name="keep_updated"}, '新しい記事には「更新日時を変えない」を出さない';
 	my @buttons = $res->body =~ m{<button type="submit" name="status" value="(\w+)"}g;
@@ -115,6 +117,7 @@ subtest '新しい記事' => sub {
 	like $res->body, qr{<option value="料理">料理</option><option value="料理::調味料">　調味料</option>}, '一覧から選ぶ（木の順に字下げ）';
 	like $res->body, qr{<input type="hidden" name="digest" value="[0-9a-f]{64}">};
 	like $res->body, qr{<input type="checkbox" name="keep_updated" value="1">更新日時を変えない};
+	like $res->body, qr{data-unsaved-warning="">}, '既存の記事も確かめる';
 };
 
 subtest '入力の誤り' => sub {
@@ -127,6 +130,7 @@ subtest '入力の誤り' => sub {
 	like $res->body, qr{<li class="tag-chip tag-chip-new">\s*<input type="hidden" name="new_tag" value="新しいタグ"><span class="tag-chip-mark">新</span>};
 	is $dbh->selectrow_array(q{SELECT COUNT(*) FROM tags WHERE name IN ('無いタグ', '新しいタグ')}), 0, 'タグも作らない';
 	is $dbh->selectrow_array('SELECT COUNT(*) FROM articles'), 5, '保存しない';
+	like $res->body, qr{data-unsaved-warning="unsaved">}, '保存できなかった内容なので、開いたときから確かめる対象';
 };
 
 subtest '下書きは管理者にだけ見える' => sub {
@@ -159,6 +163,7 @@ subtest 'ほかの画面で先に保存されていたら' => sub {
 	like $res->as_cgi, qr{\AStatus: 409 Conflict\r\n}, '状態の文言';
 	like $res->body, qr{ほかの画面で先に保存されています};
 	like $res->body, qr{name="title" value="古い画面から"}, '書いた内容は消さない';
+	like $res->body, qr{data-unsaved-warning="unsaved">}, '保存していない内容なので、開いたときから確かめる対象';
 	my $now = digest(5);
 	like $res->body, qr{name="digest" value="$now"}, 'もう一度保存すれば上書きになる';
 	is $dbh->selectrow_array('SELECT title FROM articles WHERE id = 5'), '新しい記事';
