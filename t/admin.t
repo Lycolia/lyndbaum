@@ -185,4 +185,44 @@ subtest 'ログイン中は、公開側のページの上に管理者のメニ�
 	$dbh->do('DELETE FROM articles WHERE id IN (30, 31, 32)');
 };
 
+subtest '管理画面の枠：上に管理者のメニュー、左にナビ' => sub {
+	my $res = request(GET => '/admin/login');
+	unlike $res->body, qr{admin-bar|admin-menu}, 'ログインの画面には出さない';
+
+	my ($cookie) = login();
+	my $page = sub { request(GET => $_[0], cookie => $cookie)->body };
+	my $current = sub {
+		my ($body) = @_;
+		my @items = $body =~ m{<li class="admin-menu-item is-current">\s*<a href="[^"]*"[^>]*>([^<]+)}g;
+		my @children = $body =~ m{<a href="[^"]*" class="is-current" aria-current="page">([^<]+)</a>}g;
+		return join ' > ', @items, @children;
+	};
+
+	my $body = $page->('/admin');
+	like $body, qr{<body class="admin">\s*<nav class="admin-bar"}, '上に管理者のメニュー';
+	like $body, qr{<nav class="admin-bar".*?<a href="/">ブログを表示</a>}s, '管理画面では、左端はブログへ';
+	like $body, qr{<nav class="admin-menu" aria-label="管理画面のナビ">}, '左にナビ';
+	is $current->($body), 'ダッシュボード';
+	like $body, qr{<a href="/admin" aria-current="page">ダッシュボード</a>}, '子の無い項目は、項目そのものが今のページ';
+	unlike $body, qr{admin-submenu}, '今のページの無い項目は、子を出さない';
+
+	is $current->($page->('/admin/articles')),          '記事 > 記事の一覧';
+	is $current->($page->('/admin/articles/new')),      '記事 > 新しい記事';
+	is $current->($page->('/admin/articles?kind=page')),      'ページ > ページの一覧';
+	is $current->($page->('/admin/articles/new?kind=page')), 'ページ > 新しいページ';
+	is $current->($page->('/admin/trash')),             'ゴミ箱';
+	is $current->($page->('/admin/media')),             'メディア';
+	is $current->($page->('/admin/comments')),          'コメント';
+	is $current->($page->('/admin/tags')),              'タグ';
+	is $current->($page->('/admin/sidebar')),           'サイドバー';
+	is $current->($page->('/admin/settings/blog')),     '設定 > ブログ';
+	is $current->($page->('/admin/settings/comments')), '設定 > コメント';
+	is $current->($page->('/admin/settings/editor')),   '設定 > 編集';
+
+	$body = $page->('/admin/articles');
+	like $body, qr{<ul class="admin-submenu">\s*<li><a href="/admin/articles" class="is-current" aria-current="page">記事の一覧</a></li>\s*<li><a href="/admin/articles/new">新しい記事</a></li>\s*</ul>}, '記事の子';
+	like $body, qr{<a href="/admin/articles\?kind=page">ページ</a>}, 'ページは子を出さない';
+	like $body, qr{<a href="/admin/settings/blog">設定</a>}, 'ほかの項目は子を出さない';
+};
+
 done_testing;

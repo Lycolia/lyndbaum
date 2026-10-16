@@ -1,4 +1,13 @@
-<h1>コメント</h1>
+<h1>{{ title }}</h1>
+{{# if article }}
+{{! 記事とページの一覧のコメントの数から開いたとき。その記事のコメントだけを出す }}
+<p class="admin-filters">
+  <a href="{{ article.edit_url }}">{{# if article.is_page }}ページ{{# else }}記事{{/ if }}を編集</a>
+  <a href="{{ article.url }}">公開側で見る</a>
+  <a href="{{ article.list_url }}">{{# if article.is_page }}ページ{{# else }}記事{{/ if }}の一覧へ</a>
+  <a href="{{ urls.comments }}">すべての記事のコメント</a>
+</p>
+{{/ if }}
 <p class="admin-filters">
   {{# for filter in filters }}
   {{# if filter.current }}<strong>{{ filter.label }}（{{ filter.count }}）</strong>{{# else }}<a href="{{ filter.url }}">{{ filter.label }}（{{ filter.count }}）</a>{{/ if }}

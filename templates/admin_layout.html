@@ -8,32 +8,43 @@
 <link rel="stylesheet" href="{{ urls.style }}">
 </head>
 <body class="admin">
+{{# if logged_in }}
+{{! ログイン中：上に管理者のメニュー（公開側と同じ部品）、左にナビ、右に本文（WordPress と同じ並び） }}
+{{> admin_bar }}
+<div class="admin-frame">
+<nav class="admin-menu" aria-label="管理画面のナビ">
+  <p class="admin-menu-blog"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
+  <ul>
+    {{# for item in admin_menu }}
+    <li class="admin-menu-item{{# if item.current }} is-current{{/ if }}">
+      <a href="{{ item.url }}"{{# if item.current }}{{# if not item.children }} aria-current="page"{{/ if }}{{/ if }}>{{ item.label }}{{# if item.count }} <span class="admin-bar-count" title="承認待ち">{{ item.count }}</span>{{/ if }}</a>
+      {{# if item.children }}
+      <ul class="admin-submenu">
+        {{# for child in item.children }}
+        <li><a href="{{ child.url }}"{{# if child.current }} class="is-current" aria-current="page"{{/ if }}>{{ child.label }}</a></li>
+        {{/ for }}
+      </ul>
+      {{/ if }}
+    </li>
+    {{/ for }}
+  </ul>
+</nav>
+<main class="admin-main">
+{{! content は各ページのテンプレートの出力で、エスケープ済み }}
+{{ raw content }}
+</main>
+</div>
+{{# else }}
+{{! ログインの画面 }}
 <header class="site-header">
   <p class="site-title"><a href="{{ urls.admin }}">管理画面</a></p>
   <p class="site-description"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
-  {{# if logged_in }}
-  <nav class="admin-nav">
-    <a href="{{ urls.admin }}">ダッシュボード</a>
-    <a href="{{ urls.articles }}">記事</a>
-    <a href="{{ urls.new_article }}">新しい記事</a>
-    <a href="{{ urls.tags }}">タグ</a>
-    <a href="{{ urls.media }}">メディア</a>
-    <a href="{{ urls.comments }}">コメント</a>
-    <a href="{{ urls.blog_settings }}">ブログの設定</a>
-    <a href="{{ urls.comment_settings }}">コメントの設定</a>
-    <a href="{{ urls.editor_settings }}">編集の設定</a>
-    <a href="{{ urls.sidebar }}">サイドバー</a>
-  </nav>
-  <form class="admin-logout" method="post" action="{{ urls.logout }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <button type="submit">ログアウト</button>
-  </form>
-  {{/ if }}
 </header>
 <main class="admin-main">
 {{! content は各ページのテンプレートの出力で、エスケープ済み }}
 {{ raw content }}
 </main>
+{{/ if }}
 <script src="{{ urls.admin_script }}" defer></script>
 </body>
 </html>

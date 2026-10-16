@@ -147,10 +147,11 @@ sub find_by_slug_for_admin {
 }
 
 # 一覧の条件。%args の status（draft、published。省くとすべて）、q（題名に含む語）
+#   %args：kind（post か page。省くと両方）、status、q
 sub _admin_where {
 	my (%args) = @_;
-	my @where = (q{a.kind IN ('post', 'page')}, 'a.deleted_at IS NULL');
-	my @bind;
+	my @where = ($args{kind} ? 'a.kind = ?' : q{a.kind IN ('post', 'page')}, 'a.deleted_at IS NULL');
+	my @bind = $args{kind} ? ($args{kind}) : ();
 	if ($args{status}) {
 		push @where, 'a.status = ?';
 		push @bind, $args{status};
@@ -185,11 +186,13 @@ sub count_admin {
 }
 
 # 状態ごとの件数 { draft => N, published => N }（ゴミ箱の中は数えない）
+#   $kind（post か page）を渡すと、その種類だけを数える
 sub count_by_status {
-	my ($class, $dbh) = @_;
+	my ($class, $dbh, $kind) = @_;
 	my %counts = (draft => 0, published => 0);
 	my $rows = $dbh->selectall_arrayref(
-		q{SELECT status, COUNT(*) FROM articles WHERE kind IN ('post', 'page') AND deleted_at IS NULL GROUP BY status});
+		'SELECT status, COUNT(*) FROM articles WHERE ' . ($kind ? 'kind = ?' : q{kind IN ('post', 'page')})
+		. ' AND deleted_at IS NULL GROUP BY status', undef, $kind ? ($kind) : ());
 	$counts{ $_->[0] } = $_->[1] for @$rows;
 	return \%counts;
 }

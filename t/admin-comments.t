@@ -37,8 +37,8 @@ subtest 'ログインしていなければ使えない' => sub {
 
 subtest 'ダッシュボード' => sub {
 	my $body = $t->request(GET => '/admin', cookie => $cookie)->body;
-	like $body, qr{承認待ちのコメント</a>：1件};
-	like $body, qr{公開中のコメント</a>：2件};
+	like $body, qr{承認待ちのコメント</a><span class="admin-glance-count">1件</span>};
+	like $body, qr{公開中のコメント</a><span class="admin-glance-count">2件</span>};
 };
 
 subtest '一覧' => sub {
@@ -57,6 +57,30 @@ subtest '一覧' => sub {
 	like $body, qr{value="approve">承認</button>};
 	unlike $body, qr{value="hide"};
 	like $body, qr{name="back" value="/admin/comments\?status=held"}, '操作の後は同じ一覧に戻る';
+};
+
+subtest '記事ごとの一覧' => sub {
+	my $get = sub { $t->request(GET => $_[0], cookie => $cookie) };
+	like $get->('/admin/articles')->body, qr{<td><a href="/admin/comments\?article=1" title="この記事のコメントを管理する">2</a></td>}, '記事の一覧のコメントの数から開く';
+
+	my $body = $get->('/admin/comments?article=1')->body;
+	like $body, qr{<h1>「公開の記事」のコメント</h1>};
+	is_deeply [ $body =~ m{<span class="comment-author">(.*?)</span>}g ], ['保留の人', '公開の人'], 'その記事のコメントだけ';
+	like $body, qr{<strong>すべて（2）</strong>.*承認待ち（1）.*公開中（1）}s, '件数もその記事だけ';
+	like $body, qr{<a href="/admin/comments\?article=1&amp;status=held">承認待ち（1）</a>}, '絞り込みも同じ記事のまま';
+	like $body, qr{<a href="/admin/articles/1">記事を編集</a>};
+	like $body, qr{<a href="/01">公開側で見る</a>};
+	like $body, qr{<a href="/admin/articles">記事の一覧へ</a>};
+	like $body, qr{<a href="/admin/comments">すべての記事のコメント</a>};
+	like $body, qr{name="back" value="/admin/comments\?article=1"}, '操作の後は同じ記事の一覧に戻る';
+
+	is_deeply [ $get->('/admin/comments?article=1&status=held')->body =~ m{<span class="comment-author">(.*?)</span>}g ], ['保留の人'];
+	is $get->('/admin/comments?article=99')->status, 404, '無い記事';
+	is $get->('/admin/comments?article=abc')->status, 404;
+
+	my $res = $post->('/admin/comments/2', action => 'approve', back => '/admin/comments?article=1&status=held');
+	is header($res, 'Location'), '/admin/comments?article=1&status=held', '同じ記事の一覧に戻る';
+	$post->('/admin/comments/2', action => 'hide');
 };
 
 subtest '承認と非表示' => sub {

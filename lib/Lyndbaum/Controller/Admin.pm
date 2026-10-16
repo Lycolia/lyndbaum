@@ -32,7 +32,8 @@ sub dashboard {
 	return $app->render_admin('admin_dashboard', {
 		title          => 'ダッシュボード',
 		comment_counts => Lyndbaum::Model::Comment->count_by_status($app->db),
-		article_counts => Lyndbaum::Model::Article->count_by_status($app->db),
+		article_counts => Lyndbaum::Model::Article->count_by_status($app->db, 'post'),
+		page_counts    => Lyndbaum::Model::Article->count_by_status($app->db, 'page'),
 		trash_count    => Lyndbaum::Model::Article->count_trash($app->db),
 		rebuilt        => $rebuilt,
 		feed_failed    => ($req->param('feed') // '') eq 'failed',

@@ -1,6 +1,6 @@
 package Lyndbaum::Controller::AdminArticle;
 # 管理画面の記事の管理（docs/admin.md の「記事の管理」）
-#   /admin/articles?status=draft|published&q=語&page=N   一覧
+#   /admin/articles?status=draft|published&q=語&page=N   記事の一覧（kind=page ならコンテンツページの一覧）
 #   /admin/articles/new?kind=page                         新しい記事のフォーム（kind=page ならコンテンツページ）
 #   POST /admin/articles                                  新しい記事を保存
 #   /admin/articles/ID                                    編集のフォーム
@@ -39,29 +39,35 @@ sub index {
 	return $res if !$session;
 	my $dbh = $app->db;
 
+	# 記事とコンテンツページは別々の一覧にする（WordPress の投稿と固定ページと同じ）
+	my $kind = _kind($req->param('kind'));
 	my $status = $req->param('status') // '';
 	$status = undef if !$STATUS_LABEL{$status};
 	my $q = $req->param('q') // '';
 	$q =~ s/\A\s+|\s+\z//g;
-	my %cond = (status => $status, q => $q);
+	my %cond = (kind => $kind, status => $status, q => $q);
+	my $list_url = sub { $app->url->admin('articles', kind => $kind eq 'page' ? 'page' : undef, @_) };
 
 	my $pager = Lyndbaum::View->pager(
 		page     => page_number($req),
 		per_page => $PER_PAGE,
 		total    => Lyndbaum::Model::Article->count_admin($dbh, %cond),
-		url_of   => sub { $app->url->admin('articles', status => $status, q => $q, page => $_[0] > 1 ? $_[0] : undef) },
+		url_of   => sub { $list_url->(status => $status, q => $q, page => $_[0] > 1 ? $_[0] : undef) },
 	) or return $app->not_found;
 
-	my $counts = Lyndbaum::Model::Article->count_by_status($dbh);
+	my $counts = Lyndbaum::Model::Article->count_by_status($dbh, $kind);
 	my ($trashed) = ($req->param('trashed') // '') =~ /\A(\d+)\z/;   # ゴミ箱へ移した数（_move_to_trash）
 	my $articles = Lyndbaum::Model::Article->list_admin($dbh, %cond, limit => $PER_PAGE, offset => ($pager->{page} - 1) * $PER_PAGE);
 	return $app->render_admin('admin_articles', {
-		title    => '記事',
+		title    => $kind eq 'page' ? 'ページ' : '記事',
+		is_page  => $kind eq 'page',
+		kind     => $kind,
+		list_url => $list_url->(),
 		q        => $q,
 		status   => $status // '',
 		filters  => [ map {
 			my ($value, $label, $count) = @$_;
-			+{ label => $label, count => $count, url => $app->url->admin('articles', status => $value, q => $q),
+			+{ label => $label, count => $count, url => $list_url->(status => $value, q => $q),
 			   current => ($status // '') eq ($value // '') }
 		} [ undef, 'すべて', $counts->{draft} + $counts->{published} ], [ draft => '下書き', $counts->{draft} ],
 		  [ published => '公開中', $counts->{published} ] ],
@@ -69,11 +75,10 @@ sub index {
 			+{
 				%$_,
 				status_label => $STATUS_LABEL{ $_->{status} },
-				draft        => $_->{status} eq 'draft',
-				is_page      => $_->{kind} eq 'page',
 				published    => format_date($_->{published_at}),
 				updated      => format_date($_->{updated_at}),
 				edit_url     => $app->url->admin("articles/$_->{id}"),
+				comments_url => $app->url->admin('comments', article => $_->{id}),
 				url          => $app->url->article($_->{slug}),
 			}
 		} @$articles ],
@@ -81,7 +86,13 @@ sub index {
 		trash_count => Lyndbaum::Model::Article->count_trash($dbh),
 		trashed     => $trashed,
 		feed_failed => ($req->param('feed') // '') eq 'failed',
-	}, session => $session);
+	}, session => $session, nav => $kind eq 'page' ? 'pages' : 'articles');
+}
+
+# 一覧の種類。page でなければ post
+sub _kind {
+	my ($value) = @_;
+	return ($value // '') eq 'page' ? 'page' : 'post';
 }
 
 sub new_form {
@@ -168,8 +179,8 @@ sub trash {
 	my ($class, $app, $req, $id) = @_;
 	my ($session, $res) = Lyndbaum::Controller::Admin->authorize($app, $req, post => 1);
 	return $res if !$session;
-	Lyndbaum::Model::Article->find_for_admin($app->db, $id) or return $app->not_found;
-	return $class->_move_to_trash($app, $session, [$id]);
+	my $article = Lyndbaum::Model::Article->find_for_admin($app->db, $id) or return $app->not_found;
+	return $class->_move_to_trash($app, $session, [$id], $article->{kind});
 }
 
 # 選んだ記事をゴミ箱へ移す（一覧から）
@@ -177,16 +188,18 @@ sub trash_selected {
 	my ($class, $app, $req) = @_;
 	my ($session, $res) = Lyndbaum::Controller::Admin->authorize($app, $req, post => 1);
 	return $res if !$session;
-	return $class->_move_to_trash($app, $session, [ _ids($req) ]);
+	return $class->_move_to_trash($app, $session, [ _ids($req) ], _kind($req->body_param('kind')));
 }
 
+# 移したら、その種類（$kind）の一覧へ
 sub _move_to_trash {
-	my ($class, $app, $session, $ids) = @_;
+	my ($class, $app, $session, $ids, $kind) = @_;
 	my ($count, $errors) = Lyndbaum::Model::Article->move_to_trash($app->db, $ids);
 	my $feed_ok = $class->write_static_files($app);
 	return $class->_errors($app, $session, 'ゴミ箱へ移せなかった記事があります', $count, '件の記事をゴミ箱へ移しました。', $errors)
 		if @$errors;
-	return $app->redirect($app->url->admin('articles', trashed => $count, feed => $feed_ok ? undef : 'failed'), 303);
+	return $app->redirect($app->url->admin('articles', kind => $kind eq 'page' ? 'page' : undef, trashed => $count,
+		feed => $feed_ok ? undef : 'failed'), 303);
 }
 
 sub trash_index {
@@ -377,7 +390,9 @@ sub _render_form {
 		tag_options => [ map { +{ name => $_->{full_name}, label => ('　' x $_->{depth}) . $_->{name} } } @$tree ],
 		script      => $app->url->static('js/admin-article.js'),
 		thumbnail_size => $app->settings->{thumbnail_size},
-	}, session => $session, status => $opt{status});
+	}, session => $session, status => $opt{status},
+		# 左のナビ：新しく書くときは「新しい記事」か「新しいページ」、既存の記事やページの編集はそれぞれの一覧
+		nav => defined $id ? ($is_page ? 'pages' : 'articles') : $is_page ? 'new_page' : 'new_article');
 }
 
 1;
