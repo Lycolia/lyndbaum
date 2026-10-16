@@ -115,6 +115,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `archive`         | 過去ログ（下の「archive」）                                               |
 | `sidebar_boxes`   | サイドバーの自由欄。要素は `title`、`html`（許可リストに通したHTML）      |
 | `app_version`     | Lyndbaum の版（`0.2.0-beta` など）                                        |
+| `admin_bar`       | 管理者のメニュー（下の「admin_bar」）。ログインしていなければ空           |
 
 ### layout.html だけで使える変数
 
@@ -155,6 +156,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `content_tree_item.html` | `layout.html`、自分自身           | `node`（コンテンツの木の要素）     |
 | `comments_section.html`  | `article.html`                    | `article`                          |
 | `comment_form.html`      | `comments_section.html`           | `article.comment_form`             |
+| `admin_bar.html`         | `layout.html`                     | `admin_bar`                        |
 
 ### 値の形
 
@@ -287,6 +289,21 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | `selected`   | 選んでいる条件の配列。要素は `label`、`remove_url`（その条件を外したURL）  |
 | `tag_facet`  | タグの候補の配列。要素は `label`、`count`、`url`（そのタグを足したURL）    |
 | `date_facet` | 年か月の候補の配列。要素は `label`、`count`、`url`                         |
+
+#### admin_bar
+
+ログイン中に、公開側のページの上に出す管理者のメニュー（`docs/admin.md`）。コントローラが `render` に `req`（リクエスト）を渡したページで入る。404 のページでは入らない。
+
+| 変数                   | 中身                                                                  |
+| ---------------------- | --------------------------------------------------------------------- |
+| `admin_bar.dashboard`  | ダッシュボードのURL                                                   |
+| `admin_bar.new_article`| 新しい記事のURL                                                       |
+| `admin_bar.new_page`   | 新しいコンテンツページのURL                                           |
+| `admin_bar.comments`   | コメントの一覧のURL（承認待ちがあれば、承認待ちの一覧）               |
+| `admin_bar.held_count` | 承認待ちのコメントの数                                                |
+| `admin_bar.edit`       | 今のページの編集の画面のURL（記事とコンテンツページだけ）             |
+| `admin_bar.logout`     | ログアウトのURL（POST で送る）                                        |
+| `admin_bar.csrf_token` | ログアウトのフォームに入れる CSRF のトークン                          |
 
 #### コメント
 

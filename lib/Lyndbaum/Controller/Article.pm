@@ -52,15 +52,18 @@ sub render_article {
 		description => $article->{description},
 		image       => Lyndbaum::OGP->article_image($app, $article),
 	);
+	my $edit = $app->url->admin("articles/$article->{id}");
 	if ($article->{is_draft}) {
-		# 下書きは検索エンジンやキャッシュに残さない。コメントは受け付けないのでフォームも出さない
+		# 下書きは検索エンジンに載せない。コメントは受け付けないのでフォームも出さない
+		# （下書きは管理者にだけ見せるので、render が Cache-Control: no-store を付ける）
 		$view->{is_draft} = 1;
-		$view->{edit_url} = $app->url->admin("articles/$article->{id}");
-		return $app->render('article', { title => $article->{title}, article => $view, noindex => 1, head => $head })
-			->add_header('Cache-Control', 'no-store');
+		$view->{edit_url} = $edit;
+		return $app->render('article', { title => $article->{title}, article => $view, noindex => 1, head => $head },
+			req => $req, edit => $edit);
 	}
 	$view->{comment_form} = $class->_comment_form($app, $req, $article, %form);
-	return $app->render('article', { title => $article->{title}, article => $view, head => $head }, status => $form{status});
+	return $app->render('article', { title => $article->{title}, article => $view, head => $head },
+		status => $form{status}, req => $req, edit => $edit);
 }
 
 # コメントのフォーム。受け付けないなら、知らせだけ（無ければ undef）

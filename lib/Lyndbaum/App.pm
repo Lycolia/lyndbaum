@@ -7,6 +7,7 @@ use utf8;
 use File::Spec;
 use Lyndbaum::Config;
 use Lyndbaum::DB;
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Session;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
@@ -208,8 +209,13 @@ sub handle {
 }
 
 # 公開側のページを出力する。テンプレートの出力を layout.html で包む
+#   %args
+#     status  応答のステータス（既定は 200）
+#     req     リクエスト。渡すと、ログイン中なら画面の上に管理者のメニューを出す
+#     edit    管理者のメニューの「編集」の行き先（記事のページで渡す）
 sub render {
 	my ($self, $name, $vars, %args) = @_;
+	my $session = $args{req} ? $self->admin_session($args{req}) : undef;
 	my %common = (
 		blog         => $self->settings,
 		urls         => {
@@ -234,12 +240,33 @@ sub render {
 		recent_posts    => Lyndbaum::View->recent_posts($self),
 		archive         => Lyndbaum::View->archive($self),
 		sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($self->settings->{sidebar_boxes}),
-		app_version => $APP_VERSION
+		app_version => $APP_VERSION,
+		admin_bar   => $session ? $self->_admin_bar($session, %args) : undef,
 	);
 	my %all = (%common, %$vars);
 	my $content = $self->template->render($name, \%all);
 	my $html    = $self->template->render('layout', { %all, content => $content });
-	return Lyndbaum::Response->html($html, status => $args{status} // 200);
+	my $res = Lyndbaum::Response->html($html, status => $args{status} // 200);
+	# 管理者のメニューにはログアウトのボタンと CSRF のトークンが入るので、管理画面と同じく
+	# ブラウザやプロキシに残さず、ほかのサイトの枠の中にも表示させない
+	return $session ? admin_headers($res) : $res;
+}
+
+# 公開側のページの上に出す、管理者のメニュー（templates/admin_bar.html）
+sub _admin_bar {
+	my ($self, $session, %args) = @_;
+	my $held = Lyndbaum::Model::Comment->count_by_status($self->db)->{held};
+	return {
+		dashboard   => $self->url->admin,
+		new_article => $self->url->admin('articles/new'),
+		new_page    => $self->url->admin('articles/new', kind => 'page'),
+		# 承認待ちがあれば、承認待ちの一覧を開く
+		comments    => $self->url->admin('comments', status => $held ? 'held' : undef),
+		held_count  => $held,
+		edit        => $args{edit},
+		logout      => $self->url->admin('logout'),
+		csrf_token  => $session->{csrf_token},
+	};
 }
 
 # 管理画面のページを出力する。テンプレートの出力を admin_layout.html で包む
@@ -296,9 +323,12 @@ sub admin_headers {
 my $SESSION_COOKIE = 'lyndbaum_session';
 
 # ログイン中ならセッション（{ csrf_token, ... }）、そうでなければ undef
+#   1つのリクエストの中では、最初に調べた結果を使い回す（記事のページでは何度か調べるため）
 sub admin_session {
 	my ($self, $req) = @_;
-	return Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE));
+	$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE))
+		if !exists $req->{admin_session};
+	return $req->{admin_session};
 }
 
 # 管理者のログイン名（なりすましを見るため）。登録されていなければ undef

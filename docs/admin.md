@@ -236,3 +236,14 @@ CGI（Webサーバーのユーザー）が`pub/`に書き込めること（RSS�
 - `Cache-Control: no-store`（ブラウザやプロキシに残さない）
 - `X-Frame-Options: DENY` と `Content-Security-Policy: frame-ancestors 'none'`（ほかのサイトの枠の中に表示させない）
 - ページには `<meta name="robots" content="noindex, nofollow">`
+
+## 公開側のページの管理者のメニュー
+
+ログイン中に公開側のページ（トップ、検索、記事、コンテンツページ）を開くと、画面の上に管理者のメニューを出す（WordPress の管理バーにあたるもの。`templates/admin_bar.html`）。
+
+- ダッシュボード、＋記事（新しい記事）、＋ページ（新しいコンテンツページ）、コメント、ログアウト
+- コメントは、承認待ちがあれば件数を出し、承認待ちの一覧（`/admin/comments?status=held`）を開く。無ければすべての一覧
+- 記事とコンテンツページ（下書きを含む）では「編集」も出す
+- 画面を下へ動かしても、上に残す（`position: sticky`）
+- ログアウトのボタン（CSRF のトークンを含む）があるので、管理画面と同じ `Cache-Control: no-store`、`X-Frame-Options: DENY`、`Content-Security-Policy: frame-ancestors 'none'` を付ける。ログインしていなければ付けない
+- 404 のページには出さない

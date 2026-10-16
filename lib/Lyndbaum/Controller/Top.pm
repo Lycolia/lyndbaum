@@ -38,7 +38,7 @@ sub index {
 			title       => $settings->{blog_title},
 			description => $settings->{blog_description},
 		),
-	});
+	}, req => $req);
 }
 
 1;

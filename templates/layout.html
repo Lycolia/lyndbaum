@@ -28,6 +28,9 @@
 <link rel="alternate" type="application/rss+xml" title="{{ blog.blog_title }}" href="{{ urls.feed }}">
 </head>
 <body>
+{{# if admin_bar }}
+{{> admin_bar }}
+{{/ if }}
 <header class="site-header">
   <p class="site-title"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
   {{# if blog.blog_description }}

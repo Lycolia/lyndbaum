@@ -30,6 +30,19 @@ body {
 a { color: var(--link); }
 
 .site-header { border-bottom: 1px solid var(--border); }
+/* ログイン中に公開側のページの上に出す、管理者のメニュー。明るい画面でも暗い画面でも同じ色にする */
+.admin-bar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem;
+  margin-bottom: 1rem; padding: .35rem .75rem;
+  background: #1d2327; color: #f0f0f1; font-size: .9rem;
+}
+.admin-bar a { color: #f0f0f1; text-decoration: none; }
+.admin-bar a:hover, .admin-bar a:focus-visible { color: #72aee6; text-decoration: underline; }
+.admin-bar-count { display: inline-block; min-width: 1.4em; padding: 0 .35em; border-radius: .7em; background: #d63638; color: #fff; font-size: .8rem; text-align: center; }
+.admin-bar-logout { margin: 0 0 0 auto; }
+.admin-bar-logout button { background: none; border: 0; padding: 0; color: #f0f0f1; font: inherit; cursor: pointer; }
+.admin-bar-logout button:hover, .admin-bar-logout button:focus-visible { color: #72aee6; text-decoration: underline; }
 .site-title { font-size: 1.5rem; font-weight: bold; margin: 0; }
 .site-title a { color: inherit; text-decoration: none; }
 .site-description { color: var(--muted); margin: .25rem 0 1rem; }
