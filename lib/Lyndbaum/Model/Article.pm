@@ -5,7 +5,6 @@ use warnings;
 use utf8;
 use feature 'current_sub';
 
-use Digest::SHA ();
 use Encode ();
 use Lyndbaum::Model::Tag;
 use Lyndbaum::Parser::Common;
@@ -199,6 +198,7 @@ sub count_by_status {
 # ほかの画面（別のタブなど）で先に保存されていないかを見る
 sub digest {
 	my ($class, $dbh, $id) = @_;
+	require Digest::SHA;
 	my $row = $dbh->selectrow_hashref(
 		'SELECT title, body_src, status, published_at, comments_open, eyecatch, eyecatch_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
 	my $tag_ids = $class->tag_ids_of($dbh, $id)->{$id} // [];

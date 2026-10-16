@@ -4,7 +4,6 @@ use strict;
 use warnings;
 use utf8;
 
-use Unicode::Normalize qw(NFKC);
 use Lyndbaum::HTML qw(escape_html strip_tags);
 
 # 続きを読むの印。パーサーはこの印を出力し、表示するときにここで分ける
@@ -117,7 +116,8 @@ sub search_source {
 
 sub normalize_for_search {
 	my ($text) = @_;
-	$text = lc NFKC($text);
+	require Unicode::Normalize;
+	$text = lc Unicode::Normalize::NFKC($text);
 	$text =~ s/[ \t]+/ /g;
 	$text =~ s/\s*\n\s*/\n/g;
 	return $text;

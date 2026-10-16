@@ -9,7 +9,6 @@ use utf8;
 
 use Digest::SHA qw(hmac_sha256_base64);
 use Encode qw(encode_utf8);
-use Lyndbaum::Password;
 
 # フォームを出してから、これより早い投稿は人ではないとみなす（秒）
 our $MIN_AGE = 3;
@@ -27,6 +26,7 @@ sub verify {
 	my ($class, $secret, $token, $article_id, $now) = @_;
 	my ($version, $id, $issued, $signature) = split /\./, $token // '', 4;
 	return 0 if ($version // '') ne 'v1' || !defined $signature;
+	require Lyndbaum::Password;
 	return 0 if !Lyndbaum::Password::equal($signature, _sign($secret, "v1.$id.$issued"));
 	return 0 if $id ne $article_id || $issued !~ /\A\d+\z/;
 	my $age = ($now // time) - $issued;

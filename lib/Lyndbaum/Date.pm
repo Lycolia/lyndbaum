@@ -7,8 +7,6 @@ use utf8;
 use Exporter 'import';
 our @EXPORT_OK = qw(format_date parse_input_date);
 
-use Time::Local qw(timegm);
-
 # 日本時間は夏時間がないので、9時間ずらすだけでよい
 my $OFFSET = 9 * 60 * 60;
 
@@ -34,7 +32,8 @@ sub parse_input_date {
 	my ($year, $mon, $mday, $hour, $min, $sec) = ($text // '') =~ /\A(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d)(?::(\d\d))?\z/
 		or return undef;
 	return undef if $year < 1970 || $mon < 1 || $mon > 12 || $hour > 23 || $min > 59 || ($sec // 0) > 59;
-	my $epoch = eval { timegm($sec // 0, $min, $hour, $mday, $mon - 1, $year) } // return undef;
+	require Time::Local;
+	my $epoch = eval { Time::Local::timegm($sec // 0, $min, $hour, $mday, $mon - 1, $year) } // return undef;
 	# timegm は 2月30日などを翌月に繰り越さずに die するが、念のため戻して確かめる
 	my (undef, undef, undef, $d, $m) = gmtime $epoch;
 	return undef if $d != $mday || $m != $mon - 1;

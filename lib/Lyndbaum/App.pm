@@ -8,7 +8,6 @@ use File::Spec;
 use Lyndbaum::Config;
 use Lyndbaum::DB;
 use Lyndbaum::Model::Comment;
-use Lyndbaum::Model::Session;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::Request;
@@ -19,8 +18,7 @@ use Lyndbaum::URL;
 use Lyndbaum::View;
 use Lyndbaum::SidebarBoxes;
 use Lyndbaum::OGP;
-# 検索フォームはすべての公開ページで使う。それ以外は経路が決まってから読む
-use Lyndbaum::Controller::Search;
+use Lyndbaum::SearchForm;
 
 my $APP_VERSION = '0.3.0-beta';
 
@@ -225,7 +223,7 @@ sub render {
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
 				'js/article.js', 'js/sidebar.js' ],
 		},
-		form         => Lyndbaum::Controller::Search->form,   # サイドバーの検索フォーム
+		form         => Lyndbaum::SearchForm->values,   # サイドバーの検索フォーム
 		content_tree => Lyndbaum::View->content_tree($self),
 		tag_tree     => Lyndbaum::View->tag_tree($self),
 		recent_comments => Lyndbaum::View->recent_comments($self),
@@ -387,8 +385,14 @@ my $SESSION_COOKIE = 'lyndbaum_session';
 #   1つのリクエストの中では、最初に調べた結果を使い回す（記事のページでは何度か調べるため）
 sub admin_session {
 	my ($self, $req) = @_;
-	$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE))
-		if !exists $req->{admin_session};
+	if (!exists $req->{admin_session}) {
+		my $token = $req->cookie($SESSION_COOKIE);
+		$req->{admin_session} = undef;
+		if (defined $token && $token ne '') {
+			require Lyndbaum::Model::Session;
+			$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $token);
+		}
+	}
 	return $req->{admin_session};
 }
 

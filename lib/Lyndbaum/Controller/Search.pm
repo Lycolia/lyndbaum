@@ -18,9 +18,8 @@ use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Search;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::Parser::Common;
+use Lyndbaum::SearchForm;
 use Lyndbaum::View;
-
-my %SCOPES = (text => '本文', title => 'タイトル', source => '原文');
 
 # 検索語の数の上限。多すぎるとSQLの条件が長くなるため
 my $MAX_WORDS = 10;
@@ -67,10 +66,7 @@ sub index {
 # 検索フォーム（templates/search_form.html）に渡す値
 sub form {
 	my ($class, $q, $in) = @_;
-	return {
-		q      => $q // '',
-		scopes => [ map { +{ value => $_, label => $SCOPES{$_}, selected => $_ eq ($in // 'text') } } qw(text title source) ],
-	};
+	return Lyndbaum::SearchForm->values($q, $in);
 }
 
 # 検索結果の記事。検索語があれば、題名を強調し、当たった箇所を添える
@@ -104,8 +100,7 @@ sub _conditions {
 		split /\s+/, Lyndbaum::Parser::Common::normalize_for_search($q);
 	splice @words, $MAX_WORDS if @words > $MAX_WORDS;
 
-	my $in = $req->param('in') // '';
-	$in = 'text' if !$SCOPES{$in};
+	my $in = Lyndbaum::SearchForm->scope($req->param('in'));
 
 	my (@tags, $untagged, %tag_seen);
 	for my $name ($req->params('t')) {
