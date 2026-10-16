@@ -34,7 +34,7 @@ use Lyndbaum::Controller::Comment;
 use Lyndbaum::Controller::Search;
 use Lyndbaum::Controller::Static;
 
-my $APP_VERSION = '0.2.0-beta';
+my $APP_VERSION = '0.3.0-beta';
 
 # ルーティング表。URLから処理を追うときはここを見る
 # URLの組み立ては Lyndbaum::URL にある
