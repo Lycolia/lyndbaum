@@ -147,9 +147,9 @@ subtest 'タグで絞り込んだ検索' => sub {
 	my $res = get('/search', 't=%E6%96%99%E7%90%86');
 	is $res->status, 200;
 	like $res->body, qr{<title>料理 - テストのブログ</title>}, '題名はタグの名前';
-	like $res->body, qr{<p>3 件</p>}, '子孫のタグの記事とコンテンツページを含む';
+	like $res->body, qr{<p>3件</p>}, '子孫のタグの記事とコンテンツページを含む';
 	like $res->body, qr{二つ目}, '1ページ目';
-	like get('/search', 't=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99')->body, qr{<p>2 件</p>};
+	like get('/search', 't=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99')->body, qr{<p>2件</p>};
 
 	is get('/search', 't=%E8%A8%80%E8%AA%9E::C%23.NET')->status, 200, '記号を含むタグ名';
 	is get('/search', 't=%E8%AA%BF%E5%91%B3%E6%96%99')->status, 404, '親を省いた名前では探さない';

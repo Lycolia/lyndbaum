@@ -22,7 +22,7 @@
     {{# for f in date_facet }}<a href="{{ f.url }}">{{ f.label }}</a><span class="count">({{ f.count }})</span> {{/ for }}
   </p>
   {{/ if }}
-  <p>{{ pager.total }} 件</p>
+  <p>{{ pager.total }}件</p>
 </section>
 {{# for article in articles }}
 {{> search_result }}
