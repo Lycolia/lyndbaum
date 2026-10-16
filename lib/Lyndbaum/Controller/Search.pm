@@ -31,7 +31,7 @@ sub index {
 
 	my $form = $class->form($cond->{q}, $cond->{in});
 	if (!@{ $cond->{words} } && !@{ $cond->{tags} } && !$cond->{untagged} && !$cond->{d}) {
-		return $app->render('search', { title => '検索', form => $form });
+		return $app->render('search', { title => '検索', form => $form }, req => $req);
 	}
 
 	my $search = Lyndbaum::Model::Search->new($app->db,
@@ -61,7 +61,7 @@ sub index {
 		date_facet => $class->_date_facet($app, $cond, $search),
 		articles   => $class->_results($app, $cond, $articles),
 		pager      => $pager,
-	});
+	}, req => $req);
 }
 
 # 検索フォーム（templates/search_form.html）に渡す値

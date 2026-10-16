@@ -7,6 +7,7 @@ use utf8;
 use File::Spec;
 use Lyndbaum::Config;
 use Lyndbaum::DB;
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Session;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
@@ -33,7 +34,7 @@ use Lyndbaum::Controller::Comment;
 use Lyndbaum::Controller::Search;
 use Lyndbaum::Controller::Static;
 
-my $APP_VERSION = '0.2.0-beta';
+my $APP_VERSION = '0.3.0-beta';
 
 # ルーティング表。URLから処理を追うときはここを見る
 # URLの組み立ては Lyndbaum::URL にある
@@ -208,8 +209,13 @@ sub handle {
 }
 
 # 公開側のページを出力する。テンプレートの出力を layout.html で包む
+#   %args
+#     status  応答のステータス（既定は 200）
+#     req     リクエスト。渡すと、ログイン中なら画面の上に管理者のメニューを出す
+#     edit    管理者のメニューの「編集」の行き先（記事のページで渡す）
 sub render {
 	my ($self, $name, $vars, %args) = @_;
+	my $session = $args{req} ? $self->admin_session($args{req}) : undef;
 	my %common = (
 		blog         => $self->settings,
 		urls         => {
@@ -234,19 +240,65 @@ sub render {
 		recent_posts    => Lyndbaum::View->recent_posts($self),
 		archive         => Lyndbaum::View->archive($self),
 		sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($self->settings->{sidebar_boxes}),
-		app_version => $APP_VERSION
+		app_version => $APP_VERSION,
+		admin_bar   => $session ? $self->_admin_bar($session, %args) : undef,
 	);
 	my %all = (%common, %$vars);
 	my $content = $self->template->render($name, \%all);
 	my $html    = $self->template->render('layout', { %all, content => $content });
-	return Lyndbaum::Response->html($html, status => $args{status} // 200);
+	my $res = Lyndbaum::Response->html($html, status => $args{status} // 200);
+	# 管理者のメニューにはログアウトのボタンと CSRF のトークンが入るので、管理画面と同じく
+	# ブラウザやプロキシに残さず、ほかのサイトの枠の中にも表示させない
+	return $session ? admin_headers($res) : $res;
 }
+
+# 画面の上に出す、管理者のメニュー（templates/admin_bar.html）
+#   左端は、公開側ではダッシュボード、管理画面ではブログ（WordPress と同じ）
+#   %args
+#     held   承認待ちのコメントの数（呼ぶ側で数えてあれば渡す）
+#     admin  真なら管理画面に出すもの
+#     edit   「編集」の行き先
+sub _admin_bar {
+	my ($self, $session, %args) = @_;
+	my $held = $args{held} // Lyndbaum::Model::Comment->count_by_status($self->db)->{held};
+	return {
+		home_url    => $args{admin} ? $self->url->top : $self->url->admin,
+		home_label  => $args{admin} ? 'ブログを表示' : 'ダッシュボード',
+		new_article => $self->url->admin('articles/new'),
+		new_page    => $self->url->admin('articles/new', kind => 'page'),
+		# 承認待ちがあれば、承認待ちの一覧を開く
+		comments    => $self->url->admin('comments', status => $held ? 'held' : undef),
+		held_count  => $held,
+		edit        => $args{edit},
+		logout      => $self->url->admin('logout'),
+		csrf_token  => $session->{csrf_token},
+	};
+}
+
+# 管理画面の左のナビで、今のページとして目立たせる項目（_admin_menu の key）。テンプレートの名前から決める
+#   同じテンプレートで複数の項目にあたるもの（設定、記事の編集）は、呼ぶ側が render_admin に nav を渡す
+my %NAV_OF = (
+	admin_dashboard    => 'dashboard',
+	admin_articles     => 'articles',
+	admin_article_form => 'articles',
+	admin_trash        => 'trash',
+	admin_media        => 'media',
+	admin_comments     => 'comments',
+	admin_tags         => 'tags',
+	admin_sidebar      => 'sidebar',
+	admin_settings     => 'blog_settings',
+);
 
 # 管理画面のページを出力する。テンプレートの出力を admin_layout.html で包む
 #   ブラウザやプロキシに残さず、ほかのサイトの枠の中にも表示させない
+#   %args
+#     session  ログイン中のセッション。渡すと、上のバーと左のナビを出す
+#     status   応答のステータス（既定は 200）
+#     nav      左のナビで目立たせる項目（省くとテンプレートの名前から決める）
 sub render_admin {
 	my ($self, $name, $vars, %args) = @_;
 	my $session = $args{session};
+	my $held    = $session ? Lyndbaum::Model::Comment->count_by_status($self->db)->{held} : 0;
 	my %all = (
 		blog       => $self->settings,
 		urls       => {
@@ -273,11 +325,55 @@ sub render_admin {
 		},
 		logged_in  => $session ? 1 : 0,
 		csrf_token => $session ? $session->{csrf_token} : '',
+		admin_bar  => $session ? $self->_admin_bar($session, admin => 1, held => $held) : undef,
+		admin_menu => $session ? $self->_admin_menu($args{nav} // $NAV_OF{$name} // '', $held) : undef,
 		%$vars,
 	);
 	my $content = $self->template->render($name, \%all);
 	my $html    = $self->template->render('admin_layout', { %all, content => $content });
 	return admin_headers(Lyndbaum::Response->html($html, status => $args{status} // 200));
+}
+
+# 管理画面の左のナビ（templates/admin_layout.html）
+#   子のある項目は、今のページがその中にあるときだけ子を出す（WordPress と同じ）
+#   [ { key, label, url, count, current, open, children => [ { key, label, url, current }, ... ] }, ... ]
+sub _admin_menu {
+	my ($self, $nav, $held) = @_;
+	my $u = $self->url;
+	my @menu = (
+		[ dashboard => 'ダッシュボード', $u->admin ],
+		[ articles  => '記事', $u->admin('articles'), [
+			[ articles    => '記事の一覧', $u->admin('articles') ],
+			[ new_article => '新しい記事', $u->admin('articles/new') ],
+		] ],
+		[ pages     => 'ページ', $u->admin('articles', kind => 'page'), [
+			[ pages    => 'ページの一覧', $u->admin('articles', kind => 'page') ],
+			[ new_page => '新しいページ', $u->admin('articles/new', kind => 'page') ],
+		] ],
+		[ trash     => 'ゴミ箱', $u->admin('trash') ],
+		[ media     => 'メディア', $u->admin('media') ],
+		[ comments  => 'コメント', $u->admin('comments', status => $held ? 'held' : undef), undef, $held ],
+		[ tags      => 'タグ',     $u->admin('tags') ],
+		[ sidebar   => 'サイドバー', $u->admin('sidebar') ],
+		[ settings  => '設定', $u->admin('settings/blog'), [
+			[ blog_settings    => 'ブログ',   $u->admin('settings/blog') ],
+			[ comment_settings => 'コメント', $u->admin('settings/comments') ],
+			[ editor_settings  => '編集',     $u->admin('settings/editor') ],
+		] ],
+	);
+	return [ map {
+		my ($key, $label, $url, $children, $count) = @$_;
+		my @children = map { +{ key => $_->[0], label => $_->[1], url => $_->[2], current => $_->[0] eq $nav } } @{ $children // [] };
+		my $open = grep { $_->{current} } @children;
+		+{
+			key      => $key,
+			label    => $label,
+			url      => $url,
+			count    => $count,
+			current  => ($key eq $nav || $open) ? 1 : 0,
+			children => $open ? \@children : [],
+		};
+	} @menu ];
 }
 
 # 管理画面の応答に付けるヘッダー
@@ -296,9 +392,12 @@ sub admin_headers {
 my $SESSION_COOKIE = 'lyndbaum_session';
 
 # ログイン中ならセッション（{ csrf_token, ... }）、そうでなければ undef
+#   1つのリクエストの中では、最初に調べた結果を使い回す（記事のページでは何度か調べるため）
 sub admin_session {
 	my ($self, $req) = @_;
-	return Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE));
+	$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE))
+		if !exists $req->{admin_session};
+	return $req->{admin_session};
 }
 
 # 管理者のログイン名（なりすましを見るため）。登録されていなければ undef

@@ -55,12 +55,14 @@ subtest '一覧' => sub {
 	is $res->status, 200;
 	is header($res, 'Cache-Control'), 'no-store';
 	my $body = $res->body;
-	like $body, qr{すべて（3）.*下書き（1）.*公開中（2）}s, 'ゴミ箱の中は数えない';
-	like $body, qr{書きかけ.*公開した記事.*ページ}s, '下書き（公開日時の無いもの）が先、あとは新しい順';
+	like $body, qr{<h1>記事</h1>};
+	like $body, qr{すべて\(2\).*下書き\(1\).*公開中\(1\)}s, 'ゴミ箱の中とコンテンツページは数えない';
+	like $body, qr{書きかけ.*公開した記事}s, '下書き（公開日時の無いもの）が先、あとは新しい順';
 	unlike $body, qr{ゴミ箱の記事};
+	unlike $body, qr{<a href="/admin/articles/3">}, 'コンテンツページは出さない';
 	like $body, qr{<a href="/admin/articles/1">公開した記事</a>};
-	like $body, qr{<a href="/%E3%83%9A%E3%83%BC%E3%82%B8">見る</a>}, '公開側のURL';
-	like $body, qr{ページ</a> <span class="admin-status">ページ</span>}, 'コンテンツページの印';
+	like $body, qr{<a href="/01">見る</a>}, '公開側のURL';
+	like $body, qr{<input type="hidden" name="kind" value="post">}, 'ゴミ箱へ移した後は記事の一覧へ戻る';
 
 	$body = get('/admin/articles?status=draft')->body;
 	like $body, qr{書きかけ};
@@ -69,6 +71,23 @@ subtest '一覧' => sub {
 	like $body, qr{公開した記事};
 	unlike $body, qr{書きかけ}, '題名で探す';
 	is get('/admin/articles?page=2')->status, 404;
+};
+
+subtest 'ページの一覧' => sub {
+	my $body = get('/admin/articles?kind=page')->body;
+	like $body, qr{<h1>ページ</h1>};
+	like $body, qr{すべて\(1\).*下書き\(0\).*公開中\(1\)}s, 'コンテンツページだけを数える';
+	like $body, qr{<a href="/admin/articles/3">ページ</a>};
+	unlike $body, qr{公開した記事|書きかけ}, '記事は出さない';
+	like $body, qr{<a href="/%E3%83%9A%E3%83%BC%E3%82%B8">見る</a>}, '公開側のURL';
+	like $body, qr{<a href="/admin/articles/new\?kind=page">新しいページを作る</a>};
+	like $body, qr{<a href="/admin/articles\?kind=page&amp;status=draft">下書き\(0\)</a>}, '絞り込みも同じ種類のまま';
+	like $body, qr{<input type="hidden" name="kind" value="page">\s*<input type="search" name="q"}, '探すときも同じ種類のまま';
+	like $body, qr{<input type="hidden" name="kind" value="page">\s*<table}, 'ゴミ箱へ移した後はページの一覧へ戻る';
+	unlike get('/admin/articles?kind=page&q=%E3%81%AA%E3%81%84')->body, qr{<a href="/admin/articles/3">}, '題名で探す';
+	is get('/admin/articles?kind=other')->status, 200, '知らない種類は記事の一覧';
+	like get('/admin/articles/3')->body, qr{<a href="/admin/articles\?kind=page" class="is-current" aria-current="page">ページの一覧</a>}, 'ページの編集では、左のナビはページの一覧';
+	like get('/admin/articles/1')->body, qr{<a href="/admin/articles" class="is-current" aria-current="page">記事の一覧</a>}, '記事の編集では、記事の一覧';
 };
 
 subtest '新しい記事' => sub {
@@ -190,12 +209,12 @@ subtest 'ページ' => sub {
 
 subtest '更新履歴' => sub {
 	unlike get('/admin/articles/new')->body, qr{class="revisions"}, '新しい記事には履歴の欄を出さない';
-	like get('/admin/articles/3')->body, qr{<summary>履歴（0件）</summary>.*この記事の履歴はまだありません}s;
+	like get('/admin/articles/3')->body, qr{<summary>履歴\(0件\)</summary>.*この記事の履歴はまだありません}s;
 
 	my $res = post('/admin/articles/3', kind => 'page', title => 'ページ', body => '新しい本文', page_name => 'ページ', status => 'published', digest => digest(3));
 	is $res->status, 303;
 	my $body = get('/admin/articles/3')->body;
-	like $body, qr{<summary>履歴（1件）</summary>};
+	like $body, qr{<summary>履歴\(1件\)</summary>};
 	my ($url) = $body =~ m{<button type="button" class="revision-item" data-url="([^"]+)">};
 	like $url, qr{\A/admin/articles/3/revisions/\d+\z};
 
@@ -256,7 +275,7 @@ subtest 'ゴミ箱へ移す' => sub {
 subtest 'ゴミ箱' => sub {
 	my $res = get('/admin/trash');
 	is $res->status, 200;
-	like $res->body, qr{新しい記事.*書きかけ.*公開した記事.*ゴミ箱の記事}s, '削除した日時の新しい順';
+	like $res->body, qr{題名を直した.*書きかけ.*公開した記事.*ゴミ箱の記事}s, '削除した日時の新しい順';
 	like $res->body, qr{<input type="checkbox" name="id" value="1" id="trash-1">};
 
 	$res = $t->request(POST => '/admin/trash', cookie => $cookie, body => [ csrf_token => $csrf, mode => 'restore', id => 1 ]);

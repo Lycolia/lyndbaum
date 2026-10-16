@@ -10,6 +10,7 @@ use Lyndbaum::Config;
 use Lyndbaum::Model::Admin;
 use Lyndbaum::Password;
 use AdminTest;
+use TestUtil qw(insert_article);
 
 my $t   = AdminTest->new;
 my $app = $t->app;
@@ -141,6 +142,87 @@ subtest 'cookie_secure を false にすると Secure を付けない（手元の
 subtest '/admin はコンテンツページの slug に使えない' => sub {
 	TestUtil::insert_article($dbh, id => 50, kind => 'page', slug => 'admin', title => '管理');
 	is request(GET => '/admin')->status, 303, '管理画面になる';
+};
+
+subtest 'ログイン中は、公開側のページの上に管理者のメニューを出す' => sub {
+	insert_article($dbh, id => 30, title => 'メニューの記事');
+	insert_article($dbh, id => 31, title => '下書きの記事', status => 'draft');
+	insert_article($dbh, id => 32, kind => 'page', slug => 'メニューのページ', title => 'メニューのページ');
+
+	my $res = request(GET => '/');
+	unlike $res->body, qr{admin-bar}, 'ログインしていなければ出さない';
+	is header($res, 'Cache-Control'), undef, 'ログインしていなければ、キャッシュを止めない';
+	is header($res, 'X-Frame-Options'), undef;
+
+	my ($cookie) = login();
+	my $csrf = csrf_of($cookie);
+	$res = request(GET => '/', cookie => $cookie);
+	my ($bar) = $res->body =~ m{(<nav class="admin-bar".*?</nav>)}s;
+	ok $bar, 'トップページに出す';
+	like $bar, qr{<a href="/admin">ダッシュボード</a>};
+	like $bar, qr{<a href="/admin/articles/new">＋記事</a>};
+	like $bar, qr{<a href="/admin/articles/new\?kind=page">＋ページ</a>};
+	like $bar, qr{<a href="/admin/comments">コメント</a>}, '承認待ちが無ければ、件数は出さず、すべての一覧へ';
+	unlike $bar, qr{>編集</a>}, '記事のページでなければ、編集は出さない';
+	like $bar, qr{<form class="admin-bar-logout" method="post" action="/admin/logout">\s*<input type="hidden" name="csrf_token" value="\Q$csrf\E">}, 'ログアウト';
+	is header($res, 'Cache-Control'), 'no-store', 'CSRF のトークンを含むので、保存させない';
+	is header($res, 'X-Frame-Options'), 'DENY', 'ログアウトのボタンがあるので、枠の中に表示させない';
+	like $res->body, qr{<body>\s*<nav class="admin-bar"}, 'ページのいちばん上';
+
+	$dbh->do(q{INSERT INTO comments (article_id, num, status, author_name, body, created_at) VALUES (30, ?, 'held', '名無し', '承認待ち', 0)}, undef, $_) for 1, 2;
+	like request(GET => '/search', cookie => $cookie)->body,
+		qr{<a href="/admin/comments\?status=held">コメント <span class="admin-bar-count" title="承認待ち">2</span></a>}, '承認待ちがあれば件数を出し、承認待ちの一覧へ（検索のページ）';
+
+	like request(GET => '/030', cookie => $cookie)->body, qr{<a href="/admin/articles/30">編集</a>}, '記事のページでは編集';
+	like request(GET => '/031', cookie => $cookie)->body, qr{<a href="/admin/articles/31">編集</a>}, '下書きでも編集';
+	$res = request(GET => '/メニューのページ', cookie => $cookie);
+	like $res->body, qr{<a href="/admin/articles/32">編集</a>}, 'コンテンツページでも編集';
+	my @cache = grep { $_ eq 'Cache-Control' } @{ $res->{headers} };
+	is scalar @cache, 1, 'Cache-Control は1つだけ';
+
+	unlike request(GET => '/030')->body, qr{admin-bar}, 'Cookie が無ければ、記事のページにも出さない';
+	$dbh->do('DELETE FROM comments WHERE article_id = 30');
+	$dbh->do('DELETE FROM articles WHERE id IN (30, 31, 32)');
+};
+
+subtest '管理画面の枠：上に管理者のメニュー、左にナビ' => sub {
+	my $res = request(GET => '/admin/login');
+	unlike $res->body, qr{admin-bar|admin-menu}, 'ログインの画面には出さない';
+
+	my ($cookie) = login();
+	my $page = sub { request(GET => $_[0], cookie => $cookie)->body };
+	my $current = sub {
+		my ($body) = @_;
+		my @items = $body =~ m{<li class="admin-menu-item is-current">\s*<a href="[^"]*"[^>]*>([^<]+)}g;
+		my @children = $body =~ m{<a href="[^"]*" class="is-current" aria-current="page">([^<]+)</a>}g;
+		return join ' > ', @items, @children;
+	};
+
+	my $body = $page->('/admin');
+	like $body, qr{<body class="admin">\s*<nav class="admin-bar"}, '上に管理者のメニュー';
+	like $body, qr{<nav class="admin-bar".*?<a href="/">ブログを表示</a>}s, '管理画面では、左端はブログへ';
+	like $body, qr{<nav class="admin-menu" aria-label="管理画面のナビ">}, '左にナビ';
+	is $current->($body), 'ダッシュボード';
+	like $body, qr{<a href="/admin" aria-current="page">ダッシュボード</a>}, '子の無い項目は、項目そのものが今のページ';
+	unlike $body, qr{admin-submenu}, '今のページの無い項目は、子を出さない';
+
+	is $current->($page->('/admin/articles')),          '記事 > 記事の一覧';
+	is $current->($page->('/admin/articles/new')),      '記事 > 新しい記事';
+	is $current->($page->('/admin/articles?kind=page')),      'ページ > ページの一覧';
+	is $current->($page->('/admin/articles/new?kind=page')), 'ページ > 新しいページ';
+	is $current->($page->('/admin/trash')),             'ゴミ箱';
+	is $current->($page->('/admin/media')),             'メディア';
+	is $current->($page->('/admin/comments')),          'コメント';
+	is $current->($page->('/admin/tags')),              'タグ';
+	is $current->($page->('/admin/sidebar')),           'サイドバー';
+	is $current->($page->('/admin/settings/blog')),     '設定 > ブログ';
+	is $current->($page->('/admin/settings/comments')), '設定 > コメント';
+	is $current->($page->('/admin/settings/editor')),   '設定 > 編集';
+
+	$body = $page->('/admin/articles');
+	like $body, qr{<ul class="admin-submenu">\s*<li><a href="/admin/articles" class="is-current" aria-current="page">記事の一覧</a></li>\s*<li><a href="/admin/articles/new">新しい記事</a></li>\s*</ul>}, '記事の子';
+	like $body, qr{<a href="/admin/articles\?kind=page">ページ</a>}, 'ページは子を出さない';
+	like $body, qr{<a href="/admin/settings/blog">設定</a>}, 'ほかの項目は子を出さない';
 };
 
 done_testing;

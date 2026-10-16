@@ -4,6 +4,9 @@ use utf8;
 use Test::More;
 
 use Encode qw(encode_utf8);
+use File::Path qw(make_path);
+use File::Temp qw(tempdir);
+use Lyndbaum::Config;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
@@ -90,7 +93,7 @@ subtest '記事' => sub {
 	$dbh->do(q{UPDATE articles SET body_html = '<p>古いHTML</p>' WHERE id = 1});
 	like get('/01')->body, qr{<p>古いHTML</p>}, '表示のときには変換し直さない';
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 1', undef, $html);
-	like $res->body, qr{<time datetime="2023-11-15T07:13:20\+09:00">2023-11-15 07:13</time>}, '日本時間で表示する';
+	like $res->body, qr{投稿 <time datetime="2023-11-15T07:13:20\+09:00">2023-11-15</time>}, '日本時間で表示する';
 	like $res->body, qr{href="/search\?t=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99">料理::食材::調味料</a>}, 'タグはタグで絞り込んだ検索へのリンク';
 
 	is get('/04')->status, 404, '下書き';
@@ -103,7 +106,7 @@ subtest 'コンテンツページ' => sub {
 	my $res = get('/親ページ/子ページ');
 	is $res->status, 200;
 	like $res->body, qr{<h1 class="article-title">子ページ</h1>};
-	unlike $res->body, qr{<time}, '日付は出さない';
+	like $res->body, qr{投稿 <time}, '記事と同じく日付を出す';
 	is get('/親ページ/')->status, 404, '末尾の / は付けない';
 	is get('/存在しない')->status, 404;
 
@@ -118,7 +121,7 @@ subtest 'コンテンツページ' => sub {
 
 subtest 'コメント' => sub {
 	my $body = get('/01')->body;
-	like $body, qr{<h2 class="comments-title">コメント（2件）</h2>}, '件数は公開中のものだけ';
+	like $body, qr{<h2 class="comments-title">コメント\(2件\)</h2>}, '件数は公開中のものだけ';
 	like $body, qr{<article class="comment-entry" id="c1">.*?<span class="comment-author">&lt;i&gt;名無し&lt;/i&gt;</span>}s, '番号の id、名前をエスケープする';
 	like $body, qr{<div class="comment-text">はじめまして\n<a href="https://example.com/" rel="nofollow ugc noopener noreferrer">https://example.com/</a> を見ました</div>}, '本文の URL はリンク';
 	like $body, qr{<article class="comment-entry comment-admin" id="c3">.*?<span class="comment-badge">管理者</span>}s, '管理者のコメント';
@@ -127,7 +130,7 @@ subtest 'コメント' => sub {
 	like $body, qr{<a class="comment-num" href="#c1">1</a>.*<a class="comment-num" href="#c3">3</a>}s, '番号の順';
 	my $empty = get('/02')->body;
 	unlike $empty, qr{<article class="comment}, 'コメントが無い記事';
-	like $empty, qr{<h2 class="comments-title">コメント（0件）</h2>.*<form class="comment-form"}s, 'コメントが無くても、受け付けるならフォームを出す';
+	like $empty, qr{<h2 class="comments-title">コメント\(0件\)</h2>.*<form class="comment-form"}s, 'コメントが無くても、受け付けるならフォームを出す';
 };
 
 subtest 'サイドバー' => sub {
@@ -144,9 +147,9 @@ subtest 'タグで絞り込んだ検索' => sub {
 	my $res = get('/search', 't=%E6%96%99%E7%90%86');
 	is $res->status, 200;
 	like $res->body, qr{<title>料理 - テストのブログ</title>}, '題名はタグの名前';
-	like $res->body, qr{<p>3 件</p>}, '子孫のタグの記事とコンテンツページを含む';
+	like $res->body, qr{<p>3件</p>}, '子孫のタグの記事とコンテンツページを含む';
 	like $res->body, qr{二つ目}, '1ページ目';
-	like get('/search', 't=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99')->body, qr{<p>2 件</p>};
+	like get('/search', 't=%E6%96%99%E7%90%86::%E9%A3%9F%E6%9D%90::%E8%AA%BF%E5%91%B3%E6%96%99')->body, qr{<p>2件</p>};
 
 	is get('/search', 't=%E8%A8%80%E8%AA%9E::C%23.NET')->status, 200, '記号を含むタグ名';
 	is get('/search', 't=%E8%AA%BF%E5%91%B3%E6%96%99')->status, 404, '親を省いた名前では探さない';
@@ -212,13 +215,13 @@ subtest '検索' => sub {
 	unlike $body->('d=abc'), qr{件</p>}, '不正な年月は無視する';
 
 	my $facet = $body->('t=%E6%96%99%E7%90%86');
-	like $facet, qr{>料理::食材</a> <span class="count">\(2\)</span>}, 'タグの候補と件数（子孫を含む）';
-	like $facet, qr{>料理::調味料</a> <span class="count">\(1\)</span>};
-	unlike $facet, qr{>料理</a> <span class="count">}, '選んだタグは候補に出さない';
-	like $facet, qr{>2023年</a> <span class="count">\(2\)</span>}, '年の候補（子ページは今年）';
+	like $facet, qr{>料理::食材</a><span class="count">\(2\)</span>}, 'タグの候補と件数（子孫を含む）';
+	like $facet, qr{>料理::調味料</a><span class="count">\(1\)</span>};
+	unlike $facet, qr{>料理</a><span class="count">}, '選んだタグは候補に出さない';
+	like $facet, qr{>2023年</a><span class="count">\(2\)</span>}, '年の候補（子ページは今年）';
 	like $body->('t='), qr{>2017年</a>}, 'タグなしの記事の年';
-	like $body->('d=2023'), qr{>11月</a> <span class="count">\(3\)</span>}, '年を選んだら月の候補';
-	like $body->('q=perl'), qr{>\(タグなし\)</a> <span class="count">\(1\)</span>}, 'タグなしの候補';
+	like $body->('d=2023'), qr{>11月</a><span class="count">\(3\)</span>}, '年を選んだら月の候補';
+	like $body->('q=perl'), qr{>\(タグなし\)</a><span class="count">\(1\)</span>}, 'タグなしの候補';
 	like $body->('t=%E6%96%99%E7%90%86&d=2023'), qr{href="/search\?d=2023"[^>]*>×}, '選んだ条件を外すリンク';
 
 	my $result = get('/search', 'q=nginx')->body;
@@ -252,14 +255,89 @@ subtest '404はHTMLで返す' => sub {
 	like $res->body, qr{ページが見つかりません};
 };
 
-subtest 'REQUEST_URIからパスとクエリを取る' => sub {
+subtest 'パスはREQUEST_URIから、クエリはQUERY_STRINGから取る' => sub {
 	my $app = Lyndbaum::App->new(root => $app->{root}, config => $app->config);
-	my $res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86&page=1' });
-	is $res->status, 200;
-	like $res->body, qr{<title>料理 - }, 'QUERY_STRINGが空なら、REQUEST_URIのクエリを使う（nginxの try_files で移したとき）';
+	my $res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86', QUERY_STRING => 't=%E8%A8%80%E8%AA%9E' });
+	is $res->status, 200, 'パスはREQUEST_URIの ? より前を使う';
+	like $res->body, qr{<title>言語 - }, 'クエリはQUERY_STRINGを使う';
 
-	$res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86', QUERY_STRING => 't=%E8%A8%80%E8%AA%9E' });
-	like $res->body, qr{<title>言語 - }, 'QUERY_STRINGがあれば、そちらを使う';
+	$res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86' });
+	unlike $res->body, qr{<title>料理 - }, 'QUERY_STRINGが無ければ、REQUEST_URIのクエリは使わない';
+};
+
+subtest '投稿日と更新日' => sub {
+	# 記事1：投稿は 2023-11-15 07:13（日本時間）、更新は別の日
+	# 記事2：投稿は 2023-11-15 07:15、更新は同じ日の 2023-11-15 23:59
+	$dbh->do('UPDATE articles SET updated_at = ? WHERE id = ?', undef, @$_) for [1767193200, 1], [1700060340, 2];
+	# コンテンツページ：投稿は 2020-09-13、更新は 2026-01-01
+	$dbh->do('UPDATE articles SET published_at = ?, updated_at = ? WHERE id = ?', undef, 1600000000, 1767193200, 10);
+
+	my $res = get('/01');
+	like $res->body, qr{投稿 <time datetime="2023-11-15T07:13:20\+09:00">2023-11-15</time>}, '投稿日';
+	like $res->body, qr{更新 <time datetime="2026-01-01T00:00:00\+09:00">2026-01-01</time>}, '投稿日と日付が違えば、更新日も出す';
+
+	$res = get('/02');
+	like $res->body, qr{投稿 <time[^>]*>2023-11-15</time>};
+	unlike $res->body, qr{更新 <time}, '投稿した日のうちに直したときは、更新日を出さない';
+
+	$res = get('/親ページ');
+	like $res->body, qr{投稿 <time[^>]*>2020-09-13</time>}, 'コンテンツページにも投稿日を出す';
+	like $res->body, qr{更新 <time[^>]*>2026-01-01</time>}, 'コンテンツページにも更新日を出す';
+
+	$res = get('/', 'page=2');
+	like $res->body, qr{<a href="/01">.*?投稿 <time[^>]*>2023-11-15</time>\s*更新 <time[^>]*>2026-01-01</time>}s, '一覧にも出す';
+
+	$res = get('/search', 'q=%E4%BA%8C%E3%81%A4%E7%9B%AE');
+	my ($result) = $res->body =~ m{(<article class="article-summary search-result">.*?</article>)}s;
+	like $result, qr{投稿 <time[^>]*>2023-11-15</time>}, '検索結果にも出す';
+	unlike $result, qr{更新 <time}, '検索結果でも、同じ日なら更新日を出さない';
+};
+
+subtest '一覧のアイキャッチ' => sub {
+	# 添付ファイルは一時ディレクトリに置く（リポジトリの pub/attachments を書き換えないように）
+	my $dir = tempdir(CLEANUP => 1);
+	my $config = Lyndbaum::Config->new(%{ $app->config }, attachment_dir => $dir);
+	my $list = sub {
+		my ($path, $query) = @_;
+		my $app = Lyndbaum::App->new(root => $app->{root}, config => $config);
+		return $app->handle({ REQUEST_METHOD => 'GET', PATH_INFO => encode_utf8($path), QUERY_STRING => $query // '' })->body;
+	};
+	my $summary_of = sub {
+		my ($body, $slug) = @_;
+		my ($summary) = $body =~ m{(<article class="article-summary[^"]*">(?:(?!</article>).)*?href="/$slug".*?</article>)}s;
+		return $summary // '';
+	};
+	my ($html3, $html2) = map { scalar $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $_) } 3, 2;
+
+	# 記事3：本文の最初の画像（名前は日本語）。サムネイルはまだ無い
+	my $image = '/pub/attachments/posts/2026/10/%E5%86%99%E7%9C%9F.png';
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, qq{<p><img src="$image" alt="写真"></p>});
+	my $summary = $summary_of->($list->('/'), '03');
+	like $summary, qr{<article class="article-summary has-image">}, '画像があれば has-image を付ける';
+	like $summary, qr{<a class="summary-image" href="/03" tabindex="-1" aria-hidden="true"><img src="\Q$image\E" alt="" loading="lazy"></a>}, 'サムネイルが無ければ元の画像';
+
+	make_path(encode_utf8("$dir/posts/2026/10/.thumbnail"));
+	open my $fh, '>', encode_utf8("$dir/posts/2026/10/.thumbnail/写真.png.jpg") or die $!;
+	close $fh;
+	like $summary_of->($list->('/'), '03'), qr{<img src="/pub/attachments/posts/2026/10/\.thumbnail/%E5%86%99%E7%9C%9F\.png\.jpg"}, 'サムネイルがあればサムネイル';
+	like $summary_of->($list->('/search', 'q=%E4%B8%89%E3%81%A4%E7%9B%AE'), '03'), qr{class="summary-image"}, '検索結果にも出す';
+	unlike $list->('/03'), qr{summary-image}, '記事のページには出さない';
+
+	# 記事2：選んだ画像
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'chosen', eyecatch = 'posts/2026/10/a.png' WHERE id = 2});
+	like $summary_of->($list->('/'), '02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像';
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'none' WHERE id = 2});
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 2', undef, qq{<p><img src="$image"></p>});
+	unlike $summary_of->($list->('/'), '02'), qr{summary-image}, '使わないにしたら出さない';
+
+	# 外部の画像
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', body_html = '<p><img src="https://example.com/a.png"></p>' WHERE id = 2});
+	$summary = $summary_of->($list->('/'), '02');
+	unlike $summary, qr{summary-image|has-image}, '外部の画像は出さない';
+	like $summary, qr{<div class="summary-text">}, '画像が無くても、本文は同じ形で出す';
+
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', eyecatch = '', body_html = ? WHERE id = 2}, undef, $html2);
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, $html3);
 };
 
 done_testing;

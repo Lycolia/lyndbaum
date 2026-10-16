@@ -1,6 +1,6 @@
 {{! コメントの欄。id="com" は旧システムと同じ。各コメントの id="cN" も、外からのリンクが壊れないよう旧システムと同じにする }}
 <section class="comments" id="com">
-  <h2 class="comments-title">コメント（{{ article.comments_count }}件）</h2>
+  <h2 class="comments-title">コメント({{ article.comments_count }}件)</h2>
   {{# for comment in article.comments }}
   <article class="comment-entry{{# if comment.by_admin }} comment-admin{{/ if }}" id="c{{ comment.num }}">
     <p class="comment-meta">

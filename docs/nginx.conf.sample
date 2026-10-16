@@ -12,6 +12,9 @@ server {
 
   location /pub/ { try_files $uri =404; }
 
+  # クエリは QUERY_STRING だけから取る（REQUEST_URI からは取らない）。
+  # try_files で index.cgi に移すと nginx がクエリを捨てるので、その場合は
+  # 「try_files $uri /index.cgi?$args;」のように ?$args を付けること
   location / {
     fastcgi_pass unix:/var/run/fcgiwrap.socket;
     include fastcgi_params;

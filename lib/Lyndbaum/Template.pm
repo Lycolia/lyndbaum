@@ -12,6 +12,7 @@ package Lyndbaum::Template;
 #
 # ブロックの印（#, /, >, !）だけの行は、行ごと出力から除く
 # テンプレートは構文木にしてから、それをたどって出力する（Perlのコードには変換しない）
+# 詳しい書き方と、各テンプレートで使える変数は docs/templates.md
 use strict;
 use warnings;
 use utf8;

@@ -23,8 +23,8 @@
         <td><label for="trash-{{ article.id }}"><time datetime="{{ article.deleted.iso }}">{{ article.deleted.datetime }}</time></label></td>
         <td>{{# if article.published }}{{ article.published.date }}{{/ if }}</td>
         <td>{{# if article.is_page }}ページ{{# else }}記事{{/ if }}</td>
-        <td><label for="trash-{{ article.id }}">{{ article.title }}</label></td>
-        <td>{{ article.tags }}</td>
+        <td class="admin-articles-title"><label for="trash-{{ article.id }}">{{ article.title }}</label></td>
+        <td class="admin-articles-tags">{{ article.tags }}</td>
         <td>{{ article.comments_count }}</td>
       </tr>
       {{/ for }}

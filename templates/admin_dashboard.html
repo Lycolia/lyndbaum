@@ -5,16 +5,32 @@
 {{# if feed_failed }}
 <p class="admin-error" role="alert">RSSかサイトマップを書き出せませんでした。理由はWebサーバーのエラーログにあります。</p>
 {{/ if }}
-<ul>
-  <li><a href="{{ urls.articles }}?status=draft">下書き</a>：{{ article_counts.draft }}件</li>
-  <li><a href="{{ urls.articles }}?status=published">公開中の記事</a>：{{ article_counts.published }}件</li>
-  <li><a href="{{ urls.trash }}">ゴミ箱</a>：{{ trash_count }}件</li>
-  <li><a href="{{ urls.comments }}?status=held">承認待ちのコメント</a>：{{ comment_counts.held }}件</li>
-  <li><a href="{{ urls.comments }}?status=public">公開中のコメント</a>：{{ comment_counts.public }}件</li>
-</ul>
-<h2>再構築</h2>
-<p>すべての記事の本文を変換し直し、RSSを書き出し直します。パーサーを直したときに使います（表示や検索のときには本文を変換し直さないため）。</p>
-<form method="post" action="{{ urls.rebuild }}">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <button type="submit">再構築する</button>
-</form>
+<div class="admin-cards">
+  <section class="admin-card">
+    <h2>概要</h2>
+    <ul class="admin-glance">
+      <li><a href="{{ urls.articles }}?status=published">公開中の記事</a><span class="admin-glance-count">{{ article_counts.published }}件</span></li>
+      <li><a href="{{ urls.articles }}?status=draft">記事の下書き</a><span class="admin-glance-count">{{ article_counts.draft }}件</span></li>
+      <li><a href="{{ urls.articles }}?kind=page&amp;status=published">公開中のページ</a><span class="admin-glance-count">{{ page_counts.published }}件</span></li>
+      <li><a href="{{ urls.articles }}?kind=page&amp;status=draft">ページの下書き</a><span class="admin-glance-count">{{ page_counts.draft }}件</span></li>
+      <li><a href="{{ urls.trash }}">ゴミ箱</a><span class="admin-glance-count">{{ trash_count }}件</span></li>
+      <li><a href="{{ urls.comments }}?status=held">承認待ちのコメント</a><span class="admin-glance-count">{{ comment_counts.held }}件</span></li>
+      <li><a href="{{ urls.comments }}?status=public">公開中のコメント</a><span class="admin-glance-count">{{ comment_counts.public }}件</span></li>
+    </ul>
+  </section>
+  <section class="admin-card">
+    <h2>書く</h2>
+    <p class="admin-card-actions">
+      <a class="button-primary" href="{{ urls.new_article }}">新しい記事</a>
+      <a class="button" href="{{ urls.new_page }}">新しいページ</a>
+    </p>
+  </section>
+  <section class="admin-card">
+    <h2>再構築</h2>
+    <p>すべての記事の本文を変換し直し、RSSを書き出し直します。パーサーを直したときに使います（表示や検索のときには本文を変換し直さないため）。</p>
+    <form method="post" action="{{ urls.rebuild }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit">再構築する</button>
+    </form>
+  </section>
+</div>

@@ -1,0 +1,14 @@
+{{! ログイン中に、公開側のページと管理画面の上に出す管理者のメニュー（Lyndbaum::App->_admin_bar） }}
+<nav class="admin-bar" aria-label="管理者のメニュー">
+  <a href="{{ admin_bar.home_url }}">{{ admin_bar.home_label }}</a>
+  <a href="{{ admin_bar.new_article }}">＋記事</a>
+  <a href="{{ admin_bar.new_page }}">＋ページ</a>
+  <a href="{{ admin_bar.comments }}">コメント{{# if admin_bar.held_count }} <span class="admin-bar-count" title="承認待ち">{{ admin_bar.held_count }}</span>{{/ if }}</a>
+  {{# if admin_bar.edit }}
+  <a href="{{ admin_bar.edit }}">編集</a>
+  {{/ if }}
+  <form class="admin-bar-logout" method="post" action="{{ admin_bar.logout }}">
+    <input type="hidden" name="csrf_token" value="{{ admin_bar.csrf_token }}">
+    <button type="submit">ログアウト</button>
+  </form>
+</nav>

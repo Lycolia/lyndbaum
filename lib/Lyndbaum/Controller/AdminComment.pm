@@ -1,6 +1,6 @@
 package Lyndbaum::Controller::AdminComment;
 # 管理画面のコメントの管理と、コメントの設定
-#   /admin/comments?status=held|public&page=N   一覧（statusを省くとすべて）
+#   /admin/comments?status=held|public&article=ID&page=N   一覧（statusを省くとすべて。article はその記事のコメントだけ）
 #   POST /admin/comments/ID                      1件の操作（action=approve|hide|delete|block_ip）
 use strict;
 use warnings;
@@ -10,6 +10,7 @@ use Lyndbaum::CommentSettings;
 use Lyndbaum::Controller qw(page_number);
 use Lyndbaum::Controller::Admin;
 use Lyndbaum::Date qw(format_date);
+use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::View;
@@ -24,26 +25,44 @@ sub index {
 
 	my $status = $req->param('status') // '';
 	$status = undef if !$STATUS_LABEL{$status};
-	my $counts = Lyndbaum::Model::Comment->count_by_status($app->db);
+
+	# 記事（記事とページの一覧のコメントの数から開く）。ゴミ箱の中の記事や、無い記事なら404
+	my $article;
+	if (defined(my $article_id = $req->param('article'))) {
+		$article_id =~ /\A\d+\z/ or return $app->not_found;
+		$article = Lyndbaum::Model::Article->find_for_admin($app->db, $article_id) or return $app->not_found;
+	}
+	my $article_id = $article ? $article->{id} : undef;
+	my $list_url = sub { $app->url->admin('comments', article => $article_id, @_) };
+
+	my $counts = Lyndbaum::Model::Comment->count_by_status($app->db, $article_id);
 	my $total  = defined $status ? $counts->{$status} : $counts->{public} + $counts->{held};
 
 	my $pager = Lyndbaum::View->pager(
 		page     => page_number($req),
 		per_page => $PER_PAGE,
 		total    => $total,
-		url_of   => sub { $app->url->admin('comments', status => $status, page => $_[0] > 1 ? $_[0] : undef) },
+		url_of   => sub { $list_url->(status => $status, page => $_[0] > 1 ? $_[0] : undef) },
 	) or return $app->not_found;
-	my $here = $app->url->admin('comments', status => $status, page => $pager->{page} > 1 ? $pager->{page} : undef);
+	my $here = $list_url->(status => $status, page => $pager->{page} > 1 ? $pager->{page} : undef);
 
 	my $comments = Lyndbaum::Model::Comment->list_admin($app->db,
-		status => $status, limit => $PER_PAGE, offset => ($pager->{page} - 1) * $PER_PAGE);
+		status => $status, article_id => $article_id, limit => $PER_PAGE, offset => ($pager->{page} - 1) * $PER_PAGE);
 	my $settings = $app->settings;
 	my $blocked  = Lyndbaum::CommentSettings->lines_of($settings, 'comments_block_ips');
+	my $is_page  = $article && $article->{kind} eq 'page';
 	return $app->render_admin('admin_comments', {
-		title    => 'コメント',
+		title    => $article ? "「$article->{title}」のコメント" : 'コメント',
+		article  => $article ? {
+			title    => $article->{title},
+			is_page  => $is_page,
+			edit_url => $app->url->admin("articles/$article->{id}"),
+			url      => $app->url->article($article->{slug}),
+			list_url => $app->url->admin('articles', kind => $is_page ? 'page' : undef),
+		} : undef,
 		filters  => [ map {
 			my ($value, $label, $count) = @$_;
-			+{ label => $label, count => $count, url => $app->url->admin('comments', status => $value), current => ($status // '') eq ($value // '') }
+			+{ label => $label, count => $count, url => $list_url->(status => $value), current => ($status // '') eq ($value // '') }
 		} [ undef, 'すべて', $counts->{public} + $counts->{held} ], [ held => '承認待ち', $counts->{held} ], [ public => '公開中', $counts->{public} ] ],
 		comments => [ map {
 			my $c = $_;

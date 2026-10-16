@@ -88,19 +88,31 @@ sub last_admin_name {
 #----------------------------------------------------------------------
 
 # 状態ごとの件数 { public => N, held => N }
+#   $article_id を渡すと、その記事のコメントだけを数える
 sub count_by_status {
-	my ($class, $dbh) = @_;
+	my ($class, $dbh, $article_id) = @_;
 	my %count = (public => 0, held => 0);
-	$count{ $_->[0] } = $_->[1] for @{ $dbh->selectall_arrayref('SELECT status, COUNT(*) FROM comments GROUP BY status') };
+	my $rows = $dbh->selectall_arrayref(
+		'SELECT status, COUNT(*) FROM comments' . (defined $article_id ? ' WHERE article_id = ?' : '') . ' GROUP BY status',
+		undef, defined $article_id ? ($article_id) : ());
+	$count{ $_->[0] } = $_->[1] for @$rows;
 	return \%count;
 }
 
-# 新しい順の一覧。$status が undef ならすべて
+# 新しい順の一覧
+#   %args：status（undef ならすべて）、article_id（その記事のコメントだけ）、limit、offset
 #   各項目は記事の slug、題名、公開中かどうか（article_public）を含む
 sub list_admin {
 	my ($class, $dbh, %args) = @_;
-	my @where = defined $args{status} ? ('c.status = ?') : ();
-	my @bind  = defined $args{status} ? ($args{status}) : ();
+	my (@where, @bind);
+	if (defined $args{status}) {
+		push @where, 'c.status = ?';
+		push @bind, $args{status};
+	}
+	if (defined $args{article_id}) {
+		push @where, 'c.article_id = ?';
+		push @bind, $args{article_id};
+	}
 	my $where = @where ? 'WHERE ' . join(' AND ', @where) : '';
 	return $dbh->selectall_arrayref(<<"SQL", { Slice => {} }, @bind, $args{limit}, $args{offset} // 0);
 SELECT c.id, c.article_id, c.num, c.status, c.by_admin, c.author_name, c.body, c.ip, c.host, c.user_agent, c.created_at,

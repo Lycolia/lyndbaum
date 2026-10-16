@@ -60,7 +60,7 @@
 					items.forEach(function (f) {
 						var button = el('button', {
 							type: 'button', class: 'media-folder', 'data-folder': f.folder,
-							onclick: function () { openFolder(f.folder); }, text: f.name + '（' + f.total + '）',
+							onclick: function () { openFolder(f.folder); }, text: f.name + '(' + f.total + ')',
 						});
 						var li = el('li', {});
 						if (f.children.length) {
@@ -143,7 +143,7 @@
 			grid.textContent = '';
 			var word = filter.value.trim().toLowerCase();
 			var shown = state.files.filter(function (f) { return word === '' || f.name.toLowerCase().indexOf(word) !== -1; });
-			title.textContent = state.folder + '（' + shown.length + '件）';
+			title.textContent = state.folder + '(' + shown.length + '件)';
 			shown.forEach(function (f) {
 				var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' })
 					: el('span', { class: 'media-kind', text: f.kind === 'video' ? '動画' : f.kind === 'image' ? '画像' : 'ファイル' });
@@ -234,7 +234,7 @@
 			grid.textContent = '';
 			getJSON(opt.base + '/trash').then(function (data) {
 				grid.textContent = '';
-				title.textContent = 'ゴミ箱（' + data.files.length + '件）';
+				title.textContent = 'ゴミ箱(' + data.files.length + '件)';
 				if (!data.files.length) { grid.appendChild(el('li', { class: 'media-empty', text: 'ゴミ箱は空です。' })); return; }
 				var selected = {};
 				data.files.forEach(function (f) {

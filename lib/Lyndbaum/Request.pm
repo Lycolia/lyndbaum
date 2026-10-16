@@ -42,14 +42,11 @@ sub path {
 	};
 }
 
-# クエリ。QUERY_STRINGが空なら、REQUEST_URIの ? より後ろを使う
-#   nginxの try_files で index.cgi に移すと、設定によっては QUERY_STRING が空になるため
-#   （パスと同じく、REQUEST_URIには元のURLが残る）
+# クエリ。QUERY_STRINGだけを使い、REQUEST_URIからは取らない
+#   Webサーバーが必ず QUERY_STRING を渡すように設定する（docs/nginx.conf.sample を参照）
 sub query_string {
 	my ($self) = @_;
-	my $env = $self->{env};
-	return $env->{QUERY_STRING} if defined $env->{QUERY_STRING} && $env->{QUERY_STRING} ne '';
-	return ($env->{REQUEST_URI} // '') =~ /\?(.*)\z/s ? $1 : '';
+	return $self->{env}{QUERY_STRING} // '';
 }
 
 # クエリの値。同じ名前が複数あるときは最初のもの

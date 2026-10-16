@@ -15,9 +15,9 @@ use Lyndbaum::EditorSettings;
 use Lyndbaum::Model::Setting;
 
 my %PAGES = (
-	blog     => { title => 'ブログの設定',   items => 'Lyndbaum::BlogSettings' },
-	comments => { title => 'コメントの設定', items => 'Lyndbaum::CommentSettings' },
-	editor   => { title => '編集の設定',     items => 'Lyndbaum::EditorSettings' },
+	blog     => { title => 'ブログの設定',   items => 'Lyndbaum::BlogSettings',    nav => 'blog_settings' },
+	comments => { title => 'コメントの設定', items => 'Lyndbaum::CommentSettings', nav => 'comment_settings' },
+	editor   => { title => '編集の設定',     items => 'Lyndbaum::EditorSettings',  nav => 'editor_settings' },
 );
 
 sub form {
@@ -74,7 +74,7 @@ sub _render {
 				errors   => $error_of{ $f->{key} } // [],
 			}
 		} @{ $page->{items}->fields } ],
-	}, session => $session, status => $opt{status});
+	}, session => $session, status => $opt{status}, nav => $page->{nav});
 }
 
 1;
