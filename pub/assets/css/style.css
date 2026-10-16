@@ -20,18 +20,16 @@
 * { box-sizing: border-box; }
 body {
   margin: 0;
+  padding: 1rem;
   background: var(--bg);
   color: var(--text);
-  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
-  line-height: 1.8;
+  font-family: "メイリオ", sans-serif;
+  font-size: 90%;
+  line-height: 1.4;
 }
 a { color: var(--link); }
-.site-header, .site-body, .site-footer {
-  max-width: 84rem;
-  margin: 0 auto;
-  padding: 0 16px;
-}
-.site-header { padding-top: 1.5rem; border-bottom: 1px solid var(--border); }
+
+.site-header { border-bottom: 1px solid var(--border); }
 .site-title { font-size: 1.5rem; font-weight: bold; margin: 0; }
 .site-title a { color: inherit; text-decoration: none; }
 .site-description { color: var(--muted); margin: .25rem 0 1rem; }
@@ -44,7 +42,7 @@ a { color: var(--link); }
   .sidebar-right { grid-area: right; }
 }
 @media (min-width: 72rem) {
-  .site-body { grid-template-columns: 14rem minmax(0, 1fr) 16rem; grid-template-rows: auto; grid-template-areas: "left main right"; }
+  .site-body { grid-template-columns: 20rem minmax(0, 1fr) 20rem; grid-template-rows: auto; grid-template-areas: "left main right"; }
 }
 .site-footer { border-top: 1px solid var(--border); color: var(--muted); margin-top: 2rem; }
 /* Prism.js のトークンのクラス（comment、tag など）とぶつからないよう、記事やコメントの部品の名前には頭を付ける */
@@ -126,7 +124,7 @@ mark { background: #ffe066; color: #000; }
 .admin-articles th, .admin-articles td { border-bottom: 1px solid var(--border); padding: .4rem .5rem; text-align: left; vertical-align: top; }
 .admin-articles td:first-child { overflow-wrap: anywhere; }
 .admin-article-draft td:nth-child(2) { color: #b07800; }
-.admin-body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9rem; }
+.admin-body { font-family: "メイリオ", sans-serif; font-size: .9rem; }
 @media (max-width: 40rem) {
   .admin-articles thead { display: none; }
   .admin-articles tr { display: block; border-bottom: 1px solid var(--border); padding: .4rem 0; }
@@ -252,7 +250,7 @@ a.media-item { text-decoration: none; }
 .media-detail { font-size: .85rem; overflow-wrap: anywhere; }
 .media-detail h3 { font-size: .95rem; margin: 0 0 .5rem; }
 .media-detail img, .media-detail video { max-width: 100%; max-height: 16rem; }
-.media-tag { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .8rem; }
+.media-tag { width: 100%; font-family: "メイリオ", sans-serif; font-size: .8rem; }
 .media-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }
 .media-meta { color: var(--muted); }
 .media-dialog { width: min(72rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0 1rem 1rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
