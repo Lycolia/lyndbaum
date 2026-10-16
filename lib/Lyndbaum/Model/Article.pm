@@ -8,9 +8,7 @@ use feature 'current_sub';
 use Digest::SHA ();
 use Encode ();
 use Lyndbaum::Model::Tag;
-use Lyndbaum::Parser;
 use Lyndbaum::Parser::Common;
-use Lyndbaum::Parser::Markdown;
 
 # 公開中の記事を表す条件
 my $PUBLIC = q{status = 'published' AND deleted_at IS NULL};
@@ -517,6 +515,8 @@ sub _save_tags {
 #   書き足すと見出しのID以外の出力が変わる場合（add_heading_ids が die する場合）は、書き足さずにそのまま保存する
 sub _add_heading_ids {
 	my ($text) = @_;
+	require Lyndbaum::Parser;
+	require Lyndbaum::Parser::Markdown;
 	my %used = map { $_->{id} => 1 } @{ Lyndbaum::Parser->parse('markdown', $text, sectioning => 1)->{toc} };
 	my ($new) = eval {
 		Lyndbaum::Parser::Markdown->add_heading_ids($text, sub {
@@ -535,6 +535,7 @@ sub _add_heading_ids {
 #   （パーサーを直しても、再構築するまでは今の出力が変わらないようにするため）
 sub rebuild_body {
 	my ($class, $dbh, $article, %context) = @_;
+	require Lyndbaum::Parser;
 	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id});
 	$dbh->do('UPDATE articles SET body_html = ?, description = ? WHERE id = ?', undef,
 		$result->{html}, Lyndbaum::Parser::Common->summary($result->{html}), $article->{id});

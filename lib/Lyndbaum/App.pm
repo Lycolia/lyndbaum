@@ -17,22 +17,10 @@ use Lyndbaum::Router;
 use Lyndbaum::Template;
 use Lyndbaum::URL;
 use Lyndbaum::View;
-use Lyndbaum::Controller::Top;
-use Lyndbaum::Controller::Admin;
-use Lyndbaum::Controller::AdminArticle;
-use Lyndbaum::Controller::AdminComment;
-use Lyndbaum::Controller::AdminSettings;
-use Lyndbaum::Controller::AdminSidebar;
 use Lyndbaum::SidebarBoxes;
-use Lyndbaum::Controller::AdminTag;
-use Lyndbaum::Controller::AdminUpload;
-use Lyndbaum::Controller::AdminMedia;
-use Lyndbaum::Media;
 use Lyndbaum::OGP;
-use Lyndbaum::Controller::Article;
-use Lyndbaum::Controller::Comment;
+# 検索フォームはすべての公開ページで使う。それ以外は経路が決まってから読む
 use Lyndbaum::Controller::Search;
-use Lyndbaum::Controller::Static;
 
 my $APP_VERSION = '0.3.0-beta';
 
@@ -144,6 +132,7 @@ sub attachment_dir {
 #   （. で始まるので、メディアのフォルダの木には出ない）
 sub media {
 	my ($self) = @_;
+	require Lyndbaum::Media;
 	return $self->{media} //= Lyndbaum::Media->new(
 		dir       => $self->attachment_dir,
 		trash_dir => File::Spec->catdir($self->attachment_dir, $Lyndbaum::Media::TRASH),
@@ -205,6 +194,9 @@ sub handle {
 	my ($class, $action, @captures) = $ROUTER->match($req->method, $req->path);
 	return $self->not_found if !$class;
 
+	# クラス名は上のルーティング表にある固定値。require は読み込み済みなら再実行しない
+	my $module = $class =~ s{::}{/}gr;
+	require "$module.pm";
 	return $class->$action($self, $req, @captures);
 }
 
