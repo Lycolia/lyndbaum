@@ -13,13 +13,13 @@
   {{# if tag_facet }}
   <p class="search-facet">
     <span class="search-facet-caption">タグで絞り込み</span>
-    {{# for f in tag_facet }}<a href="{{ f.url }}">{{ f.label }}</a> <span class="count">({{ f.count }})</span> {{/ for }}
+    {{# for f in tag_facet }}<a href="{{ f.url }}">{{ f.label }}</a><span class="count">({{ f.count }})</span> {{/ for }}
   </p>
   {{/ if }}
   {{# if date_facet }}
   <p class="search-facet">
     <span class="search-facet-caption">日付で絞り込み</span>
-    {{# for f in date_facet }}<a href="{{ f.url }}">{{ f.label }}</a> <span class="count">({{ f.count }})</span> {{/ for }}
+    {{# for f in date_facet }}<a href="{{ f.url }}">{{ f.label }}</a><span class="count">({{ f.count }})</span> {{/ for }}
   </p>
   {{/ if }}
   <p>{{ pager.total }} 件</p>

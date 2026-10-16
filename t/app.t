@@ -215,13 +215,13 @@ subtest '検索' => sub {
 	unlike $body->('d=abc'), qr{件</p>}, '不正な年月は無視する';
 
 	my $facet = $body->('t=%E6%96%99%E7%90%86');
-	like $facet, qr{>料理::食材</a> <span class="count">\(2\)</span>}, 'タグの候補と件数（子孫を含む）';
-	like $facet, qr{>料理::調味料</a> <span class="count">\(1\)</span>};
-	unlike $facet, qr{>料理</a> <span class="count">}, '選んだタグは候補に出さない';
-	like $facet, qr{>2023年</a> <span class="count">\(2\)</span>}, '年の候補（子ページは今年）';
+	like $facet, qr{>料理::食材</a><span class="count">\(2\)</span>}, 'タグの候補と件数（子孫を含む）';
+	like $facet, qr{>料理::調味料</a><span class="count">\(1\)</span>};
+	unlike $facet, qr{>料理</a><span class="count">}, '選んだタグは候補に出さない';
+	like $facet, qr{>2023年</a><span class="count">\(2\)</span>}, '年の候補（子ページは今年）';
 	like $body->('t='), qr{>2017年</a>}, 'タグなしの記事の年';
-	like $body->('d=2023'), qr{>11月</a> <span class="count">\(3\)</span>}, '年を選んだら月の候補';
-	like $body->('q=perl'), qr{>\(タグなし\)</a> <span class="count">\(1\)</span>}, 'タグなしの候補';
+	like $body->('d=2023'), qr{>11月</a><span class="count">\(3\)</span>}, '年を選んだら月の候補';
+	like $body->('q=perl'), qr{>\(タグなし\)</a><span class="count">\(1\)</span>}, 'タグなしの候補';
 	like $body->('t=%E6%96%99%E7%90%86&d=2023'), qr{href="/search\?d=2023"[^>]*>×}, '選んだ条件を外すリンク';
 
 	my $result = get('/search', 'q=nginx')->body;
