@@ -252,14 +252,14 @@ subtest '404はHTMLで返す' => sub {
 	like $res->body, qr{ページが見つかりません};
 };
 
-subtest 'REQUEST_URIからパスとクエリを取る' => sub {
+subtest 'パスはREQUEST_URIから、クエリはQUERY_STRINGから取る' => sub {
 	my $app = Lyndbaum::App->new(root => $app->{root}, config => $app->config);
-	my $res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86&page=1' });
-	is $res->status, 200;
-	like $res->body, qr{<title>料理 - }, 'QUERY_STRINGが空なら、REQUEST_URIのクエリを使う（nginxの try_files で移したとき）';
+	my $res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86', QUERY_STRING => 't=%E8%A8%80%E8%AA%9E' });
+	is $res->status, 200, 'パスはREQUEST_URIの ? より前を使う';
+	like $res->body, qr{<title>言語 - }, 'クエリはQUERY_STRINGを使う';
 
-	$res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86', QUERY_STRING => 't=%E8%A8%80%E8%AA%9E' });
-	like $res->body, qr{<title>言語 - }, 'QUERY_STRINGがあれば、そちらを使う';
+	$res = $app->handle({ REQUEST_METHOD => 'GET', REQUEST_URI => '/search?t=%E6%96%99%E7%90%86' });
+	unlike $res->body, qr{<title>料理 - }, 'QUERY_STRINGが無ければ、REQUEST_URIのクエリは使わない';
 };
 
 done_testing;
