@@ -50,6 +50,14 @@ a { color: var(--link); }
 .article-tag { margin-left: .5em; }
 .article-summary { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
 .summary-title { font-size: 1.2rem; margin: 0; }
+/* 一覧のアイキャッチ。本文の左に置く（狭い画面では小さくする） */
+.article-summary.has-image { display: flex; gap: 1rem; align-items: flex-start; }
+.summary-image { flex: none; }
+.summary-image img { display: block; width: 8rem; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--border); }
+.summary-text { flex: 1; min-width: 0; }
+@media (max-width: 40rem) {
+  .summary-image img { width: 5rem; }
+}
 .article-title { margin-bottom: 0; }
 .article-source {
   white-space: pre-wrap;

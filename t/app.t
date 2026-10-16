@@ -4,6 +4,9 @@ use utf8;
 use Test::More;
 
 use Encode qw(encode_utf8);
+use File::Path qw(make_path);
+use File::Temp qw(tempdir);
+use Lyndbaum::Config;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
@@ -288,6 +291,53 @@ subtest '投稿日と更新日' => sub {
 	my ($result) = $res->body =~ m{(<article class="article-summary search-result">.*?</article>)}s;
 	like $result, qr{投稿 <time[^>]*>2023-11-15</time>}, '検索結果にも出す';
 	unlike $result, qr{更新 <time}, '検索結果でも、同じ日なら更新日を出さない';
+};
+
+subtest '一覧のアイキャッチ' => sub {
+	# 添付ファイルは一時ディレクトリに置く（リポジトリの pub/attachments を書き換えないように）
+	my $dir = tempdir(CLEANUP => 1);
+	my $config = Lyndbaum::Config->new(%{ $app->config }, attachment_dir => $dir);
+	my $list = sub {
+		my ($path, $query) = @_;
+		my $app = Lyndbaum::App->new(root => $app->{root}, config => $config);
+		return $app->handle({ REQUEST_METHOD => 'GET', PATH_INFO => encode_utf8($path), QUERY_STRING => $query // '' })->body;
+	};
+	my $summary_of = sub {
+		my ($body, $slug) = @_;
+		my ($summary) = $body =~ m{(<article class="article-summary[^"]*">(?:(?!</article>).)*?href="/$slug".*?</article>)}s;
+		return $summary // '';
+	};
+	my ($html3, $html2) = map { scalar $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $_) } 3, 2;
+
+	# 記事3：本文の最初の画像（名前は日本語）。サムネイルはまだ無い
+	my $image = '/pub/attachments/posts/2026/10/%E5%86%99%E7%9C%9F.png';
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, qq{<p><img src="$image" alt="写真"></p>});
+	my $summary = $summary_of->($list->('/'), '03');
+	like $summary, qr{<article class="article-summary has-image">}, '画像があれば has-image を付ける';
+	like $summary, qr{<a class="summary-image" href="/03" tabindex="-1" aria-hidden="true"><img src="\Q$image\E" alt="" loading="lazy"></a>}, 'サムネイルが無ければ元の画像';
+
+	make_path(encode_utf8("$dir/posts/2026/10/.thumbnail"));
+	open my $fh, '>', encode_utf8("$dir/posts/2026/10/.thumbnail/写真.png.jpg") or die $!;
+	close $fh;
+	like $summary_of->($list->('/'), '03'), qr{<img src="/pub/attachments/posts/2026/10/\.thumbnail/%E5%86%99%E7%9C%9F\.png\.jpg"}, 'サムネイルがあればサムネイル';
+	like $summary_of->($list->('/search', 'q=%E4%B8%89%E3%81%A4%E7%9B%AE'), '03'), qr{class="summary-image"}, '検索結果にも出す';
+	unlike $list->('/03'), qr{summary-image}, '記事のページには出さない';
+
+	# 記事2：選んだ画像
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'chosen', eyecatch = 'posts/2026/10/a.png' WHERE id = 2});
+	like $summary_of->($list->('/'), '02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像';
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'none' WHERE id = 2});
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 2', undef, qq{<p><img src="$image"></p>});
+	unlike $summary_of->($list->('/'), '02'), qr{summary-image}, '使わないにしたら出さない';
+
+	# 外部の画像
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', body_html = '<p><img src="https://example.com/a.png"></p>' WHERE id = 2});
+	$summary = $summary_of->($list->('/'), '02');
+	unlike $summary, qr{summary-image|has-image}, '外部の画像は出さない';
+	like $summary, qr{<div class="summary-text">}, '画像が無くても、本文は同じ形で出す';
+
+	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', eyecatch = '', body_html = ? WHERE id = 2}, undef, $html2);
+	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, $html3);
 };
 
 done_testing;

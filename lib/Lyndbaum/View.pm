@@ -5,12 +5,15 @@ use warnings;
 use utf8;
 use feature 'current_sub';
 
+use File::Spec;
 use POSIX qw(ceil);
+use URI::Escape qw(uri_unescape);
 use Lyndbaum::CommentText;
 use Lyndbaum::Date qw(format_date);
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Tag;
+use Lyndbaum::OGP;
 use Lyndbaum::Parser::Common;
 
 # 記事のページに出す本文のHTML（続きを読むの印は取り除く）
@@ -22,11 +25,31 @@ sub body {
 	return $html;
 }
 
-# 記事の一覧を、タグとURLを付けた形にする
+# 記事の一覧を、タグとURLと一覧の画像を付けた形にする
 sub articles {
 	my ($class, $app, $articles) = @_;
 	my $tag_ids = Lyndbaum::Model::Article->tag_ids_of($app->db, map { $_->{id} } @$articles);
-	return [ map { $class->article($app, $_, $tag_ids->{ $_->{id} } // []) } @$articles ];
+	return [ map {
+		+{ %{ $class->article($app, $_, $tag_ids->{ $_->{id} } // []) }, list_image => $class->list_image($app, $_) }
+	} @$articles ];
+}
+
+# 一覧に出すアイキャッチの画像のURL。無ければ undef
+#   アイキャッチ（Lyndbaum::OGP->article_image）が添付ファイルのときだけ出す（外部の画像は一覧では読み込まない）
+#   サムネイル（同じフォルダの .thumbnail/名前.jpg）があればそれを、無ければ元の画像を使う
+sub list_image {
+	my ($class, $app, $article) = @_;
+	my $url    = Lyndbaum::OGP->article_image($app, $article) // return undef;
+	my $prefix = $app->url->attachment('');
+	return undef if index($url, $prefix) != 0 || $url =~ /[?#]/;
+	# ファイルの名前はバイト列のまま扱う（ディスクの上の名前と比べるため）
+	my @segments = map { uri_unescape($_) } split m{/}, substr($url, length $prefix), -1;
+	return undef if !@segments || grep { $_ eq '' || $_ eq '.' || $_ eq '..' } @segments;
+	my $name  = pop @segments;
+	my $thumb = File::Spec->catfile($app->attachment_dir, @segments, '.thumbnail', "$name.jpg");
+	return $url if !-f $thumb;
+	(my $thumb_url = $url) =~ s{([^/]+)\z}{.thumbnail/$1.jpg};
+	return $thumb_url;
 }
 
 sub article {
