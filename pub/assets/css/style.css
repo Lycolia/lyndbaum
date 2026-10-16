@@ -8,6 +8,7 @@
   --code-bg: #f6f8fa;
   /* 一覧の偶数行の背景。文字の色を少し混ぜるので、暗い画面でもそのまま使える */
   --row-alt: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --admin-bg: #fcfcfe;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -17,6 +18,7 @@
     --border: #3a3a3a;
     --bg: #181818;
     --code-bg: #222;
+    --admin-bg: #181818;
   }
 }
 * { box-sizing: border-box; }
@@ -59,12 +61,53 @@ a { color: var(--link); }
 @media (min-width: 72rem) {
   .site-body { grid-template-columns: 20rem minmax(0, 1fr) 20rem; grid-template-rows: auto; grid-template-areas: "left main right"; }
 }
+/* サイドバーを引き出しにする。1カラム（48rem 未満）では左右、2カラム（72rem 未満）では左だけ
+   sidebar.js が has-drawer を付けたときだけ。付かなければ上の並び（1カラムは縦、2カラムは本文の右に左と右を重ねる） */
+.sidebar-toggle { display: none; }
+@media (max-width: 71.99rem) {
+  .has-drawer .site-header { display: flex; align-items: flex-start; gap: .75rem; }
+  .site-heading { flex: 1; min-width: 0; }
+  .sidebar-toggle-left:not([hidden]) { display: inline-flex; }
+  .sidebar-toggle { flex: none; padding: .35rem; background: none; color: var(--text); border: 1px solid var(--border); border-radius: .25rem; cursor: pointer; }
+  .sidebar-toggle svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+  .sidebar-toggle[aria-expanded="true"] { color: var(--link); border-color: var(--link); }
+  .has-drawer .sidebar-left {
+    position: fixed; top: 0; bottom: 0; left: 0; z-index: 210; width: min(20rem, 85vw);
+    overflow-y: auto; overscroll-behavior: contain; padding: 0 1rem 1rem;
+    background: var(--bg); border-right: 1px solid var(--border);
+    transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s;
+  }
+  .has-drawer .site-sidebar.is-open { transform: none; visibility: visible; }
+  .site-sidebar:focus { outline: none; }
+  .drawer-backdrop { position: fixed; inset: 0; z-index: 200; background: rgb(0 0 0 / .4); }
+  .drawer-open, .drawer-open body { overflow: hidden; }
+}
+@media (min-width: 48rem) and (max-width: 71.99rem) {
+  /* 2カラム：左は引き出しなので、本文の右には右のサイドバーだけを置く */
+  .has-drawer .site-body { grid-template-rows: auto; grid-template-areas: "main right"; }
+}
+@media (max-width: 47.99rem) {
+  .sidebar-toggle-right:not([hidden]) { display: inline-flex; }
+  .has-drawer .sidebar-right {
+    position: fixed; top: 0; bottom: 0; right: 0; z-index: 210; width: min(20rem, 85vw);
+    overflow-y: auto; overscroll-behavior: contain; padding: 0 1rem 1rem;
+    background: var(--bg); border-left: 1px solid var(--border);
+    transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility .2s;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .has-drawer .site-sidebar { transition: none; }
+}
 .site-footer { border-top: 1px solid var(--border); color: var(--muted); margin-top: 2rem; }
 /* Prism.js のトークンのクラス（comment、tag など）とぶつからないよう、記事やコメントの部品の名前には頭を付ける */
 .article-meta { color: var(--muted); font-size: .9rem; }
 .article-tag { margin-left: .5em; }
 .article-summary { border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1rem; }
 .summary-title { font-size: 1.2rem; margin: 0; }
+/* トップの一覧は本文を出すので、題名を本文の見出し（h3〜）より大きくし、記事の間を空ける */
+.article-summary:not(.search-result) { padding-bottom: 1.5rem; margin-bottom: 2rem; }
+.article-summary:not(.search-result) .summary-title { font-size: 1.6rem; }
+.read-more { margin-bottom: 0; }
 /* 一覧のアイキャッチ。本文の左に置く（狭い画面では小さくする） */
 .article-summary.has-image { display: flex; gap: 1rem; align-items: flex-start; }
 .summary-image { flex: none; }
@@ -117,7 +160,7 @@ mark { background: #ffe066; color: #000; }
 .admin-main { max-width: 48rem; margin: 0 auto; padding: 1.5rem 16px; }
 .admin .site-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1rem; }
 /* 管理画面の枠。上に管理者のメニュー、左にナビ、右に本文（WordPress と同じ並び）。ナビは明るい画面でも暗い画面でも同じ色にする */
-body.admin { padding: 0; }
+body.admin { padding: 0; background: var(--admin-bg); }
 .admin .admin-bar { margin-bottom: 0; }
 .admin-menu { background: #1d2327; color: #f0f0f1; font-size: .9rem; }
 .admin-menu ul { list-style: none; margin: 0; padding: 0; }
@@ -248,7 +291,7 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .tag-select { font: inherit; max-width: 100%; }
 
 /* タグの管理 */
-.tag-admin-bar { position: sticky; top: 0; z-index: 1; background: var(--bg); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
+.tag-admin-bar { position: sticky; top: 0; z-index: 1; background: var(--admin-bg); display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; padding: .5rem 0; border-bottom: 1px solid var(--border); }
 .tag-admin-filter { font: inherit; }
 .tag-admin-status { color: #b07800; font-size: .9rem; }
 .tag-admin-tree, .tag-admin-tree ul { list-style: none; margin: 0; padding: 0 0 0 1.25rem; }

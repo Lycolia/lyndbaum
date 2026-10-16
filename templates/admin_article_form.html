@@ -19,7 +19,8 @@
   </ul>
 </div>
 {{/ if }}
-<form class="admin-form article-edit" method="post" action="{{ action }}">
+{{! data-unsaved-warning：保存していない変更があるまま離れるときに確かめる（pub/assets/js/admin-unsaved.js） }}
+<form class="admin-form article-edit" method="post" action="{{ action }}" data-unsaved-warning="{{# if unsaved }}unsaved{{/ if }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="digest" value="{{ form.digest }}">
   {{# if is_page }}{{# if not article }}<input type="hidden" name="kind" value="page">{{/ if }}{{/ if }}
@@ -172,4 +173,5 @@
 </details>
 {{/ if }}
 <script src="{{ urls.media_script }}" defer></script>
+<script src="{{ urls.unsaved_script }}" defer></script>
 <script src="{{ script }}" defer></script>

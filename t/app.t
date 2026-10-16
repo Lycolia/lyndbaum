@@ -10,6 +10,7 @@ use Lyndbaum::Config;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
+use Lyndbaum::View;
 use TestUtil qw(new_test_app insert_article);
 
 my $app = new_test_app();
@@ -81,11 +82,32 @@ subtest 'トップページ' => sub {
 	is get('/', 'page=abc')->status, 404, '数字でないページ';
 };
 
+subtest '一覧の本文（テンプレートの article.body と article.has_more）' => sub {
+	my $articles = Lyndbaum::View->articles($app, Lyndbaum::Model::Article->list_public_posts($dbh, limit => 10));
+	my ($cut)  = grep { $_->{id} == 1 } @$articles;
+	my ($full) = grep { $_->{id} == 2 } @$articles;
+	like $cut->{body}, qr{<a href="/01#見出し">見出し</a>.*本文 &amp; <strong>続き</strong>}s, '続きを読むの印より前';
+	unlike $cut->{body}, qr/後半|<!--more-->/;
+	like $cut->{body}, qr{</section>\s*\z}, '印の前で開いている section を閉じる';
+	ok $cut->{has_more};
+	is $full->{body}, $full->{body_html}, '印が無ければ全文';
+	ok !$full->{has_more};
+
+	# トップの一覧（article_summary.html）
+	my ($summary) = get('/', 'page=2')->body =~ m{(<article class="article-summary">(?:(?!</article>).)*?href="/01".*?</article>)}s;
+	like $summary, qr{<div class="article-body">.*本文 &amp; <strong>続き</strong>.*</div>}s, '本文を出す';
+	unlike $summary, qr/後半/, '続きを読むの印より後は出さない';
+	like $summary, qr{<p class="read-more"><a href="/01">続きを読む</a></p>}, '続きを読むのリンク';
+	my ($whole) = get('/')->body =~ m{(<article class="article-summary">(?:(?!</article>).)*?href="/03".*?</article>)}s;
+	like $whole, qr{<div class="article-body">}, '印が無い記事も本文を出す';
+	unlike $whole, qr/read-more/, '印が無ければ続きを読むは出さない';
+};
+
 subtest '記事' => sub {
 	my $res = get('/01');
 	is $res->status, 200;
 	like $res->body, qr{<title>&lt;b&gt;題名&lt;/b&gt; - テストのブログ</title>}, 'タイトルをエスケープする';
-	like $res->body, qr{<section>\s*<h3 id="見出し"><a href="#見出し">見出し</a></h3>}, '本文をMarkdownとして変換する';
+	like $res->body, qr{<section>\s*<h3 id="見出し"><a href="/01#見出し">見出し</a></h3>}, '本文をMarkdownとして変換する。見出しのリンクには記事のURLを付ける';
 	like $res->body, qr{<p>本文 &amp; <strong>続き</strong></p>\s*<p>後半</p>}s, '続きを読むの印は記事のページでは出さない';
 	like $dbh->selectrow_array('SELECT text FROM article_search WHERE article_id = 1'), qr/本文 & 続き/, '検索用テキストを保存する';
 
@@ -307,32 +329,35 @@ subtest '一覧のアイキャッチ' => sub {
 		my ($summary) = $body =~ m{(<article class="article-summary[^"]*">(?:(?!</article>).)*?href="/$slug".*?</article>)}s;
 		return $summary // '';
 	};
+	# トップの一覧（article_summary.html）は本文を出すのでアイキャッチは出さない。画像は検索結果で確かめる
+	my %query = ('02' => 'q=%E4%BA%8C%E3%81%A4%E7%9B%AE', '03' => 'q=%E4%B8%89%E3%81%A4%E7%9B%AE');
+	my $result_of = sub { $summary_of->($list->('/search', $query{ $_[0] }), $_[0]) };
 	my ($html3, $html2) = map { scalar $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $_) } 3, 2;
 
 	# 記事3：本文の最初の画像（名前は日本語）。サムネイルはまだ無い
 	my $image = '/pub/attachments/posts/2026/10/%E5%86%99%E7%9C%9F.png';
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, qq{<p><img src="$image" alt="写真"></p>});
-	my $summary = $summary_of->($list->('/'), '03');
-	like $summary, qr{<article class="article-summary has-image">}, '画像があれば has-image を付ける';
+	my $summary = $result_of->('03');
+	like $summary, qr{<article class="article-summary search-result has-image">}, '画像があれば has-image を付ける';
 	like $summary, qr{<a class="summary-image" href="/03" tabindex="-1" aria-hidden="true"><img src="\Q$image\E" alt="" loading="lazy"></a>}, 'サムネイルが無ければ元の画像';
+	unlike $summary_of->($list->('/'), '03'), qr{summary-image|has-image}, 'トップの一覧には出さない（テンプレートで出していない）';
 
 	make_path(encode_utf8("$dir/posts/2026/10/.thumbnail"));
 	open my $fh, '>', encode_utf8("$dir/posts/2026/10/.thumbnail/写真.png.jpg") or die $!;
 	close $fh;
-	like $summary_of->($list->('/'), '03'), qr{<img src="/pub/attachments/posts/2026/10/\.thumbnail/%E5%86%99%E7%9C%9F\.png\.jpg"}, 'サムネイルがあればサムネイル';
-	like $summary_of->($list->('/search', 'q=%E4%B8%89%E3%81%A4%E7%9B%AE'), '03'), qr{class="summary-image"}, '検索結果にも出す';
+	like $result_of->('03'), qr{<img src="/pub/attachments/posts/2026/10/\.thumbnail/%E5%86%99%E7%9C%9F\.png\.jpg"}, 'サムネイルがあればサムネイル';
 	unlike $list->('/03'), qr{summary-image}, '記事のページには出さない';
 
 	# 記事2：選んだ画像
 	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'chosen', eyecatch = 'posts/2026/10/a.png' WHERE id = 2});
-	like $summary_of->($list->('/'), '02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像';
+	like $result_of->('02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像';
 	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'none' WHERE id = 2});
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 2', undef, qq{<p><img src="$image"></p>});
-	unlike $summary_of->($list->('/'), '02'), qr{summary-image}, '使わないにしたら出さない';
+	unlike $result_of->('02'), qr{summary-image}, '使わないにしたら出さない';
 
 	# 外部の画像
 	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', body_html = '<p><img src="https://example.com/a.png"></p>' WHERE id = 2});
-	$summary = $summary_of->($list->('/'), '02');
+	$summary = $result_of->('02');
 	unlike $summary, qr{summary-image|has-image}, '外部の画像は出さない';
 	like $summary, qr{<div class="summary-text">}, '画像が無くても、本文は同じ形で出す';
 

@@ -32,10 +32,19 @@
 {{> admin_bar }}
 {{/ if }}
 <header class="site-header">
-  <p class="site-title"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
-  {{# if blog.blog_description }}
-  <p class="site-description">{{ blog.blog_description }}</p>
-  {{/ if }}
+  {{! サイドバーを引き出しにして開くボタン（1カラムでは左右、2カラムでは左だけ）。sidebar.js が見せる（JavaScript が無いときは出さない） }}
+  <button type="button" class="sidebar-toggle sidebar-toggle-left" aria-controls="sidebar-left" aria-expanded="false" aria-label="検索とタグ" hidden>
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5 20 20"/></svg>
+  </button>
+  <div class="site-heading">
+    <p class="site-title"><a href="{{ urls.top }}">{{ blog.blog_title }}</a></p>
+    {{# if blog.blog_description }}
+    <p class="site-description">{{ blog.blog_description }}</p>
+    {{/ if }}
+  </div>
+  <button type="button" class="sidebar-toggle sidebar-toggle-right" aria-controls="sidebar-right" aria-expanded="false" aria-label="メニュー" hidden>
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
 </header>
 <div class="site-body">
 <main class="site-main">
@@ -43,78 +52,19 @@
 {{ raw content }}
 </main>
 {{! 3カラム：左のサイドバー（検索、タグ）、本文、右のサイドバー（コンテンツ、自由欄、最近の記事、最近のコメント、過去ログ）
-    HTMLは本文を先に置き、狭い画面では本文、左、右の順に縦に並べる（style.css） }}
-<aside class="site-sidebar sidebar-left">
+    HTMLは本文を先に置く。2カラムでは左を、1カラムでは左右を引き出しにして、ヘッダーのボタンで開く（sidebar.js、style.css）
+    JavaScript が無いときは、2カラムでは本文の右に左と右を重ね、1カラムでは本文、左、右の順に縦に並べる }}
+<aside class="site-sidebar sidebar-left" id="sidebar-left" aria-label="検索とタグ">
   <section class="sidebar-section">
     <h2>検索</h2>
     {{> search_form }}
   </section>
-  {{# if tag_tree }}
-  <section class="sidebar-section">
-    <h2>タグ</h2>
-    <ul class="tree">
-      {{# for node in tag_tree }}
-      {{> tag_tree_item }}
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
+  {{! sidebar_tags は保存済みのテンプレート出力で、エスケープ済み }}
+  {{ raw sidebar_tags }}
 </aside>
-<aside class="site-sidebar sidebar-right">
-  {{# if content_tree }}
-  <section class="sidebar-section">
-    <h2>コンテンツ</h2>
-    <ul class="tree">
-      {{# for node in content_tree }}
-      {{> content_tree_item }}
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# for box in sidebar_boxes }}
-  <section class="sidebar-section sidebar-box">
-    <h2>{{ box.title }}</h2>
-    {{! box.html は管理者が書いたHTMLを、許可リストに通したもの（Lyndbaum::SidebarBoxes->for_display） }}
-    <div class="sidebar-box-body">{{ raw box.html }}</div>
-  </section>
-  {{/ for }}
-  {{# if recent_posts }}
-  <section class="sidebar-section">
-    <h2>最近の記事</h2>
-    <ul class="recent-posts">
-      {{# for post in recent_posts }}
-      <li><a href="{{ post.url }}">{{ post.title }}</a></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# if recent_comments }}
-  <section class="sidebar-section">
-    <h2>最近のコメント</h2>
-    <ul class="recent-comments">
-      {{# for comment in recent_comments }}
-      <li><a href="{{ comment.url }}">{{ comment.title }}</a> <span class="comment-author" title="{{ comment.created.datetime }}">{{ comment.author_name }}</span></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
-  {{# if archive }}
-  <section class="sidebar-section">
-    <h2>過去ログ</h2>
-    <ul class="archive">
-      {{# for year in archive }}
-      <li><details{{# if year.open }} open{{/ if }}>
-        <summary><a href="{{ year.url }}">{{ year.year }}年</a> <span class="count">({{ year.count }})</span></summary>
-        <ul>
-          {{# for month in year.months }}
-          <li><a href="{{ month.url }}">{{ month.label }}</a> <span class="count">({{ month.count }})</span></li>
-          {{/ for }}
-        </ul>
-      </details></li>
-      {{/ for }}
-    </ul>
-  </section>
-  {{/ if }}
+<aside class="site-sidebar sidebar-right" id="sidebar-right" aria-label="メニュー">
+  {{! sidebar_menu は保存済みのテンプレート出力。自由欄も許可リストに通してある }}
+  {{ raw sidebar_menu }}
 </aside>
 </div>
 <footer class="site-footer">

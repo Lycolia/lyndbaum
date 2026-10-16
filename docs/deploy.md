@@ -1,6 +1,6 @@
 # さくらのレンタルサーバーへのデプロイ
 
-空のサーバーに置いて動かすまでの手順。SSH で入って作業する。
+空のサーバーに置いて動かすまでの手順。SSHで入って作業する。
 
 - 置き場所の例：`~/www/lyndbaum/`（以下では`$APP`と書く）。まずは試しのサブドメインの公開フォルダにする
 - 本番のドメインに移るときは、コントロールパネルでドメインの公開フォルダを切り替える（下の「本番のドメインに移る」）
@@ -44,7 +44,7 @@ perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'   #
 
 - `site_url`：サイトのURL（例：`https://test.example.jp`）。RSSとOGPの絶対URLに使う
 - `secret_key`：上で作った値。コメントのフォームの署名に使う
-- `cookie_secure`：https で動かすので、消すか`true`のまま
+- `cookie_secure`：httpsで動かすので、消すか`true`のまま
 - そのほか（`db_path`、`attachment_path`など）は見本のままでよい
 
 ## 4. DBと管理者
@@ -56,7 +56,7 @@ perl tools/build-feed.pl       # RSS（pub/rss.xml）とサイトマップ（pub
 perl tools/check-env.pl        # 足りないものが無いか確かめる。NG が無ければよい
 ```
 
-`tools/check-env.pl`は、Perl とモジュールの版、SQLite で使っている機能、GD が読める画像の種類、https、設定、権限、DB を確かめる。
+`tools/check-env.pl`は、Perlとモジュールの版、SQLiteで使っている機能、GDが読める画像の種類、https、設定、権限、DBを確かめる。
 
 ## 5. 確かめる
 
@@ -73,7 +73,7 @@ perl tools/check-env.pl        # 足りないものが無いか確かめる。NG
 
 ## 旧データの取り込み（任意）
 
-adiary のデータ（`data/`）と添付ファイル（`pub/lycolia/image/`）を手元からサーバーに送って取り込む。**取り込み先のDBは空であること**（記事を書く前に行う。書いた後なら、DBを消して`migrate.pl`からやり直す）。
+adiaryのデータ（`data/`）と添付ファイル（`pub/lycolia/image/`）を手元からサーバーに送って取り込む。**取り込み先のDBは空であること**（記事を書く前に行う。書いた後なら、DBを消して`migrate.pl`からやり直す）。
 
 ```sh
 # 手元で
@@ -95,7 +95,7 @@ perl tools/import-adiary.pl ~/adiary-data lycolia   # 取り込んで、全記�
 1. 試しのサブドメインで確かめ終わったら、コントロールパネルで本番のドメインの公開フォルダを`$APP`にする
 2. `config.json`の`site_url`を本番のURLにする
 3. `perl tools/rebuild-html.pl`（RSSとサイトマップの絶対URLを書き直す。本文も変換し直す）
-4. Google Search Console などに、サイトマップのURL（`https://<本番のドメイン>/pub/sitemap.xml`）を登録する。旧システムの`/pub/lycolia/sitemap.xml`を登録してあった場合は、新しいURLを登録し直す（旧URLは転送するが、登録し直すほうが確実）
+4. Google Search Consoleなどに、サイトマップのURL（`https://<本番のドメイン>/pub/sitemap.xml`）を登録する。旧システムの`/pub/lycolia/sitemap.xml`を登録してあった場合は、新しいURLを登録し直す（旧URLは転送するが、登録し直すほうが確実）
 5. 旧URLの転送を確かめる（`.htaccess`）
    - `/pub/lycolia/image/adiary/…` → `/pub/attachments/posts/…`
    - `/pub/lycolia/image/…` → `/pub/attachments/…`
@@ -114,6 +114,8 @@ perl tools/check-env.pl
 
 パーサーを直したとき（`docs/markdown-syntax.md`や`lib/Lyndbaum/Parser/`が変わったとき）は、管理画面のダッシュボードの「再構築」か、`perl tools/rebuild-html.pl`を実行する。
 
+サイドバーのタグ一覧・右側メニューは、更新時に生成したHTMLをDBの`sidebar_cache`に保存する。新規DBの作成後は`perl tools/rebuild-sidebar.pl`で先に生成できる。キャッシュが無い場合やサイドバーのテンプレートが変わった場合は、次の閲覧時にも自動生成する。
+
 ## バックアップ
 
 残すのは次の3つ。ほかはリポジトリから戻せる。
@@ -127,4 +129,4 @@ DBは、書き込みの途中で写さないよう、`sqlite3 var/lyndbaum.db ".
 ## 気をつけること
 
 - コンテンツページのslugが、実在するフォルダの名前（`lib`、`docs`、`tools`、`templates`、`db`、`t`、`var`、`pub`など）と同じだと、ページではなく403になる（`.htaccess`がフォルダを先に見るため）
-- `index.cgi`の1行目は`#!/usr/bin/env perl`。さくらで Perl が見つからないときは、`which perl`の結果（例：`/usr/local/bin/perl`）に書き換える
+- `index.cgi`の1行目は`#!/usr/bin/env perl`。さくらでPerlが見つからないときは、`which perl`の結果（例：`/usr/local/bin/perl`）に書き換える

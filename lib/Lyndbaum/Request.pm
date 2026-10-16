@@ -6,8 +6,6 @@ use utf8;
 
 use Encode qw(decode_utf8);
 
-use Lyndbaum::Multipart;
-
 # POST の本文の大きさの上限（バイト）。フォームの送信だけなので小さくてよい
 my $MAX_BODY = 1024 * 1024;
 
@@ -101,6 +99,7 @@ sub body_too_large {
 sub _read_form {
 	my ($self) = @_;
 	return if $self->{body_params};
+	require Lyndbaum::Multipart;
 	$self->{uploads} = {};
 	if (my $boundary = $self->method eq 'POST' ? Lyndbaum::Multipart->boundary_of($self->{env}{CONTENT_TYPE}) : undef) {
 		my $length = $self->{env}{CONTENT_LENGTH} // '';

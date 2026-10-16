@@ -12,6 +12,43 @@
 </ul>
 </section>
 
+=== 記事のURLがあれば、見出しと目次のリンクに付ける
+一覧に本文を並べても、その記事の見出しへ行くように（旧システムと同じく、記事のURL#ID）
+--- options: sectioning=1 article_url=/0575
+--- input
+# 見出し
+
+[*toc]
+
+## 小見出し
+--- expected
+<section>
+<h3 id="見出し"><a href="/0575#見出し">見出し</a></h3>
+<ul class="toc">
+	<li><a href="/0575#見出し">見出し</a>
+	<ul>
+		<li><a href="/0575#小見出し">小見出し</a></li>
+	</ul>
+	</li>
+</ul>
+<h4 id="小見出し"><a href="/0575#小見出し">小見出し</a></h4>
+</section>
+
+=== 記事のURLがあれば、脚注のリンクにも付ける
+--- options: article_url=/0575
+--- input
+本文[^1]
+
+[^1]: 脚注の内容
+--- expected
+<p>本文<sup id="fnref-1"><a href="/0575#fn-1" title="脚注の内容">[1]</a></sup></p>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn-1">脚注の内容 <a href="/0575#fnref-1">&#8617;</a></li>
+</ol>
+</div>
+
 === 続きを読む
 --- input
 前

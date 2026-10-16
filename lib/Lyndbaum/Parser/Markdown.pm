@@ -40,7 +40,7 @@ sub parse {
 
 	my $html = $context{sectioning} ? $self->_render_sections($blocks) : $self->_render_blocks($blocks, {});
 	$html .= "\n" . $self->_render_footnotes if @{ $self->{footnote_order} };
-	my $toc = Lyndbaum::Parser::Common->toc_html($self->{headings});
+	my $toc = Lyndbaum::Parser::Common->toc_html($self->{headings}, $self->{context}{article_url});
 	$html =~ s/\Q$TOC_MARK\E/$toc/g;
 
 	return { html => "$html\n", toc => $self->{headings} };
@@ -428,8 +428,8 @@ sub _render_block {
 		my $level = $block->{level} + 2;
 		$level = 6 if $level > 6;
 		push @{ $self->{headings} }, { level => $block->{level}, id => $id, html => $html };
-		my $attr = escape_html($id);
-		return qq{<h$level id="$attr"><a href="#$attr">$html</a></h$level>};
+		my $href = $self->_href_to($id);
+		return qq{<h$level id="} . escape_html($id) . qq{"><a href="$href">$html</a></h$level>};
 	}
 	if ($type eq 'code') {
 		return '<pre><code class="language-' . escape_html($block->{lang}) . '">' . escape_text($block->{text}) . '</code></pre>';
@@ -533,7 +533,8 @@ sub _render_footnotes {
 	my ($self) = @_;
 	my $out = qq{<div class="footnotes">\n<hr />\n<ol>\n};
 	for my $note (@{ $self->{footnote_order} }) {
-		$out .= qq{<li id="fn-$note->{number}">$note->{html} <a href="#fnref-$note->{number}">&#8617;</a></li>\n};
+		my $href = $self->_href_to("fnref-$note->{number}");
+		$out .= qq{<li id="fn-$note->{number}">$note->{html} <a href="$href">&#8617;</a></li>\n};
 	}
 	return $out . "</ol>\n</div>";
 }
@@ -661,7 +662,16 @@ sub _footnote_ref {
 	}
 	my $n = $note->{number};
 	my $title = escape_html(strip_tags($note->{html}) =~ s/&amp;/&/gr =~ s/&lt;/</gr =~ s/&gt;/>/gr);
-	return qq{<sup id="fnref-$n"><a href="#fn-$n" title="$title">[$n]</a></sup>};
+	my $href = $self->_href_to("fn-$n");
+	return qq{<sup id="fnref-$n"><a href="$href" title="$title">[$n]</a></sup>};
+}
+
+# 記事の中の要素（見出し、脚注）へのリンク先。エスケープ済み
+#   「記事のURL#ID」にする（一覧に本文を並べても、ほかの記事の同じIDではなく、その記事の要素へ行くように）
+#   記事のURLが無ければ（context の article_url）「#ID」
+sub _href_to {
+	my ($self, $id) = @_;
+	return escape_html(($self->{context}{article_url} // '') . "#$id");
 }
 
 # メールアドレスは、収集対策として数値文字参照にする

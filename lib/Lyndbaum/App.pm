@@ -8,7 +8,6 @@ use File::Spec;
 use Lyndbaum::Config;
 use Lyndbaum::DB;
 use Lyndbaum::Model::Comment;
-use Lyndbaum::Model::Session;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::Request;
@@ -17,22 +16,9 @@ use Lyndbaum::Router;
 use Lyndbaum::Template;
 use Lyndbaum::URL;
 use Lyndbaum::View;
-use Lyndbaum::Controller::Top;
-use Lyndbaum::Controller::Admin;
-use Lyndbaum::Controller::AdminArticle;
-use Lyndbaum::Controller::AdminComment;
-use Lyndbaum::Controller::AdminSettings;
-use Lyndbaum::Controller::AdminSidebar;
-use Lyndbaum::SidebarBoxes;
-use Lyndbaum::Controller::AdminTag;
-use Lyndbaum::Controller::AdminUpload;
-use Lyndbaum::Controller::AdminMedia;
-use Lyndbaum::Media;
+use Lyndbaum::SidebarCache;
 use Lyndbaum::OGP;
-use Lyndbaum::Controller::Article;
-use Lyndbaum::Controller::Comment;
-use Lyndbaum::Controller::Search;
-use Lyndbaum::Controller::Static;
+use Lyndbaum::SearchForm;
 
 my $APP_VERSION = '0.3.0-beta';
 
@@ -144,6 +130,7 @@ sub attachment_dir {
 #   （. で始まるので、メディアのフォルダの木には出ない）
 sub media {
 	my ($self) = @_;
+	require Lyndbaum::Media;
 	return $self->{media} //= Lyndbaum::Media->new(
 		dir       => $self->attachment_dir,
 		trash_dir => File::Spec->catdir($self->attachment_dir, $Lyndbaum::Media::TRASH),
@@ -189,6 +176,8 @@ sub parser_context {
 			scalar $dbh->selectrow_array('SELECT title FROM url_cache WHERE url = ? AND ok = 1', undef, $_[0]);
 		},
 		base_path       => $self->config->get('base_path') // '',
+		# slug から記事のURLを作る関数。Lyndbaum::Model::Article->rebuild_body が article_url にして渡す
+		article_url_of  => sub { $self->url->article($_[0]) },
 	);
 }
 
@@ -205,7 +194,17 @@ sub handle {
 	my ($class, $action, @captures) = $ROUTER->match($req->method, $req->path);
 	return $self->not_found if !$class;
 
-	return $class->$action($self, $req, @captures);
+	# クラス名は上のルーティング表にある固定値。require は読み込み済みなら再実行しない
+	my $module = $class =~ s{::}{/}gr;
+	require "$module.pm";
+	my $res = $class->$action($self, $req, @captures);
+	# 更新によって無効になったHTMLは、次の閲覧を待たずに作り直す
+	#   更新はコミット済みなので、作り直せなくてもエラーにしない（次の閲覧で作る）
+	if ($req->method eq 'POST') {
+		eval { Lyndbaum::SidebarCache->get($self); 1 }
+			or warn "サイドバーのHTMLを作り直せませんでした: $@";
+	}
+	return $res;
 }
 
 # 公開側のページを出力する。テンプレートの出力を layout.html で包む
@@ -216,6 +215,7 @@ sub handle {
 sub render {
 	my ($self, $name, $vars, %args) = @_;
 	my $session = $args{req} ? $self->admin_session($args{req}) : undef;
+	my $sidebar = Lyndbaum::SidebarCache->get($self);
 	my %common = (
 		blog         => $self->settings,
 		urls         => {
@@ -231,15 +231,10 @@ sub render {
 				'js/extlib/fancybox/jquery-3.2.1.min.js', 'js/extlib/fancybox/jquery.fancybox.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
-				'js/article.js' ],
+				'js/article.js', 'js/sidebar.js' ],
 		},
-		form         => Lyndbaum::Controller::Search->form,   # サイドバーの検索フォーム
-		content_tree => Lyndbaum::View->content_tree($self),
-		tag_tree     => Lyndbaum::View->tag_tree($self),
-		recent_comments => Lyndbaum::View->recent_comments($self),
-		recent_posts    => Lyndbaum::View->recent_posts($self),
-		archive         => Lyndbaum::View->archive($self),
-		sidebar_boxes   => Lyndbaum::SidebarBoxes->for_display($self->settings->{sidebar_boxes}),
+		form         => Lyndbaum::SearchForm->values,   # サイドバーの検索フォーム
+		%$sidebar,
 		app_version => $APP_VERSION,
 		admin_bar   => $session ? $self->_admin_bar($session, %args) : undef,
 	);
@@ -315,6 +310,7 @@ sub render_admin {
 			media            => $self->url->admin('media'),
 			media_script     => $self->url->static('js/admin-media.js'),
 			admin_script     => $self->url->static('js/admin.js'),
+			unsaved_script   => $self->url->static('js/admin-unsaved.js'),
 			rebuild          => $self->url->admin('rebuild'),
 			comments         => $self->url->admin('comments'),
 			blog_settings    => $self->url->admin('settings/blog'),
@@ -395,8 +391,14 @@ my $SESSION_COOKIE = 'lyndbaum_session';
 #   1つのリクエストの中では、最初に調べた結果を使い回す（記事のページでは何度か調べるため）
 sub admin_session {
 	my ($self, $req) = @_;
-	$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $req->cookie($SESSION_COOKIE))
-		if !exists $req->{admin_session};
+	if (!exists $req->{admin_session}) {
+		my $token = $req->cookie($SESSION_COOKIE);
+		$req->{admin_session} = undef;
+		if (defined $token && $token ne '') {
+			require Lyndbaum::Model::Session;
+			$req->{admin_session} = Lyndbaum::Model::Session->find($self->db, $token);
+		}
+	}
 	return $req->{admin_session};
 }
 

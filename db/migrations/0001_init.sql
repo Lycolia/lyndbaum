@@ -225,4 +225,124 @@ CREATE TABLE sequences (
 
 INSERT INTO sequences (name, value) VALUES ('articles', 0);
 
+--------------------------------------------------------------------------------
+-- サイドバーのHTMLキャッシュ
+--------------------------------------------------------------------------------
+-- サイドバーの生成済みHTML。データ更新時に無効化し、更新リクエストの終了時に再生成する
+-- キャッシュの削除は元データと同じトランザクションなので、ロールバックも一緒に行われる
+CREATE TABLE sidebar_cache (
+    id           INTEGER PRIMARY KEY CHECK (id = 1),
+    cache_key    TEXT NOT NULL,
+    tags_html    TEXT NOT NULL,
+    menu_html    TEXT NOT NULL
+);
+
+CREATE TRIGGER sidebar_cache_articles_insert
+AFTER INSERT ON articles
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_articles_update
+AFTER UPDATE OF kind, slug, title, status, published_at, deleted_at, parent_id, sort_order ON articles
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_articles_delete
+AFTER DELETE ON articles
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tags_insert
+AFTER INSERT ON tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tags_update
+AFTER UPDATE ON tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tags_delete
+AFTER DELETE ON tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tag_paths_insert
+AFTER INSERT ON tag_paths
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tag_paths_update
+AFTER UPDATE ON tag_paths
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_tag_paths_delete
+AFTER DELETE ON tag_paths
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_article_tags_insert
+AFTER INSERT ON article_tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_article_tags_update
+AFTER UPDATE ON article_tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_article_tags_delete
+AFTER DELETE ON article_tags
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_comments_insert
+AFTER INSERT ON comments
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_comments_update
+AFTER UPDATE OF article_id, num, status, author_name, created_at ON comments
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_comments_delete
+AFTER DELETE ON comments
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_settings_insert
+AFTER INSERT ON settings
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_settings_update
+AFTER UPDATE ON settings
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
+CREATE TRIGGER sidebar_cache_settings_delete
+AFTER DELETE ON settings
+BEGIN
+    DELETE FROM sidebar_cache;
+END;
+
 PRAGMA user_version = 1;

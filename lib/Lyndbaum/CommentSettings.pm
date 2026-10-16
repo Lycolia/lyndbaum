@@ -5,7 +5,6 @@ use strict;
 use warnings;
 use utf8;
 
-use Lyndbaum::AddressMatch;
 use Lyndbaum::SettingsForm;
 
 our @FIELDS = (
@@ -25,10 +24,10 @@ our @FIELDS = (
 	  help => '1行に1つ。大文字と小文字、全角と半角は区別しません。' },
 	{ key => 'comments_block_ips',        type => 'lines', default => '', label => '拒否するIPアドレス',
 	  help => '1行に1つ。192.0.2.10、192.0.2.0/24、192.0.2.（前方一致）、2001:db8::/32の形で書きます。',
-	  check => sub { Lyndbaum::AddressMatch->valid_ip_rule($_[0]) } },
+	  check => sub { require Lyndbaum::AddressMatch; Lyndbaum::AddressMatch->valid_ip_rule($_[0]) } },
 	{ key => 'comments_block_hosts',      type => 'lines', default => '', label => '拒否するホスト名',
 	  help => '1行に1つ。example.netと書くと、その下のホスト（spam.example.netなど）も拒否します。',
-	  check => sub { Lyndbaum::AddressMatch->valid_host_rule($_[0]) } },
+	  check => sub { require Lyndbaum::AddressMatch; Lyndbaum::AddressMatch->valid_host_rule($_[0]) } },
 );
 
 my %FIELD = map { $_->{key} => $_ } @FIELDS;

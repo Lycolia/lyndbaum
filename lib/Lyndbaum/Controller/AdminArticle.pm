@@ -27,6 +27,7 @@ use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::OGP;
 use Lyndbaum::Response;
+use Lyndbaum::SidebarCache;
 use Lyndbaum::UrlTitle;
 use Lyndbaum::View;
 
@@ -278,6 +279,7 @@ sub rebuild {
 	my ($session, $res) = Lyndbaum::Controller::Admin->authorize($app, $req, post => 1);
 	return $res if !$session;
 	my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context);
+	Lyndbaum::SidebarCache->rebuild($app);
 	my $feed_ok = $class->write_static_files($app);
 	return $app->redirect($app->url->admin(undef, rebuilt => $count, feed => $feed_ok ? undef : 'failed'), 303);
 }
@@ -382,6 +384,8 @@ sub _render_form {
 		saved       => $opt{saved},
 		feed_failed => $opt{feed_failed},
 		conflict    => $opt{conflict},
+		# 保存できずに戻ってきた画面。欄の中身はまだ保存していない（離れるときに確かめる）
+		unsaved     => @{ $opt{errors} // [] } || $opt{conflict} ? 1 : 0,
 		# タグの入力の候補（pub/assets/js/admin-article.js が読む）。テンプレートが属性の値としてエスケープする
 		tag_data    => JSON::PP->new->canonical->encode([
 			map { +{ name => $_->{full_name}, count => $counts->{ $_->{id} } // 0 } } @$tree

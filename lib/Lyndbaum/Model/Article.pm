@@ -5,12 +5,9 @@ use warnings;
 use utf8;
 use feature 'current_sub';
 
-use Digest::SHA ();
 use Encode ();
 use Lyndbaum::Model::Tag;
-use Lyndbaum::Parser;
 use Lyndbaum::Parser::Common;
-use Lyndbaum::Parser::Markdown;
 
 # 公開中の記事を表す条件
 my $PUBLIC = q{status = 'published' AND deleted_at IS NULL};
@@ -201,6 +198,7 @@ sub count_by_status {
 # ほかの画面（別のタブなど）で先に保存されていないかを見る
 sub digest {
 	my ($class, $dbh, $id) = @_;
+	require Digest::SHA;
 	my $row = $dbh->selectrow_hashref(
 		'SELECT title, body_src, status, published_at, comments_open, eyecatch, eyecatch_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
 	my $tag_ids = $class->tag_ids_of($dbh, $id)->{$id} // [];
@@ -266,7 +264,8 @@ sub save {
 				if $old->{title} ne $row{title} || $old->{body_src} ne $row{body_src};
 			my @names = sort keys %row;
 			$dbh->do(sprintf('UPDATE articles SET %s WHERE id = ?', join ', ', map { "$_ = ?" } @names), undef, @row{@names}, $id);
-			$class->_move_descendants($dbh, $id, $old->{slug}, $row{slug}) if $kind eq 'page' && $row{slug} ne $old->{slug};
+			$class->_move_descendants($dbh, $id, $old->{slug}, $row{slug}, %{ $opt{context} // {} })
+				if $kind eq 'page' && $row{slug} ne $old->{slug};
 			$result = { id => $id, slug => $row{slug} // $old->{slug} };
 		} else {
 			$id = $class->next_id($dbh);
@@ -278,7 +277,7 @@ sub save {
 		}
 
 		$class->_save_tags($dbh, $id, $v->{tags});
-		my $article = $dbh->selectrow_hashref('SELECT id, title, syntax, body_src FROM articles WHERE id = ?', undef, $id);
+		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $id);
 		$class->rebuild_body($dbh, $article, %{ $opt{context} // {} });
 		$dbh->commit;
 		1;
@@ -350,10 +349,13 @@ SQL
 }
 
 # ページの slug が変わったら、子孫の slug の頭も付け替える
+#   本文の見出しと目次のリンクには記事のURLが入っているので、子孫の本文も変換し直す
 sub _move_descendants {
-	my ($class, $dbh, $id, $from, $to) = @_;
+	my ($class, $dbh, $id, $from, $to, %context) = @_;
 	for my $d (@{ $class->descendants($dbh, $id) }) {
 		$dbh->do('UPDATE articles SET slug = ? WHERE id = ?', undef, $to . substr($d->{slug}, length $from), $d->{id});
+		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $d->{id});
+		$class->rebuild_body($dbh, $article, %context);
 	}
 }
 
@@ -517,6 +519,8 @@ sub _save_tags {
 #   書き足すと見出しのID以外の出力が変わる場合（add_heading_ids が die する場合）は、書き足さずにそのまま保存する
 sub _add_heading_ids {
 	my ($text) = @_;
+	require Lyndbaum::Parser;
+	require Lyndbaum::Parser::Markdown;
 	my %used = map { $_->{id} => 1 } @{ Lyndbaum::Parser->parse('markdown', $text, sectioning => 1)->{toc} };
 	my ($new) = eval {
 		Lyndbaum::Parser::Markdown->add_heading_ids($text, sub {
@@ -535,7 +539,10 @@ sub _add_heading_ids {
 #   （パーサーを直しても、再構築するまでは今の出力が変わらないようにするため）
 sub rebuild_body {
 	my ($class, $dbh, $article, %context) = @_;
-	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id});
+	require Lyndbaum::Parser;
+	my $url_of = delete $context{article_url_of};
+	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id},
+		($url_of ? (article_url => $url_of->($article->{slug})) : ()));
 	$dbh->do('UPDATE articles SET body_html = ?, description = ? WHERE id = ?', undef,
 		$result->{html}, Lyndbaum::Parser::Common->summary($result->{html}), $article->{id});
 	$dbh->do('INSERT OR REPLACE INTO article_search (article_id, title, text, source) VALUES (?, ?, ?, ?)', undef,
@@ -550,7 +557,7 @@ sub rebuild_body {
 # 全記事（下書きとゴミ箱を含む）を変換し直す。変換した件数を返す
 sub rebuild_all {
 	my ($class, $dbh, %context) = @_;
-	return $class->_rebuild($dbh, "SELECT id, title, syntax, body_src FROM articles WHERE kind IN ('post', 'page') ORDER BY id", [], %context);
+	return $class->_rebuild($dbh, "SELECT id, slug, title, syntax, body_src FROM articles WHERE kind IN ('post', 'page') ORDER BY id", [], %context);
 }
 
 sub _rebuild {

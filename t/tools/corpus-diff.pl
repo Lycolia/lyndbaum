@@ -38,7 +38,7 @@ for my $art (@$articles) {
 	my $body = $art->{_text} // '';
 	$rewrite->($body);   # 取り込むときと同じ書き換え
 	my $new = Lyndbaum::Parser->parse('markdown', $body,
-		article_id => $art->{pkey}, attachment_path => '/pub/attachments/', sectioning => 1)->{html};
+		article_id => $art->{pkey}, article_url => "/$art->{link_key}", attachment_path => '/pub/attachments/', sectioning => 1)->{html};
 	my $old = legacy_to_current($art->{text}, $art->{link_key}, $blog_id);
 
 	my ($a, $b) = map { normalize_both(normalize_html($_)) } $old, $new;
@@ -73,8 +73,10 @@ sub legacy_to_current {
 		qq{<iframe class="$class" width="480" height="270" src="$src" frameborder="0"}
 			. ($class =~ /niconico/ ? ' scrolling="no"' : '') . ' allowfullscreen>';
 	}ge;
-	# 見出しと目次のリンクはページ内リンクにする（リンク先のパーセントエンコードを戻してから比べる）
-	$html =~ s{href="(/[^"#]*)#}{ my $x = $1; $x =~ s/%([0-9a-fA-F]{2})/chr hex $1/eg; utf8::decode($x); $x eq "/$slug" ? 'href="#' : qq{href="$x#} }ge;
+	# 見出しと目次のリンクは、リンク先のパーセントエンコードを戻してから比べる
+	$html =~ s{href="(/[^"#]*#[^"]*)"}{ my $x = $1; $x =~ s/%([0-9a-fA-F]{2})/chr hex $1/eg; utf8::decode($x); qq{href="$x"} }ge;
+	# 脚注のリンクにも記事のURLを付ける
+	$html =~ s{href="#(fn-|fnref-)}{href="/$slug#$1}g;
 	# ファイル名と同じ代替テキストは、取り込むときに落とす
 	$html =~ s{(<a href="[^"]*/([^"/]+)" class="tag-image-[A-Za-z]*") title="([^"]*)"((?: data-fancybox="[^"]*")?><img) alt="([^"]*)"}{
 		my ($head, $file, $title, $mid, $alt) = ($1, $2, $3, $4, $5);

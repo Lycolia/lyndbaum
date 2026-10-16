@@ -68,9 +68,13 @@ subtest '管理画面' => sub {
 
 subtest '公開側' => sub {
 	my $body = $t->request(GET => '/')->body;
-	my ($left)  = $body =~ m{<aside class="site-sidebar sidebar-left">(.*?)</aside>}s;
-	my ($right) = $body =~ m{<aside class="site-sidebar sidebar-right">(.*?)</aside>}s;
+	my ($left)  = $body =~ m{<aside class="site-sidebar sidebar-left"[^>]*>(.*?)</aside>}s;
+	my ($right) = $body =~ m{<aside class="site-sidebar sidebar-right"[^>]*>(.*?)</aside>}s;
 	like $left, qr{<h2>検索</h2>}, '左は検索とタグ';
+	my @toggles = $body =~ m{<button type="button" class="sidebar-toggle [^"]*" aria-controls="([^"]+)"[^>]* hidden>}g;
+	is_deeply \@toggles, ['sidebar-left', 'sidebar-right'], '狭い画面で引き出しを開くボタン（sidebar.js が見せる）';
+	like $body, qr{<aside class="site-sidebar sidebar-left" id="sidebar-left"}, 'ボタンの開く先';
+	like $body, qr{<aside class="site-sidebar sidebar-right" id="sidebar-right"}, 'ボタンの開く先';
 	like $right, qr{<h2>コンテンツ</h2>.*<h2>Information</h2>.*<h2>カウンター</h2>.*<h2>最近の記事</h2>.*<h2>過去ログ</h2>}s, '右の並び';
 	like $right, qr{<div class="sidebar-box-body"><p>雑記帳です。</p>&lt;script&gt;x&lt;/script&gt;</div>}, '自由欄は許可リストに通して出す';
 

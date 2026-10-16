@@ -1,0 +1,10 @@
+  {{# if tag_tree }}
+  <section class="sidebar-section">
+    <h2>タグ</h2>
+    <ul class="tree">
+      {{# for node in tag_tree }}
+      {{> tag_tree_item }}
+      {{/ for }}
+    </ul>
+  </section>
+  {{/ if }}
