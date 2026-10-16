@@ -231,7 +231,7 @@ sub render {
 				'js/extlib/fancybox/jquery-3.2.1.min.js', 'js/extlib/fancybox/jquery.fancybox.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
-				'js/article.js' ],
+				'js/article.js', 'js/sidebar.js' ],
 		},
 		form         => Lyndbaum::Controller::Search->form,   # サイドバーの検索フォーム
 		content_tree => Lyndbaum::View->content_tree($self),
