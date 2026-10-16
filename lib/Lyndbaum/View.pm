@@ -25,12 +25,19 @@ sub body {
 	return $html;
 }
 
-# 記事の一覧を、タグとURLと一覧の画像を付けた形にする
+# 記事の一覧を、タグとURLと一覧の画像と本文を付けた形にする
+#   本文（body）は続きを読むの印より前。印が無ければ全文。印があれば has_more が真
 sub articles {
 	my ($class, $app, $articles) = @_;
 	my $tag_ids = Lyndbaum::Model::Article->tag_ids_of($app->db, map { $_->{id} } @$articles);
 	return [ map {
-		+{ %{ $class->article($app, $_, $tag_ids->{ $_->{id} } // []) }, list_image => $class->list_image($app, $_) }
+		my ($body, $has_more) = Lyndbaum::Parser::Common->excerpt($_->{body_html});
+		+{
+			%{ $class->article($app, $_, $tag_ids->{ $_->{id} } // []) },
+			list_image => $class->list_image($app, $_),
+			body       => $body,
+			has_more   => $has_more,
+		}
 	} @$articles ];
 }
 

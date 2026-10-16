@@ -1,17 +1,17 @@
-<article class="article-summary{{# if article.list_image }} has-image{{/ if }}">
-  {{# if article.list_image }}
-  {{! 題名のリンクと同じ先なので、読み上げとキーボードの移動からは外す }}
-  <a class="summary-image" href="{{ article.url }}" tabindex="-1" aria-hidden="true"><img src="{{ article.list_image }}" alt="" loading="lazy"></a>
-  {{/ if }}
-  <div class="summary-text">
+<article class="article-summary">
+  <header>
     <h2 class="summary-title"><a href="{{ article.url }}">{{ article.title }}</a></h2>
     <p class="article-meta">
       {{# if article.published }}投稿 <time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
       {{# if article.show_updated }}更新 <time datetime="{{ article.updated.iso }}">{{ article.updated.date }}</time>{{/ if }}
       {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
     </p>
-    {{# if article.description }}
-    <p class="summary-description">{{ article.description }}</p>
-    {{/ if }}
+  </header>
+  <div class="article-body">
+    {{! body はパーサーが作ったHTML（続きを読むの印より前）で、パーサーの側でエスケープと許可リストの確認をしている }}
+    {{ raw article.body }}
   </div>
+  {{# if article.has_more }}
+  <p class="read-more"><a href="{{ article.url }}">続きを読む</a></p>
+  {{/ if }}
 </article>

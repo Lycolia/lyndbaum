@@ -22,6 +22,7 @@ sub parser_for {
 # 本文を変換する
 #   %context
 #     article_id       記事ID（画像の data-fancybox などに使う）
+#     article_url      記事のURL。見出しと目次のリンクを「記事のURL#ID」にする（省略すると「#ID」）
 #     attachment_path  添付ファイルのURLの接頭辞（例：/pub/attachments/）
 #     sectioning       見出しごとに <section> で囲むか
 #     url_title        URLからページのタイトルを返す関数（[&URL] 用。省略可）

@@ -176,6 +176,8 @@ sub parser_context {
 			scalar $dbh->selectrow_array('SELECT title FROM url_cache WHERE url = ? AND ok = 1', undef, $_[0]);
 		},
 		base_path       => $self->config->get('base_path') // '',
+		# slug から記事のURLを作る関数。Lyndbaum::Model::Article->rebuild_body が article_url にして渡す
+		article_url_of  => sub { $self->url->article($_[0]) },
 	);
 }
 

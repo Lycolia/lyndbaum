@@ -180,6 +180,32 @@ subtest 'コンテンツページ' => sub {
 	like $errors->[0], qr{親のページがありません};
 };
 
+subtest '見出しと目次のリンクには記事のURLを付ける' => sub {
+	my ($v) = form(body => "# 見出し\n\n[*toc]", status => 'published');
+	my $post = save($v);
+	my $html = $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $post->{id});
+	like $html, qr{<h3 id="([^"]+)"><a href="/0$post->{id}#\1">見出し</a></h3>}, '記事は /0ID#見出しのID';
+	like $html, qr{<li><a href="/0$post->{id}#[^"]+">見出し</a></li>}, '目次も';
+
+	my $page = sub {
+		my (%f) = @_;
+		my $id = delete $f{id};
+		my ($v) = Lyndbaum::ArticleForm->parse(
+			values     => sub { my $x = { title => 'ページ', body => "# 見出し", status => 'published', %f }->{ $_[0] }; defined $x ? ($x) : () },
+			tag_exists => sub { 1 },
+			page       => 1,
+		);
+		return save($v, id => $id);
+	};
+	my $parent = $page->(page_name => 'docs');
+	my $child  = $page->(page_name => '使い方', parent_id => $parent->{id});
+	my $body_of = sub { $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $_[0]) };
+	like $body_of->($child->{id}), qr{<a href="/docs/%E4%BD%BF%E3%81%84%E6%96%B9#[^"]+">}, 'ページは slug のURL（Lyndbaum::URL->article と同じ形）';
+	$page->(id => $parent->{id}, page_name => 'manual');
+	like $body_of->($parent->{id}), qr{<a href="/manual#[^"]+">}, '名前を変えたページ';
+	like $body_of->($child->{id}), qr{<a href="/manual/%E4%BD%BF%E3%81%84%E6%96%B9#[^"]+">}, '子孫の本文も変換し直す';
+};
+
 subtest 'ゴミ箱' => sub {
 	my $parent = $dbh->selectrow_hashref(q{SELECT id FROM articles WHERE slug = 'profile'});
 	my $child  = $dbh->selectrow_hashref(q{SELECT id FROM articles WHERE slug = 'profile/署名'});

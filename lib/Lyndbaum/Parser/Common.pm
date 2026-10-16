@@ -30,10 +30,6 @@ sub heading_id {
 	return $id;
 }
 
-# 目次のHTML
-#   $headings は [{ level => 1〜6, id => ID, html => 見出しの文字 }, ...]
-#   見出しの並びを、より浅い見出しを親とする木にしてから出力する
-#   1段目は # の見出し。段を飛ばした見出し（# の無い ##、## の直後の #### など）は目次に入れない（旧システムと同じ）
 # 新しい見出しの識別子。英字1文字と16進数7桁（l7a712f2 など）。$used にあるものは避ける
 sub new_heading_id {
 	my ($class, $used) = @_;
@@ -43,8 +39,13 @@ sub new_heading_id {
 	}
 }
 
+# 目次のHTML
+#   $headings は [{ level => 1〜6, id => ID, html => 見出しの文字 }, ...]
+#   $url は記事のURL（リンクを「記事のURL#ID」にする。一覧に本文を並べても、その記事の見出しへ行くように）
+#   見出しの並びを、より浅い見出しを親とする木にしてから出力する
+#   1段目は # の見出し。段を飛ばした見出し（# の無い ##、## の直後の #### など）は目次に入れない（旧システムと同じ）
 sub toc_html {
-	my ($class, $headings) = @_;
+	my ($class, $headings, $url) = @_;
 	my $root = { level => 0, children => [] };
 	my @stack = ($root);
 	for my $h (@$headings) {
@@ -57,16 +58,16 @@ sub toc_html {
 		push @{ $stack[-1]{children} }, $node;
 		push @stack, $node;
 	}
-	return @{ $root->{children} } ? _toc_list($root->{children}, 0, ' class="toc"') : qq{<ul class="toc"></ul>\n};
+	return @{ $root->{children} } ? _toc_list($root->{children}, $url // '', 0, ' class="toc"') : qq{<ul class="toc"></ul>\n};
 }
 
 sub _toc_list {
-	my ($nodes, $depth, $attr) = @_;
+	my ($nodes, $url, $depth, $attr) = @_;
 	my $indent = "\t" x $depth;
 	my $out = "$indent<ul" . ($attr // '') . ">\n";
 	for my $node (@$nodes) {
-		$out .= "$indent\t<li><a href=\"#" . escape_html($node->{id}) . "\">" . $node->{html} . "</a>";
-		$out .= "\n" . _toc_list($node->{children}, $depth + 1) . "$indent\t" if @{ $node->{children} } || $node->{skipped};
+		$out .= "$indent\t<li><a href=\"" . escape_html("$url#$node->{id}") . "\">" . $node->{html} . "</a>";
+		$out .= "\n" . _toc_list($node->{children}, $url, $depth + 1) . "$indent\t" if @{ $node->{children} } || $node->{skipped};
 		$out .= "</li>\n";
 	}
 	return "$out$indent</ul>\n";
@@ -77,6 +78,29 @@ sub split_more {
 	my ($class, $html) = @_;
 	my ($before, $after) = split /\Q$MORE_MARK\E/, $html, 2;
 	return ($before, $after);
+}
+
+# 一覧に出す本文。続きを読むの印より前を返し、印の前で閉じていないタグ（<section> など）は閉じる
+#   印が無ければ全文。戻り値は (HTML, 続きがあるか)
+my %VOID_TAGS = map { $_ => 1 } qw(area br col embed hr img input link meta source track wbr);
+sub excerpt {
+	my ($class, $html) = @_;
+	my ($before, $after) = $class->split_more($html // '');
+	return ($before // '', 0) if !defined $after;
+	my @open;
+	# 本文の < は文字参照になっているので、タグだけを拾える。コメントは飛ばす
+	for my $tag ($before =~ m{<!--.*?-->|<(/?[a-zA-Z][a-zA-Z0-9]*)}gs) {
+		next if !defined $tag;
+		my $name = lc $tag;
+		if ($name =~ s{\A/}{}) {
+			next if !grep { $_ eq $name } @open;
+			1 while pop(@open) ne $name;
+		} elsif (!$VOID_TAGS{$name}) {
+			push @open, $name;
+		}
+	}
+	$before =~ s/\s*\z/\n/;
+	return ($before . join('', map { "</$_>\n" } reverse @open), 1);
 }
 
 # 検索用のテキスト（範囲が「本文」のとき）。タイトルと、本文のHTMLからタグを除いたもの

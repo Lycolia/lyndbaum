@@ -264,7 +264,8 @@ sub save {
 				if $old->{title} ne $row{title} || $old->{body_src} ne $row{body_src};
 			my @names = sort keys %row;
 			$dbh->do(sprintf('UPDATE articles SET %s WHERE id = ?', join ', ', map { "$_ = ?" } @names), undef, @row{@names}, $id);
-			$class->_move_descendants($dbh, $id, $old->{slug}, $row{slug}) if $kind eq 'page' && $row{slug} ne $old->{slug};
+			$class->_move_descendants($dbh, $id, $old->{slug}, $row{slug}, %{ $opt{context} // {} })
+				if $kind eq 'page' && $row{slug} ne $old->{slug};
 			$result = { id => $id, slug => $row{slug} // $old->{slug} };
 		} else {
 			$id = $class->next_id($dbh);
@@ -276,7 +277,7 @@ sub save {
 		}
 
 		$class->_save_tags($dbh, $id, $v->{tags});
-		my $article = $dbh->selectrow_hashref('SELECT id, title, syntax, body_src FROM articles WHERE id = ?', undef, $id);
+		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $id);
 		$class->rebuild_body($dbh, $article, %{ $opt{context} // {} });
 		$dbh->commit;
 		1;
@@ -348,10 +349,13 @@ SQL
 }
 
 # ページの slug が変わったら、子孫の slug の頭も付け替える
+#   本文の見出しと目次のリンクには記事のURLが入っているので、子孫の本文も変換し直す
 sub _move_descendants {
-	my ($class, $dbh, $id, $from, $to) = @_;
+	my ($class, $dbh, $id, $from, $to, %context) = @_;
 	for my $d (@{ $class->descendants($dbh, $id) }) {
 		$dbh->do('UPDATE articles SET slug = ? WHERE id = ?', undef, $to . substr($d->{slug}, length $from), $d->{id});
+		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $d->{id});
+		$class->rebuild_body($dbh, $article, %context);
 	}
 }
 
@@ -536,7 +540,9 @@ sub _add_heading_ids {
 sub rebuild_body {
 	my ($class, $dbh, $article, %context) = @_;
 	require Lyndbaum::Parser;
-	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id});
+	my $url_of = delete $context{article_url_of};
+	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id},
+		($url_of ? (article_url => $url_of->($article->{slug})) : ()));
 	$dbh->do('UPDATE articles SET body_html = ?, description = ? WHERE id = ?', undef,
 		$result->{html}, Lyndbaum::Parser::Common->summary($result->{html}), $article->{id});
 	$dbh->do('INSERT OR REPLACE INTO article_search (article_id, title, text, source) VALUES (?, ?, ?, ?)', undef,
@@ -551,7 +557,7 @@ sub rebuild_body {
 # 全記事（下書きとゴミ箱を含む）を変換し直す。変換した件数を返す
 sub rebuild_all {
 	my ($class, $dbh, %context) = @_;
-	return $class->_rebuild($dbh, "SELECT id, title, syntax, body_src FROM articles WHERE kind IN ('post', 'page') ORDER BY id", [], %context);
+	return $class->_rebuild($dbh, "SELECT id, slug, title, syntax, body_src FROM articles WHERE kind IN ('post', 'page') ORDER BY id", [], %context);
 }
 
 sub _rebuild {

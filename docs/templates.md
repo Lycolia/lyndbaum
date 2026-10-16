@@ -84,7 +84,7 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | --------------------------- | ------------------------------------------ |
 | `content`                   | 各ページのテンプレートの出力               |
 | `sidebar_tags`、`sidebar_menu` | `Lyndbaum::SidebarCache`（サイドバーのテンプレートの生成済みHTML） |
-| `article.body`              | パーサー（許可リストに通したHTML）         |
+| `article.body`              | パーサー（許可リストに通したHTML）。一覧では `Lyndbaum::Parser::Common->excerpt` が印の前で切り、開いているタグを閉じたもの |
 | `box.html`                  | `Lyndbaum::SidebarBoxes->for_display`      |
 | `comment.html`              | `Lyndbaum::CommentText`                    |
 | `article.title_html`、`s`（`snippets`）、`line.html` | `Lyndbaum::Highlight`（`<mark>` だけを含む） |
@@ -229,6 +229,10 @@ HTMLは `templates/*.html` のテンプレートから作る。エンジンは�
 | 変数                 | 中身                                                                                         |
 | -------------------- | -------------------------------------------------------------------------------------------- |
 | `article.list_image` | 一覧に出すアイキャッチの画像のURL。アイキャッチが添付ファイルのときだけ入る（外部の画像は入れない）。サムネイルがあればサムネイル、無ければ元の画像 |
+| `article.body`       | 本文のHTML。続きを読むの印があればその前まで（印の前で開いているタグは閉じてある）、無ければ全文。`raw` で出す。見出し、目次、脚注のリンクは「記事のURL#ID」なので、一覧に並べても、その記事の見出しや脚注へ行く |
+| `article.has_more`   | 続きを読むの印で切ったなら真（「続きを読む」のリンクを出すのに使う）                          |
+
+一覧に本文を出すかどうか、本文を出すときにアイキャッチを出すかどうかは、テンプレートの書き方で決める。今はトップの一覧（`article_summary.html`）では本文と「続きを読む」のリンクを出し、説明とアイキャッチは出さない（旧システムと同じ）。検索結果（`search_result.html`）では説明かその抜粋と、アイキャッチを出す。
 
 検索結果（`search_result.html`）で、検索語があるときだけ入る項目。
 
