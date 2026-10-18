@@ -379,3 +379,5 @@ a.media-item { text-decoration: none; }
 
 /* コードブロック（色は pub/assets/js/extlib/prismjs/prism.css）。長い行は、ページではなくコードの中で横にスクロールする */
 .article-body pre { overflow-x: auto; max-width: 100%; }
+.article-body { word-wrap: break-word; }
+.article-body .body_table { overflow-x: scroll;}
