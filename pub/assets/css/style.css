@@ -102,12 +102,16 @@ body:not(.admin) .site-header,
     position: fixed; top: 0; bottom: 0; left: 0; z-index: 210; width: min(20rem, 85vw);
     overflow-y: auto; overscroll-behavior: contain; padding: 1rem;
     background: var(--page-bg); border-right: 1px solid var(--border);
-    transform: translateX(-100%); visibility: hidden; transition: transform .2s ease, visibility .2s;
+    transform: translateX(-100%); visibility: hidden;
   }
+  /* 動きはボタンで開け閉めするときだけ。sidebar.js が、読み込んだ直後と幅を変えているあいだは drawer-animate を外す */
+  .drawer-animate .site-sidebar { transition: transform .2s ease, visibility .2s; }
   .has-drawer .site-sidebar.is-open { transform: none; visibility: visible; }
   .site-sidebar:focus { outline: none; }
   .drawer-backdrop { position: fixed; inset: 0; z-index: 200; background: rgb(0 0 0 / .4); }
   .drawer-open, .drawer-open body { overflow: hidden; }
+  /* スクロールを止めてもスクロールバーの幅を残し、本文が横にずれないようにする（スクロールバーがあったときだけ。sidebar.js） */
+  .drawer-open.drawer-keep-gutter { scrollbar-gutter: stable; }
 }
 @media (min-width: 48rem) and (max-width: 71.99rem) {
   /* 2カラム：左は引き出しなので、本文の右には右のサイドバーだけを置く */
@@ -119,11 +123,11 @@ body:not(.admin) .site-header,
     position: fixed; top: 0; bottom: 0; right: 0; z-index: 210; width: min(20rem, 85vw);
     overflow-y: auto; overscroll-behavior: contain; padding: 1rem;
     background: var(--page-bg); border-left: 1px solid var(--border);
-    transform: translateX(100%); visibility: hidden; transition: transform .2s ease, visibility .2s;
+    transform: translateX(100%); visibility: hidden;
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .has-drawer .site-sidebar { transition: none; }
+  .drawer-animate .site-sidebar { transition: none; }
 }
 .site-footer { color: var(--muted); margin-top: 1rem; text-align: center; }
 /* Prism.js のトークンのクラス（comment、tag など）とぶつからないよう、記事やコメントの部品の名前には頭を付ける */

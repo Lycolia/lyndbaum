@@ -21,7 +21,7 @@
 		current = null;
 		drawerOf(button).classList.remove('is-open');
 		button.setAttribute('aria-expanded', 'false');
-		root.classList.remove('drawer-open');
+		root.classList.remove('drawer-open', 'drawer-keep-gutter');
 		backdrop.hidden = true;
 		if (restoreFocus) button.focus();
 	}
@@ -32,6 +32,8 @@
 		current = button;
 		drawer.classList.add('is-open');
 		button.setAttribute('aria-expanded', 'true');
+		// スクロールバーがあったときは、その幅を残す（style.css の drawer-keep-gutter）
+		root.classList.toggle('drawer-keep-gutter', window.innerWidth > root.clientWidth);
 		root.classList.add('drawer-open');
 		backdrop.hidden = false;
 		drawer.focus({ preventScroll: true });
@@ -48,6 +50,18 @@
 		});
 	});
 	root.classList.add('has-drawer');
+	// 動きを付けるのは、閉じた位置が決まってから（読み込んだ直後や、幅を変えて引き出しになったときに、閉じる動きを出さない）
+	function enableAnimation() {
+		void document.body.offsetWidth;
+		root.classList.add('drawer-animate');
+	}
+	enableAnimation();
+	var resizeTimer = null;
+	window.addEventListener('resize', function () {
+		root.classList.remove('drawer-animate');
+		clearTimeout(resizeTimer);
+		resizeTimer = setTimeout(enableAnimation, 200);
+	});
 
 	backdrop.addEventListener('click', function () { close(true); });
 	document.addEventListener('keydown', function (evt) {
