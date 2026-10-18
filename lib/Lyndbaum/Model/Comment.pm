@@ -99,6 +99,43 @@ sub count_by_status {
 	return \%count;
 }
 
+# 新着のコメントの数。最後にコメントの一覧（すべて）を開いたときより後に届いたもの。管理者が書いたものは除く
+#   IDだけで比べると、いちばん新しいコメントを消した後の投稿が同じIDになって数えられないので、投稿日時とも比べる
+#   （投稿日時だけでは、一覧を開いたのと同じ秒に届いたものを数えられない）
+sub count_new {
+	my ($class, $dbh) = @_;
+	my ($id, $at) = $class->seen($dbh);
+	return scalar $dbh->selectrow_array(
+		'SELECT COUNT(*) FROM comments WHERE by_admin = 0 AND (id > ? OR created_at > ?)', undef, $id, $at);
+}
+
+# 最後に見たコメントのIDと投稿日時（mark_seen が記録したもの）
+#   アプリの設定のキャッシュ（Lyndbaum::App->settings）は、同じリクエストの中で既読にした後は古いので使わない
+sub seen {
+	my ($class, $dbh) = @_;
+	my %v = map { @$_ } @{ $dbh->selectall_arrayref(
+		q{SELECT key, value FROM settings WHERE key IN ('comments_seen_id', 'comments_seen_at')}) };
+	return ($v{comments_seen_id} // 0, $v{comments_seen_at} // 0);
+}
+
+# 新着のコメントか。$seen は既読にする前の seen の値
+sub is_new {
+	my ($class, $comment, $seen_id, $seen_at) = @_;
+	return !$comment->{by_admin} && ($comment->{id} > $seen_id || $comment->{created_at} > $seen_at);
+}
+
+# 今あるコメントを、すべて既読にする。新しいコメントが無ければ書き込まない
+#   （設定を書き換えるとサイドバーのキャッシュが消えるので、変わらないときは書かない）
+sub mark_seen {
+	my ($class, $dbh) = @_;
+	my ($id, $at) = $dbh->selectrow_array('SELECT COALESCE(MAX(id), 0), COALESCE(MAX(created_at), 0) FROM comments');
+	my ($seen_id, $seen_at) = $class->seen($dbh);
+	return if $id <= $seen_id && $at <= $seen_at;
+	require Lyndbaum::Model::Setting;
+	Lyndbaum::Model::Setting->set($dbh, comments_seen_id => $id > $seen_id ? $id : $seen_id);
+	Lyndbaum::Model::Setting->set($dbh, comments_seen_at => $at > $seen_at ? $at : $seen_at);
+}
+
 # 新しい順の一覧
 #   %args：status（undef ならすべて）、article_id（その記事のコメントだけ）、limit、offset
 #   各項目は記事の slug、題名、公開中かどうか（article_public）を含む

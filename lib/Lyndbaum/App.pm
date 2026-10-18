@@ -254,19 +254,22 @@ sub render {
 #   左端は、公開側ではダッシュボード、管理画面ではブログ（WordPress と同じ）
 #   %args
 #     held   承認待ちのコメントの数（呼ぶ側で数えてあれば渡す）
+#     new    新着のコメントの数（同じ）
 #     admin  真なら管理画面に出すもの
 #     edit   「編集」の行き先
 sub _admin_bar {
 	my ($self, $session, %args) = @_;
 	my $held = $args{held} // Lyndbaum::Model::Comment->count_by_status($self->db)->{held};
+	my $new  = $args{new} // Lyndbaum::Model::Comment->count_new($self->db);
 	return {
 		home_url    => $args{admin} ? $self->url->top : $self->url->admin,
 		home_label  => $args{admin} ? 'ブログを表示' : 'ダッシュボード',
 		new_article => $self->url->admin('articles/new'),
 		new_page    => $self->url->admin('articles/new', kind => 'page'),
-		# 承認待ちがあれば、承認待ちの一覧を開く
-		comments    => $self->url->admin('comments', status => $held ? 'held' : undef),
+		# 新着があれば、すべての一覧（開くと既読になる）。無くて承認待ちがあれば、承認待ちの一覧
+		comments    => _comments_url($self, $new, $held),
 		held_count  => $held,
+		new_count   => $new,
 		edit        => $args{edit},
 		logout      => $self->url->admin('logout'),
 		csrf_token  => $session->{csrf_token},
@@ -297,6 +300,7 @@ sub render_admin {
 	my ($self, $name, $vars, %args) = @_;
 	my $session = $args{session};
 	my $held    = $session ? Lyndbaum::Model::Comment->count_by_status($self->db)->{held} : 0;
+	my $new     = $session ? Lyndbaum::Model::Comment->count_new($self->db) : 0;
 	my %all = (
 		blog       => $self->settings,
 		urls       => {
@@ -324,8 +328,8 @@ sub render_admin {
 		},
 		logged_in  => $session ? 1 : 0,
 		csrf_token => $session ? $session->{csrf_token} : '',
-		admin_bar  => $session ? $self->_admin_bar($session, admin => 1, held => $held) : undef,
-		admin_menu => $session ? $self->_admin_menu($args{nav} // $NAV_OF{$name} // '', $held) : undef,
+		admin_bar  => $session ? $self->_admin_bar($session, admin => 1, held => $held, new => $new) : undef,
+		admin_menu => $session ? $self->_admin_menu($args{nav} // $NAV_OF{$name} // '', $held, $new) : undef,
 		%$vars,
 	);
 	my $content = $self->template->render($name, \%all);
@@ -335,9 +339,10 @@ sub render_admin {
 
 # 管理画面の左のナビ（templates/admin_layout.html）
 #   子のある項目は、今のページがその中にあるときだけ子を出す（WordPress と同じ）
-#   [ { key, label, url, count, current, open, children => [ { key, label, url, current }, ... ] }, ... ]
+#   [ { key, label, url, count, new_count, current, open, children => [ { key, label, url, current }, ... ] }, ... ]
+#   count は承認待ち、new_count は新着のコメントの数（コメントの項目だけ）
 sub _admin_menu {
-	my ($self, $nav, $held) = @_;
+	my ($self, $nav, $held, $new) = @_;
 	my $u = $self->url;
 	my @menu = (
 		[ dashboard => 'ダッシュボード', $u->admin ],
@@ -351,7 +356,7 @@ sub _admin_menu {
 		] ],
 		[ trash     => 'ゴミ箱', $u->admin('trash') ],
 		[ media     => 'メディア', $u->admin('media') ],
-		[ comments  => 'コメント', $u->admin('comments', status => $held ? 'held' : undef), undef, $held ],
+		[ comments  => 'コメント', _comments_url($self, $new, $held), undef, $held, $new ],
 		[ tags      => 'タグ',     $u->admin('tags') ],
 		[ sidebar   => 'サイドバー', $u->admin('sidebar') ],
 		[ settings  => '設定', $u->admin('settings/blog'), [
@@ -361,7 +366,7 @@ sub _admin_menu {
 		] ],
 	);
 	return [ map {
-		my ($key, $label, $url, $children, $count) = @$_;
+		my ($key, $label, $url, $children, $count, $new_count) = @$_;
 		my @children = map { +{ key => $_->[0], label => $_->[1], url => $_->[2], current => $_->[0] eq $nav } } @{ $children // [] };
 		my $open = grep { $_->{current} } @children;
 		+{
@@ -369,10 +374,18 @@ sub _admin_menu {
 			label    => $label,
 			url      => $url,
 			count    => $count,
+			new_count => $new_count,
 			current  => ($key eq $nav || $open) ? 1 : 0,
 			children => $open ? \@children : [],
 		};
 	} @menu ];
+}
+
+# 管理者のメニューとナビの「コメント」の行き先
+#   新着があれば、すべての一覧（開くと既読になる）。無くて承認待ちがあれば、承認待ちの一覧
+sub _comments_url {
+	my ($self, $new, $held) = @_;
+	return $self->url->admin('comments', status => !$new && $held ? 'held' : undef);
 }
 
 # 管理画面の応答に付けるヘッダー

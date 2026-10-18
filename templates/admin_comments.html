@@ -19,7 +19,7 @@
 {{# for comment in comments }}
 <article class="admin-comment{{# if comment.held }} admin-comment-held{{/ if }}">
   <p class="comment-meta">
-    <span class="admin-status">{{ comment.status_label }}</span>
+    <span class="admin-status">{{ comment.status_label }}</span>{{# if comment.is_new }} <span class="admin-status admin-status-new">新着</span>{{/ if }}
     {{# if comment.url }}<a href="{{ comment.url }}">{{ comment.title }} #{{ comment.num }}</a>{{# else }}{{ comment.title }} #{{ comment.num }}（記事は非公開）{{/ if }}
   </p>
   <p class="comment-meta">

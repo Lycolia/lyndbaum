@@ -330,8 +330,9 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `admin_bar.home_label` | 左端の名前（「ダッシュボード」か「ブログを表示」）                    |
 | `admin_bar.new_article`| 新しい記事のURL                                                       |
 | `admin_bar.new_page`   | 新しいコンテンツページのURL                                           |
-| `admin_bar.comments`   | コメントの一覧のURL（承認待ちがあれば、承認待ちの一覧）               |
+| `admin_bar.comments`   | コメントの一覧のURL（新着があればすべての一覧、無くて承認待ちがあれば承認待ちの一覧） |
 | `admin_bar.held_count` | 承認待ちのコメントの数                                                |
+| `admin_bar.new_count`  | 新着のコメントの数（`docs/admin.md`の「新着のコメント」）             |
 | `admin_bar.edit`       | 今のページの編集の画面のURL（記事とコンテンツページだけ）             |
 | `admin_bar.logout`     | ログアウトのURL（POSTで送る）                                        |
 | `admin_bar.csrf_token` | ログアウトのフォームに入れるCSRFのトークン                          |
@@ -388,6 +389,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `label`    | 表示する名前                                                         |
 | `url`      | 行き先                                                               |
 | `count`    | 件数（コメントの承認待ち）。無ければ空                               |
+| `new_count` | 新着のコメントの数（コメントの項目だけ）。無ければ空                |
 | `current`  | 今のページがこの項目か、その子なら真                                 |
 | `children` | 子の配列（今のページがこの項目の子のときだけ。ほかは空）。要素は`key`、`label`、`url`、`current` |
 

@@ -48,6 +48,10 @@ sub index {
 
 	my $comments = Lyndbaum::Model::Comment->list_admin($app->db,
 		status => $status, article_id => $article_id, limit => $PER_PAGE, offset => ($pager->{page} - 1) * $PER_PAGE);
+	# すべての記事の、すべてのコメントの一覧を開いたら、新着を既読にする（新着の印は、既読にする前の値で付ける）
+	#   承認待ちだけや、1つの記事だけの一覧では、ほかの新着が見えないので既読にしない
+	my @seen = Lyndbaum::Model::Comment->seen($app->db);
+	Lyndbaum::Model::Comment->mark_seen($app->db) if !defined $status && !$article;
 	my $settings = $app->settings;
 	my $blocked  = Lyndbaum::CommentSettings->lines_of($settings, 'comments_block_ips');
 	my $is_page  = $article && $article->{kind} eq 'page';
@@ -70,6 +74,7 @@ sub index {
 				%$c,
 				status_label => $STATUS_LABEL{ $c->{status} },
 				held         => $c->{status} eq 'held',
+				is_new       => Lyndbaum::Model::Comment->is_new($c, @seen),
 				created      => format_date($c->{created_at}),
 				url          => $c->{article_public} ? $app->url->article($c->{slug}) . "#c$c->{num}" : undef,
 				action_url   => $app->url->admin("comments/$c->{id}"),

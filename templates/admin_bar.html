@@ -3,7 +3,7 @@
   <a href="{{ admin_bar.home_url }}">{{ admin_bar.home_label }}</a>
   <a href="{{ admin_bar.new_article }}">＋記事</a>
   <a href="{{ admin_bar.new_page }}">＋ページ</a>
-  <a href="{{ admin_bar.comments }}">コメント{{# if admin_bar.held_count }} <span class="admin-bar-count" title="承認待ち">{{ admin_bar.held_count }}</span>{{/ if }}</a>
+  <a href="{{ admin_bar.comments }}">コメント{{# if admin_bar.new_count }} <span class="admin-bar-count admin-bar-new">新着{{ admin_bar.new_count }}</span>{{/ if }}{{# if admin_bar.held_count }} <span class="admin-bar-count" title="承認待ち">{{ admin_bar.held_count }}</span>{{/ if }}</a>
   {{# if admin_bar.edit }}
   <a href="{{ admin_bar.edit }}">編集</a>
   {{/ if }}

@@ -4,6 +4,7 @@ use warnings;
 use utf8;
 use Test::More;
 
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Setting;
 use AdminTest;
 use TestUtil qw(insert_article);
@@ -39,6 +40,35 @@ subtest 'ダッシュボード' => sub {
 	my $body = $t->request(GET => '/admin', cookie => $cookie)->body;
 	like $body, qr{承認待ちのコメント</a><span class="admin-glance-count">1件</span>};
 	like $body, qr{公開中のコメント</a><span class="admin-glance-count">2件</span>};
+};
+
+subtest '新着' => sub {
+	my $badge = qr{<span class="admin-bar-count admin-bar-new">新着3</span>};
+	my $body = $t->request(GET => '/admin', cookie => $cookie)->body;
+	like $body, qr{<nav class="admin-bar".*?<a href="/admin/comments">コメント $badge}s, '管理バー。新着があれば、すべての一覧へ';
+	like $body, qr{<nav class="admin-menu".*?<a href="/admin/comments">コメント $badge}s, '左のナビ';
+	like $t->request(GET => '/01', cookie => $cookie)->body, qr{<a href="/admin/comments">コメント $badge}, '公開側の管理バー';
+
+	$body = $t->request(GET => '/admin/comments?status=held', cookie => $cookie)->body;
+	like $body, $badge, '承認待ちだけの一覧では既読にしない';
+	$body = $t->request(GET => '/admin/comments?article=1', cookie => $cookie)->body;
+	like $body, $badge, '1つの記事の一覧でも既読にしない';
+
+	$body = $t->request(GET => '/admin/comments', cookie => $cookie)->body;
+	unlike $body, qr{admin-bar-new}, 'すべての一覧を開いたら既読';
+	is scalar(() = $body =~ m{<span class="admin-status admin-status-new">新着</span>}g), 3, '開いた一覧では、新着だったものに印を付ける';
+	unlike $t->request(GET => '/admin/comments', cookie => $cookie)->body, qr{admin-status-new}, 'もう一度開いたら印は付かない';
+
+	# いちばん新しいコメントを消した後の投稿は同じIDになるが、投稿日時で新着と分かる
+	$dbh->do('DELETE FROM comments WHERE id = 3');
+	$insert->execute(3, 2, 2, 'public', '新しい人', '新しい本文', '', '', '', 1700000400);
+	$dbh->do(q{INSERT INTO comments (id, article_id, num, status, by_admin, author_name, body, created_at) VALUES (4, 1, 3, 'public', 1, '管理者', '返事', 1700000500)});
+	like $t->request(GET => '/admin', cookie => $cookie)->body, qr{<span class="admin-bar-count admin-bar-new">新着1</span>},
+		'消したコメントと同じIDでも新着。管理者のコメントは数えない';
+	$t->request(GET => '/admin/comments', cookie => $cookie);
+	$dbh->do('DELETE FROM comments WHERE id IN (3, 4)');
+	$insert->execute(3, 2, 1, 'public', '下書きの人', '下書きへの本文', '', '', '', 1700000300);
+	is(Lyndbaum::Model::Comment->count_new($dbh), 0, '既読より前の日時とIDなら新着にしない');
 };
 
 subtest '一覧' => sub {

@@ -11,6 +11,7 @@ use File::Temp qw(tempdir);
 
 use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Legacy::TextDB;
+use Lyndbaum::Model::Comment;
 use TestUtil qw(root_dir new_test_app);
 
 my $fixture = File::Spec->catdir(root_dir(), 't', 'data', 'adiary');
@@ -104,7 +105,8 @@ subtest '取り込み' => sub {
 		'最後に使った番号。非公開コメントの番号も含める（記事4のコメントは非公開の1件だけ）';
 	is $dbh->selectrow_array(q{SELECT value FROM sequences WHERE name = 'articles'}), 4, '最後に使った記事のID（使い回さないため）';
 
-	is_deeply $dbh->selectall_arrayref('SELECT key, value FROM settings ORDER BY key'),
+	is(Lyndbaum::Model::Comment->count_new($dbh), 0, '取り込んだコメントは新着として数えない');
+	is_deeply $dbh->selectall_arrayref(q{SELECT key, value FROM settings WHERE key NOT LIKE 'comments_seen_%' ORDER BY key}),
 		[ [ blog_author => 'テストの人' ], [ blog_image => '@system/blog.png' ], [ blog_title => 'テストのブログ' ], [ feed_items => 7 ], [ per_page => 3 ] ],
 		'ブログの設定（空の値は取り込まない）。書いた人の名前は記事から取る';
 };

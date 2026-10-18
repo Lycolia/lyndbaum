@@ -17,7 +17,7 @@
   <ul>
     {{# for item in admin_menu }}
     <li class="admin-menu-item{{# if item.current }} is-current{{/ if }}">
-      <a href="{{ item.url }}"{{# if item.current }}{{# if not item.children }} aria-current="page"{{/ if }}{{/ if }}>{{ item.label }}{{# if item.count }} <span class="admin-bar-count" title="承認待ち">{{ item.count }}</span>{{/ if }}</a>
+      <a href="{{ item.url }}"{{# if item.current }}{{# if not item.children }} aria-current="page"{{/ if }}{{/ if }}>{{ item.label }}{{# if item.new_count }} <span class="admin-bar-count admin-bar-new">新着{{ item.new_count }}</span>{{/ if }}{{# if item.count }} <span class="admin-bar-count" title="承認待ち">{{ item.count }}</span>{{/ if }}</a>
       {{# if item.children }}
       <ul class="admin-submenu">
         {{# for child in item.children }}

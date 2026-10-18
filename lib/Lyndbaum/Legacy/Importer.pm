@@ -11,6 +11,7 @@ use Time::Local qw(timegm);
 use Lyndbaum::Legacy::TextDB;
 use Lyndbaum::Parser;
 use Lyndbaum::Parser::Markdown;
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
 
@@ -51,6 +52,8 @@ sub run {
 		$result{article_tags} = $class->_import_article_tags($dbh, $articles, $tags);
 		($result{comments}, $result{private_comments}) = $class->_import_comments($dbh, $comments);
 		$result{settings}     = $class->_import_settings($dbh, $setting, $articles);
+		# 取り込んだコメントは、新着として数えない
+		Lyndbaum::Model::Comment->mark_seen($dbh);
 		# 記事のIDを使い回さないよう、最後に使ったIDを記録する（Lyndbaum::Model::Article->next_id）
 		$dbh->do(q{INSERT OR REPLACE INTO sequences (name, value) SELECT 'articles', COALESCE(MAX(id), 0) FROM articles});
 		Lyndbaum::Model::Tag->rebuild_paths($dbh);

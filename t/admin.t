@@ -8,6 +8,7 @@ use JSON::PP ();
 use Lyndbaum::App;
 use Lyndbaum::Config;
 use Lyndbaum::Model::Admin;
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Password;
 use AdminTest;
 use TestUtil qw(insert_article);
@@ -170,6 +171,10 @@ subtest 'ログイン中は、公開側のページの上に管理者のメニ�
 	like $res->body, qr{<body>\s*<nav class="admin-bar"}, 'ページのいちばん上';
 
 	$dbh->do(q{INSERT INTO comments (article_id, num, status, author_name, body, created_at) VALUES (30, ?, 'held', '名無し', '承認待ち', 0)}, undef, $_) for 1, 2;
+	like request(GET => '/search', cookie => $cookie)->body,
+		qr{<a href="/admin/comments">コメント <span class="admin-bar-count admin-bar-new">新着2</span> <span class="admin-bar-count" title="承認待ち">2</span></a>},
+		'新着があれば新着の件数も出し、すべての一覧へ（開くと既読になる）';
+	Lyndbaum::Model::Comment->mark_seen($dbh);
 	like request(GET => '/search', cookie => $cookie)->body,
 		qr{<a href="/admin/comments\?status=held">コメント <span class="admin-bar-count" title="承認待ち">2</span></a>}, '承認待ちがあれば件数を出し、承認待ちの一覧へ（検索のページ）';
 
