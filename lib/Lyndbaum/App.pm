@@ -21,7 +21,7 @@ use Lyndbaum::SidebarCache;
 use Lyndbaum::OGP;
 use Lyndbaum::SearchForm;
 
-my $APP_VERSION = '0.1.0-beta5';
+my $APP_VERSION = '0.5.0-beta';
 
 # ルーティング表。URLから処理を追うときはここを見る
 # URLの組み立ては Lyndbaum::URL にある
