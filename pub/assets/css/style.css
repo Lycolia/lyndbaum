@@ -471,3 +471,5 @@ a.media-item { text-decoration: none; }
 .article-body pre { overflow-x: auto; max-width: 100%; }
 .article-body { word-wrap: break-word; }
 .article-body .body_table { overflow-x: auto; }
+
+.article-body .body_table th, .article-body .body_table td { white-space: pre; }
