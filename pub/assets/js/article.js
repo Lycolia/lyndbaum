@@ -11,7 +11,6 @@
 
 	// コードの色付け。Prism は data-manual で自動では動かさず、言語の名前を整えてから動かす
 	//   言語の無いコード（class="language-"）は language-none（色は付けず、行番号とコピーのボタンだけ）
-	//   旧システムで使っていた別名を、Prism の名前に読み替える（c# と ps1 は旧システムでは色が付いていなかったもの）
 	var ALIASES = { sh: 'bash', bat: 'batch', cmd: 'batch', pwsh: 'powershell', ps1: 'powershell', 'c#': 'csharp' };
 	document.querySelectorAll('pre > code').forEach(function (code) {
 		var match = code.className.match(/(?:^|\s)language-([\w+#-]+)/);
