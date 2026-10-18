@@ -8,6 +8,7 @@ use warnings;
 use utf8;
 
 use Lyndbaum::Controller::Admin;
+use Lyndbaum::EditorSettings;
 use Lyndbaum::Response;
 use Lyndbaum::Upload;
 
@@ -21,8 +22,10 @@ sub upload {
 
 	my @uploads = $req->uploads('file');
 	return $class->_json($app, 400, errors => ['ファイルを選んでください。']) if !@uploads;
-	my $size = $req->body_param('thumbnail_size') // '';
-	$size = $app->settings->{thumbnail_size} if $size !~ /\A\d{2,3}\z/ || $size < 60 || $size > 800;
+	# 範囲は編集の設定の項目と同じ。外れていれば既定の大きさ
+	my $field = Lyndbaum::EditorSettings->field('thumbnail_size');
+	my $size  = $req->body_param('thumbnail_size') // '';
+	$size = $app->settings->{thumbnail_size} if $size !~ /\A\d{1,9}\z/ || $size < $field->{min} || $size > $field->{max};
 
 	my (@files, @errors);
 	my $dir = $app->attachment_dir;

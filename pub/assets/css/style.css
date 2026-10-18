@@ -357,7 +357,10 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .upload-button { border: 1px solid var(--border); padding: .2rem .75rem; cursor: pointer; }
 .upload-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .upload-button:focus-within { outline: 2px solid var(--link); }
-.upload-size { width: 5rem; font: inherit; }
+.preset-select { font: inherit; }
+.preset-other { margin-left: .35rem; }
+/* 4桁が見える幅（数と、ブラウザが出す増減のボタンの分）。.admin-form の数の欄の幅より強くする */
+.preset-other input[type="number"] { width: calc(4ch + 2em); font: inherit; }
 .upload-status { color: var(--muted); }
 
 /* メディア（添付ファイルの一覧） */

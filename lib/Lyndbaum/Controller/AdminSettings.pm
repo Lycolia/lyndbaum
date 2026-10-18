@@ -13,6 +13,7 @@ use Lyndbaum::CommentSettings;
 use Lyndbaum::Controller::Admin;
 use Lyndbaum::EditorSettings;
 use Lyndbaum::Model::Setting;
+use Lyndbaum::SettingsForm;
 
 my %PAGES = (
 	blog     => { title => 'ブログの設定',   items => 'Lyndbaum::BlogSettings',    nav => 'blog_settings' },
@@ -66,7 +67,9 @@ sub _render {
 			+{
 				%$f,
 				is_bool  => $f->{type} eq 'bool',
-				is_int   => $f->{type} eq 'int',
+				is_int   => $f->{type} eq 'int' && !$f->{presets},
+				# 選択肢と「直接入力」。部品（preset_field.html）には for の変数 preset で渡す
+				preset   => $f->{presets} ? [ Lyndbaum::SettingsForm->preset_field($f, $values->{ $f->{key} }, name => $f->{key}) ] : [],
 				is_lines => $f->{type} eq 'lines',
 				is_text  => $f->{type} eq 'text',
 				value    => $values->{ $f->{key} },

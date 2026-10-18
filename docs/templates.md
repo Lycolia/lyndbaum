@@ -396,4 +396,19 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 今のページは、テンプレートの名前から決める（`Lyndbaum::App`の`%NAV_OF`）。同じテンプレートで複数の項目にあたるページ（設定、記事の編集）は、コントローラが`render_admin`に`nav`を渡す。
 
 ページごとの変数は、そのページを出すコントローラ（`lib/Lyndbaum/Controller/Admin*.pm`）の`render_admin`の呼び出しを見る。
+
+### 選択肢と「直接入力」の欄（`preset_field.html`）
+
+数を選択肢から選び、「直接入力」を選んだときだけ数を入れる欄を出す部品（サムネイルの大きさ）。「直接入力」の欄を出し入れするのは`admin.js`。
+値は`Lyndbaum::SettingsForm->preset_field`で作り、`for`の変数`preset`で渡す（例：`{{# for preset in field.preset }}{{> preset_field }}{{/ for }}`）。
+
+| 変数             | 中身                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない（記事の編集の画面のアップロードの欄。`admin-article.js`が読む） |
+| `preset.label`   | 欄の名前（`aria-label`に使う）                                        |
+| `preset.options` | 選択肢の配列。要素は`value`（数か`other`）、`label`、`selected`        |
+| `preset.other`   | 「直接入力」を選んでいれば真（入力欄を出す）                           |
+| `preset.value`、`preset.min`、`preset.max`、`preset.unit` | 入力欄の値、範囲、後ろに付ける単位          |
+
+使う場所は、編集の設定（`admin_settings.html`の`field.preset`）と、記事の編集の画面のアップロードの欄（`admin_article_form.html`の`thumbnail_preset`）。
 管理画面のフォームには、必ず`<input type="hidden" name="csrf_token" value="{{ csrf_token }}">`を入れる（`docs/admin.md`）。

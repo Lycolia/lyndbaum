@@ -17,6 +17,9 @@
     {{# if field.is_bool }}
     <label><input type="checkbox" name="{{ field.key }}" value="1"{{# if field.checked }} checked{{/ if }}>{{ field.label }}</label>
     {{/ if }}
+    {{# for preset in field.preset }}
+    <span class="admin-field-label">{{ field.label }}</span><br>{{> preset_field }}
+    {{/ for }}
     {{# if field.is_int }}
     <label>{{ field.label }}<br><input type="number" name="{{ field.key }}" value="{{ field.value }}" min="{{ field.min }}" max="{{ field.max }}" required></label>
     {{/ if }}

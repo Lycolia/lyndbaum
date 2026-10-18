@@ -33,7 +33,9 @@
       {{! 添付ファイルのアップロード。admin-article.js が /admin/upload に送り、返った記法をカーソルの位置に入れる }}
       <div class="upload-bar" data-upload-url="{{ urls.upload }}">
         <label class="upload-button">アップロード<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm"></label>
-        <label>サムネイル <input type="number" class="upload-size" min="60" max="800" value="{{ thumbnail_size }}">px</label>
+        {{! サムネイルの長い辺（選択肢と「直接入力」）。admin-article.js が読んで送る }}
+        <span>サムネイル</span>
+        {{# for preset in thumbnail_preset }}{{> preset_field }}{{/ for }}
         <button type="button" class="media-open" data-base="{{ urls.media }}">ファイル一覧から選択</button>
         <span class="upload-status" role="status"></span>
       </div>
