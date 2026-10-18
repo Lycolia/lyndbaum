@@ -1,18 +1,21 @@
+{{! 本文（題名を含む）、参照元、コメントを、それぞれ別の枠にする（style.css） }}
 <article class="article">
-  {{# if article.is_draft }}
-  <p class="draft-notice" role="status">下書きです。管理者にだけ見えています。<a href="{{ article.edit_url }}">編集する</a></p>
-  {{/ if }}
-  <header>
-    <h1 class="article-title">{{ article.title }}</h1>
-    <p class="article-meta">
-      {{# if article.published }}投稿 <time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
-      {{# if article.show_updated }}更新 <time datetime="{{ article.updated.iso }}">{{ article.updated.date }}</time>{{/ if }}
-      {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
-    </p>
-  </header>
-  <div class="article-body">
-    {{! body はパーサーが作ったHTMLで、パーサーの側でエスケープと許可リストの確認をしている }}
-    {{ raw article.body }}
+  <div class="article-main">
+    {{# if article.is_draft }}
+    <p class="draft-notice" role="status">下書きです。管理者にだけ見えています。<a href="{{ article.edit_url }}">編集する</a></p>
+    {{/ if }}
+    <header>
+      <h1 class="article-title">{{ article.title }}</h1>
+      <p class="article-meta">
+        {{# if article.published }}投稿 <time datetime="{{ article.published.iso }}">{{ article.published.date }}</time>{{/ if }}
+        {{# if article.show_updated }}更新 <time datetime="{{ article.updated.iso }}">{{ article.updated.date }}</time>{{/ if }}
+        {{# for tag in article.tags }}<a class="article-tag" href="{{ tag.url }}">{{ tag.full_name }}</a> {{/ for }}
+      </p>
+    </header>
+    <div class="article-body">
+      {{! body はパーサーが作ったHTMLで、パーサーの側でエスケープと許可リストの確認をしている }}
+      {{ raw article.body }}
+    </div>
   </div>
   {{! backlinks_html は Lyndbaum::Backlinks が templates/backlinks.html で作って保存したもので、エスケープ済み }}
   {{ raw article.backlinks_html }}

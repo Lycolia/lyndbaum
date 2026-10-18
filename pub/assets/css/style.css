@@ -41,22 +41,24 @@ body {
 }
 a { color: var(--link); }
 
-/* 公開側のページ：地の色の上に、ヘッダー、記事、サイドバーの各項目などを枠として置く */
+/* 公開側のページ：地の色の上に、ヘッダー、記事、サイドバーの各項目などを枠として置く
+   記事のページは、本文（.article-main）、参照元、コメントをそれぞれ別の枠にする */
 body:not(.admin) { background: var(--page-bg); }
 body:not(.admin) .site-header,
-.article, .article-summary, .search-panel, .not-found, .sidebar-section {
+.article-main, .backlinks, .comments, .article-summary, .search-panel, .not-found, .sidebar-section {
   background: var(--bg);
   border: 1px solid var(--border);
   padding: 1rem 1.25rem;
 }
 @media (max-width: 40rem) {
   body:not(.admin) .site-header,
-  .article, .article-summary, .search-panel, .not-found, .sidebar-section { padding: .75rem 1rem; }
+  .article-main, .backlinks, .comments, .article-summary, .search-panel, .not-found, .sidebar-section { padding: .75rem 1rem; }
 }
-.article, .article-summary, .search-panel, .not-found, .sidebar-section { margin-bottom: 1rem; }
-.article-title, .list-header h1, .not-found h1 { margin-top: 0; }
+.article-main, .backlinks, .comments, .article-summary, .search-panel, .not-found, .sidebar-section { margin-bottom: 1rem; }
+.article-title, .backlinks-title, .comments-title, .list-header h1, .not-found h1 { margin-top: 0; }
 /* 枠の下の内側に、最後の要素の余白が重ならないようにする */
-.search-panel > :last-child, .not-found > :last-child, .sidebar-section > :last-child, .article-summary .article-body > :last-child { margin-bottom: 0; }
+.search-panel > :last-child, .not-found > :last-child, .sidebar-section > :last-child, .backlinks > :last-child, .comments > :last-child,
+.article-body > :last-child { margin-bottom: 0; }
 .site-header { border-bottom: 1px solid var(--border); }
 /* ログイン中に公開側のページの上に出す、管理者のメニュー。明るい画面でも暗い画面でも同じ色にする */
 .admin-bar {
@@ -171,10 +173,8 @@ body:not(.admin) .site-header,
 .search-more { color: var(--muted); font-size: .85rem; margin: 0; }
 mark { background: #ffe066; color: #000; }
 /* 参照元（この記事へリンクしている記事）。本文とコメントの間に置く */
-.backlinks { border-top: 1px solid var(--border); margin-top: 2rem; }
 .backlinks-title { font-size: 1.1rem; }
 .backlinks-list { margin: 0; padding-left: 1.5rem; }
-.comments { border-top: 1px solid var(--border); margin-top: 2rem; }
 .comments-title { font-size: 1.1rem; }
 .comment-entry { border-bottom: 1px solid var(--border); padding: .5rem 0; }
 .comment-meta { margin: 0; color: var(--muted); font-size: .9rem; }
