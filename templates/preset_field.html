@@ -1,0 +1,8 @@
+{{! 選択肢と「直接入力」の欄。値は Lyndbaum::SettingsForm->preset_field で作り、for の変数 preset で受け取る
+    「直接入力」を選んだときだけ、数を入れる欄を出す（admin.js）。name が無ければフォームで送らない }}
+<select class="preset-select"{{# if preset.name }} name="{{ preset.name }}"{{/ if }} aria-label="{{ preset.label }}">
+  {{# for option in preset.options }}
+  <option value="{{ option.value }}"{{# if option.selected }} selected{{/ if }}>{{ option.label }}</option>
+  {{/ for }}
+</select>
+<label class="preset-other"{{# if not preset.other }} hidden{{/ if }}><input type="number"{{# if preset.name }} name="{{ preset.name }}_other"{{/ if }} value="{{ preset.value }}" min="{{ preset.min }}" max="{{ preset.max }}" aria-label="{{ preset.label }}">{{ preset.unit }}</label>

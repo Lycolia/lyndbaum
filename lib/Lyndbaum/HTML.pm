@@ -50,7 +50,7 @@ my %ALLOWED_TAGS = (
 		figure figcaption details summary caption thead tbody tfoot tr center
 		h1 h2 h3 h4 h5 h6
 	)),
-	a        => [qw(href target rel name data-fancybox)],
+	a        => [qw(href target rel name data-lythumb)],
 	img      => [qw(src alt width height loading)],
 	table    => [qw(border cellpadding cellspacing width)],
 	th       => [qw(colspan rowspan align width scope)],

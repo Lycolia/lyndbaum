@@ -51,6 +51,10 @@ CREATE TABLE articles (
                       -- 最後に使ったコメントの番号。消したコメントの番号を次の投稿に使い回さないため
                       -- （MAX(num) + 1 では、いちばん新しいコメントを消すと番号が戻る）
 
+    -- 参照元（この記事へリンクしている記事の一覧）の生成済みHTML。Lyndbaum::Backlinks が作る
+    --   NULL なら作り直しが要る（下の article_links のトリガーが NULL にする）。参照元が無ければ空文字
+    backlinks_html    TEXT,
+
     CHECK (parent_id IS NULL OR parent_id <> id)
 );
 
@@ -162,6 +166,48 @@ CREATE TABLE revisions (
 );
 
 CREATE INDEX idx_revisions_article ON revisions (article_id, created_at DESC);
+
+--------------------------------------------------------------------------------
+-- 記事間のリンク（参照元の表示用）
+--   本文の [文字](slug) の形のリンク（# や ? の付いたもの、画像は除く）を、本文を変換するときに入れ直す
+--   リンク先は slug で持つ。まだ無い記事やページへのリンクも持っておき、表示するときに記事と突き合わせる
+--------------------------------------------------------------------------------
+CREATE TABLE article_links (
+    source_id    INTEGER NOT NULL REFERENCES articles (id) ON DELETE CASCADE,  -- リンクしている記事
+    target_slug  TEXT    NOT NULL,                                             -- リンク先の slug
+    PRIMARY KEY (source_id, target_slug)
+) WITHOUT ROWID;
+
+CREATE INDEX idx_article_links_target ON article_links (target_slug, source_id);
+
+-- 参照元のHTMLを作り直す記事に印を付ける（backlinks_html を NULL にする）。作り直すのは Lyndbaum::Backlinks->rebuild
+--   リンクが増えたり減ったりしたら、リンク先の記事
+CREATE TRIGGER backlinks_links_insert
+AFTER INSERT ON article_links
+BEGIN
+    UPDATE articles SET backlinks_html = NULL WHERE slug = NEW.target_slug;
+END;
+
+CREATE TRIGGER backlinks_links_delete
+AFTER DELETE ON article_links
+BEGIN
+    UPDATE articles SET backlinks_html = NULL WHERE slug = OLD.target_slug;
+END;
+
+--   リンクしている記事の、参照元に出るかどうか（状態、ゴミ箱）、題名、並び順（公開日時）が変わったら、そのリンク先の記事
+CREATE TRIGGER backlinks_source_update
+AFTER UPDATE OF kind, title, status, published_at, deleted_at ON articles
+BEGIN
+    UPDATE articles SET backlinks_html = NULL
+    WHERE slug IN (SELECT target_slug FROM article_links WHERE source_id = NEW.id);
+END;
+
+--   slug が変わったら（コンテンツページの名前や親を変えたとき）、その記事。リンクしてくる記事が変わる
+CREATE TRIGGER backlinks_target_slug
+AFTER UPDATE OF slug ON articles
+BEGIN
+    UPDATE articles SET backlinks_html = NULL WHERE id = NEW.id;
+END;
 
 --------------------------------------------------------------------------------
 -- 外部URLの情報のキャッシュ（[&URL] の埋め込み用）

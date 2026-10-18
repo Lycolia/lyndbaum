@@ -27,8 +27,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
   - さくらのレンタルサーバーにプリインストールされているモジュール（DBI、DBD::SQLite、GD、IO::Socket::SSL、Mozilla::CA、URI、HTML::Entitiesなど）
 - 上記以外が必要な場合は、pure Perlのモジュールを`extlib/`に同梱する。AGPLv3と両立するライセンスのものに限る
 - フロントエンドのライブラリも同様に、AGPLv3と両立するライセンスのものに限る。有償ライセンスのものは使わない
-  - 画像の拡大表示はFancybox v3（GPLv3）を使う。後継版は有償ライセンスのため使わない
-  - 将来は自作で置き換える可能性があるが、初期段階では行わない
+  - 画像の拡大表示は自作のLythumb-viewer（AGPLv3、`pub/assets/js/extlib/lythumb/`）を使う。以前はFancybox v3（GPLv3）を使っていた
 - **自分でビルドが必要なXSモジュールは使わない**
 - 大きなフレームワーク（Mojolicious、Dancerなど）は使わない。ルーターなどは自前で小さく書く
 - 依存を新しく増やすときは、理由を作者に伝えてから追加する
@@ -86,7 +85,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
   - DBなどの書き込むファイルは`var/`に置く。`var/.htaccess`でWebから読めないようにしている
   - スキーマを最新にするには`perl tools/migrate.pl`を実行する
   - 旧システムのデータの取り込みは`perl tools/import-adiary.pl data lycolia`（取り込み先のDBは空であること）。取り込んだ後、全記事の本文を変換する
-  - 全記事の本文を変換し直すには`perl tools/rebuild-html.pl`。表示や検索のときには変換しないので、パーサーを直したら実行する（旧システムの再構築ボタンにあたる）
+  - 全記事の本文を変換し直すには`perl tools/rebuild-html.pl`。表示や検索のときには変換しないので、パーサーを直したら実行する（旧システムの再構築ボタンにあたる）。参照元（`templates/backlinks.html`）も保存時に作っておくので、このテンプレートを変えたときも実行する
   - サイトの絶対URL（RSSに使う）は`config.json`の`site_url`。RSSは`pub/rss.xml`、サイトマップは`pub/sitemap.xml`に書き出す（記事の保存、取り込みと再構築のときにも書き出す。手で書き出すには`perl tools/build-feed.pl`）
   - 管理者のログイン名とパスワードは`perl tools/set-password.pl`で登録する（Webの初期設定画面は無い）
   - コメントのフォームのトークンの署名には、`config.json`の`secret_key`を使う。無ければコメントのフォームを出さない。作るには`perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'`

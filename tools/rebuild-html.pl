@@ -13,11 +13,13 @@ use Lyndbaum::App;
 use Lyndbaum::StaticFiles;
 use Lyndbaum::Model::Article;
 use Lyndbaum::SidebarCache;
+use Lyndbaum::Backlinks;
 
 my $root = "$FindBin::Bin/..";
 my $app  = Lyndbaum::App->new(root => $root, config_file => $ARGV[0] // "$root/config.json");
 my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context);
 Lyndbaum::SidebarCache->rebuild($app);
+Lyndbaum::Backlinks->rebuild($app, all => 1);
 
 binmode STDOUT, ':encoding(UTF-8)';
 print "$count 件の記事を変換しました\n";

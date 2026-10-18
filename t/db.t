@@ -33,7 +33,7 @@ subtest 'マイグレーションを流すと user_version が上がる' => sub 
 		q{SELECT name FROM sqlite_master WHERE type = 'table'}
 	) };
 	is_deeply \@tables, [ sort qw(
-		articles article_search tags tag_paths article_tags comments
+		articles article_search article_links tags tag_paths article_tags comments
 		revisions url_cache settings admin sessions login_failures sequences sidebar_cache
 	) ];
 };

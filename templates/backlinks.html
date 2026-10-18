@@ -1,0 +1,11 @@
+{{! 参照元（この記事へリンクしている記事）。Lyndbaum::Backlinks が保存するときに描画する。変えたら再構築する }}
+{{# if backlinks }}
+<section class="backlinks">
+  <h2 class="backlinks-title">参照元</h2>
+  <ul class="backlinks-list">
+    {{# for link in backlinks }}
+    <li><a href="{{ link.url }}">{{ link.title }}</a></li>
+    {{/ for }}
+  </ul>
+</section>
+{{/ if }}

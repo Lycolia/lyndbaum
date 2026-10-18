@@ -10,7 +10,7 @@
   </ul>
 </div>
 {{/ if }}
-<p>公開側の右のサイドバーに、コンテンツの木の下から、この順に出します（旧システムの「Information」や「カウンター」にあたる欄）。中身はHTMLで書きます。記事に書ける生のHTMLと同じタグだけを通し、ほかのタグは文字として出します。題名も中身も空にすると、その欄は消えます。</p>
+<p>公開側の右のサイドバーに、コンテンツの木の下から、この順に出します。中身はHTMLで書きます。記事に書ける生のHTMLと同じタグだけを通し、ほかのタグは文字として出します。題名も中身も空にすると、その欄は消えます。</p>
 {{! 欄は box_title と box_html を同じ名前で並べて送る。並べ替えは admin-sidebar.js }}
 <form class="admin-form sidebar-boxes" method="post" action="{{ action }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

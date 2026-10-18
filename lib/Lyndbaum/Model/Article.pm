@@ -550,8 +550,20 @@ sub rebuild_body {
 		Lyndbaum::Parser::Common::normalize_for_search($article->{title} // ''),
 		Lyndbaum::Parser::Common->search_text($article->{title}, $result->{html}),
 		Lyndbaum::Parser::Common->search_source($article->{title}, $article->{body_src}));
+	$class->_save_links($dbh, $article->{id}, $result->{links} // []);
 	$article->{body_html} = $result->{html};
 	return $result->{html};
+}
+
+# 本文の記事へのリンク（参照元に使う。Lyndbaum::Backlinks）を入れ直す
+#   リンク先の記事の参照元はトリガーが作り直しの印を付けるので、変わらないときは書き換えない
+sub _save_links {
+	my ($class, $dbh, $id, $slugs) = @_;
+	my %new = map { $_ => 1 } @$slugs;
+	my $old = $dbh->selectcol_arrayref('SELECT target_slug FROM article_links WHERE source_id = ?', undef, $id);
+	return if @$old == keys %new && !grep { !$new{$_} } @$old;
+	$dbh->do('DELETE FROM article_links WHERE source_id = ?', undef, $id);
+	$dbh->do('INSERT INTO article_links (source_id, target_slug) VALUES (?, ?)', undef, $id, $_) for sort keys %new;
 }
 
 # 全記事（下書きとゴミ箱を含む）を変換し直す。変換した件数を返す

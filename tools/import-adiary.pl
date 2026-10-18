@@ -16,6 +16,7 @@ use Lyndbaum::StaticFiles;
 use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Model::Article;
 use Lyndbaum::SidebarCache;
+use Lyndbaum::Backlinks;
 
 my ($data_dir, $blog_id, $config_file) = @ARGV;
 die "使い方: $0 <旧システムの data> <ブログID> [設定ファイル]\n" if !defined $blog_id;
@@ -28,10 +29,13 @@ my $result = Lyndbaum::Legacy::Importer->run($app->db, $data_dir, $blog_id,
 	attachment_path => $context{attachment_path});
 my $rebuilt = Lyndbaum::Model::Article->rebuild_all($app->db, %context);
 Lyndbaum::SidebarCache->rebuild($app);
+Lyndbaum::Backlinks->rebuild($app, all => 1);
 
 binmode STDOUT, ':encoding(UTF-8)';
 print "記事: $result->{articles} 件（添付ファイルのパスを書き換えた記事: $result->{rewritten} 件、"
-	. "ファイル名と同じ代替テキストを落とした記事: $result->{image_alts} 件、識別子を書き足した見出し: $result->{heading_ids} 個）\n";
+	. "ファイル名と同じ代替テキストを落とした記事: $result->{image_alts} 件、識別子を書き足した見出し: $result->{heading_ids} 個、"
+	. "先頭の / を外した記事へのリンク: $result->{article_links} 個、"
+	. "付け替えた画像の拡大表示の属性（data-fancybox → data-lythumb）: $result->{lythumb} 個）\n";
 print "タグ: $result->{tags} 件\n";
 print "記事とタグの対応: $result->{article_tags} 件\n";
 print "コメント: $result->{comments} 件（取り込まなかった非公開コメント: $result->{private_comments} 件）\n";

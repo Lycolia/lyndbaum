@@ -65,13 +65,13 @@
 --- input
 [image:S:adiary/2026/01/:a.png:キャプション]
 --- expected
-<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="キャプション" data-fancybox="k1"><img alt="キャプション" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
+<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="キャプション" data-lythumb="k1"><img alt="キャプション" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
 === 画像を並べても参照リンクにならない
 --- input
 [image:S:adiary/2026/01/:a.png:A][image:S:adiary/2026/01/:b.png:B]
 --- expected
-<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="A" data-fancybox="k1"><img alt="A" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><a href="/attachments/adiary/2026/01/b.png" class="tag-image-S" title="B" data-fancybox="k1"><img alt="B" src="/attachments/adiary/2026/01/.thumbnail/b.png.jpg"></a></p>
+<p><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="A" data-lythumb="k1"><img alt="A" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><a href="/attachments/adiary/2026/01/b.png" class="tag-image-S" title="B" data-lythumb="k1"><img alt="B" src="/attachments/adiary/2026/01/.thumbnail/b.png.jpg"></a></p>
 
 === 画像のキャプションがあるときだけ figure で囲む
 # キャプションは、画像の後の2つ目以降の引数に # を付けて書く
@@ -79,7 +79,7 @@
 --- input
 [image:S:adiary/2026/01/:a.png:代替:#説明]
 --- expected
-<figure><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-fancybox="k1"><img alt="代替" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
+<figure><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
 
 === YouTube
 --- input
@@ -116,10 +116,10 @@
 --- input
 [image:S:adiary/2024/:image (1).png:図]
 --- expected
-<p><a href="/attachments/adiary/2024/image%20(1).png" class="tag-image-S" title="図" data-fancybox="k1"><img alt="図" src="/attachments/adiary/2024/.thumbnail/image%20(1).png.jpg"></a></p>
+<p><a href="/attachments/adiary/2024/image%20(1).png" class="tag-image-S" title="図" data-lythumb="k1"><img alt="図" src="/attachments/adiary/2024/.thumbnail/image%20(1).png.jpg"></a></p>
 
 === 代替テキストはファイル名と同じでも書いたとおりに出す（ファイル名と同じものは、旧データの取り込みで落とす）
 --- input
 [image:S:a/:x_(1)!.png:x_(1)!.png][image:S:a/:x,y.png]
 --- expected
-<p><a href="/attachments/a/x_(1)!.png" class="tag-image-S" title="x_(1)!.png" data-fancybox="k1"><img alt="x_(1)!.png" src="/attachments/a/.thumbnail/x_(1)!.png.jpg"></a><a href="/attachments/a/x,y.png" class="tag-image-S" title="" data-fancybox="k1"><img alt="" src="/attachments/a/.thumbnail/x,y.png.jpg"></a></p>
+<p><a href="/attachments/a/x_(1)!.png" class="tag-image-S" title="x_(1)!.png" data-lythumb="k1"><img alt="x_(1)!.png" src="/attachments/a/.thumbnail/x_(1)!.png.jpg"></a><a href="/attachments/a/x,y.png" class="tag-image-S" title="" data-lythumb="k1"><img alt="" src="/attachments/a/.thumbnail/x,y.png.jpg"></a></p>

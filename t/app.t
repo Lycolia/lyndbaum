@@ -11,7 +11,7 @@ use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::View;
-use TestUtil qw(new_test_app insert_article);
+use TestUtil qw(root_dir new_test_app insert_article);
 
 my $app = new_test_app();
 my $dbh = $app->db;
@@ -258,17 +258,19 @@ subtest '検索' => sub {
 	Lyndbaum::Model::Setting->set($dbh, per_page => 2);
 };
 
-subtest '画像の拡大表示とコードの色付け（Fancybox、Prism.js）' => sub {
+subtest '画像の拡大表示とコードの色付け（Lythumb、Prism.js）' => sub {
 	my $body = get('/01')->body;
-	like $body, qr{<link rel="stylesheet" href="/pub/assets/js/extlib/fancybox/jquery\.fancybox\.min\.css">};
+	like $body, qr{<link rel="stylesheet" href="/pub/assets/js/extlib/lythumb/lythumb\.min\.css">};
 	like $body, qr{<link rel="stylesheet" href="/pub/assets/js/extlib/prismjs/prism\.css">};
 	like $body, qr{<script src="/pub/assets/js/extlib/prismjs/prism-core\.min\.js" data-manual defer></script>}, 'Prism は自動では動かさない';
 	my @scripts = $body =~ m{<script src="/pub/assets/js/([^"]+)"[^>]*defer></script>}g;
-	is_deeply [ @scripts[0 .. 7] ], [ qw(
-		extlib/prismjs/prism-core.min.js extlib/fancybox/jquery-3.2.1.min.js extlib/fancybox/jquery.fancybox.min.js
+	is_deeply [ @scripts[0 .. 6] ], [ qw(
+		extlib/prismjs/prism-core.min.js extlib/lythumb/lythumb.min.js
 		extlib/prismjs/prism-autoloader.min.js extlib/prismjs/prism-line-numbers.min.js extlib/prismjs/prism-toolbar.min.js
 		extlib/prismjs/prism-copy-to-clipboard.min.js article.js
 	) ], 'defer なので、この順に動く（Prism の本体が先、article.js が最後）';
+	my @files = $body =~ m{<(?:script src|link rel="stylesheet" href)="/pub/(assets/[^"]+)"}g;
+	ok -f root_dir() . "/pub/$_", "$_ がある" for @files;
 };
 
 subtest '404はHTMLで返す' => sub {

@@ -11,6 +11,7 @@ use Time::Local qw(timegm);
 use Lyndbaum::Legacy::TextDB;
 use Lyndbaum::Parser;
 use Lyndbaum::Parser::Markdown;
+use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
 
@@ -46,11 +47,13 @@ sub run {
 	$dbh->begin_work;
 	eval {
 		$result{tags}         = $class->_import_tags($dbh, $tags);
-		($result{articles}, $result{rewritten}, $result{image_alts}, $result{heading_ids})
+		($result{articles}, $result{rewritten}, $result{image_alts}, $result{heading_ids}, $result{article_links}, $result{lythumb})
 			= $class->_import_articles($dbh, $articles, $rewrite);
 		$result{article_tags} = $class->_import_article_tags($dbh, $articles, $tags);
 		($result{comments}, $result{private_comments}) = $class->_import_comments($dbh, $comments);
 		$result{settings}     = $class->_import_settings($dbh, $setting, $articles);
+		# 取り込んだコメントは、新着として数えない
+		Lyndbaum::Model::Comment->mark_seen($dbh);
 		# 記事のIDを使い回さないよう、最後に使ったIDを記録する（Lyndbaum::Model::Article->next_id）
 		$dbh->do(q{INSERT OR REPLACE INTO sequences (name, value) SELECT 'articles', COALESCE(MAX(id), 0) FROM articles});
 		Lyndbaum::Model::Tag->rebuild_paths($dbh);
@@ -93,13 +96,15 @@ INSERT INTO articles (
 SQL
 
 	my %parent_of;
-	my ($rewritten, $image_alts, $heading_ids) = (0, 0, 0);
+	my ($rewritten, $image_alts, $heading_ids, $article_links, $lythumb) = (0, 0, 0, 0, 0);
 	for my $art (@$articles) {
 		my $body = $art->{_text} // '';
 		my $changed = eval { $rewrite->($body, $art->{parser} || 'markdown') } or die "記事 $art->{pkey}: $@";
 		$rewritten++  if $changed->{paths} || $changed->{folders};
 		$image_alts++ if $changed->{image_alts};
 		$heading_ids += $changed->{heading_ids};
+		$article_links += $changed->{article_links};
+		$lythumb += $changed->{lythumb};
 		my $kind = ($art->{ctype} // '') ne '' ? 'page' : 'post';
 		my $slug = $art->{link_key};
 
@@ -137,20 +142,25 @@ SQL
 	my $update = $dbh->prepare('UPDATE articles SET parent_id = ? WHERE id = ?');
 	$update->execute($parent_of{$_}, $_) for sort { $a <=> $b } keys %parent_of;
 
-	return (scalar @$articles, $rewritten, $image_alts, $heading_ids);
+	return (scalar @$articles, $rewritten, $image_alts, $heading_ids, $article_links, $lythumb);
 }
 
 # 取り込むときに本文を書き換える関数を返す（全記事の比較ツールでも使う）
-#   関数は（本文, 記法）を受け取り、本文をその場で書き換え、書き換えた数を { paths => …, folders => …, image_alts => …, heading_ids => … } で返す
+#   関数は（本文, 記法）を受け取り、本文をその場で書き換え、書き換えた数を
+#   { paths => …, folders => …, image_alts => …, article_links => …, lythumb => …, heading_ids => … } で返す
 #   paths       添付ファイルの旧パス（https://ドメイン/pub/ブログID/image/… 、/pub/ブログID/image/… 、
 #               pub/ブログID/image/…）を、添付ファイルのURLの接頭辞に書き換える
 #   folders     添付ファイルのフォルダの名前を付け替える（adiary/ → posts/。%FOLDERS。@system/ はそのまま）。
 #               画像と動画の記法（[image:S:adiary/2026/10/:a.png]）と、書き換えた後のURLの両方
 #   image_alts  ファイル名と同じ代替テキストを、画像タグから落とす
 #               （[image:S:dir/:a.jpg:a.jpg] → [image:S:dir/:a.jpg]。キャプションは残す）
+#   article_links  記事へのリンクの先頭の / を外す（[文字](/0756) → [文字](0756)）。参照元（Lyndbaum::Backlinks）は
+#               [文字](0756) の形だけを数えるので、それに揃える。リンク先のURLは変わらない
+#   lythumb     生HTMLに書いた画像の拡大表示の属性を付け替える（data-fancybox= → data-lythumb=）。
+#               data-fancybox は許可リスト（Lyndbaum::HTML）に無いので、そのままだと落ちて拡大表示されない
 #   heading_ids 見出しに識別子（[#識別子]）を書き足す。識別子は、今の見出しのID（見出しの文字から作ったもの）
 #               にする。見出しの文字を後で変えても、すでにあるリンクが壊れないように
-#   コードの中は区別しない（実データのコードの中に、どちらも無いことを確かめている）
+#   コードの中は区別しない（実データのコードの中に、どれも無いことを確かめている）
 my %FOLDERS = (adiary => 'posts');
 my $FOLDER_RE = join '|', map { quotemeta } sort keys %FOLDERS;
 
@@ -173,6 +183,8 @@ sub body_rewriter {
 			$count{image_alts}++ if $tag ne $1;
 			"[image:$tag]";
 		}ge;
+		$count{article_links} = scalar($_[0] =~ s{\]\(/(0[0-9]+)\)}{]($1)}g) || 0;
+		$count{lythumb} = scalar($_[0] =~ s{(?<=\s)data-fancybox=}{data-lythumb=}g) || 0;
 		$count{heading_ids} = ($_[1] // 'markdown') eq 'markdown' ? _freeze_heading_ids($_[0]) : 0;
 		return \%count;
 	};

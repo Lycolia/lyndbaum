@@ -84,6 +84,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | --------------------------- | ------------------------------------------ |
 | `content`                   | 各ページのテンプレートの出力               |
 | `sidebar_tags`、`sidebar_menu` | `Lyndbaum::SidebarCache`（サイドバーのテンプレートの生成済みHTML） |
+| `article.backlinks_html`    | `Lyndbaum::Backlinks`（`backlinks.html`の生成済みHTML） |
 | `article.body`              | パーサー（許可リストに通したHTML）。一覧では`Lyndbaum::Parser::Common->excerpt`が印の前で切り、開いているタグを閉じたもの |
 | `box.html`                  | `Lyndbaum::SidebarBoxes->for_display`      |
 | `comment.html`              | `Lyndbaum::CommentText`                    |
@@ -106,7 +107,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `urls.search`     | 検索のURL                                                                 |
 | `urls.feed`       | RSSのURL                                                                  |
 | `urls.style`      | `style.css`のURL                                                         |
-| `urls.fancybox_css`、`urls.prism_css`、`urls.prism_core` | 画像の拡大表示とコードの色付けのファイルのURL      |
+| `urls.lythumb_css`、`urls.prism_css`、`urls.prism_core`  | 画像の拡大表示とコードの色付けのファイルのURL      |
 | `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に`defer`で読む）                  |
 | `form`            | 検索フォームの値（下の「form」）。検索のページでは、入力した検索語が入る |
 | `sidebar_tags`    | `sidebar_tags.html`の生成済みHTML（エスケープ済み）                     |
@@ -167,6 +168,21 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `comment_form.html`      | `comments_section.html`           | `article.comment_form`             |
 | `admin_bar.html`         | `layout.html`                     | `admin_bar`                        |
 
+### 参照元（`backlinks.html`）
+
+記事のページの、本文とコメントの間に出す「参照元」（その記事へリンクしている記事の一覧）。
+
+- `Lyndbaum::Backlinks`が記事の保存、ゴミ箱の操作、再構築、取り込みのときに描画し、DB（`articles.backlinks_html`）に保存する。表示のときは描画しない。`article.html`は`article.backlinks_html`を`raw`で埋め込む
+- **テンプレートを変えたら再構築する**（`perl tools/rebuild-html.pl`か、管理画面の再構築）。再構築するまでは、前のテンプレートで作ったHTMLが出る
+- 参照元が無い記事では描画せず、空にする
+- 数えるリンクは、本文の`[文字](0756)`や`[文字](管理人について)`の形だけ。`#`や`?`の付いたもの、`/`で始まるもの、画像は数えない。同じ記事から何度リンクしていても1件。公開中でゴミ箱に無い記事とページからのリンクだけを出し、自分自身へのリンクは出さない
+
+使える変数は次のものだけ（通常のページの変数は渡さない）。
+
+| 変数        | 中身                                                         |
+| ----------- | ------------------------------------------------------------ |
+| `backlinks` | 参照元の記事の配列（公開日時の新しい順）。要素は`title`、`url` |
+
 ### 値の形
 
 #### blog
@@ -218,6 +234,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | 変数                     | 中身                                                             |
 | ------------------------ | ---------------------------------------------------------------- |
 | `article.body`           | 本文のHTML（続きを読むの印を除いたもの）。`raw`で出す            |
+| `article.backlinks_html` | 参照元（下の「参照元」）の生成済みHTML。参照元が無ければ空。`raw`で出す |
 | `article.comments`       | 公開中のコメントの配列（下の「コメント」）                       |
 | `article.comments_count` | 公開中のコメントの数                                             |
 | `article.comment_form`   | コメントのフォーム（下の「コメントのフォーム」）。出さないときは空 |
@@ -313,8 +330,9 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `admin_bar.home_label` | 左端の名前（「ダッシュボード」か「ブログを表示」）                    |
 | `admin_bar.new_article`| 新しい記事のURL                                                       |
 | `admin_bar.new_page`   | 新しいコンテンツページのURL                                           |
-| `admin_bar.comments`   | コメントの一覧のURL（承認待ちがあれば、承認待ちの一覧）               |
+| `admin_bar.comments`   | コメントの一覧のURL（新着があればすべての一覧、無くて承認待ちがあれば承認待ちの一覧） |
 | `admin_bar.held_count` | 承認待ちのコメントの数                                                |
+| `admin_bar.new_count`  | 新着のコメントの数（`docs/admin.md`の「新着のコメント」）             |
 | `admin_bar.edit`       | 今のページの編集の画面のURL（記事とコンテンツページだけ）             |
 | `admin_bar.logout`     | ログアウトのURL（POSTで送る）                                        |
 | `admin_bar.csrf_token` | ログアウトのフォームに入れるCSRFのトークン                          |
@@ -371,10 +389,26 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `label`    | 表示する名前                                                         |
 | `url`      | 行き先                                                               |
 | `count`    | 件数（コメントの承認待ち）。無ければ空                               |
+| `new_count` | 新着のコメントの数（コメントの項目だけ）。無ければ空                |
 | `current`  | 今のページがこの項目か、その子なら真                                 |
 | `children` | 子の配列（今のページがこの項目の子のときだけ。ほかは空）。要素は`key`、`label`、`url`、`current` |
 
 今のページは、テンプレートの名前から決める（`Lyndbaum::App`の`%NAV_OF`）。同じテンプレートで複数の項目にあたるページ（設定、記事の編集）は、コントローラが`render_admin`に`nav`を渡す。
 
 ページごとの変数は、そのページを出すコントローラ（`lib/Lyndbaum/Controller/Admin*.pm`）の`render_admin`の呼び出しを見る。
+
+### 選択肢と「直接入力」の欄（`preset_field.html`）
+
+数を選択肢から選び、「直接入力」を選んだときだけ数を入れる欄を出す部品（サムネイルの大きさ）。「直接入力」の欄を出し入れするのは`admin.js`。
+値は`Lyndbaum::SettingsForm->preset_field`で作り、`for`の変数`preset`で渡す（例：`{{# for preset in field.preset }}{{> preset_field }}{{/ for }}`）。
+
+| 変数             | 中身                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない（記事の編集の画面のアップロードの欄。`admin-article.js`が読む） |
+| `preset.label`   | 欄の名前（`aria-label`に使う）                                        |
+| `preset.options` | 選択肢の配列。要素は`value`（数か`other`）、`label`、`selected`        |
+| `preset.other`   | 「直接入力」を選んでいれば真（入力欄を出す）                           |
+| `preset.value`、`preset.min`、`preset.max`、`preset.unit` | 入力欄の値、範囲、後ろに付ける単位          |
+
+使う場所は、編集の設定（`admin_settings.html`の`field.preset`）と、記事の編集の画面のアップロードの欄（`admin_article_form.html`の`thumbnail_preset`）。
 管理画面のフォームには、必ず`<input type="hidden" name="csrf_token" value="{{ csrf_token }}">`を入れる（`docs/admin.md`）。

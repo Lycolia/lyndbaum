@@ -5,6 +5,8 @@ package Lyndbaum::SettingsForm;
 #   型
 #     bool   0か1
 #     int    整数（min以上max以下）
+#            presets（数の配列）があれば、選択肢と「直接入力」で入れる（preset_field）。unit は数の後ろに付ける単位
+#            フォームでは、項目名に選んだ数（直接入力なら other）が、「項目名_other」に入れた数が来る
 #     lines  1行に1つの一覧。checkで1行ずつ書き方を確かめる
 #     text   1行の文字。前後の空白を除く。required なら空にできない。max は文字数の上限。check で書き方を確かめる
 #            media が真なら、画面に「ファイル一覧から選択」を出す（添付ファイルの中のパスを入れる）
@@ -29,6 +31,7 @@ sub parse {
 		if ($field->{type} eq 'bool') {
 			$values{$key} = $raw eq '1' ? 1 : 0;
 		} elsif ($field->{type} eq 'int') {
+			$raw = $get->("${key}_other") // '' if $field->{presets} && $raw eq 'other';
 			$raw =~ s/\A\s+|\s+\z//g;
 			$values{$key} = $raw;
 			if ($raw !~ /\A\d{1,9}\z/ || $raw < $field->{min} || $raw > $field->{max}) {
@@ -60,6 +63,28 @@ sub parse {
 		}
 	}
 	return (\%values, \@errors);
+}
+
+# 選択肢と「直接入力」の欄（templates/preset_field.html）に渡す値。$field は presets のある int の項目
+#   $value が選択肢にあればそれを選び、無ければ「直接入力」を選んで、入力欄にその値を入れておく
+#   %opt の name はフォームの項目名（無ければ name を付けない。フォームで送らず、JavaScript で読むとき）
+sub preset_field {
+	my ($class, $field, $value, %opt) = @_;
+	my $unit   = $field->{unit} // '';
+	my $preset = defined $value && grep { $_ eq $value } @{ $field->{presets} };
+	return {
+		name    => $opt{name},
+		label   => $field->{label},
+		unit    => $unit,
+		min     => $field->{min},
+		max     => $field->{max},
+		value   => $value,
+		other   => $preset ? 0 : 1,
+		options => [
+			(map { +{ value => $_, label => "$_$unit", selected => defined $value && $_ eq $value } } @{ $field->{presets} }),
+			{ value => 'other', label => '直接入力', selected => !$preset },
+		],
+	};
 }
 
 1;

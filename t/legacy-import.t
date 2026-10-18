@@ -11,6 +11,7 @@ use File::Temp qw(tempdir);
 
 use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Legacy::TextDB;
+use Lyndbaum::Model::Comment;
 use TestUtil qw(root_dir new_test_app);
 
 my $fixture = File::Spec->catdir(root_dir(), 't', 'data', 'adiary');
@@ -32,7 +33,7 @@ subtest '取り込み' => sub {
 	my $app = new_test_app();
 	my $dbh = $app->db;
 	my $result = Lyndbaum::Legacy::Importer->run($dbh, $fixture, 'test');
-	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, tags => 4, article_tags => 2,
+	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, article_links => 1, lythumb => 0, tags => 4, article_tags => 2,
 		comments => 3, private_comments => 2, settings => 5 }, '件数';
 
 	my $article = sub { $dbh->selectrow_hashref('SELECT * FROM articles WHERE id = ?', undef, $_[0]) };
@@ -67,8 +68,10 @@ subtest '取り込み' => sub {
 	is $article->(4)->{created_at}, 1700000400, '作成日時は tm';
 	is $article->(4)->{body_src},
 		qq{親の本文\n![図](/pub/attachments/posts/a.png) <img src="/pub/attachments/b.png"> pub/other/image/c.png\n}
-		. qq{[image:S:posts/:a.jpg] [image:M:posts/:b.jpg:説明] [image:S:/pub/attachments/:c.jpg:#キャプション]},
-		'添付ファイルの旧パスを書き換え（ほかのブログのパスは書き換えない）、ファイル名と同じ代替テキストを落とす';
+		. qq{[image:S:posts/:a.jpg] [image:M:posts/:b.jpg:説明] [image:S:/pub/attachments/:c.jpg:#キャプション]\n}
+		. qq{[前の記事](01) [見出し](/01#見出し) [トップ](/)},
+		'添付ファイルの旧パスを書き換え（ほかのブログのパスは書き換えない）、ファイル名と同じ代替テキストを落とす。'
+		. '記事へのリンク [文字](/01) は先頭の / を外す（# の付いたものとトップへのリンクはそのまま）';
 
 	my $tags = $dbh->selectall_hashref('SELECT * FROM tags', 'id');
 	is $tags->{2}{name}, '調味料', 'タグ名は末端の名前';
@@ -102,9 +105,18 @@ subtest '取り込み' => sub {
 		'最後に使った番号。非公開コメントの番号も含める（記事4のコメントは非公開の1件だけ）';
 	is $dbh->selectrow_array(q{SELECT value FROM sequences WHERE name = 'articles'}), 4, '最後に使った記事のID（使い回さないため）';
 
-	is_deeply $dbh->selectall_arrayref('SELECT key, value FROM settings ORDER BY key'),
+	is(Lyndbaum::Model::Comment->count_new($dbh), 0, '取り込んだコメントは新着として数えない');
+	is_deeply $dbh->selectall_arrayref(q{SELECT key, value FROM settings WHERE key NOT LIKE 'comments_seen_%' ORDER BY key}),
 		[ [ blog_author => 'テストの人' ], [ blog_image => '@system/blog.png' ], [ blog_title => 'テストのブログ' ], [ feed_items => 7 ], [ per_page => 3 ] ],
 		'ブログの設定（空の値は取り込まない）。書いた人の名前は記事から取る';
+};
+
+subtest '画像の拡大表示の属性を付け替える' => sub {
+	my $rewrite = Lyndbaum::Legacy::Importer->body_rewriter('test', '/pub/attachments/');
+	my $body = qq{<a href="a.gif" data-fancybox="k1"><img src="a.gif"></a>\n`data-fancybox="k1"`};
+	is $rewrite->($body)->{lythumb}, 1, '数';
+	is $body, qq{<a href="a.gif" data-lythumb="k1"><img src="a.gif"></a>\n`data-fancybox="k1"`},
+		'data-fancybox= を data-lythumb= に（属性の形でないものはそのまま）';
 };
 
 subtest '空でないDBには取り込まない' => sub {

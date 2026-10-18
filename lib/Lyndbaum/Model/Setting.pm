@@ -15,6 +15,10 @@ my %DEFAULT = (
 	feed_items       => 10,   # RSSに載せる記事の数
 	blog_image       => '',   # ブログの画像（OGP。添付ファイルの中のパス）。Lyndbaum::BlogSettings
 	sidebar_boxes    => '[]', # サイドバーの自由欄（JSON）。Lyndbaum::SidebarBoxes
+	# 最後にコメントの一覧（すべて）を開いたときの、いちばん新しいコメントのIDと投稿日時。新着の数に使う
+	#   （Lyndbaum::Model::Comment->count_new、mark_seen）
+	comments_seen_id => 0,
+	comments_seen_at => 0,
 	Lyndbaum::CommentSettings->defaults,
 	Lyndbaum::EditorSettings->defaults,
 );

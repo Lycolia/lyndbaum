@@ -27,7 +27,10 @@ use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::OGP;
 use Lyndbaum::Response;
+use Lyndbaum::EditorSettings;
+use Lyndbaum::SettingsForm;
 use Lyndbaum::SidebarCache;
+use Lyndbaum::Backlinks;
 use Lyndbaum::UrlTitle;
 use Lyndbaum::View;
 
@@ -280,6 +283,7 @@ sub rebuild {
 	return $res if !$session;
 	my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context);
 	Lyndbaum::SidebarCache->rebuild($app);
+	Lyndbaum::Backlinks->rebuild($app, all => 1);
 	my $feed_ok = $class->write_static_files($app);
 	return $app->redirect($app->url->admin(undef, rebuilt => $count, feed => $feed_ok ? undef : 'failed'), 303);
 }
@@ -393,7 +397,9 @@ sub _render_form {
 		# 「一覧から選ぶ」。木の形が分かるよう、深さの分だけ字下げする
 		tag_options => [ map { +{ name => $_->{full_name}, label => ('　' x $_->{depth}) . $_->{name} } } @$tree ],
 		script      => $app->url->static('js/admin-article.js'),
-		thumbnail_size => $app->settings->{thumbnail_size},
+		# アップロードのサムネイルの大きさ（選択肢と「直接入力」）。フォームでは送らず、admin-article.js が読む
+		thumbnail_preset => [ Lyndbaum::SettingsForm->preset_field(Lyndbaum::EditorSettings->field('thumbnail_size'),
+			$app->settings->{thumbnail_size}) ],
 	}, session => $session, status => $opt{status},
 		# 左のナビ：新しく書くときは「新しい記事」か「新しいページ」、既存の記事やページの編集はそれぞれの一覧
 		nav => defined $id ? ($is_page ? 'pages' : 'articles') : $is_page ? 'new_page' : 'new_article');
