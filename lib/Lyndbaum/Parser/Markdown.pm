@@ -30,6 +30,7 @@ sub parse {
 		ids            => {},
 		footnotes      => {},
 		footnote_order => [],
+		links          => [],   # 記事へのリンク（[文字](slug)）の slug。出てきた順で、重複は除く
 		store          => [],   # インラインの処理中に預けたHTML（入れ子の処理でも共通に使う）
 	}, $class;
 
@@ -43,7 +44,7 @@ sub parse {
 	my $toc = Lyndbaum::Parser::Common->toc_html($self->{headings}, $self->{context}{article_url});
 	$html =~ s/\Q$TOC_MARK\E/$toc/g;
 
-	return { html => "$html\n", toc => $self->{headings} };
+	return { html => "$html\n", toc => $self->{headings}, links => $self->{links} };
 }
 
 # 見出しの識別子の無い見出しに、識別子を書き足した原文を返す
@@ -621,6 +622,7 @@ sub _bracket {
 		if ($url ne '' && is_safe_url($url)) {
 			my $href = escape_html($self->_resolve_link($url));
 			return $hold->(qq{<img src="$href" alt="} . escape_html($inner) . '" />') if $bang;
+			$self->_add_link($url);
 			return $hold->(qq{<a href="$href">} . $self->_inline($inner) . '</a>');
 		}
 	}
@@ -650,6 +652,15 @@ sub _resolve_link {
 	my ($self, $url) = @_;
 	return $url if $url =~ m{\A(?:[a-zA-Z][a-zA-Z0-9+.-]*:|/|#|\.)};
 	return ($self->{context}{base_path} // '') . "/$url";
+}
+
+# 記事へのリンク（バックリンクに使う）として、リンク先の slug を覚えておく
+#   数えるのは [文字](0756) や [文字](管理人について) の形だけ。# や ? の付いたもの、/ で始まるものは数えない
+#   リンク先が記事として有るかは、ここでは見ない（Lyndbaum::Backlinks が記事と突き合わせる）
+sub _add_link {
+	my ($self, $url) = @_;
+	return if $url =~ m{\A(?:[a-zA-Z][a-zA-Z0-9+.-]*:|/|#|\.)} || $url =~ /[#?]/;
+	push @{ $self->{links} }, $url if !$self->{link_seen}{$url}++;
 }
 
 sub _footnote_ref {

@@ -27,7 +27,8 @@ sub parser_for {
 #     sectioning       見出しごとに <section> で囲むか
 #     url_title        URLからページのタイトルを返す関数（[&URL] 用。省略可）
 #     base_path        アプリのURLの接頭辞。記事内の相対リンク（[文字](0618) など）の先頭に付ける（省略すると空）
-#   戻り値 { html => 変換したHTML, toc => [見出しの一覧] }
+#   戻り値 { html => 変換したHTML, toc => [見出しの一覧], links => [記事へのリンクの slug の一覧] }
+#     links は [文字](0756) の形のリンク先（# や ? の付いたもの、画像は除く）。出てきた順で、重複は除く
 sub parse {
 	my ($class, $syntax, $text, %context) = @_;
 	return $class->parser_for($syntax)->parse($text, %context);

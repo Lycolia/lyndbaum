@@ -84,6 +84,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | --------------------------- | ------------------------------------------ |
 | `content`                   | 各ページのテンプレートの出力               |
 | `sidebar_tags`、`sidebar_menu` | `Lyndbaum::SidebarCache`（サイドバーのテンプレートの生成済みHTML） |
+| `article.backlinks_html`    | `Lyndbaum::Backlinks`（`backlinks.html`の生成済みHTML） |
 | `article.body`              | パーサー（許可リストに通したHTML）。一覧では`Lyndbaum::Parser::Common->excerpt`が印の前で切り、開いているタグを閉じたもの |
 | `box.html`                  | `Lyndbaum::SidebarBoxes->for_display`      |
 | `comment.html`              | `Lyndbaum::CommentText`                    |
@@ -167,6 +168,21 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `comment_form.html`      | `comments_section.html`           | `article.comment_form`             |
 | `admin_bar.html`         | `layout.html`                     | `admin_bar`                        |
 
+### 参照元（`backlinks.html`）
+
+記事のページの、本文とコメントの間に出す「参照元」（その記事へリンクしている記事の一覧）。
+
+- `Lyndbaum::Backlinks`が記事の保存、ゴミ箱の操作、再構築、取り込みのときに描画し、DB（`articles.backlinks_html`）に保存する。表示のときは描画しない。`article.html`は`article.backlinks_html`を`raw`で埋め込む
+- **テンプレートを変えたら再構築する**（`perl tools/rebuild-html.pl`か、管理画面の再構築）。再構築するまでは、前のテンプレートで作ったHTMLが出る
+- 参照元が無い記事では描画せず、空にする
+- 数えるリンクは、本文の`[文字](0756)`や`[文字](管理人について)`の形だけ。`#`や`?`の付いたもの、`/`で始まるもの、画像は数えない。同じ記事から何度リンクしていても1件。公開中でゴミ箱に無い記事とページからのリンクだけを出し、自分自身へのリンクは出さない
+
+使える変数は次のものだけ（通常のページの変数は渡さない）。
+
+| 変数        | 中身                                                         |
+| ----------- | ------------------------------------------------------------ |
+| `backlinks` | 参照元の記事の配列（公開日時の新しい順）。要素は`title`、`url` |
+
 ### 値の形
 
 #### blog
@@ -218,6 +234,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | 変数                     | 中身                                                             |
 | ------------------------ | ---------------------------------------------------------------- |
 | `article.body`           | 本文のHTML（続きを読むの印を除いたもの）。`raw`で出す            |
+| `article.backlinks_html` | 参照元（下の「参照元」）の生成済みHTML。参照元が無ければ空。`raw`で出す |
 | `article.comments`       | 公開中のコメントの配列（下の「コメント」）                       |
 | `article.comments_count` | 公開中のコメントの数                                             |
 | `article.comment_form`   | コメントのフォーム（下の「コメントのフォーム」）。出さないときは空 |

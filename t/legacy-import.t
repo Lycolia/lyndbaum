@@ -32,7 +32,7 @@ subtest '取り込み' => sub {
 	my $app = new_test_app();
 	my $dbh = $app->db;
 	my $result = Lyndbaum::Legacy::Importer->run($dbh, $fixture, 'test');
-	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, tags => 4, article_tags => 2,
+	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, article_links => 1, tags => 4, article_tags => 2,
 		comments => 3, private_comments => 2, settings => 5 }, '件数';
 
 	my $article = sub { $dbh->selectrow_hashref('SELECT * FROM articles WHERE id = ?', undef, $_[0]) };
@@ -67,8 +67,10 @@ subtest '取り込み' => sub {
 	is $article->(4)->{created_at}, 1700000400, '作成日時は tm';
 	is $article->(4)->{body_src},
 		qq{親の本文\n![図](/pub/attachments/posts/a.png) <img src="/pub/attachments/b.png"> pub/other/image/c.png\n}
-		. qq{[image:S:posts/:a.jpg] [image:M:posts/:b.jpg:説明] [image:S:/pub/attachments/:c.jpg:#キャプション]},
-		'添付ファイルの旧パスを書き換え（ほかのブログのパスは書き換えない）、ファイル名と同じ代替テキストを落とす';
+		. qq{[image:S:posts/:a.jpg] [image:M:posts/:b.jpg:説明] [image:S:/pub/attachments/:c.jpg:#キャプション]\n}
+		. qq{[前の記事](01) [見出し](/01#見出し) [トップ](/)},
+		'添付ファイルの旧パスを書き換え（ほかのブログのパスは書き換えない）、ファイル名と同じ代替テキストを落とす。'
+		. '記事へのリンク [文字](/01) は先頭の / を外す（# の付いたものとトップへのリンクはそのまま）';
 
 	my $tags = $dbh->selectall_hashref('SELECT * FROM tags', 'id');
 	is $tags->{2}{name}, '調味料', 'タグ名は末端の名前';

@@ -13,4 +13,5 @@ priority=100000
 親の本文
 ![図](/pub/test/image/adiary/a.png) <img src="https://blog.example.com/pub/test/image/b.png"> pub/other/image/c.png
 [image:S:adiary/:a.jpg:a.jpg] [image:M:adiary/:b.jpg:説明] [image:S:/pub/test/image/:c.jpg:c.jpg:#キャプション]
+[前の記事](/01) [見出し](/01#見出し) [トップ](/)
 __END_BLK_DATA

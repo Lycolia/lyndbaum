@@ -14,6 +14,7 @@ use Lyndbaum::Request;
 use Lyndbaum::Response;
 use Lyndbaum::Router;
 use Lyndbaum::Template;
+use Lyndbaum::Backlinks;
 use Lyndbaum::URL;
 use Lyndbaum::View;
 use Lyndbaum::SidebarCache;
@@ -203,6 +204,8 @@ sub handle {
 	if ($req->method eq 'POST') {
 		eval { Lyndbaum::SidebarCache->get($self); 1 }
 			or warn "サイドバーのHTMLを作り直せませんでした: $@";
+		eval { Lyndbaum::Backlinks->rebuild($self); 1 }
+			or warn "参照元のHTMLを作り直せませんでした: $@";
 	}
 	return $res;
 }

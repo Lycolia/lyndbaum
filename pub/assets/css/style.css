@@ -170,6 +170,10 @@ body:not(.admin) .site-header,
 .search-line-number { display: inline-block; min-width: 3em; padding-right: .5em; text-align: right; color: var(--muted); user-select: none; }
 .search-more { color: var(--muted); font-size: .85rem; margin: 0; }
 mark { background: #ffe066; color: #000; }
+/* 参照元（この記事へリンクしている記事）。本文とコメントの間に置く */
+.backlinks { border-top: 1px solid var(--border); margin-top: 2rem; }
+.backlinks-title { font-size: 1.1rem; }
+.backlinks-list { margin: 0; padding-left: 1.5rem; }
 .comments { border-top: 1px solid var(--border); margin-top: 2rem; }
 .comments-title { font-size: 1.1rem; }
 .comment-entry { border-bottom: 1px solid var(--border); padding: .5rem 0; }

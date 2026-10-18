@@ -14,5 +14,7 @@
     {{! body はパーサーが作ったHTMLで、パーサーの側でエスケープと許可リストの確認をしている }}
     {{ raw article.body }}
   </div>
+  {{! backlinks_html は Lyndbaum::Backlinks が templates/backlinks.html で作って保存したもので、エスケープ済み }}
+  {{ raw article.backlinks_html }}
   {{# if article.comments }}{{> comments_section }}{{# else }}{{# if article.comment_form }}{{> comments_section }}{{/ if }}{{/ if }}
 </article>

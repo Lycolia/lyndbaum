@@ -86,7 +86,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
   - DBなどの書き込むファイルは`var/`に置く。`var/.htaccess`でWebから読めないようにしている
   - スキーマを最新にするには`perl tools/migrate.pl`を実行する
   - 旧システムのデータの取り込みは`perl tools/import-adiary.pl data lycolia`（取り込み先のDBは空であること）。取り込んだ後、全記事の本文を変換する
-  - 全記事の本文を変換し直すには`perl tools/rebuild-html.pl`。表示や検索のときには変換しないので、パーサーを直したら実行する（旧システムの再構築ボタンにあたる）
+  - 全記事の本文を変換し直すには`perl tools/rebuild-html.pl`。表示や検索のときには変換しないので、パーサーを直したら実行する（旧システムの再構築ボタンにあたる）。参照元（`templates/backlinks.html`）も保存時に作っておくので、このテンプレートを変えたときも実行する
   - サイトの絶対URL（RSSに使う）は`config.json`の`site_url`。RSSは`pub/rss.xml`、サイトマップは`pub/sitemap.xml`に書き出す（記事の保存、取り込みと再構築のときにも書き出す。手で書き出すには`perl tools/build-feed.pl`）
   - 管理者のログイン名とパスワードは`perl tools/set-password.pl`で登録する（Webの初期設定画面は無い）
   - コメントのフォームのトークンの署名には、`config.json`の`secret_key`を使う。無ければコメントのフォームを出さない。作るには`perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'`

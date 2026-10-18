@@ -8,6 +8,7 @@ use strict;
 use warnings;
 use utf8;
 
+use Lyndbaum::Backlinks;
 use Lyndbaum::CommentToken;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Comment;
@@ -43,6 +44,7 @@ sub render_article {
 	my $tag_ids = Lyndbaum::Model::Article->tag_ids_of($app->db, $article->{id});
 	my $view = Lyndbaum::View->article($app, $article, $tag_ids->{ $article->{id} } // []);
 	$view->{body} = Lyndbaum::View->body($app, $article);
+	$view->{backlinks_html} = Lyndbaum::Backlinks->html($app, $article);
 	$view->{comments} = Lyndbaum::View->comments($app, $article);
 	$view->{comments_count} = scalar @{ $view->{comments} };
 	my $head = $app->page_head($req,
