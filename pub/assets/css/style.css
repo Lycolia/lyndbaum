@@ -11,6 +11,9 @@
   --admin-bg: #fcfcfe;
   /* 公開側のページの地の色。記事やサイドバーの枠（--bg）と見分けられるよう、少し沈める */
   --page-bg: #f0f0f1;
+  /* 本文の見出しや表の見出しに使う色 */
+  --accent: #4450c8;
+  --accent-soft: #e9ebfd;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -22,6 +25,8 @@
     --code-bg: #222;
     --admin-bg: #181818;
     --page-bg: #0e0e0e;
+    --accent: #9aa2ff;
+    --accent-soft: #252946;
   }
 }
 * { box-sizing: border-box; }
@@ -395,7 +400,60 @@ a.media-item { text-decoration: none; }
 .eyecatch-modes label { display: block; font-size: .9rem; }
 .eyecatch-preview img { max-width: 100%; max-height: 10rem; border: 1px solid var(--border); }
 
+/* 本文の各要素。記事の題名が h1（一覧では h2）なので、本文の見出しは h3 から始まる */
+.article-body h3, .article-body h4, .article-body h5, .article-body h6 { line-height: 1.35; }
+.article-body h3 {
+  margin: 2rem 0 1rem; padding: .4rem .75rem;
+  font-size: 1.25rem; color: var(--accent);
+  background: var(--accent-soft); border-left: 6px solid var(--accent); border-radius: 0 .25rem .25rem 0;
+}
+.article-body h4 { margin: 1.5rem 0 .75rem; padding: .15rem .6rem; font-size: 1.1rem; border-left: 4px solid var(--accent); border-bottom: 1px solid var(--border); }
+.article-body h5 { margin: 1.25rem 0 .5rem; padding-bottom: .1rem; font-size: 1rem; border-bottom: 1px dashed var(--border); }
+.article-body h6 { margin: 1rem 0 .5rem; font-size: .95rem; color: var(--muted); }
+/* 見出しは自分へのリンクになっている。見出しの色のまま、下線は指したときだけ出す */
+.article-body :is(h3, h4, h5, h6) > a { color: inherit; text-decoration: none; }
+.article-body :is(h3, h4, h5, h6) > a:hover { text-decoration: underline; }
+/* コードスパン。コードブロック（pre の中）は Prism の色を使うので除く */
+.article-body :not(pre) > code {
+  padding: .1em .35em; font-size: .9em;
+  font-family: Menlo, Monaco, Consolas, "Courier New", monospace;
+  background: var(--code-bg); border: 1px solid var(--border); border-radius: .25em;
+  overflow-wrap: anywhere;
+  /* 行をまたいだときも、行ごとに枠を閉じる */
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+/* 表。見出しの行に色を付け、行の間に点線を引く。セルを離して置き、列の境目に隙間を空ける */
+.article-body table { border-collapse: separate; border-spacing: 3px 0; margin: 1rem -3px; }
+.article-body th, .article-body td { padding: .3rem .6rem; text-align: left; vertical-align: top; }
+/* 列の多い表で、日本語が1文字ずつ折り返して縦に並ばないよう、句読点と空白のところでだけ折り返す
+   入り切らなければ、表の枠（.body_table）の中で横にスクロールする */
+.article-body th, .article-body td { word-break: keep-all; overflow-wrap: break-word; }
+.article-body th { background: var(--accent-soft); border-bottom: 2px solid var(--accent); }
+.article-body td { border-bottom: 1px dashed var(--border); }
+.article-body tbody tr:nth-child(even) { background: var(--row-alt); }
+/* タスクリスト。印の代わりにチェックボックスを、印のあった位置に置く（文章の頭はほかの項目と揃える） */
+.article-body li.task-list-item { list-style: none; }
+.article-body li.task-list-item input[type="checkbox"] { margin: 0 .3em 0 -1.4em; vertical-align: middle; }
+/* 引用、横線、目次、注釈 */
+.article-body blockquote { margin: 1rem 0; padding: .5rem 1rem; color: var(--muted); background: var(--row-alt); border-left: 4px solid var(--border); }
+.article-body blockquote > :first-child { margin-top: 0; }
+.article-body blockquote > :last-child { margin-bottom: 0; }
+.article-body hr { border: 0; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+.article-body .toc { display: table; margin: 1rem 0; padding: .5rem 1rem .5rem 2rem; border: 1px solid var(--border); border-radius: .25rem; background: var(--row-alt); }
+.article-body .footnotes { margin-top: 2rem; font-size: .85rem; color: var(--muted); }
+.article-body .footnotes hr { margin: 0 0 .5rem; }
+.article-body sup { line-height: 0; }
+/* バナー（[info:…] など）。アイコンと文章を横に並べ、種類で色を変える */
+.article-body .notice_banner {
+  display: flex; align-items: center; gap: .75rem; margin: 1rem 0; padding: .6rem 1rem;
+  border: 1px solid var(--banner, var(--accent)); border-left-width: 6px; border-radius: .25rem;
+  background: color-mix(in srgb, var(--banner, var(--accent)) 10%, var(--bg));
+}
+.article-body .notice_banner svg { display: block; fill: var(--banner, var(--accent)); }
+.article-body .notice_banner.warn { --banner: #d09000; }
+.article-body .notice_banner.error { --banner: #d33; }
+
 /* コードブロック（色は pub/assets/js/extlib/prismjs/prism.css）。長い行は、ページではなくコードの中で横にスクロールする */
-.article-body pre { overflow-x: auto; max-width: 100%; }
+.article-body pre { overflow-x: auto; max-width: 100%; border-radius: .375rem; }
 .article-body { word-wrap: break-word; }
-.article-body .body_table { overflow-x: scroll;}
+.article-body .body_table { overflow-x: auto; }
