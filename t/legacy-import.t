@@ -33,7 +33,7 @@ subtest '取り込み' => sub {
 	my $app = new_test_app();
 	my $dbh = $app->db;
 	my $result = Lyndbaum::Legacy::Importer->run($dbh, $fixture, 'test');
-	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, article_links => 1, tags => 4, article_tags => 2,
+	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, article_links => 1, lythumb => 0, tags => 4, article_tags => 2,
 		comments => 3, private_comments => 2, settings => 5 }, '件数';
 
 	my $article = sub { $dbh->selectrow_hashref('SELECT * FROM articles WHERE id = ?', undef, $_[0]) };
@@ -109,6 +109,14 @@ subtest '取り込み' => sub {
 	is_deeply $dbh->selectall_arrayref(q{SELECT key, value FROM settings WHERE key NOT LIKE 'comments_seen_%' ORDER BY key}),
 		[ [ blog_author => 'テストの人' ], [ blog_image => '@system/blog.png' ], [ blog_title => 'テストのブログ' ], [ feed_items => 7 ], [ per_page => 3 ] ],
 		'ブログの設定（空の値は取り込まない）。書いた人の名前は記事から取る';
+};
+
+subtest '画像の拡大表示の属性を付け替える' => sub {
+	my $rewrite = Lyndbaum::Legacy::Importer->body_rewriter('test', '/pub/attachments/');
+	my $body = qq{<a href="a.gif" data-fancybox="k1"><img src="a.gif"></a>\n`data-fancybox="k1"`};
+	is $rewrite->($body)->{lythumb}, 1, '数';
+	is $body, qq{<a href="a.gif" data-lythumb="k1"><img src="a.gif"></a>\n`data-fancybox="k1"`},
+		'data-fancybox= を data-lythumb= に（属性の形でないものはそのまま）';
 };
 
 subtest '空でないDBには取り込まない' => sub {

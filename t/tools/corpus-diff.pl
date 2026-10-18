@@ -77,8 +77,10 @@ sub legacy_to_current {
 	$html =~ s{href="(/[^"#]*#[^"]*)"}{ my $x = $1; $x =~ s/%([0-9a-fA-F]{2})/chr hex $1/eg; utf8::decode($x); qq{href="$x"} }ge;
 	# 脚注のリンクにも記事のURLを付ける
 	$html =~ s{href="#(fn-|fnref-)}{href="/$slug#$1}g;
+	# 画像の拡大表示の属性（Fancybox から Lythumb に替えた）
+	$html =~ s{ data-fancybox=}{ data-lythumb=}g;
 	# ファイル名と同じ代替テキストは、取り込むときに落とす
-	$html =~ s{(<a href="[^"]*/([^"/]+)" class="tag-image-[A-Za-z]*") title="([^"]*)"((?: data-fancybox="[^"]*")?><img) alt="([^"]*)"}{
+	$html =~ s{(<a href="[^"]*/([^"/]+)" class="tag-image-[A-Za-z]*") title="([^"]*)"((?: data-lythumb="[^"]*")?><img) alt="([^"]*)"}{
 		my ($head, $file, $title, $mid, $alt) = ($1, $2, $3, $4, $5);
 		$file =~ s/%([0-9a-fA-F]{2})/chr hex $1/eg; utf8::decode($file);
 		$alt eq $file ? qq{$head title=""$mid alt=""} : qq{$head title="$title"$mid alt="$alt"};

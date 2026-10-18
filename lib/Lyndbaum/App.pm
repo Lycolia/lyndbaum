@@ -226,12 +226,12 @@ sub render {
 			search => $self->url->search,
 			style  => $self->url->static('css/style.css'),
 			feed   => $self->url->feed,
-			# 画像の拡大表示（Fancybox）とコードの色付け（Prism.js）。pub/assets/js/article.js が動かす
-			fancybox_css => $self->url->static('js/extlib/fancybox/jquery.fancybox.min.css'),
-			prism_css    => $self->url->static('js/extlib/prismjs/prism.css'),
-			prism_core   => $self->url->static('js/extlib/prismjs/prism-core.min.js'),
-			scripts      => [ map { $self->url->static($_) }
-				'js/extlib/fancybox/jquery-3.2.1.min.js', 'js/extlib/fancybox/jquery.fancybox.min.js',
+			# 画像の拡大表示（Lythumb。読み込むと自分で動く）とコードの色付け（Prism.js。pub/assets/js/article.js が動かす）
+			lythumb_css => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
+			prism_css   => $self->url->static('js/extlib/prismjs/prism.css'),
+			prism_core  => $self->url->static('js/extlib/prismjs/prism-core.min.js'),
+			scripts     => [ map { $self->url->static($_) }
+				'js/extlib/lythumb/lythumb.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
 				'js/article.js', 'js/sidebar.js' ],

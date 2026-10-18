@@ -64,7 +64,7 @@ sub _image {
 
 	my $url       = _attachment_url($context, $dir, $file);
 	my $thumbnail = $size eq 'L' ? $url : _attachment_url($context, "$dir.thumbnail/", "$file.jpg");
-	my $html = sprintf '<a href="%s" class="tag-image-%s" title="%s" data-fancybox="k%s"><img alt="%s" src="%s"></a>',
+	my $html = sprintf '<a href="%s" class="tag-image-%s" title="%s" data-lythumb="k%s"><img alt="%s" src="%s"></a>',
 		escape_html($url), escape_html($size), escape_html($alt), escape_html($context->{article_id} // ''),
 		escape_html($alt), escape_html($thumbnail);
 	return { html => $html, block => 0 } if !@captions;
