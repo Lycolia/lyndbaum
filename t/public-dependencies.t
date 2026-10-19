@@ -9,7 +9,7 @@ use Test::More;
 use TestUtil qw(new_test_app insert_article);
 
 my $app = new_test_app();
-insert_article($app->db, id => 7, title => '公開記事', body_html => '<p>本文</p>');
+insert_article($app->db, id => 7, title => '公開記事', body_html => '<p>本文<img src="/pub/attachments/a.png"></p>');   # OGP の画像を絶対 URL にする
 
 for my $path ('/', '/07') {
 	subtest "匿名で閲覧する $path" => sub {
@@ -22,6 +22,13 @@ for my $path ('/', '/07') {
 			SiteIcon/Writer BlogImage/Writer Branding/Writer StaticFiles Feed Sitemap Upload Thumbnail
 		)) {
 			ok !exists $INC{"Lyndbaum/$module.pm"}, "$module は未ロード";
+		}
+		# 標準ライブラリやサーバーのモジュールも、読み込みに時間のかかるものは要るときだけ読み込む
+		#   URI と HTML::Entities は、OGP の画像の URL がふだんの形でないときだけ（Lyndbaum::OGP）
+		#   Digest::SHA は、記事のページのコメントのフォーム（Lyndbaum::CommentToken）と管理画面だけ
+		#   POSIX も読み込まない（Lyndbaum::View の切り上げ）が、Test::More が読み込むので、ここでは確かめられない
+		for my $module (qw(URI HTML/Entities), ($path eq '/' ? 'Digest/SHA' : ())) {
+			ok !exists $INC{"$module.pm"}, "$module は未ロード";
 		}
 	};
 }

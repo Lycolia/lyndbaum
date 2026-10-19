@@ -169,6 +169,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `comments_section.html`  | `article.html`                    | `article`                          |
 | `comment_form.html`      | `comments_section.html`           | `article.comment_form`             |
 | `admin_bar.html`         | `layout.html`                     | `admin_bar`                        |
+| `page_nav.html`          | `article.html`（記事の上と下）    | `article.page_nav`                 |
 
 ### 参照元（`backlinks.html`）
 
@@ -243,6 +244,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `article.comment_form`   | コメントのフォーム（下の「コメントのフォーム」）。出さないときは空 |
 | `article.is_draft`       | 下書きなら真（管理者にだけ見せている）                           |
 | `article.edit_url`       | 編集の画面のURL（下書きのときだけ）                              |
+| `article.page_nav`       | 前後のページへのリンク（下の「前後のページ」）。無いときと下書きでは空 |
 
 一覧（`articles`の要素。トップと検索結果）だけで使える項目。
 
@@ -280,6 +282,14 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | ---------- | ------------------------------------------------- |
 | `count`    | 子孫のタグを含めた、公開記事の数                  |
 | `children` | 子のタグの配列（同じ形）                          |
+
+#### 前後のページ
+
+`article.page_nav`。`prev`（前）、`up`（親）、`next`（次）のそれぞれが`title`と`url`を持つ。無いものは空。旧システムのページナビと同じ並び。
+
+- 記事は公開日時の順（公開日時が同じならIDの順）。`prev`は1つ古い記事、`next`は1つ新しい記事。`up`は無い。コンテンツページは含めない
+- コンテンツページは、メニューの木を上から順にたどった並び（親の次はその子）。親があれば`up`に入る。前のページが親と同じなら、`prev`は空にする
+- 表示のたびにDBから取る（キャッシュしない）
 
 #### コンテンツの木
 

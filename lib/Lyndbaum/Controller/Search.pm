@@ -10,7 +10,6 @@ package Lyndbaum::Controller::Search;
 use strict;
 use warnings;
 use utf8;
-use feature 'current_sub';
 
 use Lyndbaum::Controller qw(page_number);
 use Lyndbaum::Highlight;
@@ -176,20 +175,17 @@ sub _tag_facet {
 		}
 	}
 
+	# 並びに使うだけなので、全公開記事の件数は数えない（Lyndbaum::Model::Tag->public_tree を使わない）
+	#   当たった記事のあるタグは、その祖先も含めて公開記事があるので、サイドバーと同じ並びになる
 	my @facet;
-	my $walk = sub {
-		my ($nodes) = @_;
-		for my $node (@$nodes) {
-			my $count = $counts->{ $node->{id} };
-			push @facet, {
-				label => $node->{full_name},
-				count => $count,
-				url   => $class->_url($app, $cond, tags => [ @{ $cond->{tags} }, $node ], page => undef),
-			} if $count && !$exclude{ $node->{id} };
-			__SUB__->($node->{children});
-		}
-	};
-	$walk->(Lyndbaum::Model::Tag->public_tree($app->db, $app->tags));
+	for my $tag (@{ Lyndbaum::Model::Tag->in_tree_order($app->tags) }) {
+		my $count = $counts->{ $tag->{id} };
+		push @facet, {
+			label => $tag->{full_name},
+			count => $count,
+			url   => $class->_url($app, $cond, tags => [ @{ $cond->{tags} }, $tag ], page => undef),
+		} if $count && !$exclude{ $tag->{id} };
+	}
 
 	if (!$cond->{untagged} && (my $untagged = $search->untagged_count)) {
 		push @facet, { label => '(タグなし)', count => $untagged, url => $class->_url($app, $cond, untagged => 1, page => undef) };

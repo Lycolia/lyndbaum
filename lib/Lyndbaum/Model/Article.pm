@@ -42,6 +42,19 @@ sub count_public_posts {
 	return scalar $dbh->selectrow_array("SELECT COUNT(*) FROM articles WHERE kind = 'post' AND $PUBLIC");
 }
 
+# 時系列で前後の公開記事 ({ id, slug, title } か undef の組)。前は1つ古い記事、次は1つ新しい記事
+#   公開日時が同じなら、IDの順。コンテンツページは含めない
+#   表示のたびに取る（旧システムは前後をキャッシュしていたが、索引で十分速い）
+sub public_post_neighbors {
+	my ($class, $dbh, $article) = @_;
+	my @bind = ($article->{published_at}, $article->{published_at}, $article->{id});
+	my $sql = "SELECT id, slug, title FROM articles WHERE kind = 'post' AND $PUBLIC AND %s ORDER BY %s LIMIT 1";
+	return (
+		$dbh->selectrow_hashref(sprintf($sql, '(published_at < ? OR (published_at = ? AND id < ?))', 'published_at DESC, id DESC'), undef, @bind),
+		$dbh->selectrow_hashref(sprintf($sql, '(published_at > ? OR (published_at = ? AND id > ?))', 'published_at, id'), undef, @bind),
+	);
+}
+
 # 公開日時の年と月ごとの記事の件数 [ [年, 月, 件数], ... ]（新しい順。日本時間）
 #   旧システムの過去ログと同じく、コンテンツページは数えない（検索 /search?d=YYYYMM の件数はコンテンツページを含む）
 sub month_counts {

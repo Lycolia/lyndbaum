@@ -20,8 +20,8 @@ git clone https://github.com/<リポジトリ>.git <置き場所>   # または�
 cd <置き場所>
 mkdir -p var pub/attachments pub/branding
 
-cp config.json.sample config.json
 perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'   # secret_key に入れる値
+cp config.json.sample config.json
 ```
 
 `config.json`の`site_url`（例：`https://blog.example.jp`）と`secret_key`（上で作った値）を書く。ほかは見本のままでよい。httpで動かすときだけ、`"cookie_secure": false`を足す（ログインのCookieにSecureを付けないように）。
@@ -32,10 +32,10 @@ CGIを動かすユーザー（以下、実行ユーザー）を、書き込む�
 - Webサーバーのユーザー（`www-data`など）で動くときは、そのユーザーを持ち主にする。`pub/`はフォルダだけ（`pub/assets/`はリポジトリのものなので、`git pull`するユーザーのままにする）
 
 ```sh
-sudo chown -R www-data:www-data var pub/attachments pub/branding config.json
-sudo chown www-data:www-data pub
-sudo chmod 700 var
-sudo chmod 600 config.json
+chown -R www-data:www-data var pub/attachments pub/branding config.json
+chown www-data:www-data pub
+chmod 700 var
+chmod 600 config.json
 ```
 
 `tools/`のコマンドを実行する。Webサーバーのユーザーで動くときは、頭に`sudo -u www-data`を付ける（例：`sudo -u www-data perl tools/migrate.pl`）。
