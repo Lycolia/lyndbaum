@@ -1,135 +1,78 @@
-# さくらのレンタルサーバーへのデプロイ
+# デプロイ
 
-空のサーバーに置いて動かすまでの手順。SSHで入って作業する。
+CGIの動くWebサーバーに置いて動かす手順。adiaryから移るときは、設置の後に`docs/migrate-from-adiary.md`を行う。
 
-- 置き場所の例：`~/www/lyndbaum/`（以下では`$APP`と書く）。まずは試しのサブドメインの公開フォルダにする
-- 本番のドメインに移るときは、コントロールパネルでドメインの公開フォルダを切り替える（下の「本番のドメインに移る」）
+## 必要なもの
 
-## 1. 置く
+- Perl 5.32.1以上と、DBI、DBD::SQLite。GDがあれば画像のサムネイルを作る（無ければ作らないだけ）
+- Webサーバーは次のどちらか
+  - Apache：mod_rewriteと、`.htaccess`を使えること（`AllowOverride FileInfo`。`Options`も書いているので`Options`も）。設定は同梱の`.htaccess`。mod_headersがあれば`X-Content-Type-Options: nosniff`を付ける
+  - nginx：fcgiwrapなどでCGIを動かす。設定は`docs/nginx.conf.sample`を元に書く
+- `/pub/`の下だけをファイルとして返し、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、ほかのファイルは返さない
 
-```sh
-cd ~/www
-git clone https://github.com/<リポジトリ>.git lyndbaum   # または手元から rsync で送る
-cd lyndbaum
-```
+## 設置
 
-手元から送るときは、`config.json`、`var/`、`pub/attachments/`、`pub/branding/`、`pub/rss.xml`、`pub/sitemap.xml`を送らない（サーバーのものを上書きしないように）。`t/corpus/`（git管理外。記事のデータを含む）も送らない。
-
-```sh
-rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/branding' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:www/lyndbaum/
-```
-
-`.htaccess`がそろっていることを確かめる。`/pub/`の下だけをファイルとして返し（`/favicon.ico`は、サイトのアイコンか既定のロゴの`favicon.ico`を返す）、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、実在するファイルへのアクセスは403にする。
-
-## 2. 権限
-
-さくらでは、CGIは自分のアカウントとして動く。`index.cgi`と、それを置いたフォルダは、グループやほかの人が書き込めると動かない（suEXEC）。
+リポジトリを、Webサーバーの公開フォルダ（ドキュメントルート）として置く。以下の`<置き場所>`はそのパス。
 
 ```sh
-chmod 755 . index.cgi
-mkdir -p var pub/attachments
-chmod 700 var
-chmod 755 pub pub/attachments
-```
+git clone https://github.com/<リポジトリ>.git <置き場所>   # または、下の「手元から送る」
+cd <置き場所>
+mkdir -p var pub/attachments pub/branding
 
-## 3. 設定
-
-```sh
-cp config.sample.json config.json
-chmod 600 config.json
+cp config.json.sample config.json
 perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'   # secret_key に入れる値
 ```
 
-`config.json`を直す。
+`config.json`の`site_url`（例：`https://blog.example.jp`）と`secret_key`（上で作った値）を書く。ほかは見本のままでよい。httpで動かすときだけ、`"cookie_secure": false`を足す（ログインのCookieにSecureを付けないように）。
 
-- `site_url`：サイトのURL（例：`https://test.example.jp`）。RSSとOGPの絶対URLに使う
-- `secret_key`：上で作った値。コメントのフォームの署名に使う
-- `cookie_secure`：httpsで動かすので、消すか`true`のまま
-- そのほか（`db_path`、`attachment_path`など）は見本のままでよい
+CGIを動かすユーザーが、`var/`、`pub/`（RSSとサイトマップを書き出す）、`pub/attachments/`、`pub/branding/`に書き込めるようにする。`config.json`と`var/`は、ほかのユーザーから読めないようにする。
 
-## 4. DBと管理者
+- CGIが自分のアカウントとして動くサーバー（suEXEC。さくらのレンタルサーバーなど）では、`chmod 755 . index.cgi`、`chmod 700 var`、`chmod 600 config.json`。グループやほかの人が書き込めると、CGIが動かない
+- Webサーバーのユーザー（`www-data`など）で動くときは、上のフォルダをそのユーザーが書き込めるようにする
 
 ```sh
 perl tools/migrate.pl          # DB（var/lyndbaum.db）を作る
-perl tools/set-password.pl     # 管理者のログイン名とパスワード（12文字以上、UTF-8で72バイトまで）
-perl tools/build-feed.pl       # RSS（pub/rss.xml）とサイトマップ（pub/sitemap.xml）。記事を保存するたびにも書き出す
-perl tools/check-env.pl        # 足りないものが無いか確かめる。NG が無ければよい
+perl tools/set-password.pl     # 管理者のログイン名とパスワード（12文字以上）
+perl tools/check-env.pl        # NG が無ければよい
 ```
 
-`tools/check-env.pl`は、Perlとモジュールの版、SQLiteで使っている機能、GDが読める画像の種類、https、設定、権限、DBを確かめる。
+ブラウザで確かめる。
 
-## 5. 確かめる
+1. トップページが出て、`/admin`でログインできる
+2. 「ブログの設定」で、ブログの名前と説明、書いた人の名前を入れる
+3. 画像を入れた記事を公開すると、トップページと`/pub/rss.xml`に出る。ログアウトしてコメントを書ける
+4. `/config.json`と`/var/lyndbaum.db`が読めない（403か404）
 
-ブラウザで開く。
-
-1. トップページが出る（記事が無ければ空）
-2. `/admin`でログインできる
-3. 「ブログの設定」で、ブログの名前と説明、書いた人の名前を入れる
-4. 記事を書き、画像を上げ、下書きで見てから公開する。トップページ、記事のページ、`/pub/rss.xml`、`/pub/sitemap.xml`に出る
-5. 記事にコメントを書ける（ログアウトして試す）
-6. `/config.json`、`/var/lyndbaum.db`、`/lib/Lyndbaum/App.pm`が403になる
-7. メディアの画面でtxtとmdを上げ、「元のファイルを開く」でテキストとして出る（ダウンロードにならない）。`curl -I`で、`Content-Type: text/plain`と`X-Content-Type-Options: nosniff`が付いている（`.htaccess`の`AddType`と`Header`。`nosniff`が無ければmod_headersが無い）
-
-うまく動かないときは、さくらのコントロールパネルのエラーログを見る。
-
-## 旧データの取り込み（任意）
-
-adiaryのデータ（`data/`）と添付ファイル（`pub/lycolia/image/`）を手元からサーバーに送って取り込む。**取り込み先のDBは空であること**（記事を書く前に行う。書いた後なら、DBを消して`migrate.pl`からやり直す）。
+## 更新
 
 ```sh
-# 手元で
-rsync -av <adiaryのdata>/ <ユーザー>@<ホスト>:adiary-data/                        # 公開フォルダの外に置く
-rsync -av <adiaryのpub>/lycolia/image/ <ユーザー>@<ホスト>:www/lyndbaum/pub/attachments/
-
-# サーバーで
-cd ~/www/lyndbaum
-mv pub/attachments/adiary pub/attachments/posts    # フォルダの名前を変える（docs/compat-diffs.md）
-perl tools/import-adiary.pl ~/adiary-data lycolia   # 取り込んで、全記事を変換し、RSSとサイトマップを書き出す
+cd <置き場所>
+git pull                     # または、下の「手元から送る」
+perl tools/migrate.pl        # 新しいマイグレーションが無ければ何もしない
 ```
 
-- 旧システムのゴミ箱（`.trashbox`）は、そのまま新しいメディアのゴミ箱になる
-- ブログの画像は、添付ファイルの中から`pub/branding/`へ写す（写せなければそう出すので、ブログの設定の画面で入れ直す）
-- 管理者はDBに入るので、DBを作り直したら`set-password.pl`をもう一度実行する
-- 取り込みが済んだら、`~/adiary-data`は消してよい
+パーサーが変わったとき（`lib/Lyndbaum/Parser/`など）は、ダッシュボードの「再構築」か`perl tools/rebuild-html.pl`を実行する。
 
-## 本番のドメインに移る
+## 手元から送る
 
-1. 試しのサブドメインで確かめ終わったら、コントロールパネルで本番のドメインの公開フォルダを`$APP`にする
-2. `config.json`の`site_url`を本番のURLにする
-3. `perl tools/rebuild-html.pl`（RSSとサイトマップの絶対URLを書き直す。本文も変換し直す）
-4. Google Search Consoleなどに、サイトマップのURL（`https://<本番のドメイン>/pub/sitemap.xml`）を登録する。旧システムの`/pub/lycolia/sitemap.xml`を登録してあった場合は、新しいURLを登録し直す（旧URLは転送するが、登録し直すほうが確実）
-5. 旧URLの転送を確かめる（`.htaccess`）
-   - `/pub/lycolia/image/adiary/…` → `/pub/attachments/posts/…`
-   - `/pub/lycolia/image/…` → `/pub/attachments/…`
-   - `/pub/lycolia/rss.xml` → `/pub/rss.xml`
-   - `/pub/lycolia/sitemap.xml` → `/pub/sitemap.xml`
-   - 記事、タグ、検索の旧URLは、アプリが転送する（`docs/legacy-urls.md`）
-
-## 更新する
+サーバーにしか無いもの（設定、DB、添付ファイルなど）を上書きしないように除いて送る。
 
 ```sh
-cd ~/www/lyndbaum
-git pull                     # または手元から rsync（1. のとおり、設定とデータを除く）
-perl tools/migrate.pl        # スキーマを最新にする（新しいマイグレーションが無ければ何もしない）
-perl tools/check-env.pl
+rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/branding' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:<置き場所>/
 ```
-
-パーサーを直したとき（`docs/markdown-syntax.md`や`lib/Lyndbaum/Parser/`が変わったとき）は、管理画面のダッシュボードの「再構築」か、`perl tools/rebuild-html.pl`を実行する。
-
-サイドバーのタグ一覧・右側メニューは、更新時に生成したHTMLをDBの`sidebar_cache`に保存する。新規DBの作成後は`perl tools/rebuild-sidebar.pl`で先に生成できる。キャッシュが無い場合やサイドバーのテンプレートが変わった場合は、次の閲覧時にも自動生成する。
 
 ## バックアップ
 
-残すのは次の4つ。ほかはリポジトリから戻せる。
+次の4つを残す。ほかはリポジトリから戻せる。
 
-- `var/lyndbaum.db`（記事、コメント、設定、管理者）
+- `var/lyndbaum.db`（記事、コメント、設定、管理者）。書き込みの途中で写さないよう、`sqlite3 var/lyndbaum.db ".backup backup.db"`で写す
 - `pub/attachments/`（添付ファイル）
-- `pub/branding/`（設定の画面で入れたサイトのアイコンとブログの画像。アイコンの元の画像は残さないので、無くしたら入れ直す）
+- `pub/branding/`（設定の画面で入れたサイトのアイコンとブログの画像）
 - `config.json`
 
-DBは、書き込みの途中で写さないよう、`sqlite3 var/lyndbaum.db ".backup backup.db"`で写すとよい。
+## うまく動かないとき
 
-## 気をつけること
-
-- コンテンツページのslugが、実在するフォルダの名前（`lib`、`docs`、`tools`、`templates`、`db`、`t`、`var`、`pub`など）と同じだと、ページではなく403になる（`.htaccess`がフォルダを先に見るため）
-- `index.cgi`の1行目は`#!/usr/bin/env perl`。さくらでPerlが見つからないときは、`which perl`の結果（例：`/usr/local/bin/perl`）に書き換える
+- Webサーバーのエラーログを見る
+- 500になる：`index.cgi`の1行目は`#!/usr/bin/env perl`。Perlが見つからないときは、`which perl`の結果（例：`/usr/local/bin/perl`）に書き換える
+- ファイルを上げると413になる：Webサーバーの上限が`config.json`の`upload_max_mb`より小さい（nginxなら`client_max_body_size`）
+- （Apache）コンテンツページが403になる：slugが実在するフォルダの名前（`lib`、`docs`、`tools`、`var`など）と同じだと、`.htaccess`がフォルダを先に見る。slugを変える

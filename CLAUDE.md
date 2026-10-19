@@ -45,6 +45,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
 | RSS                        | `docs/feed.md`                               |
 | OGP                        | `docs/ogp.md`                                |
 | デプロイ                   | `docs/deploy.md`                             |
+| adiaryからの移行           | `docs/migrate-from-adiary.md`                |
 | テンプレートの書き方と変数 | `docs/templates.md`                          |
 
 仕様書とテストが食い違う場合は、勝手にどちらかに合わせず、作者に確認してください。

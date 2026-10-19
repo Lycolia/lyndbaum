@@ -30,8 +30,8 @@ my %TYPES = (css => 'text/css', js => 'text/javascript', png => 'image/png', jpg
 	jpeg => 'image/jpeg', gif => 'image/gif', svg => 'image/svg+xml', webp => 'image/webp',
 	xml => 'application/xml', mp4 => 'video/mp4', webm => 'video/webm', ico => 'image/vnd.microsoft.icon',
 	# 添付ファイル（.htaccess の AddType と同じ）
-	apng => 'image/apng', mp3 => 'audio/mpeg', txt => 'text/plain', md => 'text/plain', csv => 'text/csv',
-	tsv => 'text/tab-separated-values', json => 'application/json', zip => 'application/zip',
+	apng => 'image/apng', mp3 => 'audio/mpeg', txt => 'text/plain; charset=utf-8', md => 'text/plain; charset=utf-8',
+	csv => 'text/csv; charset=utf-8', tsv => 'text/tab-separated-values; charset=utf-8', json => 'application/json', zip => 'application/zip',
 	'7z' => 'application/x-7z-compressed', pdf => 'application/pdf');
 
 my $select = IO::Select->new;

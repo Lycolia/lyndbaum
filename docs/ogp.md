@@ -41,4 +41,4 @@
 - 入れた画像は、手を加えずに`pub/branding/blog-image-時刻.拡張子`に置く。設定の`blog_image`はその名前。入れ替えるとURLが変わるので、OGPを読むサービスに古い画像を使わせない。前の画像は消す
 - 消すと、OGPに画像を出さない
 - 前は添付ファイルの中のパス（例：`@system/sys-blog_image.png`）を「ファイル一覧から選択」で選んでいた。その書き方の値は、入れていないものとする（入れ直す）
-- 旧データの`blog_image`は、取り込むとき（`tools/import-adiary.pl`）に添付ファイルの中から`pub/branding/`へ写す。添付ファイルを先に置いておく（`docs/deploy.md`）
+- 旧データの`blog_image`は、取り込むとき（`tools/import-adiary.pl`）に添付ファイルの中から`pub/branding/`へ写す。添付ファイルを先に置いておく（`docs/migrate-from-adiary.md`）

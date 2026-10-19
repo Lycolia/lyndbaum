@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# 動かす環境を確かめる（docs/deploy.md）。さくらのレンタルサーバーに置いたら、最初に実行する
+# 動かす環境を確かめる（docs/deploy.md）。サーバーに置いたら、最初に実行する
 #   perl tools/check-env.pl [設定ファイル]
 # 足りないものがあれば「NG」と出し、終了コードを 1 にする。「注意」は動くが確かめてほしいもの
 use strict;

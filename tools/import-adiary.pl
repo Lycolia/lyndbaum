@@ -28,7 +28,7 @@ my %context = $app->parser_context;
 
 my $result = Lyndbaum::Legacy::Importer->run($app->db, $data_dir, $blog_id,
 	attachment_path => $context{attachment_path});
-# ブログの画像は、添付ファイルの中から pub/branding/ へ写す（添付ファイルは先に置いておく。docs/deploy.md）
+# ブログの画像は、添付ファイルの中から pub/branding/ へ写す（添付ファイルは先に置いておく。docs/migrate-from-adiary.md）
 my $blog_image_error;
 if (defined $result->{blog_image}) {
 	eval { Lyndbaum::BlogImage->copy_attachment($app, $result->{blog_image}); 1 } or ($blog_image_error = $@) =~ s/\n\z//;
