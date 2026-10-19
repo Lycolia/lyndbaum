@@ -6,7 +6,9 @@
 
 adiaryをリスペクトして作ったブログ向けCMS。
 
-開発中。ここはそのうち書く。
+実運用が可能なレベルまで開発したが、adiaryにパフォーマンスで勝てず、adiary独自機能を取り込むのも限界があったため、開発を中断する。
+
+[様々な学びがあった](https://blog.lycolia.info/0805)ため、一部機能は[adiary-extends](https://github.com/Lycolia/adiary-extends)にバックポートする予定。
 
 ## 免責事項
 
