@@ -176,6 +176,9 @@
   {{/ if }}
 </details>
 {{/ if }}
+{{! メディアの一覧で画像を拡大して出す（Lythumb。admin-media.js から開く）。この画面だけで使うので、ここで読み込む }}
+<link rel="stylesheet" href="{{ urls.lythumb_css }}">
+<script src="{{ urls.lythumb_script }}" defer></script>
 <script src="{{ urls.media_script }}" defer></script>
 <script src="{{ urls.unsaved_script }}" defer></script>
 <script src="{{ script }}" defer></script>

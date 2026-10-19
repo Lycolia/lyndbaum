@@ -1,14 +1,16 @@
 package Lyndbaum::Controller::AdminUpload;
 # 添付ファイルのアップロード（docs/admin.md の「画像のアップロード」）
-#   POST /admin/upload   multipart/form-data。file（複数）、thumbnail_size、csrf_token
+#   POST /admin/upload   multipart/form-data。file（複数）、thumbnail_size、folder、csrf_token
 #   応答は JSON { files => [ { name, url, tag }, ... ], errors => [ 理由, ... ] }
-#   編集の画面（pub/assets/js/admin-article.js）が送り、返った記法を本文に入れる
+#   編集の画面（pub/assets/js/admin-article.js）が送り、返った記法を本文に入れる。置くのは今の年月のフォルダ
+#   メディアの画面（pub/assets/js/admin-media.js）は、開いているフォルダ（folder）へ置く
 use strict;
 use warnings;
 use utf8;
 
 use Lyndbaum::Controller::Admin;
 use Lyndbaum::EditorSettings;
+use Lyndbaum::Media;
 use Lyndbaum::Response;
 use Lyndbaum::Upload;
 
@@ -27,11 +29,19 @@ sub upload {
 	my $size  = $req->body_param('thumbnail_size') // '';
 	$size = $app->settings->{thumbnail_size} if $size !~ /\A\d{1,9}\z/ || $size < $field->{min} || $size > $field->{max};
 
+	# 置くフォルダ。省けば今の年月のフォルダ
+	my $folder = $req->body_param('folder') // '';
+	if ($folder ne '') {
+		$folder = Lyndbaum::Media->clean_folder($folder);
+		return $class->_json($app, 400, errors => ['置くフォルダがありません。']) if !defined $folder || !$app->media->has_folder($folder);
+	}
+
 	my (@files, @errors);
 	my $dir = $app->attachment_dir;
 	for my $upload (@uploads) {
 		my $file = eval {
-			Lyndbaum::Upload->save(dir => $dir, filename => $upload->{filename}, data => $upload->{data}, thumbnail_size => $size);
+			Lyndbaum::Upload->save(dir => $dir, filename => $upload->{filename}, data => $upload->{data}, thumbnail_size => $size,
+				$folder ne '' ? (folder => $folder) : ());
 		};
 		if (!$file) {
 			(my $error = $@) =~ s/\n\z//;

@@ -35,6 +35,7 @@ my $MAX_NAME = 100;
 #     data            中身（バイト列）
 #     thumbnail_size  サムネイルの長い辺（px）
 #     now             今の時刻（テスト用。フォルダの年月に使う。日本時間）
+#     folder          置くフォルダ（「posts/2026/10/」の形。あるフォルダ）。省けば今の年月のフォルダ（posts/年/月/）
 #   戻り値は { folder => 'posts/2026/10/', name => ファイル名, kind => 種類, image => 画像か, thumbnail => サムネイルを作れたか }
 #   置けないときは die する（理由の文）
 sub save {
@@ -45,7 +46,7 @@ sub save {
 		// die "「$args{filename}」は置けない種類のファイルです（置けるのは " . join('、', sort keys %KIND_OF_EXT) . "）。\n";
 	die "「$args{filename}」は、拡張子と中身の種類が合いません。\n" if !$MAGIC{$kind}->($args{data} // '');
 
-	my $folder = $class->folder_of($args{now} // time);
+	my $folder = $args{folder} // $class->folder_of($args{now} // time);
 	my $dir = File::Spec->catdir($args{dir}, split m{/}, $folder);
 	make_path(encode_utf8($dir), { mode => 0755 });
 	$name = $class->_unique_name($dir, $name);

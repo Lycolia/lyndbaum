@@ -99,6 +99,89 @@ subtest 'ゴミ箱' => sub {
 	like $@, qr{ありません};
 };
 
+subtest 'ほかのフォルダへ移す' => sub {
+	put('posts/2026/08/移す.jpg', 'jpeg');
+	put('posts/2026/08/.thumbnail/移す.jpg.jpg', 'thumb');
+	put('posts/2026/08/重なる.png', 'png');
+	put('@system/素材/重なる.png', 'png');
+	is $media->move_to('posts/2026/08/', '移す.jpg', '@system/素材/'), '移す.jpg';
+	ok has($dir, '@system/素材/移す.jpg'), '移す';
+	ok has($dir, '@system/素材/.thumbnail/移す.jpg.jpg'), 'サムネイルも移す';
+	ok !has($dir, 'posts/2026/08/移す.jpg') && !has($dir, 'posts/2026/08/.thumbnail/移す.jpg.jpg');
+
+	eval { $media->move_to('posts/2026/08/', '重なる.png', '@system/素材/') };
+	like $@, qr{同じ名前のファイル}, '同じ名前があれば移さない（上書きしない）';
+	ok has($dir, 'posts/2026/08/重なる.png');
+	eval { $media->move_to('posts/2026/08/', '重なる.png', '@system/無い/') };
+	like $@, qr{移す先のフォルダ「\@system/無い/」はありません}, 'フォルダは作らない';
+	eval { $media->move_to('posts/2026/08/', '重なる.png', '') };
+	like $@, qr{移す先のフォルダ}, 'いちばん上には移さない';
+	eval { $media->move_to('posts/2026/08/', '無い.png', '@system/') };
+	like $@, qr{ありません};
+};
+
+subtest 'フォルダを作る' => sub {
+	is $media->make_folder('@system/', '新しい'), '@system/新しい/';
+	ok -d encode_utf8("$dir/\@system/新しい"), '作る';
+	is $media->make_folder('', 'top'), 'top/', 'いちばん上にも作れる';
+	eval { $media->make_folder('@system/', '新しい') };
+	like $@, qr{同じ名前}, 'あれば作らない';
+	my %bad = ('a/b' => qr{使えません}, 'a:b' => qr{使えません}, 'a b' => qr{使えません}, '.thumbnail' => qr{始められません}, '..' => qr{始められません}, '' => qr{入れてください});
+	for my $name (sort keys %bad) {
+		eval { $media->make_folder('@system/', $name) };
+		like $@, $bad{$name}, "「$name」は作れない";
+	}
+	eval { $media->make_folder('無い/', 'x') };
+	like $@, qr{フォルダ「無い/」はありません}, '親が無ければ作らない（途中のフォルダもまとめては作らない）';
+	rmdir encode_utf8("$dir/$_") for '@system/新しい', 'top';
+};
+
+subtest 'ファイルの名前を変える' => sub {
+	put('posts/2026/07/元.JPG', 'jpeg');
+	put('posts/2026/07/.thumbnail/元.JPG.jpg', 'thumb');
+	put('posts/2026/07/ある.jpg', 'jpeg');
+	is $media->rename_file('posts/2026/07/', '元.JPG', '新しい.jpg'), '新しい.jpg', '拡張子の大文字と小文字は変えてよい';
+	ok has($dir, 'posts/2026/07/新しい.jpg') && !has($dir, 'posts/2026/07/元.JPG');
+	ok has($dir, 'posts/2026/07/.thumbnail/新しい.jpg.jpg'), 'サムネイルも';
+	my %bad = (
+		'新しい.png' => qr{拡張子は変えられません}, '新しい' => qr{拡張子は変えられません}, 'a.php.jpg' => qr{拡張子の前の1つだけ},
+		'ある.jpg' => qr{同じ名前}, 'a]b.jpg' => qr{使えません}, '.jpg' => qr{始められません},
+	);
+	for my $name (sort keys %bad) {
+		eval { $media->rename_file('posts/2026/07/', '新しい.jpg', $name) };
+		like $@, $bad{$name}, "「$name」にはできない";
+	}
+	ok has($dir, 'posts/2026/07/新しい.jpg'), '変えられなければそのまま';
+};
+
+subtest 'フォルダの名前を変える・消す' => sub {
+	put('posts/2026/06/a.jpg', 'jpeg');
+	put('posts/2026/06/sub/b.jpg', 'jpeg');
+	put('posts/2026/05/.thumbnail/old.jpg.jpg', 'thumb');
+	is $media->rename_folder('posts/2026/06/', '六月'), 'posts/2026/六月/';
+	ok has($dir, 'posts/2026/六月/sub/b.jpg'), '中のフォルダとファイルごと';
+	eval { $media->rename_folder('posts/2026/六月/', '05') };
+	like $@, qr{同じ名前の「05」};
+	for my $folder ('posts/', '@system/') {
+		eval { $media->rename_folder($folder, 'x') };
+		like $@, qr{変えられません}, "「$folder」は変えられない";
+	}
+	eval { $media->rename_folder('無い/', 'x') };
+	like $@, qr{ありません};
+
+	eval { $media->remove_folder('posts/2026/六月/') };
+	like $@, qr{空ではありません（2件}, '中にあれば消さない';
+	ok $media->remove_folder('posts/2026/05/'), 'サムネイルのフォルダだけなら消す';
+	ok !has($dir, 'posts/2026/05');
+	put('posts/2026/04/.htaccess', 'x');
+	eval { $media->remove_folder('posts/2026/04/') };
+	like $@, qr{画面に出ないファイル（\.htaccess）}, 'ほかの . で始まるものがあれば消さない';
+	for my $folder ('posts/', '@system/') {
+		eval { $media->remove_folder($folder) };
+		like $@, qr{消せません}, "「$folder」は消せない";
+	}
+};
+
 subtest '/admin/media' => sub {
 	my $t = AdminTest->new;
 	$t->{app} = Lyndbaum::App->new(root => $t->app->{root},
@@ -110,7 +193,8 @@ subtest '/admin/media' => sub {
 	my $json = sub { JSON::PP->new->decode($_[0]->body) };
 
 	is $t->request(GET => '/admin/media/folders')->status, 303, 'ログインしていなければ使えない';
-	like $get->('/admin/media')->body, qr{<div class="media-page" data-base="/admin/media" data-csrf="[^"]+"></div>};
+	like $get->('/admin/media')->body, qr{<div class="media-page" data-base="/admin/media" data-upload="/admin/upload" data-csrf="[^"]+"></div>};
+	is $json->($get->("/admin/media/folders"))->{folders}[0]{protected}, JSON::PP::true, "posts/ は名前を変えたり消したりできない";
 	my $folders = $json->($get->('/admin/media/folders'));
 	is $folders->{folders}[1]{folder}, '@system/';
 	like $folders->{current}, qr{\Aposts/\d{4}/\d\d/\z}, '今月のフォルダ（最初に開く）';
@@ -132,6 +216,32 @@ subtest '/admin/media' => sub {
 	is_deeply $json->($res)->{done}, ['logo.png'];
 	like $json->($res)->{errors}[0], qr{「\@system/無い\.png」はありません};
 	is $t->request(POST => '/admin/media/trash', cookie => $cookie, body => [ folder => '@system/', name => 'x' ])->status, 403, 'CSRFトークンが無い';
+
+	$res = $post->('/admin/media/move', folder => '@system/素材/', to => 'posts/2026/08/', name => '移す.jpg', name => '重なる.png', name => '../x');
+	is_deeply $json->($res)->{done}, ['移す.jpg'];
+	is scalar @{ $json->($res)->{errors} }, 2, '移せなかったものは理由を返す';
+	ok has($dir, 'posts/2026/08/移す.jpg');
+	is $post->('/admin/media/move', folder => '@system/', to => '../', name => 'x')->status, 400, 'フォルダの外へは移せない';
+
+	is_deeply $json->($post->('/admin/media/folders', parent => '@system/', name => ' 作る '))->{folder}, '@system/作る/', 'フォルダを作る（前後の空白は除く）';
+	$res = $post->('/admin/media/folders', parent => '@system/', name => '作る');
+	is $res->status, 400;
+	like $json->($res)->{errors}[0], qr{同じ名前};
+	is $post->('/admin/media/folders', parent => '../', name => 'x')->status, 400, 'フォルダの外には作れない';
+	is $t->request(POST => '/admin/media/folders', cookie => $cookie, body => [ parent => '', name => 'x' ])->status, 403, 'CSRFトークンが無い';
+
+	$res = $post->('/admin/media/folders/rename', folder => '@system/作る/', name => '作った');
+	is_deeply $json->($res), { folder => '@system/作った/' }, 'フォルダの名前を変える';
+	like $json->($post->('/admin/media/folders/rename', folder => 'posts/', name => 'x'))->{errors}[0], qr{変えられません};
+	is_deeply $json->($post->('/admin/media/folders/delete', folder => '@system/作った/')), { folder => '@system/作った/' }, '空のフォルダを消す';
+	is $post->('/admin/media/folders/delete', folder => '@system/')->status, 400;
+
+	put('@system/改名.png', 'png');
+	is_deeply $json->($post->('/admin/media/rename', folder => '@system/', name => '改名.png', new_name => ' 改名後.png '))->{name}, '改名後.png', 'ファイルの名前を変える';
+	like $json->($post->('/admin/media/rename', folder => '@system/', name => '改名後.png', new_name => 'x.html'))->{errors}[0], qr{拡張子は変えられません};
+	is $post->('/admin/media/rename', folder => '../', name => 'x.png', new_name => 'y.png')->status, 400;
+	is $t->request(POST => '/admin/media/rename', cookie => $cookie, body => [ folder => '@system/', name => '改名後.png', new_name => 'y.png' ])->status, 403, 'CSRFトークンが無い';
+	is $t->request(POST => '/admin/media/move', cookie => $cookie, body => [ folder => '@system/', to => 'posts/', name => 'x' ])->status, 403, 'CSRFトークンが無い';
 
 	my $list = $json->($get->('/admin/media/trash'))->{files};
 	my ($logo) = grep { $_->{original} eq 'logo.png' } @$list;

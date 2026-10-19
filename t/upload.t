@@ -5,6 +5,7 @@ use utf8;
 use Test::More;
 
 use Encode qw(encode_utf8);
+use File::Path qw(make_path);
 use File::Spec;
 use File::Temp qw(tempdir);
 use JSON::PP ();
@@ -115,6 +116,7 @@ SKIP: {
 		open my $fh, '<:raw', encode_utf8(File::Spec->catfile($dir, 'posts', '2026', '10', 'exif.jpg')) or die $!;
 		is do { local $/; <$fh> }, $jpeg, '元の画像には手を加えない（Exif も残す）';
 	};
+
 }
 
 subtest '/admin/upload' => sub {
@@ -146,6 +148,15 @@ subtest '/admin/upload' => sub {
 	is_deeply $json->{files}, [ { name => '動画.mp4', url => "/pub/attachments/$folder%E5%8B%95%E7%94%BB.mp4", tag => "[file:mp4:$folder:動画.mp4]" } ],
 		'置いたファイルと、本文に入れる記法';
 	like $json->{errors}[0], qr{「virus\.exe」は置けない種類}, '置けなかったファイルの理由';
+
+	make_path(encode_utf8("$root/\@system/素材"));
+	$res = $post->($multipart->(csrf_token => $csrf, undef, folder => '@system/素材/', undef, file => $FAKE{mp4}, 'b.mp4'));
+	is(JSON::PP->new->decode($res->body)->{files}[0]{tag}, '[file:mp4:@system/素材/:b.mp4]', '置くフォルダを決められる（メディアの画面）');
+	ok -f encode_utf8("$root/\@system/素材/b.mp4");
+	for my $bad ('無い/', '../', '/') {
+		$res = $post->($multipart->(csrf_token => $csrf, undef, folder => $bad, undef, file => $FAKE{mp4}, 'c.mp4'));
+		is $res->status, 400, "「$bad」には置かない";
+	}
 
 	is $post->($multipart->(csrf_token => $csrf, undef))->status, 400, 'ファイルが無い';
 	is $post->($multipart->(csrf_token => 'wrong', undef, file => $FAKE{mp4}, 'a.mp4'))->status, 403, 'CSRFトークンが違う';
