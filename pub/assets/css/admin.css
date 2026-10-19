@@ -1,5 +1,6 @@
 /* 管理画面の見た目。common.cssの後に読む */
-.admin-main { max-width: 48rem; margin: 0 auto; padding: 1.5rem 16px; }
+.admin-main { max-width: 48rem; margin: 0 auto; padding: 1.5rem }
+.admin-main h1 { margin-top: 0; font-weight: 400; }
 .admin .site-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1rem; }
 /* 管理画面の枠。上に管理者のメニュー、左にナビ、右に本文（WordPressと同じ並び）。ナビは明るい画面でも暗い画面でも同じ色にする */
 body.admin { padding: 0; background: var(--admin-bg); }
@@ -15,7 +16,7 @@ body.admin { padding: 0; background: var(--admin-bg); }
 .admin-menu .admin-submenu { background: #2c3338; padding: .25rem 0; }
 .admin-submenu a { padding: .3rem 1rem .3rem 1.75rem; color: #c3c4c7; }
 .admin-submenu a.is-current { color: #fff; font-weight: bold; }
-.admin-frame .admin-main { margin: 0; padding: 1.5rem 2rem; }
+.admin-frame .admin-main { margin: 0; }
 @media (min-width: 48rem) {
   /* 広い画面では、上のメニューとナビを動かさずに残す。上のメニューは1行に収め、高さを決めておく */
   .admin .admin-bar { height: 2.5rem; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
@@ -32,7 +33,6 @@ body.admin { padding: 0; background: var(--admin-bg); }
   .admin-submenu { flex-basis: 100%; display: flex; flex-wrap: wrap; }
   .admin-menu-item.is-current { display: contents; }
   .admin-submenu a { padding: .3rem .75rem; }
-  .admin-frame .admin-main { padding: 1rem 16px; }
 }
 /* 管理画面の箱（.admin-card、知らせなど）。地（--admin-bg）と見分けられるよう、背景を--bgにして枠を付ける */
 .admin-card, .sidebar-box-edit, .admin-notice, .admin-error { background: var(--bg); border: 1px solid var(--border); }
