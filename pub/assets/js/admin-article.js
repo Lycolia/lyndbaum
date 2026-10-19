@@ -358,7 +358,6 @@
 					csrf: form.elements.csrf_token.value,
 					actions: [
 						{ label: '本文に入れる', when: function (f) { return !!f.tag; }, run: function (f) { insert(f.tag); } },
-						{ label: 'アイキャッチ画像に設定', when: function (f) { return f.kind === 'image'; }, run: function (f) { form.eyecatchChoose && form.eyecatchChoose(f); } },
 					],
 				});
 			});
@@ -438,11 +437,11 @@
 			return preview.dataset.attachments + path.split('/').map(encodeURIComponent).join('/');
 		}
 
-		form.eyecatchChoose = function (f) {
+		function choose(f) {
 			hidden.value = f.folder + f.name;
 			chosenUrl = f.thumbnail || f.url;
 			show();
-		};
+		}
 		removeButton.addEventListener('click', function () {
 			hidden.value = '';
 			chosenUrl = null;
@@ -453,7 +452,7 @@
 				window.LyndbaumMedia.pick({
 					base: actions.dataset.base,
 					csrf: form.elements.csrf_token.value,
-					actions: [{ label: 'アイキャッチ画像に設定', when: function (f) { return f.kind === 'image'; }, run: form.eyecatchChoose }],
+					actions: [{ label: 'アイキャッチ画像に設定', when: function (f) { return f.kind === 'image'; }, run: choose }],
 				});
 			};
 			pickButton.addEventListener('click', pick);
