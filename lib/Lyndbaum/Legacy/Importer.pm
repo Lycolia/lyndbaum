@@ -54,6 +54,9 @@ sub run {
 		$result{article_tags} = $class->_import_article_tags($dbh, $articles, $tags);
 		($result{comments}, $result{private_comments}) = $class->_import_comments($dbh, $comments);
 		$result{settings}     = $class->_import_settings($dbh, $setting, $articles);
+		# ブログの画像（OGP で、記事に画像が無いときに出すもの）。旧システムのパス（pub/ブログID/image/…）を添付ファイルの中のパスにして返す
+		#   ファイルを pub/branding/ へ写すのは呼んだ側（tools/import-adiary.pl。Lyndbaum::BlogImage->copy_attachment）
+		$result{blog_image}   = ($setting->{blog_image} // '') =~ m{\A/?pub/[^/]+/image/(.+)\z} ? $class->rename_folder($1) : undef;
 		# 取り込んだコメントは、新着として数えない
 		Lyndbaum::Model::Comment->mark_seen($dbh);
 		# 記事のIDを使い回さないよう、最後に使ったIDを記録する（Lyndbaum::Model::Article->next_id）
@@ -322,11 +325,6 @@ sub _import_settings {
 	for my $old (sort keys %SETTING_KEYS) {
 		next if !defined $setting->{$old} || $setting->{$old} eq '';
 		Lyndbaum::Model::Setting->set($dbh, $SETTING_KEYS{$old}, $setting->{$old});
-		$count++;
-	}
-	# ブログの画像（OGP で、記事に画像が無いときに出すもの）。旧システムのパス（pub/ブログID/image/…）を添付ファイルの中のパスにする
-	if (($setting->{blog_image} // '') =~ m{\A/?pub/[^/]+/image/(.+)\z}) {
-		Lyndbaum::Model::Setting->set($dbh, blog_image => $class->rename_folder($1));
 		$count++;
 	}
 	my ($author) = grep { defined && $_ ne '' } map { $_->{name} } sort { $a->{pkey} <=> $b->{pkey} } @$articles;

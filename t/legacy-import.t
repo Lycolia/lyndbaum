@@ -34,7 +34,8 @@ subtest '取り込み' => sub {
 	my $dbh = $app->db;
 	my $result = Lyndbaum::Legacy::Importer->run($dbh, $fixture, 'test');
 	is_deeply $result, { articles => 4, rewritten => 1, image_alts => 1, heading_ids => 1, article_links => 1, lythumb => 0, tags => 4, article_tags => 2,
-		comments => 3, private_comments => 2, settings => 5 }, '件数';
+		comments => 3, private_comments => 2, settings => 4, blog_image => '@system/blog.png' },
+		'件数。ブログの画像は、添付ファイルの中のパスにして返す（pub/branding/ へ写すのは tools/import-adiary.pl）';
 
 	my $article = sub { $dbh->selectrow_hashref('SELECT * FROM articles WHERE id = ?', undef, $_[0]) };
 
@@ -106,7 +107,7 @@ subtest '取り込み' => sub {
 
 	is(Lyndbaum::Model::Comment->count_new($dbh), 0, '取り込んだコメントは新着として数えない');
 	is_deeply $dbh->selectall_arrayref(q{SELECT key, value FROM settings WHERE key NOT LIKE 'comments_seen_%' ORDER BY key}),
-		[ [ blog_author => 'テストの人' ], [ blog_image => '@system/blog.png' ], [ blog_title => 'テストのブログ' ], [ feed_items => 7 ], [ per_page => 3 ] ],
+		[ [ blog_author => 'テストの人' ], [ blog_title => 'テストのブログ' ], [ feed_items => 7 ], [ per_page => 3 ] ],
 		'ブログの設定（空の値は取り込まない）。書いた人の名前は記事から取る';
 };
 

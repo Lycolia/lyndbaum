@@ -1,23 +1,17 @@
 package Lyndbaum::SiteIcon;
 # サイトのアイコン（favicon）。ブログの設定の画面で、画像を入れ替えたり消したりする（docs/admin.md の「サイトのアイコン」）
-#   入れた画像は、真ん中を正方形に切り抜いて、大きさごとのPNGと favicon.ico にし、pub/site-icon/ に書き出す
+#   入れた画像は、真ん中を正方形に切り抜いて、大きさごとのPNGと favicon.ico にし、pub/branding/ に書き出す（Lyndbaum::Branding）
 #   入れていなければ（消したときも）、既定のロゴ（pub/assets/logo/）を使う
-#   /favicon.ico は Webサーバーが返す（.htaccess、docs/nginx.conf.sample。site-icon に無ければ既定のロゴ）
+#   /favicon.ico は Webサーバーが返す（.htaccess、docs/nginx.conf.sample。pub/branding/ に無ければ既定のロゴ）
 #   設定の site_icon は書き出した時刻。空なら既定のロゴ。URLに付けて、入れ替えたときにブラウザの古いアイコンを使わせない
 use strict;
 use warnings;
 use utf8;
 
-use File::Path qw(make_path);
-use File::Spec;
+use Lyndbaum::Branding;
 use Lyndbaum::Model::Setting;
-use Lyndbaum::StaticFiles;
 use Lyndbaum::Thumbnail;
 use Lyndbaum::Upload;
-
-my $DIR = 'pub/site-icon';
-my $URL = '/pub/site-icon';
-my @EXTS = qw(png jpg jpeg webp gif);   # GIF は動くものでも最初の1コマだけ
 
 # 書き出すファイル => 既定のロゴ（pub/assets/ の中）
 my %FILES = (
@@ -31,7 +25,7 @@ my %FILES = (
 sub urls {
 	my ($class, $app) = @_;
 	my $version = $app->settings->{site_icon} // '';
-	my $url_of = $version ne '' ? sub { "$URL/$_[0]?v=$version" } : sub { $app->url->static($FILES{ $_[0] }) };
+	my $url_of = $version ne '' ? sub { Lyndbaum::Branding->url($_[0]) . "?v=$version" } : sub { $app->url->static($FILES{ $_[0] }) };
 	return {
 		icon_32          => $url_of->('icon-32.png'),
 		icon_192         => $url_of->('icon-192.png'),
@@ -42,33 +36,27 @@ sub urls {
 # 入れた画像（PNG、JPEG、WebP、GIF）から書き出し、設定を書き換える。書き出せなければ die する（理由の文）
 sub save {
 	my ($class, $app, %args) = @_;
-	my $kind = Lyndbaum::Upload->kind_of($args{filename}, $args{data}, \@EXTS);
+	my $kind = Lyndbaum::Upload->kind_of($args{filename}, $args{data}, \@Lyndbaum::Branding::IMAGE_EXTS);
 	# GD の理由の文は分かりにくいので、エラーログにだけ残す
 	my $files = eval { $class->make($args{data}, $kind) } // do {
 		warn "サイトのアイコンを作れませんでした: $@";
 		die "「$args{filename}」を画像として読めませんでした。\n";
 	};
-	my $dir = $class->dir($app);
-	make_path($dir, { mode => 0755 });
-	Lyndbaum::StaticFiles->write_file(File::Spec->catfile($dir, $_), $files->{$_}) for sort keys %$files;
+	Lyndbaum::Branding->write_file($app, $_, $files->{$_}) for sort keys %$files;
 	Lyndbaum::Model::Setting->set($app->db, site_icon => $args{now} // time);
 }
 
 # 入れた画像を消して、既定のロゴに戻す
 sub remove {
 	my ($class, $app) = @_;
-	my $dir = $class->dir($app);
-	for my $name (sort keys %FILES) {
-		my $file = File::Spec->catfile($dir, $name);
-		unlink $file or die "$file: $!\n" if -e $file;
-	}
+	Lyndbaum::Branding->remove_file($app, $_) for sort keys %FILES;
 	Lyndbaum::Model::Setting->set($app->db, site_icon => '');
 }
 
-# 書き出す先のフォルダ。config.json の site_icon_dir（テストで、リポジトリの pub/ を書き換えないようにするため）
-sub dir {
+# 入れているか（入れていなければ既定のロゴ）
+sub custom {
 	my ($class, $app) = @_;
-	return Lyndbaum::StaticFiles->path_of($app, site_icon_dir => $DIR);
+	return ($app->settings->{site_icon} // '') ne '';
 }
 
 # 画像（バイト列）から、書き出すファイルの中身を作る { ファイル名 => バイト列 }

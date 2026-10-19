@@ -12,8 +12,8 @@ server {
 
   location /pub/ { try_files $uri =404; }
 
-  # サイトのアイコン。設定の画面で入れたもの（pub/site-icon/）、無ければ既定のロゴ（Lyndbaum::SiteIcon）
-  location = /favicon.ico { try_files /pub/site-icon/favicon.ico /pub/assets/logo/favicon.ico =404; }
+  # サイトのアイコン。設定の画面で入れたもの（pub/branding/）、無ければ既定のロゴ（Lyndbaum::SiteIcon）
+  location = /favicon.ico { try_files /pub/branding/favicon.ico /pub/assets/logo/favicon.ico =404; }
 
   # クエリは QUERY_STRING だけから取る（REQUEST_URI からは取らない）。
   # try_files で index.cgi に移すと nginx がクエリを捨てるので、その場合は

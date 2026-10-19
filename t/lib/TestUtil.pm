@@ -32,12 +32,12 @@ sub new_test_app {
 	Lyndbaum::DB->migrate($dbh, File::Spec->catdir(root_dir(), 'db', 'migrations'));
 	$dbh->disconnect;
 
-	# RSS とサイトマップとサイトのアイコンは一時ディレクトリに書き出す（リポジトリの pub/ を書き換えないように）
+	# RSS とサイトマップと pub/branding/ は一時ディレクトリに書き出す（リポジトリの pub/ を書き換えないように）
 	return Lyndbaum::App->new(
 		root   => root_dir(),
 		config => Lyndbaum::Config->new(db_path => $db_path, secret_key => 'test-secret',
 			feed_file => File::Spec->catfile($dir, 'rss.xml'), sitemap_file => File::Spec->catfile($dir, 'sitemap.xml'),
-			site_icon_dir => File::Spec->catdir($dir, 'site-icon')),
+			branding_dir => File::Spec->catdir($dir, 'branding')),
 	);
 }
 

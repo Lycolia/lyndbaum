@@ -35,22 +35,21 @@
   {{/ for }}
   <p><button type="submit">保存</button></p>
 </form>
-{{# if icon }}
-{{! サイトのアイコン（Lyndbaum::SiteIcon）。ファイルを送るので、上の設定とは別のフォームにする }}
-<h2 id="site-icon">サイトのアイコン</h2>
-{{# if icon.saved }}<p class="admin-notice" role="status">アイコンを入れ替えました。</p>{{/ if }}
-{{# if icon.deleted }}<p class="admin-notice" role="status">アイコンを消して、既定のロゴに戻しました。</p>{{/ if }}
-{{# if icon.error }}<p class="admin-error" role="alert">アイコンを入れ替えられませんでした。{{ icon.error }}</p>{{/ if }}
-<form class="admin-form site-icon-form" method="post" action="{{ icon.action }}" enctype="multipart/form-data">
+{{# for image in images }}
+{{! サイトのアイコンとブログの画像（Lyndbaum::Controller::AdminSettings の %IMAGES）。ファイルを送るので、上の設定とは別のフォームにする }}
+<h2 id="{{ image.key }}">{{ image.title }}</h2>
+{{# if image.notice }}<p class="admin-notice" role="status">{{ image.notice }}</p>{{/ if }}
+{{# if image.error }}<p class="admin-error" role="alert">{{ image.title }}を入れ替えられませんでした。{{ image.error }}</p>{{/ if }}
+<form class="admin-form branding-form" method="post" action="{{ image.action }}" enctype="multipart/form-data">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-  <p class="site-icon-preview"><img src="{{ icon.preview }}" width="64" height="64" alt="今のアイコン"> {{# if icon.custom }}入れたアイコン{{# else }}既定のロゴ{{/ if }}</p>
+  <p class="branding-preview">{{# if image.preview }}<img src="{{ image.preview }}"{{# if image.square }} width="64" height="64"{{/ if }} alt="今の{{ image.title }}"> {{/ if }}{{# if image.custom }}入れた画像{{# else }}{{ image.default }}{{/ if }}</p>
   <div class="admin-field">
     <label>画像（PNG、JPEG、WebP、GIF）<br><input type="file" name="file" accept=".png,.jpg,.jpeg,.webp,.gif,image/png,image/jpeg,image/webp,image/gif"></label>
-    <p class="admin-help">ブラウザのタブ、ブックマーク、スマートフォンのホーム画面などに出します。正方形でなければ、真ん中を正方形に切り抜きます。512×512px以上を目安にしてください。動くGIFは最初の1コマだけを使います。</p>
+    <p class="admin-help">{{ image.help }}</p>
   </div>
-  <p><button type="submit" name="op" value="upload">入れ替える</button>{{# if icon.custom }} <button type="submit" name="op" value="delete" class="button">消して既定のロゴに戻す</button>{{/ if }}</p>
+  <p><button type="submit" name="op" value="upload">入れ替える</button>{{# if image.custom }} <button type="submit" name="op" value="delete" class="button">{{ image.delete }}</button>{{/ if }}</p>
 </form>
-{{/ if }}
+{{/ for }}
 {{# if script }}
 {{! メディアの一覧で画像を拡大して出す（Lythumb。admin-media.js から開く）。この画面だけで使うので、ここで読み込む }}
 <link rel="stylesheet" href="{{ urls.lythumb_css }}">

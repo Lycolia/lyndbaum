@@ -9,11 +9,11 @@ RewriteRule ^pub/lycolia/image/(.*)$ /pub/attachments/$1 [R=301,END]
 RewriteRule ^pub/lycolia/rss\.xml$ /pub/rss.xml [R=301,END]
 RewriteRule ^pub/lycolia/sitemap\.xml$ /pub/sitemap.xml [R=301,END]
 
-# /favicon.ico は、設定の画面で入れたアイコン（pub/site-icon/）。無ければ既定のロゴ（Lyndbaum::SiteIcon）
+# /favicon.ico は、設定の画面で入れたアイコン（pub/branding/）。無ければ既定のロゴ（Lyndbaum::SiteIcon）
 #   1つ目の RewriteCond で、このフォルダのパスを取り出す（%1）
 RewriteCond %{REQUEST_FILENAME} ^(.*/)favicon\.ico$
-RewriteCond %1pub/site-icon/favicon.ico -f
-RewriteRule ^favicon\.ico$ pub/site-icon/favicon.ico [END]
+RewriteCond %1pub/branding/favicon.ico -f
+RewriteRule ^favicon\.ico$ pub/branding/favicon.ico [END]
 RewriteRule ^favicon\.ico$ pub/assets/logo/favicon.ico [END]
 
 RewriteRule ^pub(?:/|$) - [END]

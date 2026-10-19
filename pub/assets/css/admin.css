@@ -52,8 +52,8 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .button { font: inherit; padding: .3rem 1rem; background: none; color: var(--link); border: 1px solid var(--link); cursor: pointer; }
 .admin-error { border-color: #d33; padding: .5rem 1rem; }
 .admin-warning { border-color: #dba617; border-left-width: 4px; padding: .5rem 1rem; }
-.site-icon-preview { display: flex; align-items: center; gap: .75rem; }
-.site-icon-preview img { border: 1px solid var(--border); }
+.branding-preview { display: flex; align-items: center; gap: .75rem; }
+.branding-preview img { border: 1px solid var(--border); max-width: min(20rem, 100%); height: auto; }
 .admin-form input[type="text"], .admin-form input[type="password"] { width: 100%; max-width: 20rem; font: inherit; }
 .admin-notice { padding: .5rem 1rem; }
 .admin-filters { display: flex; flex-wrap: wrap; gap: 0 1rem; }

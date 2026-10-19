@@ -81,7 +81,7 @@ sub handle {
 
 	my ($path, $query) = split /\?/, $uri, 2;
 	# /favicon.ico は、設定の画面で入れたアイコン、無ければ既定のロゴ（本番では .htaccess か nginx の設定で返す）
-	$path = -f File::Spec->catfile($root, 'pub/site-icon/favicon.ico') ? '/pub/site-icon/favicon.ico' : '/pub/assets/logo/favicon.ico'
+	$path = -f File::Spec->catfile($root, 'pub/branding/favicon.ico') ? '/pub/branding/favicon.ico' : '/pub/assets/logo/favicon.ico'
 		if $path eq '/favicon.ico';
 	my $status = $path =~ m{\A/pub/} ? serve_file($client, $path) : run_cgi($client, $method, $uri, $path, $query, \%headers, $body);
 	print STDERR "$method $uri $status\n";

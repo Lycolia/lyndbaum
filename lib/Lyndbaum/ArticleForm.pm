@@ -5,7 +5,7 @@ use strict;
 use warnings;
 use utf8;
 
-use Lyndbaum::BlogSettings;
+use Lyndbaum::Media;
 use Lyndbaum::Date qw(parse_input_date);
 use Lyndbaum::Model::Article;
 
@@ -83,7 +83,7 @@ sub parse {
 	$v{comments_open} = ($first->('comments_open') // '') eq '1' ? 1 : 0;
 
 	$v{eyecatch} = $trim->('eyecatch');
-	$error->(eyecatch => 'アイキャッチのパスが正しくありません。') if $v{eyecatch} ne '' && !Lyndbaum::BlogSettings::valid_attachment($v{eyecatch});
+	$error->(eyecatch => 'アイキャッチのパスが正しくありません。') if $v{eyecatch} ne '' && !_valid_attachment($v{eyecatch});
 	$v{keep_updated}  = ($first->('keep_updated') // '') eq '1' ? 1 : 0;
 	$v{kind} = $args{page} ? 'page' : 'post';
 	if ($args{page}) {
@@ -102,6 +102,13 @@ sub parse {
 	my $digest = $first->('digest') // '';
 	$v{digest} = $digest =~ /\A[0-9a-f]{64}\z/ ? $digest : undef;
 	return (\%v, \@errors);
+}
+
+# 添付ファイルの中のパス（フォルダ/名前）の書き方が正しいか
+sub _valid_attachment {
+	my ($path) = @_;
+	my ($folder, $name) = $path =~ m{\A(.*/)?([^/]+)\z} or return 0;
+	return defined Lyndbaum::Media->clean_folder($folder // '') && Lyndbaum::Media->valid_name($name);
 }
 
 1;

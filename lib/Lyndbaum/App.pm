@@ -69,7 +69,7 @@ my $ROUTER = Lyndbaum::Router->new(
 	[ POST => qr{\A/admin/comments/(\d+)\z},    'Lyndbaum::Controller::AdminComment', 'update'        ],
 	[ GET  => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'form' ],
 	[ POST => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'save' ],
-	[ POST => qr{\A/admin/settings/icon\z},     'Lyndbaum::Controller::AdminSettings', 'save_icon' ],
+	[ POST => qr{\A/admin/settings/(icon|blog_image)\z}, 'Lyndbaum::Controller::AdminSettings', 'save_image' ],
 	[ GET  => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'form' ],
 	[ POST => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'save' ],
 	# 記事（/0575）とコンテンツページ（/親/子）。パスは slug と同じ

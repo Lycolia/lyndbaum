@@ -13,10 +13,10 @@ git clone https://github.com/<リポジトリ>.git lyndbaum   # または手元�
 cd lyndbaum
 ```
 
-手元から送るときは、`config.json`、`var/`、`pub/attachments/`、`pub/site-icon/`、`pub/rss.xml`、`pub/sitemap.xml`を送らない（サーバーのものを上書きしないように）。`t/corpus/`（git管理外。記事のデータを含む）も送らない。
+手元から送るときは、`config.json`、`var/`、`pub/attachments/`、`pub/branding/`、`pub/rss.xml`、`pub/sitemap.xml`を送らない（サーバーのものを上書きしないように）。`t/corpus/`（git管理外。記事のデータを含む）も送らない。
 
 ```sh
-rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/site-icon' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:www/lyndbaum/
+rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/branding' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:www/lyndbaum/
 ```
 
 `.htaccess`がそろっていることを確かめる。`/pub/`の下だけをファイルとして返し（`/favicon.ico`は、サイトのアイコンか既定のロゴの`favicon.ico`を返す）、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、実在するファイルへのアクセスは403にする。
@@ -87,6 +87,7 @@ perl tools/import-adiary.pl ~/adiary-data lycolia   # 取り込んで、全記�
 ```
 
 - 旧システムのゴミ箱（`.trashbox`）は、そのまま新しいメディアのゴミ箱になる
+- ブログの画像は、添付ファイルの中から`pub/branding/`へ写す（写せなければそう出すので、ブログの設定の画面で入れ直す）
 - 管理者はDBに入るので、DBを作り直したら`set-password.pl`をもう一度実行する
 - 取り込みが済んだら、`~/adiary-data`は消してよい
 
@@ -122,7 +123,7 @@ perl tools/check-env.pl
 
 - `var/lyndbaum.db`（記事、コメント、設定、管理者）
 - `pub/attachments/`（添付ファイル）
-- `pub/site-icon/`（設定の画面で入れたサイトのアイコン。元の画像は残さないので、無くしたら入れ直す）
+- `pub/branding/`（設定の画面で入れたサイトのアイコンとブログの画像。アイコンの元の画像は残さないので、無くしたら入れ直す）
 - `config.json`
 
 DBは、書き込みの途中で写さないよう、`sqlite3 var/lyndbaum.db ".backup backup.db"`で写すとよい。

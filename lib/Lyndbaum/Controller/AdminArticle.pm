@@ -19,6 +19,7 @@ use utf8;
 
 use JSON::PP ();
 use Lyndbaum::ArticleForm;
+use Lyndbaum::BlogImage;
 use Lyndbaum::Controller qw(page_number);
 use Lyndbaum::Controller::Admin;
 use Lyndbaum::Date qw(format_date);
@@ -293,10 +294,9 @@ sub rebuild {
 sub _eyecatch {
 	my ($class, $app, $article, $v) = @_;
 	my $chosen = ($v->{eyecatch} // '') ne '';
-	my $blog = $app->settings->{blog_image} // '';
 	my %urls = (
 		auto_url => $article ? Lyndbaum::OGP->first_image($article->{body_html}) // '' : '',
-		blog_url => $blog ne '' ? $app->url->attachment($blog) : '',
+		blog_url => Lyndbaum::BlogImage->url($app) // '',
 	);
 	my $preview = $chosen ? $app->url->attachment($v->{eyecatch}) : $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
 	my $note = $chosen ? '画像を押すと変更できます。'
