@@ -45,7 +45,7 @@
       <label>本文（Markdown）<br><textarea name="body" rows="25" class="admin-body">{{ form.body }}</textarea></label>
       {{! 添付ファイルのアップロード。admin-article.js が /admin/upload に送り、返った記法をカーソルの位置に入れる }}
       <div class="upload-bar" data-upload-url="{{ urls.upload }}">
-        <label class="upload-button">アップロード<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm"></label>
+        <label class="upload-button">アップロード<input type="file" class="upload-input" multiple accept=".jpg,.jpeg,.png,.apng,.gif,.webp,.mp4,.webm,.mp3,.txt,.md,.csv,.tsv,.json,.zip,.7z,.pdf"></label>
         <button type="button" class="media-open" data-base="{{ urls.media }}">ファイル一覧から選択</button>
         <span class="upload-status" role="status"></span>
       </div>

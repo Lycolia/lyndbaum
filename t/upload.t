@@ -27,7 +27,9 @@ sub exists_file { -e encode_utf8(File::Spec->catfile($dir, split m{/}, $_[0])) }
 
 # 中身の先頭だけが正しい、画像としては読めないファイル
 my %FAKE = (jpg => "\xFF\xD8\xFF\xE0fake", png => "\x89PNG\r\n\x1A\nfake", gif => 'GIF89afake',
-	webp => 'RIFF1234WEBPfake', mp4 => "\0\0\0\x18ftypmp42", webm => "\x1A\x45\xDF\xA3fake");
+	webp => 'RIFF1234WEBPfake', mp4 => "\0\0\0\x18ftypmp42", webm => "\x1A\x45\xDF\xA3fake",
+	mp3 => "ID3\x04\0fake", txt => encode_utf8("テキスト\n"), md => encode_utf8("# 見出し\n"), csv => "a,b\n1,2\n", tsv => "a\tb\n", json => '{"a":1}',
+	zip => "PK\x03\x04fake", '7z' => "7z\xBC\xAF\x27\x1Cfake", pdf => "%PDF-1.7\nfake");
 
 subtest 'ファイル名' => sub {
 	is(Lyndbaum::Upload->clean_name('a b:c].png'), 'a_b_c_.png', '空白と、記法の区切りは _ にする');
@@ -56,6 +58,24 @@ subtest '種類を確かめる' => sub {
 	like $@, qr{拡張子と中身の種類が合いません}, '画像のふりをしたファイル';
 	eval { save(filename => 'noext', data => $FAKE{jpg}) };
 	like $@, qr{置けない種類};
+
+	# ブラウザがこのサイトのオリジンでスクリプトを動かせる種類と、サーバーで動くおそれのある種類は置けない
+	for my $ext (qw(html htm xhtml shtml svg xml php cgi pl js)) {
+		eval { save(filename => "a.$ext", data => 'text') };
+		like $@, qr{置けない種類}, "$ext は置けない";
+	}
+	ok save(filename => 'frame.mp3', data => "\xFF\xFB\x90\x00fake"), 'ID3 の無い mp3（フレームの先頭）';
+	ok save(filename => 'empty.zip', data => "PK\x05\x06" . ("\0" x 18)), '空の zip';
+	ok save(filename => 'sjis.csv', data => "\x82\xA0,\x82\xA2\r\n"), 'テキストの文字コードは問わない（Shift_JIS）';
+	ok save(filename => 'empty.txt', data => ''), '空のテキスト';
+	eval { save(filename => 'a.txt', data => "PK\x03\x04\0\0") };
+	like $@, qr{拡張子と中身の種類が合いません}, 'NUL を含むものはテキストではない';
+	eval { save(filename => 'a.zip', data => '%PDF-1.7') };
+	like $@, qr{拡張子と中身の種類が合いません};
+	eval { save(filename => 'a.pdf', data => '<html>') };
+	like $@, qr{拡張子と中身の種類が合いません};
+	eval { save(filename => 'a.mp3', data => "\xFF\xD8\xFF\xE0") };
+	like $@, qr{拡張子と中身の種類が合いません}, 'JPEG は mp3 ではない';
 };
 
 subtest '同じ名前' => sub {
@@ -70,6 +90,9 @@ subtest '同じ名前' => sub {
 subtest '記法' => sub {
 	my $video = save(filename => 'v.webm', data => $FAKE{webm});
 	is(Lyndbaum::Upload->tag_of($video), '[file:webm:posts/2026/10/:v.webm]', '動画は file');
+	my $pdf = save(filename => 'doc.PDF', data => $FAKE{pdf});
+	is_deeply [ @$pdf{qw(image thumbnail)} ], [0, 0], '画像でないものはサムネイルを作らない';
+	is(Lyndbaum::Upload->tag_of($pdf), '[file:pdf:posts/2026/10/:doc.PDF]', '画像でないものは file（種類は小文字）');
 	my $broken = save(filename => 'broken.jpg', data => $FAKE{jpg});
 	is $broken->{thumbnail}, 0, '読めない画像はサムネイルを作れない';
 	is(Lyndbaum::Upload->tag_of($broken), '[image:L:posts/2026/10/:broken.jpg]', 'サムネイルが無ければ、元の画像を出す（L）');

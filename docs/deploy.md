@@ -68,6 +68,7 @@ perl tools/check-env.pl        # 足りないものが無いか確かめる。NG
 4. 記事を書き、画像を上げ、下書きで見てから公開する。トップページ、記事のページ、`/pub/rss.xml`、`/pub/sitemap.xml`に出る
 5. 記事にコメントを書ける（ログアウトして試す）
 6. `/config.json`、`/var/lyndbaum.db`、`/lib/Lyndbaum/App.pm`が403になる
+7. メディアの画面でtxtとmdを上げ、「元のファイルを開く」でテキストとして出る（ダウンロードにならない）。`curl -I`で、`Content-Type: text/plain`と`X-Content-Type-Options: nosniff`が付いている（`.htaccess`の`AddType`と`Header`。`nosniff`が無ければmod_headersが無い）
 
 うまく動かないときは、さくらのコントロールパネルのエラーログを見る。
 

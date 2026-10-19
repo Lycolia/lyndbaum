@@ -1,5 +1,5 @@
 package Lyndbaum::Controller::AdminUpload;
-# 添付ファイルのアップロード（docs/admin.md の「画像のアップロード」）
+# 添付ファイルのアップロード（docs/admin.md の「ファイルのアップロード」）
 #   POST /admin/upload   multipart/form-data。file（複数）、folder、csrf_token
 #   サムネイルの大きさは、編集の設定の thumbnail_size だけで決める（変えたら tools/rebuild-thumbnails.pl で作り直す）
 #   応答は JSON { files => [ { name, url, tag }, ... ], errors => [ 理由, ... ] }

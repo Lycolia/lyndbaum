@@ -2,7 +2,7 @@ package Lyndbaum::Parser::AdiaryTag;
 # adiary 独自のタグ（[image:…] など）。記法をまたいで使えるよう、Markdown とは分けておく
 #
 #   [image:サイズ:フォルダ/:ファイル名:代替テキスト(:#キャプション)]
-#   [file:種類:フォルダ/:ファイル名:説明]
+#   [file:種類:フォルダ/:ファイル名:説明]   mp4、webm は <video>、mp3 は <audio>、それ以外はリンク
 #   [youtube:動画ID]
 #   [&URL]                       YouTube、ニコニコ動画は埋め込み、それ以外はリンク
 #   [info:文章] [warn:文章] [error:文章]
@@ -83,6 +83,12 @@ sub _file {
 	if ($type eq 'mp4' || $type eq 'webm') {
 		return {
 			html  => qq{<video $EMBED_SIZE controls><source src="$url" type="video/$type"><a class="video" href="$url">$text</a></video>},
+			block => 0,
+		};
+	}
+	if ($type eq 'mp3') {
+		return {
+			html  => qq{<audio controls><source src="$url" type="audio/mpeg"><a class="audio" href="$url">$text</a></audio>},
 			block => 0,
 		};
 	}

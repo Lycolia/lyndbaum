@@ -99,6 +99,26 @@
 --- expected
 <figure><a href="/attachments/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
 
+=== 添付ファイルの動画は video
+--- input
+[file:mp4:posts/2026/10/:v.mp4]
+--- expected
+<p><video width="480" height="270" controls><source src="/attachments/posts/2026/10/v.mp4" type="video/mp4"><a class="video" href="/attachments/posts/2026/10/v.mp4">v.mp4</a></video></p>
+
+=== 添付ファイルの mp3 は audio
+# 再生できないブラウザにはリンクを出す
+--- input
+[file:mp3:posts/2026/10/:bgm.mp3:曲]
+--- expected
+<p><audio controls><source src="/attachments/posts/2026/10/bgm.mp3" type="audio/mpeg"><a class="audio" href="/attachments/posts/2026/10/bgm.mp3">曲</a></audio></p>
+
+=== 添付ファイルのそのほかの種類はリンク
+# 説明が無ければファイル名を出す
+--- input
+[file:pdf:posts/2026/10/:資料.pdf] [file:zip:posts/2026/10/:demo.zip:デモ一式]
+--- expected
+<p><a href="/attachments/posts/2026/10/%E8%B3%87%E6%96%99.pdf">資料.pdf</a> <a href="/attachments/posts/2026/10/demo.zip">デモ一式</a></p>
+
 === YouTube
 --- input
 [youtube:abc-DEF_123]

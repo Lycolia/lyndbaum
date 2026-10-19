@@ -24,7 +24,8 @@ my %PROTECTED = map { $_ => 1 } 'posts/', '@system/';
 
 my %KIND_OF_EXT = (
 	jpg => 'image', jpeg => 'image', png => 'image', apng => 'image', gif => 'image', webp => 'image',
-	mp4 => 'video', webm => 'video',
+	mp4 => 'video', webm => 'video', mp3 => 'audio',
+	txt => 'text', md => 'text', csv => 'text', tsv => 'text', json => 'text',
 );
 
 # %args：dir（添付ファイルの置き場所）、trash_dir（ゴミ箱）

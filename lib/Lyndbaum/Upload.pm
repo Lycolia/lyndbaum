@@ -1,7 +1,9 @@
 package Lyndbaum::Upload;
-# 添付ファイル（画像と動画）のアップロード（docs/admin.md の「画像のアップロード」）
+# 添付ファイルのアップロード（docs/admin.md の「ファイルのアップロード」）
 #   pub/attachments/posts/年/月/ に置き、画像なら .thumbnail/ファイル名.jpg にサムネイルを作る
 #   拡張子と中身（先頭のバイト）の両方で種類を確かめる（CLAUDE.md の「セキュリティ」）
+#   画像のサムネイルを作るとき（GD）のほかは、中身を解釈しない（展開、変換、外部のコマンドを使わない）。
+#   デコードする処理の脆弱性（TIFF や ImageMagick など）を持ち込まないため
 use strict;
 use warnings;
 use utf8;
@@ -15,8 +17,11 @@ use Lyndbaum::Thumbnail;
 # 拡張子 => 種類。種類ごとに、中身の先頭がどうなっているべきかを決める
 my %KIND_OF_EXT = (
 	jpg => 'jpeg', jpeg => 'jpeg', png => 'png', apng => 'png', gif => 'gif', webp => 'webp',
-	mp4 => 'mp4', webm => 'webm',
+	mp4 => 'mp4', webm => 'webm', mp3 => 'mp3',
+	txt => 'text', md => 'text', csv => 'text', tsv => 'text', json => 'text',
+	zip => 'zip', '7z' => '7z', pdf => 'pdf',
 );
+# HTML、SVG、XML など、ブラウザがこのサイトのオリジンでスクリプトを動かせる種類は入れない（管理画面を操作されるため）
 my %MAGIC = (
 	jpeg => sub { $_[0] =~ /\A\xFF\xD8\xFF/ },
 	png  => sub { $_[0] =~ /\A\x89PNG\r\n\x1A\n/ },
@@ -24,6 +29,14 @@ my %MAGIC = (
 	webp => sub { $_[0] =~ /\ARIFF....WEBP/s },
 	mp4  => sub { $_[0] =~ /\A....ftyp/s },
 	webm => sub { $_[0] =~ /\A\x1A\x45\xDF\xA3/ },
+	# ID3 タグか、フレームの先頭（同期の11ビット）
+	mp3  => sub { $_[0] =~ /\A(?:ID3|\xFF[\xE0-\xFF])/ },
+	# テキストには決まった先頭が無いので、NUL を含まないことだけを見る。文字コードは問わない（Shift_JIS の CSV など。作者の判断）
+	text => sub { index($_[0], "\0") < 0 },
+	# 空の zip は終わりの印（PK\x05\x06）だけになる
+	zip  => sub { $_[0] =~ /\APK(?:\x03\x04|\x05\x06)/ },
+	'7z' => sub { $_[0] =~ /\A7z\xBC\xAF\x27\x1C/ },
+	pdf  => sub { $_[0] =~ /\A%PDF-/ },
 );
 my %IS_IMAGE = map { $_ => 1 } qw(jpeg png gif webp);
 my $MAX_NAME = 100;

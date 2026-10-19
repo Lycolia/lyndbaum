@@ -28,7 +28,11 @@ my $port = $ARGV[0] // 8080;
 my $TIMEOUT = 30;
 my %TYPES = (css => 'text/css', js => 'text/javascript', png => 'image/png', jpg => 'image/jpeg',
 	jpeg => 'image/jpeg', gif => 'image/gif', svg => 'image/svg+xml', webp => 'image/webp',
-	xml => 'application/xml', mp4 => 'video/mp4', webm => 'video/webm', ico => 'image/vnd.microsoft.icon');
+	xml => 'application/xml', mp4 => 'video/mp4', webm => 'video/webm', ico => 'image/vnd.microsoft.icon',
+	# 添付ファイル（.htaccess の AddType と同じ）
+	apng => 'image/apng', mp3 => 'audio/mpeg', txt => 'text/plain', md => 'text/plain', csv => 'text/csv',
+	tsv => 'text/tab-separated-values', json => 'application/json', zip => 'application/zip',
+	'7z' => 'application/x-7z-compressed', pdf => 'application/pdf');
 
 my $select = IO::Select->new;
 for my $host (@hosts) {
@@ -98,7 +102,7 @@ sub serve_file {
 	}
 	open my $fh, '<:raw', $file or die "$file: $!\n";
 	my $data = do { local $/; <$fh> };
-	print $client "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Type: $TYPES{lc $ext}\r\nContent-Length: " . length($data) . "\r\n\r\n$data";
+	print $client "HTTP/1.0 200 OK\r\nConnection: close\r\nContent-Type: $TYPES{lc $ext}\r\nX-Content-Type-Options: nosniff\r\nContent-Length: " . length($data) . "\r\n\r\n$data";
 	return 200;
 }
 

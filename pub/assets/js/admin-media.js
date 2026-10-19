@@ -28,6 +28,40 @@
 	function size(bytes) {
 		return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + 'MB' : bytes >= 1024 ? Math.round(bytes / 1024) + 'KB' : bytes + 'B';
 	}
+	// サムネイルの無いファイルの代わりに出す拡張子（PDF、ZIP など）
+	function kindLabel(name) {
+		var m = /\.([^.]+)$/.exec(name);
+		return el('span', { class: 'media-kind', text: m ? m[1].toUpperCase() : 'ファイル' });
+	}
+	// テキストのファイルの先頭（TEXT_PREVIEW バイトまで）を <pre> に出す。textContent で入れるので、中身は解釈しない
+	//   文字コードは問わずに受け付けているので、UTF-8 として読めなければ Shift_JIS として読む
+	var TEXT_PREVIEW = 4096;
+	function textPreview(f) {
+		var pre = el('pre', { class: 'media-text', text: '読み込んでいます…' });
+		fetch(f.url, { credentials: 'same-origin', headers: { Range: 'bytes=0-' + (TEXT_PREVIEW - 1) } }).then(function (res) {
+			if (!res.ok) throw new Error(res.status);
+			// Range を無視して全体を返すサーバーもあるので、読むのは先頭だけにする
+			var reader = res.body.getReader(), bytes = new Uint8Array(TEXT_PREVIEW), length = 0;
+			function read() {
+				return reader.read().then(function (r) {
+					if (r.done) return;
+					var n = Math.min(r.value.length, TEXT_PREVIEW - length);
+					bytes.set(r.value.subarray(0, n), length);
+					length += n;
+					if (length >= TEXT_PREVIEW) return reader.cancel();
+					return read();
+				});
+			}
+			return read().then(function () { return bytes.subarray(0, length); });
+		}).then(function (bytes) {
+			var text;
+			// stream にすると、途中で切った文字を誤りにしない
+			try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes, { stream: true }); }
+			catch (e) { text = new TextDecoder('shift_jis').decode(bytes, { stream: true }); }
+			pre.textContent = f.size > TEXT_PREVIEW ? text + '\n…（先頭の' + size(TEXT_PREVIEW) + 'だけを出しています）' : text;
+		}).catch(function () { pre.textContent = '中身を読み込めませんでした。'; });
+		return pre;
+	}
 	function getJSON(url) {
 		return fetch(url, { credentials: 'same-origin' }).then(function (res) {
 			return res.json().then(function (data) { if (!res.ok) throw new Error((data.errors || []).join('\n') || res.status); return data; });
@@ -304,8 +338,7 @@
 			var shown = shownFiles();
 			title.textContent = state.folder + '(' + shown.length + '件)';
 			shown.forEach(function (f) {
-				var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' })
-					: el('span', { class: 'media-kind', text: f.kind === 'video' ? '動画' : f.kind === 'image' ? '画像' : 'ファイル' });
+				var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' }) : kindLabel(f.name);
 				// 選んでいるかは aria-pressed で表す（チェックボックスは置かない。押すのはファイルのどこでもよいため）
 				var selected = state.selected.indexOf(f.name) !== -1;
 				var item = el('button', {
@@ -386,7 +419,9 @@
 			if (!files.length) return;
 			var f = files[files.length - 1];
 			var preview = f.kind === 'image' ? el('img', { src: f.thumbnail || f.url, alt: '' })
-				: f.kind === 'video' ? el('video', { src: f.url, controls: true, preload: 'metadata' }) : null;
+				: f.kind === 'video' ? el('video', { src: f.url, controls: true, preload: 'metadata' })
+				: f.kind === 'audio' ? el('audio', { src: f.url, controls: true, preload: 'metadata' })
+				: f.kind === 'text' ? textPreview(f) : null;
 			// 本文に入れる記法。複数なら1ファイル1行（コピーも「本文に入れる」も同じ）
 			var tags = files.filter(function (x) { return x.tag; }).map(function (x) { return x.tag; });
 			var tag = !tags.length ? null : tags.length === 1
@@ -544,8 +579,7 @@
 				if (!data.files.length) { grid.appendChild(el('li', { class: 'media-empty', text: 'ゴミ箱は空です。' })); return; }
 				var selected = {};
 				data.files.forEach(function (f) {
-					var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' })
-						: el('span', { class: 'media-kind', text: f.kind === 'video' ? '動画' : f.kind === 'image' ? '画像' : 'ファイル' });
+					var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' }) : kindLabel(f.original);
 					grid.appendChild(el('li', { class: 'media-trash-item' }, [
 						el('input', {
 							type: 'checkbox', class: 'media-check', 'aria-label': '「' + f.original + '」を選ぶ',

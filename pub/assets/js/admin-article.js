@@ -380,7 +380,8 @@
 			var files = evt.clipboardData ? Array.prototype.slice.call(evt.clipboardData.files) : [];
 			if (!files.length) return;
 			evt.preventDefault();
-			send(files.map(function (f) { return new File([f], pasteName(f), { type: f.type }); }));
+			// 画像でないもの（ファイルの画面でコピーした PDF など）は、もとの名前のまま上げる
+			send(files.map(function (f) { return f.type.indexOf('image/') === 0 ? new File([f], pasteName(f), { type: f.type }) : f; }));
 		});
 	}
 

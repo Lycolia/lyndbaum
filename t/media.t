@@ -259,4 +259,20 @@ subtest '/admin/media' => sub {
 
 sub header { AdminTest::header(@_) }
 
+subtest 'ファイルの種類' => sub {
+	# ほかの subtest の数を変えないよう、別の置き場所で確かめる
+	my $other = tempdir(CLEANUP => 1);
+	my $folder = File::Spec->catdir($other, 'posts');
+	make_path($folder);
+	for my $name (qw(a.mp3 b.TXT c.md d.csv e.tsv f.json g.pdf h.zip i.7z)) {
+		open my $fh, '>:raw', File::Spec->catfile($folder, $name) or die $!;
+		close $fh;
+	}
+	my $files = Lyndbaum::Media->new(dir => $other, trash_dir => File::Spec->catdir($other, '.trashbox'))->files('posts/');
+	is_deeply { map { $_->{name} => $_->{kind} } @$files },
+		{ 'a.mp3' => 'audio', 'b.TXT' => 'text', 'c.md' => 'text', 'd.csv' => 'text', 'e.tsv' => 'text', 'f.json' => 'text',
+		  'g.pdf' => 'other', 'h.zip' => 'other', 'i.7z' => 'other' },
+		'mp3 は audio、テキストは text（詳しいことの欄で再生や中身の先頭を出す）。ほかは other';
+};
+
 done_testing;

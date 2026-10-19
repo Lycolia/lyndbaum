@@ -25,3 +25,17 @@ RewriteRule ^ index.cgi [END]
 RewriteRule ^ - [F]
 
 Options -Indexes
+
+# 添付ファイルの種類（docs/admin.md の「ファイルのアップロード」）。サーバーによって知らないものや違うものがあるので決めておく
+#   テキストは文字コードを問わずに受け付けているので、charset は付けない
+#   AddType と Header は、上の RewriteEngine と同じ権限（AllowOverride FileInfo）で書ける
+AddType text/plain .txt .md
+AddType text/csv .csv
+AddType text/tab-separated-values .tsv
+AddType application/json .json
+AddType application/x-7z-compressed .7z
+AddType audio/mpeg .mp3
+# ブラウザに中身から種類を推測させない（テキストに書いたHTMLをHTMLとして開かせない）
+<IfModule mod_headers.c>
+Header set X-Content-Type-Options nosniff
+</IfModule>
