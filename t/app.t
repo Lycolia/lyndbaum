@@ -376,7 +376,10 @@ subtest '前後のページへのリンク' => sub {
 		is $navs[0], $navs[1], "$_[0] 上と下は同じ";
 		my %links;
 		while ($navs[0] =~ m{<a class="(prev|upnode|next)-page"(?: rel="\w+")? href="([^"]+)">(.*?)</a>}g) {
-			$links{ $1 eq 'upnode' ? 'up' : $1 } = [ $2, $3 ];
+			my ($kind, $url, $text) = ($1, $2, $3);
+			my %arrow = (prev => qr/\A← /, upnode => qr/\A↑ /, next => qr/ →\z/);
+			like $text, $arrow{$kind}, "$_[0] $kind の矢印はリンクの文字に入れる";
+			$links{ $kind eq 'upnode' ? 'up' : $kind } = [ $url, $text =~ s/\A[←↑] | →\z//gr ];
 		}
 		return \%links;
 	};
@@ -384,7 +387,7 @@ subtest '前後のページへのリンク' => sub {
 	# 公開中の記事を古い順に：7（「検索」で足したもの）、6、1、2、3（4は下書き、5はゴミ箱）
 	is_deeply $nav_of->('/01'), { prev => ['/06', 'C#の記事'], next => ['/02', '二つ目'] }, '前は1つ古い記事、次は1つ新しい記事。下書きとゴミ箱は飛ばす';
 	is_deeply $nav_of->('/07'), { next => ['/06', 'C#の記事'] }, 'いちばん古い記事には次だけ';
-	like get('/06')->body, qr{<a class="next-page" rel="next" href="/01">&lt;b&gt;題名&lt;/b&gt;</a>}, '題名はエスケープする';
+	like get('/06')->body, qr{<a class="next-page" rel="next" href="/01">&lt;b&gt;題名&lt;/b&gt; →</a>}, '題名はエスケープする';
 	is_deeply $nav_of->('/03'), { prev => ['/02', '二つ目'] }, 'いちばん新しい記事には前だけ';
 	like get('/01')->body, qr{<a class="prev-page" rel="prev" href="/06">.*<a class="next-page" rel="next" href="/02">}s, 'rel を付ける';
 

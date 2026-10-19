@@ -1,8 +1,8 @@
 {{! 前後のページへのリンク。記事の上と下に出す。クラスと rel は旧システムと同じ }}
 {{# if article.page_nav }}
 <nav class="page-nav" aria-label="前後のページ">
-  {{# if article.page_nav.prev }}<a class="prev-page" rel="prev" href="{{ article.page_nav.prev.url }}">{{ article.page_nav.prev.title }}</a>{{/ if }}
-  {{# if article.page_nav.up }}<a class="upnode-page" href="{{ article.page_nav.up.url }}">{{ article.page_nav.up.title }}</a>{{/ if }}
-  {{# if article.page_nav.next }}<a class="next-page" rel="next" href="{{ article.page_nav.next.url }}">{{ article.page_nav.next.title }}</a>{{/ if }}
+  {{# if article.page_nav.prev }}<a class="prev-page" rel="prev" href="{{ article.page_nav.prev.url }}">← {{ article.page_nav.prev.title }}</a>{{/ if }}
+  {{# if article.page_nav.up }}<a class="upnode-page" href="{{ article.page_nav.up.url }}">↑ {{ article.page_nav.up.title }}</a>{{/ if }}
+  {{# if article.page_nav.next }}<a class="next-page" rel="next" href="{{ article.page_nav.next.url }}">{{ article.page_nav.next.title }} →</a>{{/ if }}
 </nav>
 {{/ if }}
