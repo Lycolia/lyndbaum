@@ -356,8 +356,7 @@
 		}
 
 		// 画像を Lythumb で拡大して出す。開いているフォルダの画像（一覧に出しているもの）を、前後にめくれるようにする
-		// Lythumb は body の直下に出るので、選ぶための窓（モーダルの <dialog>。いちばん上に出る）は閉じておき、
-		// Lythumb を閉じたら開き直す
+		// 選ぶための窓（モーダルの <dialog>）はいちばん上に出て、外側を操作できなくするので、Lythumb は窓の中に出す
 		function openViewer(f) {
 			if (!window.Lythumb) { window.open(f.url, '_blank', 'noopener'); return; }
 			var old = root.querySelector('.media-viewer-links');
@@ -370,20 +369,7 @@
 				links.appendChild(a);
 			});
 			root.appendChild(links);
-			var dialog = root.closest('dialog');
-			var reopen = dialog && dialog.open;
-			if (reopen) dialog.close();
-			var before = document.body.lastElementChild;
-			window.Lythumb.open(target);
-			var viewer = document.body.lastElementChild;
-			if (!reopen) return;
-			if (viewer === before) { dialog.showModal(); return; }   // 開けなかった
-			var observer = new MutationObserver(function () {
-				if (viewer.isConnected) return;
-				observer.disconnect();
-				dialog.showModal();
-			});
-			observer.observe(document.body, { childList: true });
+			window.Lythumb.open(target, { container: root.closest('dialog') || document.body });
 		}
 		// 選んだファイル（選んだ順）。絞り込みで隠れているものも含める
 		function selectedFiles() {
