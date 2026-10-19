@@ -7,6 +7,7 @@ use utf8;
 
 use Lyndbaum::BlogSettings;
 use Lyndbaum::Date qw(parse_input_date);
+use Lyndbaum::Model::Article;
 
 my $MAX_TITLE = 200;
 
@@ -31,7 +32,7 @@ my $MAX_TITLE = 200;
 #     kind            page か post（新しい記事のとき）
 #   コンテンツページのとき
 #     parent_id       親のページのID。親が無ければ undef
-#     page_name       名前（slug の最後の区切り。slug は「親の slug/名前」になる）
+#     page_name       名前（slug の最後の区切り。slug は「親の slug/名前」になる）。題名と同じにする
 #     sort_order      同じ親の中での並び順。空なら undef（同じ親のままなら今の値、親を変えたらいちばん後ろ）
 #     sort_text       書いたままの並び順の欄
 #
@@ -96,14 +97,9 @@ sub parse {
 	if ($args{page}) {
 		my $parent = $first->('parent_id') // '';
 		$v{parent_id} = $parent =~ /\A[1-9]\d*\z/ ? $parent : undef;
-		$v{page_name} = $trim->('page_name');
-		if ($v{page_name} eq '') {
-			$error->(page_name => 'ページの名前を書いてください（URLになります）。');
-		} elsif ($v{page_name} =~ m{[/\\?#%\s\x00-\x1F\x7F]} || $v{page_name} =~ /\A\.\.?\z/) {
-			$error->(page_name => 'ページの名前に、空白と / \\ ? # % は使えません。「.」と「..」も使えません。');
-		} elsif (length $v{page_name} > 100) {
-			$error->(page_name => 'ページの名前は100文字までにしてください。');
-		}
+		# 題名がそのままURLになる。親の無いページだけの決まり（0で始めないなど）は、保存のときに確かめる
+		$v{page_name} = $v{title};
+		$error->(title => $_) for $v{title} eq '' ? () : Lyndbaum::Model::Article->page_name_errors($v{title});
 		$v{sort_text} = $trim->('sort_order');
 		if ($v{sort_text} ne '') {
 			$v{sort_text} =~ /\A-?\d{1,9}\z/ ? ($v{sort_order} = $v{sort_text} + 0)

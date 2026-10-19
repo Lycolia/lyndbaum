@@ -126,26 +126,66 @@ subtest '空でないDBには取り込まない' => sub {
 	like $@, qr/空ではありません/;
 };
 
-subtest '知らないタグ名があれば、何も取り込まずに止める' => sub {
+# テスト用のデータを一時フォルダに写し、記事のファイルを書き換える。写したフォルダを返す
+#   %edit は { 記事のファイル名 => 中身を $_ で受け取って書き換える関数 }
+sub fixture_with {
+	my (%edit) = @_;
 	my $dir = tempdir(CLEANUP => 1);
 	for my $sub (qw(db db/test_art db/test_tag db/test_com blog blog/test)) {
 		mkdir File::Spec->catdir($dir, $sub) or die $!;
 		copy($_, File::Spec->catdir($dir, $sub)) or die $!
 			for glob File::Spec->catfile($fixture, $sub, '*.dat');
 	}
-	my $file = File::Spec->catfile($dir, 'db', 'test_art', '00002.dat');
-	open my $in, '<:encoding(UTF-8)', $file or die $!;
-	my $data = do { local $/; <$in> };
-	close $in;
-	$data =~ s/^tags=$/tags=存在しないタグ/m;
-	open my $out, '>:encoding(UTF-8)', $file or die $!;
-	print $out $data;
-	close $out;
+	for my $name (sort keys %edit) {
+		my $file = File::Spec->catfile($dir, 'db', 'test_art', $name);
+		open my $in, '<:encoding(UTF-8)', $file or die $!;
+		local $_ = do { local $/; <$in> };
+		close $in;
+		$edit{$name}->();
+		open my $out, '>:encoding(UTF-8)', $file or die $!;
+		print $out $_;
+		close $out;
+	}
+	return $dir;
+}
 
+subtest '知らないタグ名があれば、何も取り込まずに止める' => sub {
+	my $dir = fixture_with('00002.dat' => sub { s/^tags=$/tags=存在しないタグ/m });
 	my $app = new_test_app();
 	eval { Lyndbaum::Legacy::Importer->run($app->db, $dir, 'test') };
 	like $@, qr/タグ「存在しないタグ」がありません/;
 	is $app->db->selectrow_array('SELECT COUNT(*) FROM articles'), 0, '巻き戻す';
+};
+
+subtest 'コンテンツページの slug は「親の slug/題名」にする' => sub {
+	my $dir = fixture_with(
+		'00003.dat' => sub { s/^link_key=.*$/link_key=親ページ\/child/m; s/^title=.*$/title=子 ページ/m },
+		'00004.dat' => sub { s/^link_key=.*$/link_key=parent/m },
+	);
+	my $app = new_test_app();
+	Lyndbaum::Legacy::Importer->run($app->db, $dir, 'test');
+	my $slugs = $app->db->selectall_hashref('SELECT id, slug FROM articles', 'id');
+	is $slugs->{4}{slug}, '親ページ', 'link_key ではなく題名';
+	is $slugs->{3}{slug}, '親ページ/子 ページ', '親の slug を付け、空白はそのまま';
+	is $slugs->{1}{slug}, '01', '記事は link_key のまま';
+};
+
+subtest '題名からページのURLを作れなければ、何も取り込まずに止める' => sub {
+	my @cases = (
+		[ 'URLに使えない文字', { '00003.dat' => sub { s/^title=.*$/title=A\/B/m } }, qr{記事 3: 題名「A/B」からページのURLを作れません：.*使えません} ],
+		[ '親の無いページが0で始まる', { '00004.dat' => sub { s/^title=.*$/title=0123/m } }, qr{記事 4: 題名「0123」からページのURLを作れません：.*0で始められません} ],
+		[ '親の無いページが管理画面などのパス', { '00004.dat' => sub { s/^title=.*$/title=admin/m } }, qr{記事 4: .*管理画面などが使う} ],
+		[ '同じ親に同じ題名', { '00003.dat' => sub { s/^upnode=.*$/upnode=0/m; s/^title=.*$/title=親ページ/m } },
+			qr{記事 3 と記事 4 のURL「/親ページ」がぶつかります} ],
+		[ '親がページでない', { '00003.dat' => sub { s/^upnode=.*$/upnode=1/m } }, qr{記事 3: 親のページ（1）がありません} ],
+	);
+	for my $case (@cases) {
+		my ($name, $edit, $error) = @$case;
+		my $app = new_test_app();
+		eval { Lyndbaum::Legacy::Importer->run($app->db, fixture_with(%$edit), 'test') };
+		like $@, $error, $name;
+		is $app->db->selectrow_array('SELECT COUNT(*) FROM articles'), 0, "$name：巻き戻す";
+	}
 };
 
 done_testing;

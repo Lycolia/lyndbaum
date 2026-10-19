@@ -301,6 +301,7 @@ sub next_id {
 # コンテンツページの列（slug、parent_id、sort_order）。$old は今のページ（新しいページなら undef）
 #   戻り値は（列, 理由の一覧）
 my %RESERVED = map { $_ => 1 } qw(search pub admin);   # ルーターが先に使うパス（Lyndbaum::App）
+my $MAX_PAGE_NAME = 100;                                 # ページの名前（題名）の長さ
 sub _page_columns {
 	my ($class, $dbh, $v, $old) = @_;
 	my @errors;
@@ -314,10 +315,7 @@ sub _page_columns {
 		}
 	}
 	my $name = $v->{page_name};
-	if (!$parent && !@errors) {
-		push @errors, '親の無いページの名前は、0で始められません（記事のURLと区別するため）。' if $name =~ /\A0/;
-		push @errors, "「$name」は管理画面などが使うので、親の無いページの名前にはできません。" if $RESERVED{ lc $name };
-	}
+	push @errors, $class->page_name_errors($name, root => !$parent) if !@errors;
 	return ({}, \@errors) if @errors;
 
 	my $slug = $parent ? "$parent->{slug}/$name" : $name;
@@ -333,6 +331,23 @@ sub _page_columns {
 		// $dbh->selectrow_array(q{SELECT COALESCE(MAX(sort_order), 0) + 1 FROM articles WHERE kind = 'page' AND parent_id IS ?},
 			undef, $v->{parent_id});
 	return ({ slug => $slug, parent_id => $v->{parent_id}, sort_order => $order }, \@errors);
+}
+
+# ページの名前（ページの題名。slug の最後の区切りになる）として使えない理由の一覧。使えれば空
+#   %opt の root が真なら、親の無いページの名前としても確かめる
+#   管理画面の入力（Lyndbaum::ArticleForm）と、旧データの取り込み（Lyndbaum::Legacy::Importer）で使う
+sub page_name_errors {
+	my ($class, $name, %opt) = @_;
+	my @errors;
+	if ($name =~ m{[/\\?#%\x00-\x1F\x7F]} || $name =~ /\A\.\.?\z/) {
+		push @errors, 'ページの題名はURLになるので、/ \\ ? # % は使えません。「.」と「..」だけの題名にもできません。';
+	} elsif (length $name > $MAX_PAGE_NAME) {
+		push @errors, "ページの題名はURLになるので、${MAX_PAGE_NAME}文字までにしてください。";
+	} elsif ($opt{root}) {
+		push @errors, '親の無いページの題名は、0で始められません（記事のURLと区別するため）。' if $name =~ /\A0/;
+		push @errors, "「$name」は管理画面などが使うので、親の無いページの題名にはできません。" if $RESERVED{ lc $name };
+	}
+	return @errors;
 }
 
 # 子孫のページ（ゴミ箱の中を含む）[ { id, slug, deleted_at }, ... ]
@@ -357,12 +372,6 @@ sub _move_descendants {
 		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $d->{id});
 		$class->rebuild_body($dbh, $article, %context);
 	}
-}
-
-# ページの名前（slug の最後の区切り）
-sub page_name {
-	my ($class, $article) = @_;
-	return $article->{slug} =~ m{([^/]+)\z} ? $1 : $article->{slug};
 }
 
 # 親に選べるページを木の順に並べ、深さを付けて返す（ゴミ箱の中は除く）

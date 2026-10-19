@@ -152,7 +152,7 @@ sub _save {
 		revision_interval => $settings->{revision_interval}, revision_max => $settings->{revision_max});
 	if (my $page_errors = $result->{errors}) {
 		return $class->_render_form($app, $session, { %$v, id => $id },
-			errors => [ map { +{ key => 'page_name', message => $_ } } @$page_errors ], status => 400);
+			errors => [ map { +{ key => 'title', message => $_ } } @$page_errors ], status => 400);
 	}
 	if (my $now = $result->{conflict}) {
 		# 書いた内容は消さずにフォームに戻す。要約は今の記事のものにするので、もう一度保存すれば上書きになる
@@ -318,10 +318,7 @@ sub _values_of {
 	my $tag_ids = Lyndbaum::Model::Article->tag_ids_of($app->db, $article->{id})->{ $article->{id} } // [];
 	return {
 		%$article,
-		($article->{kind} eq 'page' ? (
-			page_name => Lyndbaum::Model::Article->page_name($article),
-			sort_text => $article->{sort_order},
-		) : ()),
+		($article->{kind} eq 'page' ? (sort_text => $article->{sort_order}) : ()),
 		tag_chips      => [ map { +{ name => $_, new => 0 } } sort map { $tags->{$_}{full_name} } grep { $tags->{$_} } @$tag_ids ],
 		published_text => defined $article->{published_at} ? format_date($article->{published_at})->{input} : '',
 		digest         => Lyndbaum::Model::Article->digest($app->db, $article->{id}),
@@ -367,7 +364,6 @@ sub _render_form {
 			keep_updated   => $v->{keep_updated},
 			digest         => $v->{digest} // '',
 			eyecatch       => $v->{eyecatch} // '',
-			page_name      => $v->{page_name} // '',
 			sort_order     => $v->{sort_text} // '',
 		},
 		revision_count => scalar @$revisions,

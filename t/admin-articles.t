@@ -196,28 +196,35 @@ subtest 'ページ' => sub {
 	like $res->body, qr{<input type="hidden" name="kind" value="page">};
 	like $res->body, qr{<option value="3">ページ</option>}, '親に選べるページ';
 
-	$res = post('/admin/articles', kind => 'page', title => '子', page_name => '子', parent_id => 3, sort_order => '');
+	like $res->body, qr{<p class="admin-help" id="page-title-help">題名がURLになります}, 'ページでは、題名がURLになることを示す';
+	unlike $res->body, qr{name="page_name"}, '名前の欄は無い';
+	unlike get('/admin/articles/new')->body, qr{page-title-help}, '記事では示さない';
+
+	$res = post('/admin/articles', kind => 'page', title => '子', parent_id => 3, sort_order => '');
 	is $res->status, 303;
 	my ($id) = header($res, 'Location') =~ m{/admin/articles/(\d+)};
 	is $dbh->selectrow_array('SELECT slug FROM articles WHERE id = ?', undef, $id), 'ページ/子';
 	$res = get("/admin/articles/$id");
 	like $res->body, qr{<h1>ページの編集</h1>};
 	like $res->body, qr{<option value="3" selected>ページ</option>};
-	like $res->body, qr{name="page_name" value="子"};
 	unlike get('/admin/articles/3')->body, qr{<option value="3"}, '自分は親に選べない';
 	unlike get('/admin/articles/3')->body, qr{<option value="$id"}, '子孫も親に選べない';
 
-	$res = post('/admin/articles', kind => 'page', title => '同じ', page_name => '子', parent_id => 3);
+	$res = post('/admin/articles', kind => 'page', title => '子', body => '別の本文', parent_id => 3);
 	is $res->status, 400;
 	like $res->body, qr{URL「/ページ/子」は、「子」が使っています。};
-	like $res->body, qr{name="page_name" value="子"}, '書いた内容は消さない';
+	like $res->body, qr{<div class="admin-field admin-field-error">\s*<label>題名<br><input type="text" name="title" value="子"}, '題名の欄に誤りの印を付け、書いた内容は消さない';
+
+	$res = post('/admin/articles', kind => 'page', title => 'a/b', parent_id => 3);
+	is $res->status, 400;
+	like $res->body, qr{ページの題名はURLになるので}, '題名にURLに使えない文字があれば保存しない';
 };
 
 subtest '更新履歴' => sub {
 	unlike get('/admin/articles/new')->body, qr{class="revisions"}, '新しい記事には履歴の欄を出さない';
 	like get('/admin/articles/3')->body, qr{<summary>履歴\(0件\)</summary>.*この記事の履歴はまだありません}s;
 
-	my $res = post('/admin/articles/3', kind => 'page', title => 'ページ', body => '新しい本文', page_name => 'ページ', status => 'published', digest => digest(3));
+	my $res = post('/admin/articles/3', kind => 'page', title => 'ページ', body => '新しい本文', status => 'published', digest => digest(3));
 	is $res->status, 303;
 	my $body = get('/admin/articles/3')->body;
 	like $body, qr{<summary>履歴\(1件\)</summary>};

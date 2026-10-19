@@ -26,7 +26,11 @@
   {{# if is_page }}{{# if not article }}<input type="hidden" name="kind" value="page">{{/ if }}{{/ if }}
   <div class="article-edit-main">
     <div class="admin-field{{# if error_of.title }} admin-field-error{{/ if }}">
-      <label>題名<br><input type="text" name="title" value="{{ form.title }}" maxlength="200" required></label>
+      <label>題名<br><input type="text" name="title" value="{{ form.title }}" maxlength="{{# if is_page }}100{{# else }}200{{/ if }}" required{{# if is_page }} aria-describedby="page-title-help"{{/ if }}></label>
+      {{# if is_page }}
+      {{! ページの題名はそのままURLになる（Lyndbaum::Model::Article->page_name_errors） }}
+      <p class="admin-help" id="page-title-help">題名がURLになります（親のページがあれば「/親のページのURL/題名」）。題名を変えると、このページと子のページのURLも変わります。<br>題名に / \ ? # % は使えません。</p>
+      {{/ if }}
     </div>
     <div class="admin-field">
       <label>本文（Markdown）<br><textarea name="body" rows="25" class="admin-body">{{ form.body }}</textarea></label>
@@ -129,10 +133,6 @@
           <option value="">（なし）</option>
           {{# for parent in parents }}<option value="{{ parent.id }}"{{# if parent.selected }} selected{{/ if }}>{{ parent.label }}</option>{{/ for }}
         </select></label>
-      </div>
-      <div class="admin-field{{# if error_of.page_name }} admin-field-error{{/ if }}">
-        <label>名前（URLになります）<br><input type="text" name="page_name" value="{{ form.page_name }}" maxlength="100" required></label>
-        <p class="admin-help">URLは「/親のページのURL/名前」になります。親や名前を変えると、子のページのURLも変わります。</p>
       </div>
       <div class="admin-field{{# if error_of.sort_order }} admin-field-error{{/ if }}">
         <label>並び順<br><input type="number" name="sort_order" value="{{ form.sort_order }}"></label>
