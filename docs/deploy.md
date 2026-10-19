@@ -58,10 +58,13 @@ perl tools/check-env.pl        # NG が無ければよい
 CGIでは、リクエストのたびにPerlを起動し、モジュールを読み込む（手元で1回あたり約45ms）。プロセスを動かし続けられるサーバー（自分で管理していて、systemdなどを使えるもの）では、`index.fcgi`で常駐させると、この時間がかからなくなる。レンタルサーバーなど、常駐させられないところでは`index.cgi`のままでよい。
 
 - PerlのFCGIモジュールが要る。OSのパッケージで入れる（DebianとUbuntuは`apt install libfcgi-perl`）。`perl tools/check-env.pl`の「FCGI」がOKならよい
-- `perl index.fcgi ソケット [プロセスの数] [1つのプロセスが受けるリクエストの数]`。既定は4と1000。ソケットは、UNIXソケットのパスか、`127.0.0.1:9000`の形
+- `perl index.fcgi [--socket-mode 権限] ソケット [プロセスの数] [1つのプロセスが受けるリクエストの数]`。既定は4と1000。ソケットは、UNIXソケットのパスか、`127.0.0.1:9000`の形
 - 1つのプロセスは、決まった数のリクエストを受けたら終わり、作り直す。止める合図（TERM）を受けたら、処理中の応答を返し終えてから終わる
 - 設定（`config.json`）とテンプレートは、CGIと同じくリクエストごとに読む。プログラム（`lib/`など）を変えたときだけ、起動し直す
-- Webサーバーと同じユーザーで動かす（WebサーバーがUNIXソケットに書き込めるように）
+- UNIXソケットに繋ぐには、ソケットへの書き込みの権限が要る。ソケットの権限は既定で0660（実行ユーザーとそのグループが読み書きできる）
+  - Webサーバーが実行ユーザーと同じユーザーで動くときは、そのままでよい
+  - 別のユーザーで動くとき（nginxが`nginx`ユーザーで動き、実行ユーザーが`www-data`のときなど）は、Webサーバーのユーザーを実行ユーザーのグループに入れる（`sudo usermod -aG www-data nginx`。入れた後にWebサーバーを起動し直す）
+  - 権限を変えるときは`--socket-mode`で8進数で渡す（例：`perl index.fcgi --socket-mode 0600 /run/lyndbaum/lyndbaum.sock`）。誰でも繋げる0666などにすると、同じサーバーのほかのユーザーも、アプリにリクエストを直接送れる（`HTTPS`や`REMOTE_ADDR`も偽れる）
 
 systemdの設定は、`docs/config samples/lyndbaum.service`を`/etc/systemd/system/lyndbaum.service`に写し、`<置き場所>`を書き換えてから有効にする。`var/`などの持ち主と権限、`tools/`のコマンドの実行のしかたは、CGIをWebサーバーのユーザーで動かすときと同じ（上の「設置」）。
 
