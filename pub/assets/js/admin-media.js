@@ -602,6 +602,18 @@
 				el('button', { type: 'button', text: '閉じる', onclick: function () { dialog.close(); } }),
 			]));
 			dialog.appendChild(body);
+			// 窓の外（背景）を押したら閉じる。押し始めと離した所の両方が外のときだけにする
+			// （窓の中で範囲選択やドラッグを始めて、外で離したときに閉じないように）
+			var outside = function (evt) {
+				var r = dialog.getBoundingClientRect();
+				return evt.target === dialog && (evt.clientX < r.left || evt.clientX > r.right || evt.clientY < r.top || evt.clientY > r.bottom);
+			};
+			var downOutside = false;
+			dialog.addEventListener('pointerdown', function (evt) { downOutside = outside(evt); });
+			dialog.addEventListener('click', function (evt) {
+				if (downOutside && outside(evt)) dialog.close();
+				downOutside = false;
+			});
 			document.body.appendChild(dialog);
 			dialog.body = body;
 		}
