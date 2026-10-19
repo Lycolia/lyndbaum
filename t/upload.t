@@ -116,6 +116,16 @@ SKIP: {
 		my $kept = save(filename => 'exif.jpg', data => $jpeg);
 		open my $fh, '<:raw', encode_utf8(File::Spec->catfile($dir, 'posts', '2026', '10', 'exif.jpg')) or die $!;
 		is do { local $/; <$fh> }, $jpeg, '元の画像には手を加えない（Exif も残す）';
+
+		# GIF と WebP は、読むときにフルカラーの引数を渡せない（渡すと die する）
+		my $gif = GD::Image->newPalette(400, 200);   # new は、Thumbnail が trueColor(1) にした後ではフルカラーになる
+		$gif->transparent($gif->colorAllocate(255, 255, 255));
+		$gif->filledRectangle(100, 0, 299, 199, $gif->colorAllocate(255, 0, 0));
+		is save(filename => 'anim.gif', data => $gif->gif)->{thumbnail}, 1, 'GIF のサムネイル';
+		$out = GD::Image->newFromJpegData(Lyndbaum::Thumbnail->make($gif->gif, 'gif', 240), 1);
+		is_deeply [ $out->rgb($out->getPixel(0, 0)) ], [ 255, 255, 255 ], 'GIF の透明な色のところは白にする';
+		is_deeply [ $out->getBounds ], [ 240, 120 ];
+		is save(filename => 'photo.webp', data => $image->webp)->{thumbnail}, 1, 'WebP のサムネイル';
 	};
 
 	subtest 'サムネイルを作り直す（tools/rebuild-thumbnails.pl）' => sub {
