@@ -366,4 +366,44 @@ subtest '一覧のアイキャッチ' => sub {
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, $html3);
 };
 
+subtest '前後のページへのリンク' => sub {
+	# { prev, up, next } の [URL, 題名]。リンクが無ければ undef
+	my $nav_of = sub {
+		my $body = get($_[0])->body;
+		my @navs = $body =~ m{(<nav class="page-nav".*?</nav>)}sg;
+		return undef if !@navs;
+		is scalar @navs, 2, "$_[0] 記事の上と下に出す";
+		is $navs[0], $navs[1], "$_[0] 上と下は同じ";
+		my %links;
+		while ($navs[0] =~ m{<a class="(prev|upnode|next)-page"(?: rel="\w+")? href="([^"]+)">(.*?)</a>}g) {
+			$links{ $1 eq 'upnode' ? 'up' : $1 } = [ $2, $3 ];
+		}
+		return \%links;
+	};
+
+	# 公開中の記事を古い順に：7（「検索」で足したもの）、6、1、2、3（4は下書き、5はゴミ箱）
+	is_deeply $nav_of->('/01'), { prev => ['/06', 'C#の記事'], next => ['/02', '二つ目'] }, '前は1つ古い記事、次は1つ新しい記事。下書きとゴミ箱は飛ばす';
+	is_deeply $nav_of->('/07'), { next => ['/06', 'C#の記事'] }, 'いちばん古い記事には次だけ';
+	like get('/06')->body, qr{<a class="next-page" rel="next" href="/01">&lt;b&gt;題名&lt;/b&gt;</a>}, '題名はエスケープする';
+	is_deeply $nav_of->('/03'), { prev => ['/02', '二つ目'] }, 'いちばん新しい記事には前だけ';
+	like get('/01')->body, qr{<a class="prev-page" rel="prev" href="/06">.*<a class="next-page" rel="next" href="/02">}s, 'rel を付ける';
+
+	# 公開日時が同じなら ID の順
+	insert_article($dbh, id => 20, title => '同じ時刻', published_at => 1700000100);
+	is_deeply $nav_of->('/02'), { prev => ['/01', '&lt;b&gt;題名&lt;/b&gt;'], next => ['/020', '同じ時刻'] }, '公開日時が同じなら ID の小さい方が前';
+	is_deeply $nav_of->('/020'), { prev => ['/02', '二つ目'], next => ['/03', '三つ目'] };
+	$dbh->do('DELETE FROM articles WHERE id = 20');
+
+	# コンテンツページはメニューの木を上から順に：親ページ、子ページ
+	is_deeply $nav_of->('/親ページ'), { next => [ '/%E8%A6%AA%E3%83%9A%E3%83%BC%E3%82%B8/%E5%AD%90%E3%83%9A%E3%83%BC%E3%82%B8', '子ページ' ] },
+		'コンテンツページの次は、メニューで次のページ（子を含む）。記事には続かない';
+	is_deeply $nav_of->('/親ページ/子ページ'), { up => [ '/%E8%A6%AA%E3%83%9A%E3%83%BC%E3%82%B8', '親ページ' ] },
+		'親があれば親へのリンク。前が親と同じなら前は出さない';
+
+	# 前後がどちらも無ければ出さない
+	$dbh->do(q{UPDATE articles SET status = 'draft' WHERE id IN (1, 2, 3, 7)});
+	is $nav_of->('/06'), undef, '前後が無ければ出さない';
+	$dbh->do(q{UPDATE articles SET status = 'published' WHERE id IN (1, 2, 3, 7)});
+};
+
 done_testing;

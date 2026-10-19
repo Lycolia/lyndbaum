@@ -212,3 +212,12 @@ mark { background: #ffe066; color: #000; }
 .article-body .body_table { overflow-x: auto; }
 
 .article-body .body_table th, .article-body .body_table td { white-space: pre; }
+/* 前後のページへのリンク（記事の上と下）。前は左、親は真ん中、次は右。片方しか無くても位置は変えない */
+.page-nav { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: .5rem 1rem; margin-bottom: 1rem; font-size: .95rem; }
+.page-nav a { overflow-wrap: anywhere; }
+.page-nav .prev-page { grid-column: 1; }
+.page-nav .prev-page::before { content: "← "; }
+.page-nav .upnode-page { grid-column: 2; text-align: center; }
+.page-nav .upnode-page::before { content: "↑ "; }
+.page-nav .next-page { grid-column: 3; text-align: right; }
+.page-nav .next-page::after { content: " →"; }

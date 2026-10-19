@@ -1,4 +1,5 @@
 {{! 本文（題名を含む）、参照元、コメントを、それぞれ別の枠にする（site.css） }}
+{{> page_nav }}
 <article class="article">
   <div class="article-main">
     {{# if article.is_draft }}
@@ -21,3 +22,4 @@
   {{ raw article.backlinks_html }}
   {{# if article.comments }}{{> comments_section }}{{# else }}{{# if article.comment_form }}{{> comments_section }}{{/ if }}{{/ if }}
 </article>
+{{> page_nav }}

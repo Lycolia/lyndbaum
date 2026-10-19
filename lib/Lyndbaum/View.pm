@@ -99,6 +99,35 @@ sub tag_tree {
 	return $add_url->(Lyndbaum::Model::Tag->public_tree($app->db, $app->tags));
 }
 
+# 記事のページの、前後のページへのリンク { prev, up, next }。要素は { title, url } か undef。どれも無ければ undef
+#   記事は時系列（前は1つ古い記事）。コンテンツページはメニューの木を上から順にたどった並びで、親があれば親（up）も出す
+#   前のページが親と同じなら、前は出さない（旧システムと同じ）
+sub page_nav {
+	my ($class, $app, $article) = @_;
+	my ($prev, $up, $next);
+	if ($article->{kind} eq 'page') {
+		my (@pages, %parent_of);
+		my $walk = sub {
+			my ($nodes, $parent) = @_;
+			for my $node (@$nodes) {
+				push @pages, $node;
+				$parent_of{ $node->{id} } = $parent;
+				__SUB__->($node->{children}, $node);
+			}
+		};
+		$walk->(Lyndbaum::Model::Article->content_tree($app->db), undef);
+		my ($i) = grep { $pages[$_]{id} == $article->{id} } 0 .. $#pages;
+		return undef if !defined $i;   # 親が非公開かゴミ箱の中で、メニューに出ていない
+		($prev, $up, $next) = ($i > 0 ? $pages[ $i - 1 ] : undef, $parent_of{ $article->{id} }, $pages[ $i + 1 ]);
+		undef $prev if $prev && $up && $prev->{id} == $up->{id};
+	} else {
+		($prev, $next) = Lyndbaum::Model::Article->public_post_neighbors($app->db, $article);
+	}
+	return undef if !$prev && !$up && !$next;
+	my $link = sub { $_[0] ? { title => $_[0]{title}, url => $app->url->article($_[0]{slug}) } : undef };
+	return { prev => $link->($prev), up => $link->($up), next => $link->($next) };
+}
+
 # サイドバーのコンテンツの木
 sub content_tree {
 	my ($class, $app) = @_;

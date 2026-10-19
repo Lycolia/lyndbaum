@@ -64,6 +64,8 @@ sub render_article {
 			req => $req, edit => $edit);
 	}
 	$view->{comment_form} = $class->_comment_form($app, $req, $article, %form);
+	# 下書きは並びに入っていないので、前後のリンクを出さない
+	$view->{page_nav} = Lyndbaum::View->page_nav($app, $article);
 	return $app->render('article', { title => $article->{title}, article => $view, head => $head },
 		status => $form{status}, req => $req, edit => $edit);
 }
