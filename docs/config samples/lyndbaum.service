@@ -1,0 +1,16 @@
+[Unit]
+Description=Lyndbaum (FastCGI)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=<置き場所>
+# /run/lyndbaum/をUserのものとして作る
+RuntimeDirectory=lyndbaum
+ExecStart=/usr/bin/perl <置き場所>/index.fcgi /run/lyndbaum/lyndbaum.sock 4 1000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

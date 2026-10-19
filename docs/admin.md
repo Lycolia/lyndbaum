@@ -223,7 +223,7 @@ CGI（Webサーバーのユーザー）が`pub/`に書き込めること（RSS�
   - `favicon.ico`（16と32のPNGを中に入れたICO）
 - 設定の`site_icon`に書き出した時刻を入れ、URLに`?v=時刻`を付ける（入れ替えたときに、ブラウザに古いアイコンを使わせない）
 - 消すと`pub/branding/`のアイコンのファイルを消し、既定のロゴ（`pub/assets/logo/`）に戻す。入れていないときも既定のロゴを使う
-- `/favicon.ico`はWebサーバーが返す（`.htaccess`、`docs/nginx.conf.sample`）。`pub/branding/favicon.ico`があればそれを、無ければ`pub/assets/logo/favicon.ico`を返す
+- `/favicon.ico`はWebサーバーが返す（`.htaccess`、`docs/config samples/`のnginxの見本）。`pub/branding/favicon.ico`があればそれを、無ければ`pub/assets/logo/favicon.ico`を返す
 
 ## サイドバーの自由欄
 

@@ -2,7 +2,7 @@ package Lyndbaum::SiteIcon;
 # サイトのアイコン（favicon）。ブログの設定の画面で、画像を入れ替えたり消したりする（docs/admin.md の「サイトのアイコン」）
 #   入れた画像は、真ん中を正方形に切り抜いて、大きさごとのPNGと favicon.ico にし、pub/branding/ に書き出す（Lyndbaum::Branding）
 #   入れていなければ（消したときも）、既定のロゴ（pub/assets/logo/）を使う
-#   /favicon.ico は Webサーバーが返す（.htaccess、docs/nginx.conf.sample。pub/branding/ に無ければ既定のロゴ）
+#   /favicon.icoはWebサーバーが返す（.htaccess、docs/config samples/のnginxの見本。pub/branding/に無ければ既定のロゴ）
 #   設定の site_icon は書き出した時刻。空なら既定のロゴ。URLに付けて、入れ替えたときにブラウザの古いアイコンを使わせない
 #   ここは表示用（URL を作る）。入れ替えと削除は Lyndbaum::SiteIcon::Writer
 use strict;
