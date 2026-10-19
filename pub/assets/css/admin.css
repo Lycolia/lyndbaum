@@ -180,8 +180,8 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .admin-main:has(.media-page) { max-width: 80rem; }
 .media { display: grid; gap: 1rem; }
 @media (min-width: 56rem) {
-  .media { grid-template-columns: 12rem minmax(0, 1fr); }
-  .media:has(.media-detail:not([hidden])) { grid-template-columns: 12rem minmax(0, 1fr) 18rem; }
+  /* 詳しいことの欄の場所を空けておく（選んだときに一覧の幅が変わって、押そうとしたファイルが動かないように） */
+  .media { grid-template-columns: 12rem minmax(0, 1fr) 18rem; }
 }
 .media-folders { font-size: .9rem; max-height: 70vh; overflow-y: auto; }
 .media-folders ul { list-style: none; margin: 0; padding: 0 0 0 .75rem; }
