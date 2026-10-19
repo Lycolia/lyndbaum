@@ -53,10 +53,11 @@ CREATE TABLE articles (
     CHECK (parent_id IS NULL OR parent_id <> id)
 );
 
--- 公開記事の時系列の一覧（新しい順）用
+-- 公開記事の一覧、件数、検索用
+--   等号で絞る列を先に並べると、統計（ANALYZE）が無くても選ばれる。時系列の一覧（kind = 'post'）は並べ替えが要らず、
+--   件数は索引だけで数えられる。部分索引（WHERE kind = 'post' AND …）にすると選ばれず、idx_articles_admin が使われる
 CREATE INDEX idx_articles_public
-    ON articles (published_at DESC)
-    WHERE kind = 'post' AND status = 'published' AND deleted_at IS NULL;
+    ON articles (status, deleted_at, kind, published_at DESC, id DESC);
 
 -- コンテンツの木の表示用
 CREATE INDEX idx_articles_tree

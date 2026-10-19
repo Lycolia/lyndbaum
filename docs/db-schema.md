@@ -60,7 +60,7 @@
 - **記事のIDは使い回さない。**完全に削除した記事のIDも使わない（旧システムと同じ）。最後に使ったIDは`sequences`に持つ。`MAX(id) + 1`では、いちばん新しい記事を完全に削除すると、そのIDとURLが次の記事に使われるため
 - **下書きと公開は`status`で表す。**予約投稿は「`status = 'published'`かつ`published_at`が未来」で表現できるので、列を増やさない（必要になったときに一覧のクエリへ`published_at <= 現在時刻`を足す）
 - 続きを読むは、HTMLの中の区切りで分けるので列を持たない
-- **公開記事の索引は`(status, deleted_at, kind, published_at DESC, id DESC)`の複合索引（`0002`）。**等号で絞る列を先に並べると、統計（`ANALYZE`）が無くても選ばれる。0001の部分索引は選ばれず、管理画面用の`idx_articles_admin`が使われて、本文を含む結果の並べ替えが起きていた。クエリを足したり変えたりしたときは、`EXPLAIN QUERY PLAN`で使われる索引を確かめる
+- **公開記事の索引は`(status, deleted_at, kind, published_at DESC, id DESC)`の複合索引。**等号で絞る列を先に並べると、統計（`ANALYZE`）が無くても選ばれる。以前の部分索引は選ばれず、管理画面用の`idx_articles_admin`が使われて、本文を含む結果の並べ替えが起きていた。クエリを足したり変えたりしたときは、`EXPLAIN QUERY PLAN`で使われる索引を確かめる
 
 ### 記法（`syntax`）
 
