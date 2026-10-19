@@ -17,12 +17,19 @@ use Lyndbaum::Backlinks;
 
 my $root = "$FindBin::Bin/..";
 my $app  = Lyndbaum::App->new(root => $root, config_file => $ARGV[0] // "$root/config.json");
-my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context);
+binmode STDOUT, ':encoding(UTF-8)';
+# 直したほうがよい点（目次に入らない見出しなど）のある記事は、slug と題名を添えて出す
+my $warned = 0;
+my $count = Lyndbaum::Model::Article->rebuild_all($app->db, $app->parser_context, on_warnings => sub {
+	my ($article, $warnings) = @_;
+	$warned++;
+	print "/$article->{slug} $article->{title}\n", map { "  $_\n" } @$warnings;
+});
 Lyndbaum::SidebarCache->rebuild($app);
 Lyndbaum::Backlinks->rebuild($app, all => 1);
 
-binmode STDOUT, ':encoding(UTF-8)';
 print "$count 件の記事を変換しました\n";
+print "$warned 件の記事に、直したほうがよい点があります（上の一覧）\n" if $warned;
 
 # 本文が変わったので、RSSとサイトマップも書き出し直す。site_url が無いなど、書き出せなくても変換の結果は残す
 my $errors = Lyndbaum::StaticFiles->write_all($app);

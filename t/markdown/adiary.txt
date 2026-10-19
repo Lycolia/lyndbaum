@@ -12,6 +12,24 @@
 </ul>
 </section>
 
+=== 目次に入る見出しが無ければ、目次を出さない
+段を飛ばした見出し（# の無い ##）は目次に入らない。空の <ul> も出さない（docs/compat-diffs.md）
+--- options: sectioning=1
+--- input
+前
+
+[*toc]
+
+後
+
+## 見出し
+--- expected
+<section>
+<p>前</p>
+<p>後</p>
+<h4 id="見出し"><a href="#見出し">見出し</a></h4>
+</section>
+
 === 記事のURLがあれば、見出しと目次のリンクに付ける
 一覧に本文を並べても、その記事の見出しへ行くように（旧システムと同じく、記事のURL#ID）
 --- options: sectioning=1 article_url=/0575

@@ -26,6 +26,7 @@ use Lyndbaum::StaticFiles;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::OGP;
+use Lyndbaum::Parser;
 use Lyndbaum::Response;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::Backlinks;
@@ -327,6 +328,16 @@ sub _values_of {
 	};
 }
 
+# 本文の直したほうがよい点（目次に入らない見出しなど）。保存は止めず、編集の画面に出すだけ
+#   変換の結果は保存しないので、画面を出すたびに変換する
+sub _body_warnings {
+	my ($class, $app, $article, $v) = @_;
+	return [] if ($v->{body_src} // '') eq '';
+	my %context = $app->parser_context;
+	delete $context{article_url_of};
+	return Lyndbaum::Parser->parse($article ? $article->{syntax} : 'markdown', $v->{body_src}, %context)->{warnings} // [];
+}
+
 # フォームを出す。$v はフォームの値（id があれば編集）
 #   %opt：errors、saved、feed_failed、conflict、status
 sub _render_form {
@@ -376,6 +387,7 @@ sub _render_form {
 		eyecatch         => $class->_eyecatch($app, $article, $v),
 		error_of    => \%error_of,
 		errors      => $opt{errors} // [],
+		warnings    => $class->_body_warnings($app, $article, $v),
 		saved       => $opt{saved},
 		feed_failed => $opt{feed_failed},
 		conflict    => $opt{conflict},

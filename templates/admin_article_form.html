@@ -19,6 +19,15 @@
   </ul>
 </div>
 {{/ if }}
+{{# if warnings }}
+{{! 本文の直したほうがよい点（Lyndbaum::Controller::AdminArticle->_body_warnings）。保存はできる }}
+<div class="admin-warning" role="status">
+  <p>本文に構文エラーがあります。</p>
+  <ul>
+    {{# for warning in warnings }}<li>{{ warning }}</li>{{/ for }}
+  </ul>
+</div>
+{{/ if }}
 {{! data-unsaved-warning：保存していない変更があるまま離れるときに確かめる（pub/assets/js/admin-unsaved.js） }}
 <form class="admin-form article-edit" method="post" action="{{ action }}" data-unsaved-warning="{{# if unsaved }}unsaved{{/ if }}">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">

@@ -35,7 +35,7 @@ body.admin { padding: 0; background: var(--admin-bg); }
   .admin-submenu a { padding: .3rem .75rem; }
 }
 /* 管理画面の箱（.admin-card、知らせなど）。地（--admin-bg）と見分けられるよう、背景を--bgにして枠を付ける */
-.admin-card, .sidebar-box-edit, .admin-notice, .admin-error { background: var(--bg); border: 1px solid var(--border); }
+.admin-card, .sidebar-box-edit, .admin-notice, .admin-error, .admin-warning { background: var(--bg); border: 1px solid var(--border); }
 /* ダッシュボードの箱 */
 .admin-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: 1rem; align-items: start; }
 .admin-card { padding: 0 1rem .75rem; }
@@ -51,6 +51,7 @@ body.admin { padding: 0; background: var(--admin-bg); }
 a.button-primary, a.button { display: inline-block; text-decoration: none; }
 .button { font: inherit; padding: .3rem 1rem; background: none; color: var(--link); border: 1px solid var(--link); cursor: pointer; }
 .admin-error { border-color: #d33; padding: .5rem 1rem; }
+.admin-warning { border-color: #dba617; border-left-width: 4px; padding: .5rem 1rem; }
 .admin-form input[type="text"], .admin-form input[type="password"] { width: 100%; max-width: 20rem; font: inherit; }
 .admin-notice { padding: .5rem 1rem; }
 .admin-filters { display: flex; flex-wrap: wrap; gap: 0 1rem; }

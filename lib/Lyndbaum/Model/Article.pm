@@ -545,10 +545,12 @@ sub _add_heading_ids {
 #   %contextはLyndbaum::Parser->parseに渡すもの（記事IDはここで足す）
 #   変換するのは、記事の保存時と再構築（rebuild_all）のときだけ。表示や検索のときには変換しない
 #   （パーサーを直しても、再構築するまでは今の出力が変わらないようにするため）
+#   %context の on_warnings は、変換で警告が出たときに（$article, 警告のリスト）で呼ぶ関数（パーサーには渡さない）
 sub rebuild_body {
 	my ($class, $dbh, $article, %context) = @_;
 	require Lyndbaum::Parser;
 	my $url_of = delete $context{article_url_of};
+	my $on_warnings = delete $context{on_warnings};
 	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id},
 		($url_of ? (article_url => $url_of->($article->{slug})) : ()));
 	$dbh->do('UPDATE articles SET body_html = ?, description = ? WHERE id = ?', undef,
@@ -559,6 +561,7 @@ sub rebuild_body {
 		Lyndbaum::Parser::Common->search_text($article->{title}, $result->{html}),
 		Lyndbaum::Parser::Common->search_source($article->{title}, $article->{body_src}));
 	$class->_save_links($dbh, $article->{id}, $result->{links} // []);
+	$on_warnings->($article, $result->{warnings}) if $on_warnings && @{ $result->{warnings} // [] };
 	$article->{body_html} = $result->{html};
 	return $result->{html};
 }

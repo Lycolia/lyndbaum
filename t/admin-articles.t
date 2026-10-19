@@ -179,6 +179,16 @@ subtest 'RSSを書き出せなくても保存する' => sub {
 	like get('/admin/articles/5?feed=failed&saved=1')->body, qr{RSSかサイトマップを書き出せませんでした};
 };
 
+subtest '本文の直したほうがよい点' => sub {
+	my $res = post('/admin/articles/5', title => '題名を直した', body => "[*toc]\n\n## 見出し", status => 'published', digest => digest(5));
+	is $res->status, 303, '保存は止めない';
+	my $body = get('/admin/articles/5?saved=1')->body;
+	like $body, qr{<div class="admin-warning" role="status">};
+	like $body, qr{<li>見出し「見出し」（##）の前に # の見出しが無いため、目次に入りません</li>};
+	post('/admin/articles/5', title => '題名を直した', body => "[*toc]\n\n# 見出し", status => 'published', digest => digest(5));
+	unlike get('/admin/articles/5')->body, qr{admin-warning}, '直せば出ない';
+};
+
 subtest '再構築' => sub {
 	$dbh->do('UPDATE articles SET body_html = NULL');
 	unlink $feed;
