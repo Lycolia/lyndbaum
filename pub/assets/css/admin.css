@@ -200,7 +200,7 @@ button.media-folder-toggle[aria-expanded="true"]::before { content: "\25BE"; }
 .media-filter { font: inherit; }
 .media-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr)); gap: .5rem; }
 .media-grid > li { position: relative; }
-.media-grid > li.media-current .media-item { outline: 2px solid var(--link); }
+.media-grid > li.media-selected .media-item { outline: 3px solid var(--link); outline-offset: -1px; }
 .media-item { display: flex; flex-direction: column; align-items: center; gap: .25rem; width: 100%; font: inherit; font-size: .75rem; background: var(--code-bg); border: 1px solid var(--border); padding: .35rem; cursor: pointer; color: inherit; }
 .media-item img { width: 100%; height: 7rem; object-fit: contain; }
 .media-kind { display: flex; align-items: center; justify-content: center; width: 100%; height: 7rem; color: var(--muted); }
@@ -213,7 +213,8 @@ a.media-item { text-decoration: none; }
 .media-detail { font-size: .85rem; overflow-wrap: anywhere; }
 .media-detail h3 { font-size: .95rem; margin: 0 0 .5rem; }
 .media-detail img, .media-detail video { max-width: 100%; max-height: 16rem; }
-.media-tag { width: 100%; font-family: "メイリオ", sans-serif; font-size: .8rem; }
+.media-selected-count { font-weight: bold; margin: 0 0 .5rem; }
+.media-tag { width: 100%; resize: vertical; font-family: "メイリオ", sans-serif; font-size: .8rem; }
 .media-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }
 .media-meta { color: var(--muted); }
 .media-dialog { width: min(72rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0 1rem 1rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); }

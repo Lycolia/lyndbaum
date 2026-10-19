@@ -1,7 +1,12 @@
 // 管理画面のメディア（添付ファイルの一覧とゴミ箱。docs/admin.md の「メディア」）
 //   LyndbaumMedia.mount(要素, 設定) で一覧を組む。中身は /admin/media/… の JSON から作る
 //     設定：base（/admin/media）、csrf（CSRFトークン）、mode（page＝メディアの画面、picker＝選ぶための窓）、
-//           actions（選んだファイルに対してできること [{ label, when(ファイル), run(ファイル) }]。窓で「本文に入れる」など）
+//           actions（選んだファイルに対してできること [{ label, when(ファイル), run(ファイル), multiple }]。窓で「本文に入れる」など。
+//                    multiple が真なら、選んだすべてのファイルが when に合うときに出し、run にはファイルの配列（選んだ順）を渡す。
+//                    偽なら、1つだけ選んでいるときに出す）
+//           single（真なら1つしか選べない。ほかのファイルを押すと、そのファイルに選び直す）
+//   ファイルは押すたびに選ぶ・選ぶのをやめるを切り替え、続けて押すと選ぶものを足していく。まとめて選ぶのをやめる操作は作らない
+//   （間違えて押すと選び直すのが手間なため。作者の判断）
 //   どちらでも、ゴミ箱へ移す、ゴミ箱を見る（戻す、完全に削除）ができる
 //   LyndbaumMedia.pick(設定) で、選ぶための窓（<dialog>）を開く（編集の画面の「ファイル一覧から選択」）
 'use strict';
@@ -39,14 +44,13 @@
 
 	function mount(root, opt) {
 		var page = opt.mode !== 'picker';
-		var state = { folder: null, files: [], selected: {}, detail: null, trash: false, expanded: {} };
+		var state = { folder: null, files: [], selected: [], trash: false, expanded: {} };   // selected は選んだファイルの名前（選んだ順）
 		root.textContent = '';
 		root.classList.add('media');
 		var nav     = el('nav', { class: 'media-folders', 'aria-label': 'フォルダ' });
 		var title   = el('h2', { class: 'media-title' });
 		var filter  = el('input', { type: 'search', class: 'media-filter', placeholder: '名前で絞り込み', 'aria-label': '名前で絞り込み', oninput: renderFiles });
-		var bulk    = el('button', { type: 'button', onclick: trashSelected, text: '選んだものをゴミ箱へ移動' });
-		var toolbar = el('div', { class: 'media-toolbar' }, [title, filter, bulk]);
+		var toolbar = el('div', { class: 'media-toolbar' }, [title, filter]);
 		var grid    = el('ul', { class: 'media-grid' });
 		var detail  = el('aside', { class: 'media-detail', hidden: true, 'aria-live': 'polite' });
 		var main    = el('div', { class: 'media-main' }, [toolbar, grid]);
@@ -124,9 +128,8 @@
 		function openFolder(folder) {
 			state.trash = false;
 			state.folder = folder;
-			state.selected = {};
-			closeDetail();
-			if (bulk) bulk.hidden = false;
+			state.selected = [];
+			renderDetail();
 			filter.hidden = false;
 			markCurrent();
 			expandTo(folder);
@@ -147,54 +150,71 @@
 			shown.forEach(function (f) {
 				var preview = f.thumbnail ? el('img', { src: f.thumbnail, alt: '', loading: 'lazy' })
 					: el('span', { class: 'media-kind', text: f.kind === 'video' ? '動画' : f.kind === 'image' ? '画像' : 'ファイル' });
-				var item = el('button', { type: 'button', class: 'media-item', onclick: function () { showDetail(f); } }, [
+				// 選んでいるかは aria-pressed で表す（チェックボックスは置かない。押すのはファイルのどこでもよいため）
+				var selected = state.selected.indexOf(f.name) !== -1;
+				var item = el('button', { type: 'button', class: 'media-item', 'aria-pressed': selected ? 'true' : 'false', onclick: function () { toggle(f); } }, [
 					preview, el('span', { class: 'media-name', text: f.name }),
 				]);
-				var check = el('input', {
-					type: 'checkbox', class: 'media-check', 'aria-label': '「' + f.name + '」を選ぶ', checked: !!state.selected[f.name],
-					onchange: function (evt) { if (evt.target.checked) state.selected[f.name] = true; else delete state.selected[f.name]; },
-				});
-				grid.appendChild(el('li', { class: state.detail === f ? 'media-current' : '' }, [check, item]));
+				grid.appendChild(el('li', { class: selected ? 'media-selected' : '' }, [item]));
 			});
 			if (!shown.length) grid.appendChild(el('li', { class: 'media-empty', text: 'ファイルはありません。' }));
 		}
 
-		function showDetail(f) {
-			state.detail = f;
+		// 押したファイルを選ぶ。選んでいれば選ぶのをやめる
+		function toggle(f) {
+			var i = state.selected.indexOf(f.name);
+			if (i !== -1) state.selected.splice(i, 1);
+			else if (opt.single) state.selected = [f.name];
+			else state.selected.push(f.name);
 			renderFiles();
-			detail.hidden = false;
+			renderDetail();
+		}
+		// 選んだファイル（選んだ順）。絞り込みで隠れているものも含める
+		function selectedFiles() {
+			return state.selected.map(function (name) {
+				return state.files.filter(function (f) { return f.name === name; })[0];
+			}).filter(Boolean);
+		}
+
+		// 詳しいことの欄。最後に選んだファイルの詳しいことを出し、操作は選んだすべてのファイルに行う
+		function renderDetail() {
+			var files = state.trash ? [] : selectedFiles();
 			detail.textContent = '';
+			detail.hidden = !files.length;
+			if (!files.length) return;
+			var f = files[files.length - 1];
 			var preview = f.kind === 'image' ? el('img', { src: f.thumbnail || f.url, alt: '' })
 				: f.kind === 'video' ? el('video', { src: f.url, controls: true, preload: 'metadata' }) : null;
-			var tag = f.tag ? el('input', { type: 'text', readonly: true, value: f.tag, class: 'media-tag', 'aria-label': '本文に入れる記法' }) : null;
+			// 本文に入れる記法。複数なら1ファイル1行（コピーも「本文に入れる」も同じ）
+			var tags = files.filter(function (x) { return x.tag; }).map(function (x) { return x.tag; });
+			var tag = !tags.length ? null : tags.length === 1
+				? el('input', { type: 'text', readonly: true, value: tags[0], class: 'media-tag', 'aria-label': '本文に入れる記法' })
+				: el('textarea', { readonly: true, rows: Math.min(tags.length, 6), class: 'media-tag', 'aria-label': '本文に入れる記法' }, [tags.join('\n')]);
+			var actions = (opt.actions || []).filter(function (a) {
+				return a.multiple ? files.every(function (x) { return !a.when || a.when(x); }) : files.length === 1 && (!a.when || a.when(f));
+			});
 			var usage = el('div', { class: 'media-usage', text: '使っている記事を調べています…' });
 			[
+				files.length > 1 ? el('p', { class: 'media-selected-count', text: files.length + '件を選んでいます。下の操作は、選んだすべてのファイルに行います。' }) : null,
 				el('h3', { text: f.name }),
 				preview,
 				el('p', { class: 'media-meta', text: size(f.size) + '　' + f.mtime }),
 				el('p', {}, [el('a', { href: f.url, target: '_blank', rel: 'noopener', text: '元のファイルを開く' })]),
 				tag,
 				tag ? el('p', {}, [el('button', { type: 'button', text: '記法をコピー', onclick: function () { copy(tag); } })]) : null,
-				el('div', { class: 'media-actions' }, (opt.actions || []).filter(function (a) { return !a.when || a.when(f); })
-					.concat([{ label: 'ゴミ箱へ移動', run: function () { trashFiles([f]); } }])
-					.map(function (a) { return el('button', { type: 'button', text: a.label, onclick: function () { a.run(f); } }); })),
+				el('div', { class: 'media-actions' }, actions
+					.concat([{ label: 'ゴミ箱へ移動', multiple: true, run: trashFiles }])
+					.map(function (a) { return el('button', { type: 'button', text: a.label, onclick: function () { a.run(a.multiple ? files : f); } }); })),
 				usage,
-				el('p', {}, [el('button', { type: 'button', class: 'media-close', text: '閉じる', onclick: closeDetail })]),
 			].forEach(function (e) { if (e) detail.appendChild(e); });
 			getJSON(opt.base + '/usage?folder=' + encodeURIComponent(f.folder) + '&name=' + encodeURIComponent(f.name)).then(function (data) {
 				usage.textContent = '';
-				if (!data.articles.length) { usage.textContent = '使っている記事はありません。'; return; }
-				usage.appendChild(el('p', { text: '使っている記事：' }));
+				if (!data.articles.length) { usage.textContent = '「' + f.name + '」を使っている記事はありません。'; return; }
+				usage.appendChild(el('p', { text: '「' + f.name + '」を使っている記事：' }));
 				usage.appendChild(el('ul', {}, data.articles.map(function (a) {
 					return el('li', {}, [el('a', { href: a.edit_url, target: page ? null : '_blank', text: a.title || '（題名なし）' }), a.trashed ? '（ゴミ箱）' : null]);
 				})));
 			}).catch(function () { usage.textContent = '使っている記事を調べられませんでした。'; });
-		}
-		function closeDetail() {
-			state.detail = null;
-			detail.hidden = true;
-			detail.textContent = '';
-			renderFiles();
 		}
 		function copy(input) {
 			input.select();
@@ -203,11 +223,6 @@
 		}
 
 		// ゴミ箱へ移す。使っている記事があれば、その題名を出して確かめる
-		function trashSelected() {
-			var files = state.files.filter(function (f) { return state.selected[f.name]; });
-			if (!files.length) { window.alert('ファイルを選んでください。'); return; }
-			trashFiles(files);
-		}
 		function trashFiles(files) {
 			Promise.all(files.map(function (f) {
 				return getJSON(opt.base + '/usage?folder=' + encodeURIComponent(f.folder) + '&name=' + encodeURIComponent(f.name))
@@ -225,10 +240,9 @@
 		// ゴミ箱。中身はサムネイルで確かめられる（ゴミ箱は公開のフォルダにある）
 		function openTrash() {
 			state.trash = true;
-			state.selected = {};
-			closeDetail();
+			state.selected = [];
+			renderDetail();
 			markCurrent();
-			if (bulk) bulk.hidden = true;
 			filter.hidden = true;
 			title.textContent = 'ゴミ箱';
 			grid.textContent = '';
@@ -286,9 +300,10 @@
 			dialog.body = body;
 		}
 		explorer = mount(dialog.body, {
-			base: opt.base, csrf: opt.csrf, mode: 'picker',
+			// 複数のファイルに行える操作が無ければ（「アイキャッチ画像に設定」など）、1つしか選べなくする（WordPress と同じ）
+			base: opt.base, csrf: opt.csrf, mode: 'picker', single: !opt.actions.some(function (a) { return a.multiple; }),
 			actions: opt.actions.map(function (a) {
-				return { label: a.label, when: a.when, run: function (f) { a.run(f); if (!a.keepOpen) dialog.close(); } };
+				return { label: a.label, when: a.when, multiple: a.multiple, run: function (f) { a.run(f); if (!a.keepOpen) dialog.close(); } };
 			}),
 		});
 		dialog.showModal();

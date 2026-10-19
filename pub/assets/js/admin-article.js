@@ -357,7 +357,8 @@
 					base: media.dataset.base,
 					csrf: form.elements.csrf_token.value,
 					actions: [
-						{ label: '本文に入れる', when: function (f) { return !!f.tag; }, run: function (f) { insert(f.tag); } },
+						// 複数を選んでいれば、1ファイル1行で入れる
+						{ label: '本文に入れる', multiple: true, when: function (f) { return !!f.tag; }, run: function (files) { insert(files.map(function (f) { return f.tag; }).join('\n')); } },
 					],
 				});
 			});
