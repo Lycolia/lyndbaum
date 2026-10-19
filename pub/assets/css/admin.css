@@ -217,7 +217,7 @@ a.media-item { text-decoration: none; }
 .media-tag { width: 100%; resize: vertical; font-family: "メイリオ", sans-serif; font-size: .8rem; }
 .media-actions { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0; }
 .media-meta { color: var(--muted); }
-.media-dialog { width: min(72rem, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); padding: 0 1rem 1rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
+.media-dialog { width: calc(100vw - 2rem); max-height: calc(100vh - 2rem); padding: 0 1rem 1rem; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
 .media-dialog::backdrop { background: rgb(0 0 0 / .4); }
 .media-dialog-head { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; background: var(--bg); padding: .5rem 0; }
 .media-dialog-head h2 { font-size: 1rem; margin: 0; }
