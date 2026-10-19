@@ -5,7 +5,6 @@ use warnings;
 use utf8;
 use feature 'current_sub';
 
-use Digest::SHA ();
 use Encode ();
 
 # 全タグを { ID => タグ } で返す
@@ -123,6 +122,7 @@ sub ensure_path {
 #   記事の保存で新しいタグができたときも変わる
 sub digest {
 	my ($class, $dbh) = @_;
+	require Digest::SHA;
 	my $rows = $dbh->selectall_arrayref('SELECT id, parent_id, name, sort_order FROM tags ORDER BY id');
 	return Digest::SHA::sha256_hex(Encode::encode_utf8(join "\n", map { join "\0", map { $_ // '' } @$_ } @$rows));
 }
