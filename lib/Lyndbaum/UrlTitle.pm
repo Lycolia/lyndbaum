@@ -1,14 +1,14 @@
 package Lyndbaum::UrlTitle;
 # [&URL] のリンクの文字にする、外部のページのタイトル
 #   変換の途中では外へ取りに行かず（CLAUDE.md の「パーサーの方針」）、記事を保存するときに取得して url_cache に入れる
-#   変換するときは url_cache を読むだけ（Lyndbaum::App->parser_context の url_title）
+#   変換するときはurl_cacheを読むだけ（Lyndbaum::App->parser_context の url_title）
 use strict;
 use warnings;
 use utf8;
 
 use Encode qw(find_encoding);
 use HTML::Entities qw(decode_entities);
-use HTTP::Tiny;
+use Lyndbaum::HttpClient;
 use Lyndbaum::Parser;
 
 my $TIMEOUT   = 5;            # 1件の取得の待ち時間（秒）
@@ -17,13 +17,13 @@ my $MAX_URLS  = 10;           # 1回の保存で取りに行く数
 my $RETRY     = 24 * 60 * 60; # 取得に失敗したURLを取り直すまでの秒数
 my $MAX_TITLE = 200;
 
-# 本文の [&URL] のうち、まだタイトルを持っていないURLのタイトルを取得して url_cache に入れる
-#   取得したURLの数を返す。取得に失敗しても die しない（リンクの文字がURLのままになるだけ）
+# 本文の[&URL]のうち、まだタイトルを持っていないURLのタイトルを取得してurl_cacheに入れる
+#   取得したURLの数を返す。取得に失敗してもdieしない（リンクの文字がURLのままになるだけ）
 #   %opt
 #     syntax   本文の記法
 #     context  変換の設定（Lyndbaum::App->parser_context）
-#     fetch    URLを受け取り、HTTP::Tiny->get と同じ形の応答を返す関数（テスト用）
-#     agent    User-Agent
+#     fetch    URLを受け取り、HTTP::Tiny->getと同じ形の応答を返す関数（テスト用）
+#     site_url User-Agentに入れるサイトのURL
 #     now      今の時刻（テスト用）
 sub fetch_missing {
 	my ($class, $dbh, $text, %opt) = @_;
@@ -35,7 +35,7 @@ sub fetch_missing {
 		url_title => sub { push @urls, $_[0] if !$seen{ $_[0] }++; undef });
 
 	my $fetch = $opt{fetch} // do {
-		my $http = HTTP::Tiny->new(timeout => $TIMEOUT, max_size => $MAX_SIZE, agent => $opt{agent} // 'Lyndbaum', verify_SSL => 1);
+		my $http = Lyndbaum::HttpClient->new(timeout => $TIMEOUT, max_size => $MAX_SIZE, site_url => $opt{site_url});
 		sub { $http->get($_[0]) };
 	};
 	my $count = 0;
@@ -52,12 +52,11 @@ sub fetch_missing {
 	return $count;
 }
 
-# HTTP::Tiny の応答から、ページのタイトルを取り出す。HTMLでないか、タイトルが無ければ undef
+# HTTP::Tinyの応答から、ページのタイトルを取り出す。HTMLでないか、タイトルが無ければundef
 sub title_of {
 	my ($res) = @_;
 	return undef if !$res->{success};
-	my $type = $res->{headers}{'content-type'} // '';
-	$type = join ',', @$type if ref $type;
+	my $type = Lyndbaum::HttpClient->header($res, 'Content-Type') // '';
 	return undef if $type !~ m{\A\s*(?:text/html|application/xhtml\+xml)}i;
 
 	my $bytes = $res->{content} // '';

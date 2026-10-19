@@ -146,7 +146,7 @@ sub _save {
 	return $class->_render_form($app, $session, { %$v, id => $id }, errors => $errors, status => 400) if @$errors;
 
 	# [&URL] のページのタイトルは、変換する前に取得しておく（変換の途中では外へ取りに行かないため）
-	Lyndbaum::UrlTitle->fetch_missing($dbh, $v->{body_src}, context => { $app->parser_context }, agent => $class->_agent($app));
+	Lyndbaum::UrlTitle->fetch_missing($dbh, $v->{body_src}, context => { $app->parser_context }, site_url => $app->config->get('site_url'));
 	my $settings = $app->settings;
 	my $result = Lyndbaum::Model::Article->save($dbh, $v, id => $id, context => { $app->parser_context },
 		revision_interval => $settings->{revision_interval}, revision_max => $settings->{revision_max});
@@ -300,13 +300,6 @@ sub _eyecatch {
 	my $preview = $mode eq 'chosen' && ($v->{eyecatch} // '') ne '' ? $app->url->attachment($v->{eyecatch})
 		: $mode eq 'auto' && $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
 	return { %urls, $mode => 1, preview => $preview, attachment_base => $app->url->attachment('') };
-}
-
-# 外部のページを取りに行くときの User-Agent
-sub _agent {
-	my ($class, $app) = @_;
-	my $site = $app->config->get('site_url');
-	return 'Lyndbaum' . (defined $site && $site ne '' ? " (+$site)" : '');
 }
 
 # RSS とサイトマップを書き出す（Lyndbaum::StaticFiles）。書き出せなくても記事の保存は取り消さず、
