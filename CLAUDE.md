@@ -97,6 +97,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
 
 ```
 index.cgi           入口
+index.fcgi          常駐させるときの入口（FastCGI。docs/deploy.md）
 lib/Lyndbaum/       アプリ本体
   Router.pm
   Controller/

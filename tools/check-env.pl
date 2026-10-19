@@ -30,6 +30,7 @@ my @modules = (
 	[ 'GD', 'サムネイルを作れない（画像は元の大きさで出す）' ],
 	[ 'IO::Socket::SSL', '[&URL] のページのタイトルを https で取れない' ],
 	[ 'Mozilla::CA', 'OS の証明書で https を確かめる（下の「https」が OK なら困らない）' ],
+	[ 'FCGI', 'index.fcgi（FastCGIで常駐させる）を使えない。index.cgi（CGI）では動く' ],
 );
 for my $m (@modules) {
 	my ($name, $optional) = @$m;

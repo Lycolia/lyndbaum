@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 # 入口。処理はすべて Lyndbaum::App に任せる
+#   常駐させるときの入口はindex.fcgi（docs/deploy.mdの「FastCGIで動かす」）
 use strict;
 use warnings;
 use utf8;
@@ -17,23 +18,13 @@ use FindBin;
 use lib "$FindBin::Bin/lib", "$FindBin::Bin/extlib";
 
 use Lyndbaum::App;
-use Lyndbaum::Response;
 
-my $response = eval {
-	my $app = Lyndbaum::App->new(
-		root        => $FindBin::Bin,
-		config_file => $ENV{LYNDBAUM_CONFIG} // "$FindBin::Bin/config.json",
-	);
-	$app->handle(\%ENV);
-};
-if (!$response) {
-	warn $@;
-	$response = Lyndbaum::Response->new(
-		status       => 500,
-		content_type => 'text/plain',
-		body         => "Internal Server Error\n",
-	);
-}
+my $response = Lyndbaum::App->respond(
+	root        => $FindBin::Bin,
+	config_file => $ENV{LYNDBAUM_CONFIG} // "$FindBin::Bin/config.json",
+	env         => \%ENV,
+	input       => \*STDIN,
+);
 
 binmode STDOUT;
 print $response->as_cgi;

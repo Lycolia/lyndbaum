@@ -8,6 +8,7 @@ CGIの動くWebサーバーに置いて動かす手順。adiaryから移ると�
 - Webサーバーは次のどちらか
   - Apache：mod_rewriteと、`.htaccess`を使えること（`AllowOverride FileInfo`。`Options`も書いているので`Options`も）。設定は同梱の`.htaccess`。mod_headersがあれば`X-Content-Type-Options: nosniff`を付ける
   - nginx：fcgiwrapなどでCGIを動かす。設定は`docs/nginx.conf.sample`を元に書く
+  - プロセスを動かし続けられるサーバーでは、FastCGIで常駐させてもよい（下の「FastCGIで動かす」）
 - `/pub/`の下だけをファイルとして返し、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、ほかのファイルは返さない
 
 ## 設置
@@ -43,6 +44,44 @@ perl tools/check-env.pl        # NG が無ければよい
 3. 画像を入れた記事を公開すると、トップページと`/pub/rss.xml`に出る。ログアウトしてコメントを書ける
 4. `/config.json`と`/var/lyndbaum.db`が読めない（403か404）
 
+## FastCGIで動かす（任意）
+
+CGIでは、リクエストのたびにPerlを起動し、モジュールを読み込む（手元で1回あたり約45ms）。プロセスを動かし続けられるサーバー（自分で管理していて、systemdなどを使えるもの）では、`index.fcgi`で常駐させると、この時間がかからなくなる。レンタルサーバーなど、常駐させられないところでは`index.cgi`のままでよい。
+
+- PerlのFCGIモジュールが要る。OSのパッケージで入れる（DebianとUbuntuは`apt install libfcgi-perl`）。`perl tools/check-env.pl`の「FCGI」がOKならよい
+- `perl index.fcgi ソケット [プロセスの数] [1つのプロセスが受けるリクエストの数]`。既定は4と1000。ソケットは、UNIXソケットのパスか、`127.0.0.1:9000`の形
+- 1つのプロセスは、決まった数のリクエストを受けたら終わり、作り直す。止める合図（TERM）を受けたら、処理中の応答を返し終えてから終わる
+- 設定（`config.json`）とテンプレートは、CGIと同じくリクエストごとに読む。プログラム（`lib/`など）を変えたときだけ、起動し直す
+- Webサーバーと同じユーザーで動かす（WebサーバーがUNIXソケットに書き込めるように）
+
+systemdの設定の見本（`/etc/systemd/system/lyndbaum.service`）：
+
+```ini
+[Unit]
+Description=Lyndbaum (FastCGI)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=<置き場所>
+# /run/lyndbaum/をUserのものとして作る
+RuntimeDirectory=lyndbaum
+ExecStart=/usr/bin/perl <置き場所>/index.fcgi /run/lyndbaum/lyndbaum.sock 4 1000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```sh
+systemctl daemon-reload
+systemctl enable --now lyndbaum
+```
+
+nginxの設定は、`docs/nginx.conf.sample`の`location /`の`fastcgi_pass`を、上のソケット（`unix:/run/lyndbaum/lyndbaum.sock`）に替える。ほかはCGIのときと同じ。
+
 ## 更新
 
 ```sh
@@ -50,6 +89,8 @@ cd <置き場所>
 git pull                     # または、下の「手元から送る」
 perl tools/migrate.pl        # 新しいマイグレーションが無ければ何もしない
 ```
+
+FastCGIで動かしているときは、`systemctl restart lyndbaum`で起動し直す（上の「FastCGIで動かす」）。
 
 パーサーが変わったとき（`lib/Lyndbaum/Parser/`など）は、ダッシュボードの「再構築」か`perl tools/rebuild-html.pl`を実行する。
 

@@ -8,6 +8,7 @@
 !.prettierrc
 !.proverc
 !index.cgi
+!index.fcgi
 !config.json.sample
 !README.md
 !LICENSE
