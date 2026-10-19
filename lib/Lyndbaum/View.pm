@@ -6,7 +6,6 @@ use utf8;
 use feature 'current_sub';
 
 use File::Spec;
-use POSIX qw(ceil);
 use URI::Escape qw(uri_unescape);
 use Lyndbaum::CommentText;
 use Lyndbaum::Date qw(format_date);
@@ -177,7 +176,7 @@ sub archive {
 sub pager {
 	my ($class, %args) = @_;
 	my ($page, $per_page, $total, $url_of) = @args{qw(page per_page total url_of)};
-	my $last = ceil($total / $per_page) || 1;
+	my $last = int(($total + $per_page - 1) / $per_page) || 1;   # 切り上げ（POSIX の ceil は読み込まない）
 	return undef if $page < 1 || $page > $last;
 	return {
 		page     => $page,
