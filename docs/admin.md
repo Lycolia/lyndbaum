@@ -204,7 +204,7 @@ CGI（Webサーバーのユーザー）が`pub/`に書き込めること（RSS�
 
 ## サイトのアイコンとブログの画像
 
-ブログの設定の画面の下に、それぞれのフォームがある（ファイルを送るので、設定の項目とは別のフォーム）。添付ファイル（メディア）とは別に扱い、`pub/branding/`に置く（`Lyndbaum::Branding`）。
+ブログの設定の画面の下に、それぞれのフォームがある（ファイルを送るので、設定の項目とは別のフォーム）。添付ファイル（メディア）とは別に扱い、`pub/branding/`に置く（`Lyndbaum::Branding`）。入れ替えと削除の処理は、それぞれの`::Writer`（`Lyndbaum::SiteIcon::Writer`など）に分け、公開側のページでは読み込まない。
 
 - 入れられるのはPNG、JPEG、WebP、GIF（動くものは最初の1コマ）。拡張子と中身の両方で確かめ、GDで画像として読めることも確かめる。SVGは受け付けない（作った人がPNGにすればよいので、今は見送り）
 - 入れ替えた後と消した後は、ブログの設定の画面のそのフォームの所に戻って知らせる（`?image=icon&done=saved#icon`の形）
@@ -223,7 +223,7 @@ CGI（Webサーバーのユーザー）が`pub/`に書き込めること（RSS�
   - `favicon.ico`（16と32のPNGを中に入れたICO）
 - 設定の`site_icon`に書き出した時刻を入れ、URLに`?v=時刻`を付ける（入れ替えたときに、ブラウザに古いアイコンを使わせない）
 - 消すと`pub/branding/`のアイコンのファイルを消し、既定のロゴ（`pub/assets/logo/`）に戻す。入れていないときも既定のロゴを使う
-- `/favicon.ico`はWebサーバーが返す（`.htaccess`、`docs/nginx.conf.sample`）。`pub/branding/favicon.ico`があればそれを、無ければ`pub/assets/logo/favicon.ico`を返す
+- `/favicon.ico`はWebサーバーが返す（`.htaccess`、`docs/config samples/`のnginxの見本）。`pub/branding/favicon.ico`があればそれを、無ければ`pub/assets/logo/favicon.ico`を返す
 
 ## サイドバーの自由欄
 

@@ -41,7 +41,7 @@ sub path {
 }
 
 # クエリ。QUERY_STRINGだけを使い、REQUEST_URIからは取らない
-#   Webサーバーが必ず QUERY_STRING を渡すように設定する（docs/nginx.conf.sample を参照）
+#   Webサーバーが必ずQUERY_STRINGを渡すように設定する（docs/config samples/のnginxの見本を参照）
 sub query_string {
 	my ($self) = @_;
 	return $self->{env}{QUERY_STRING} // '';

@@ -88,6 +88,24 @@ sub new {
 	}, $class;
 }
 
+# 入口（index.cgi、index.fcgi）から呼ぶ。アプリを作ってリクエストを処理し、応答を返す
+#   例外が起きたら（設定ファイルが読めないときも）、理由をエラーログに残して500を返す
+#   アプリはリクエストごとに作るので、設定やDBの接続は、常駐していてもリクエストをまたいで使い回さない
+#   %args：root、config_file、env（環境変数）、input（POSTの本文を読むファイルハンドル）
+sub respond {
+	my ($class, %args) = @_;
+	my $response = eval {
+		$class->new(root => $args{root}, config_file => $args{config_file})->handle($args{env}, input => $args{input});
+	};
+	return $response if $response;
+	warn $@;
+	return Lyndbaum::Response->new(
+		status       => 500,
+		content_type => 'text/plain',
+		body         => "Internal Server Error\n",
+	);
+}
+
 sub config { $_[0]{config} }
 
 # DBへの接続は、必要になったときに一度だけ行う

@@ -8,10 +8,10 @@ use Encode qw(encode_utf8);
 use File::Spec;
 use File::Temp ();
 use Lyndbaum::App;
-use Lyndbaum::BlogImage;
-use Lyndbaum::Branding;
+use Lyndbaum::BlogImage::Writer;
+use Lyndbaum::Branding::Writer;
 use Lyndbaum::Config;
-use Lyndbaum::SiteIcon;
+use Lyndbaum::SiteIcon::Writer;
 use AdminTest;
 use TestUtil qw(root_dir);
 
@@ -34,7 +34,7 @@ sub size_of { my ($png) = @_; return [ unpack 'NN', substr($png, 16, 8) ] }
 sub read_file { my ($file) = @_; open my $fh, '<:raw', $file or die "$file: $!"; local $/; return <$fh> }
 
 subtest 'ICO' => sub {
-	my %files = %{ Lyndbaum::SiteIcon->make(wide_image('png'), 'png') };
+	my %files = %{ Lyndbaum::SiteIcon::Writer->make(wide_image('png'), 'png') };
 	my ($reserved, $type, $count) = unpack 'vvv', $files{'favicon.ico'};
 	is_deeply [ $reserved, $type, $count ], [ 0, 1, 2 ], 'アイコンが2つ入った ICO';
 	my @entries = map { [ unpack 'CCCCvvVV', substr($files{'favicon.ico'}, 6 + 16 * $_, 16) ] } 0, 1;
@@ -53,7 +53,7 @@ subtest 'ICO' => sub {
 };
 
 subtest '透明なところ' => sub {
-	my %files = %{ Lyndbaum::SiteIcon->make(wide_image('png', 1), 'png') };
+	my %files = %{ Lyndbaum::SiteIcon::Writer->make(wide_image('png', 1), 'png') };
 	my $icon = GD::Image->newFromPngData($files{'icon-32.png'}, 1);
 	ok $icon->alpha($icon->getPixel(16, 16)) > 0, 'icon は透明なところを残す';
 	my $apple = GD::Image->newFromPngData($files{'apple-touch-icon.png'}, 1);
@@ -63,7 +63,7 @@ subtest '透明なところ' => sub {
 my $t = AdminTest->new;
 my ($cookie) = $t->login;
 my $csrf = $t->csrf_of($cookie);
-my $dir = Lyndbaum::Branding->dir($t->app);
+my $dir = Lyndbaum::Branding::Writer->dir($t->app);
 my $B = 'BOUNDARY';
 # multipart/form-data で送る。値を [ 中身, ファイル名 ] にするとファイル
 my $post = sub {
@@ -177,10 +177,10 @@ subtest '旧データの取り込み（添付ファイルから写す）' => sub
 	open my $fh, '>:raw', File::Spec->catfile($folder, 'sys-blog_image.png') or die $!;
 	print {$fh} wide_image('png');
 	close $fh;
-	my $name = Lyndbaum::BlogImage->copy_attachment($app, '@system/sys-blog_image.png');
+	my $name = Lyndbaum::BlogImage::Writer->copy_attachment($app, '@system/sys-blog_image.png');
 	like $name, qr/\Ablog-image-\d+\.png\z/;
 	is read_file(File::Spec->catfile($dir, $name)), wide_image('png'), '添付ファイルの画像を pub/branding/ へ写す';
-	eval { Lyndbaum::BlogImage->copy_attachment($app, '@system/none.png') };
+	eval { Lyndbaum::BlogImage::Writer->copy_attachment($app, '@system/none.png') };
 	like $@, qr{none\.png}, '無ければ die する';
 };
 
