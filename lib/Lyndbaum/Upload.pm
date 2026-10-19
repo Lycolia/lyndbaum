@@ -42,9 +42,7 @@ sub save {
 	my ($class, %args) = @_;
 	my $name = $class->clean_name($args{filename} // '');
 	my ($ext) = $name =~ /\.([^.]+)\z/;
-	my $kind = $KIND_OF_EXT{ lc($ext // '') }
-		// die "「$args{filename}」は置けない種類のファイルです（置けるのは " . join('、', sort keys %KIND_OF_EXT) . "）。\n";
-	die "「$args{filename}」は、拡張子と中身の種類が合いません。\n" if !$MAGIC{$kind}->($args{data} // '');
+	my $kind = $class->kind_of($args{filename}, $args{data}, [ sort keys %KIND_OF_EXT ]);
 
 	my $folder = $args{folder} // $class->folder_of($args{now} // time);
 	my $dir = File::Spec->catdir($args{dir}, split m{/}, $folder);
@@ -58,6 +56,18 @@ sub save {
 		warn "サムネイルを作れませんでした: $folder$name: $@" if !$thumbnail;
 	}
 	return { folder => $folder, name => $name, kind => $kind, ext => lc $ext, image => $IS_IMAGE{$kind} ? 1 : 0, thumbnail => $thumbnail };
+}
+
+# ファイルの種類（jpeg、png など）。拡張子と中身（先頭のバイト）の両方で確かめる
+#   $exts は受け付ける拡張子の並び。受け付けない種類か、拡張子と中身が合わなければ die する（理由の文）
+sub kind_of {
+	my ($class, $filename, $data, $exts) = @_;
+	my ($ext) = ($filename // '') =~ /\.([^.\/\\]+)\z/;
+	$ext = lc($ext // '');
+	my $kind = (grep { $_ eq $ext } @$exts) ? $KIND_OF_EXT{$ext} : undef;
+	die "「$filename」は置けない種類のファイルです（置けるのは " . join('、', @$exts) . "）。\n" if !$kind;
+	die "「$filename」は、拡張子と中身の種類が合いません。\n" if !$MAGIC{$kind}->($data // '');
+	return $kind;
 }
 
 # サムネイル（.thumbnail/名前.jpg）を作って置く。作れなければ die

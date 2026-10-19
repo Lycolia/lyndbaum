@@ -14,6 +14,7 @@ my %DEFAULT = (
 	per_page         => 5,
 	feed_items       => 10,   # RSSに載せる記事の数
 	blog_image       => '',   # ブログの画像（OGP。添付ファイルの中のパス）。Lyndbaum::BlogSettings
+	site_icon        => '',   # サイトのアイコンを書き出した時刻。空なら既定のロゴ。Lyndbaum::SiteIcon
 	sidebar_boxes    => '[]', # サイドバーの自由欄（JSON）。Lyndbaum::SidebarBoxes
 	# 最後にコメントの一覧（すべて）を開いたときの、いちばん新しいコメントのIDと投稿日時。新着の数に使う
 	#   （Lyndbaum::Model::Comment->count_new、mark_seen）

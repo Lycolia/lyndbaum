@@ -42,6 +42,7 @@
 | `GET /admin/settings/blog`                                | ブログの設定（項目は`Lyndbaum::BlogSettings`。OGPのブログの画像を含む）                                               |
 | `GET /admin/settings/comments`                            | コメントの設定（項目は`Lyndbaum::CommentSettings`）                                                                   |
 | `GET /admin/settings/editor`                              | 編集の設定（項目は`Lyndbaum::EditorSettings`）                                                                        |
+| `POST /admin/settings/icon`                               | サイトのアイコンの入れ替えと削除（multipart/form-data。`file`、`op`。下の「サイトのアイコン」）                      |
 | `POST /admin/settings/NAME`                               | 設定を保存。書き方が正しくなければ400で、書いた値を残してフォームを出し直す（項目の書き方は`Lyndbaum::SettingsForm`） |
 | `GET /admin/sidebar`                                      | サイドバーの自由欄（下の「サイドバーの自由欄」）                                                                      |
 | `POST /admin/sidebar`                                     | 自由欄を保存（`box_title`と`box_html`を同じ数だけ、並べた順に）。書き方が正しくなければ400で、書いた値を残して出し直す |
@@ -188,6 +189,21 @@ CGI（Webサーバーのユーザー）が`pub/`に書き込めること（RSS�
   - RSSとサイトマップを書き出す（`Lyndbaum::StaticFiles`）。書き出せなくても保存は取り消さず、画面で知らせて、理由をエラーログに残す
 - 本文に直したほうがよい点（今は、目次に入らない見出し。`docs/markdown-syntax.md`の「目次」）があれば、編集の画面の上に出す。保存は止めない。警告は保存せず、編集の画面を出すたびに本文を変換して確かめる
 - ほかの画面（別のタブなど）で先に保存されていたら、保存しない（409）。フォームを開いたときの記事の中身の要約（題名、本文、状態、公開日時、コメントの受付、更新日時、タグのSHA-256）と、今の記事の要約を比べる（更新日時を変えずに保存することがあるので、更新日時だけでは比べられない）。書いた内容は消さずにフォームへ戻し、もう一度保存すれば上書きする
+
+## サイトのアイコン
+
+ブログの設定の画面で、サイトのアイコン（favicon）を入れ替える。添付ファイル（メディア）とは別に扱う（`Lyndbaum::SiteIcon`）。
+
+- 入れられるのはPNG、JPEG、WebP、GIF（動くものは最初の1コマ）。拡張子と中身の両方で確かめる。どれもPNGにして書き出す。SVGは受け付けない（作った人がPNGにすればよいので、今は見送り）
+- 正方形でなければ、真ん中を正方形に切り抜く。JPEGはExifの向きに合わせて回す
+- `pub/site-icon/`に次のものを書き出す。元の画像は残さない
+  - `icon-32.png`、`icon-192.png`（`<link rel="icon">`。透明なところは残す）
+  - `apple-touch-icon.png`（180×180。iPhoneでは透明なところが黒くなるので、白に重ねる）
+  - `favicon.ico`（16と32のPNGを中に入れたICO）
+- 設定の`site_icon`に書き出した時刻を入れ、URLに`?v=時刻`を付ける（入れ替えたときに、ブラウザに古いアイコンを使わせない）
+- 消すと`pub/site-icon/`のファイルを消し、既定のロゴ（`pub/assets/logo/`）に戻す。入れていないときも既定のロゴを使う
+- `/favicon.ico`はWebサーバーが返す（`.htaccess`、`docs/nginx.conf.sample`）。`pub/site-icon/favicon.ico`があればそれを、無ければ`pub/assets/logo/favicon.ico`を返す
+- 読めない画像は400で理由を出す。GDの理由はエラーログに残す
 
 ## サイドバーの自由欄
 

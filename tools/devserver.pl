@@ -4,7 +4,7 @@
 #   --host は何度でも指定できる。既定は 127.0.0.1 と ::1（この端末の中だけ）、ポートは 8080
 #   LAN内の別の端末から見るときは --host all（0.0.0.0 と :: の両方）にする
 #   （認証がないので、信頼できるネットワークの中だけで使う）
-# /pub/ 以下はファイルをそのまま返し、それ以外は index.cgi をCGIとして実行する
+# /pub/ 以下と /favicon.ico はファイルをそのまま返し、それ以外は index.cgi をCGIとして実行する
 # 接続ごとに子プロセスを作って処理する。ブラウザは先回りして接続だけ張っておくことがあり、
 # 1つずつ処理するとその接続を待ち続けて止まるため
 use strict;
@@ -28,7 +28,7 @@ my $port = $ARGV[0] // 8080;
 my $TIMEOUT = 30;
 my %TYPES = (css => 'text/css', js => 'text/javascript', png => 'image/png', jpg => 'image/jpeg',
 	jpeg => 'image/jpeg', gif => 'image/gif', svg => 'image/svg+xml', webp => 'image/webp',
-	xml => 'application/xml', mp4 => 'video/mp4', webm => 'video/webm');
+	xml => 'application/xml', mp4 => 'video/mp4', webm => 'video/webm', ico => 'image/vnd.microsoft.icon');
 
 my $select = IO::Select->new;
 for my $host (@hosts) {
@@ -80,6 +80,9 @@ sub handle {
 	read $client, $body, $headers{'content-length'} if $headers{'content-length'};
 
 	my ($path, $query) = split /\?/, $uri, 2;
+	# /favicon.ico は、設定の画面で入れたアイコン、無ければ既定のロゴ（本番では .htaccess か nginx の設定で返す）
+	$path = -f File::Spec->catfile($root, 'pub/site-icon/favicon.ico') ? '/pub/site-icon/favicon.ico' : '/pub/assets/logo/favicon.ico'
+		if $path eq '/favicon.ico';
 	my $status = $path =~ m{\A/pub/} ? serve_file($client, $path) : run_cgi($client, $method, $uri, $path, $query, \%headers, $body);
 	print STDERR "$method $uri $status\n";
 }

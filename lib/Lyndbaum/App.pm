@@ -20,6 +20,7 @@ use Lyndbaum::View;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::OGP;
 use Lyndbaum::SearchForm;
+use Lyndbaum::SiteIcon;
 use Lyndbaum::Version;
 
 my $APP_VERSION = $Lyndbaum::Version::VERSION;
@@ -68,6 +69,7 @@ my $ROUTER = Lyndbaum::Router->new(
 	[ POST => qr{\A/admin/comments/(\d+)\z},    'Lyndbaum::Controller::AdminComment', 'update'        ],
 	[ GET  => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'form' ],
 	[ POST => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'save' ],
+	[ POST => qr{\A/admin/settings/icon\z},     'Lyndbaum::Controller::AdminSettings', 'save_icon' ],
 	[ GET  => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'form' ],
 	[ POST => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'save' ],
 	# 記事（/0575）とコンテンツページ（/親/子）。パスは slug と同じ
@@ -239,6 +241,8 @@ sub render {
 			lythumb_css => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
 			prism_css   => $self->url->static('js/extlib/prismjs/prism.css'),
 			prism_core  => $self->url->static('js/extlib/prismjs/prism-core.min.js'),
+			# サイトのアイコン（Lyndbaum::SiteIcon）
+			icon        => Lyndbaum::SiteIcon->urls($self),
 			scripts     => [ map { $self->url->static($_) }
 				'js/extlib/lythumb/lythumb.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
@@ -314,6 +318,7 @@ sub render_admin {
 		blog       => $self->settings,
 		urls       => {
 			top    => $self->url->top,
+			icon             => Lyndbaum::SiteIcon->urls($self),
 			admin            => $self->url->admin,
 			logout           => $self->url->admin('logout'),
 			articles         => $self->url->admin('articles'),

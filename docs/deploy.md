@@ -13,13 +13,13 @@ git clone https://github.com/<リポジトリ>.git lyndbaum   # または手元�
 cd lyndbaum
 ```
 
-手元から送るときは、`config.json`、`var/`、`pub/attachments/`、`pub/rss.xml`、`pub/sitemap.xml`を送らない（サーバーのものを上書きしないように）。`t/corpus/`（git管理外。記事のデータを含む）も送らない。
+手元から送るときは、`config.json`、`var/`、`pub/attachments/`、`pub/site-icon/`、`pub/rss.xml`、`pub/sitemap.xml`を送らない（サーバーのものを上書きしないように）。`t/corpus/`（git管理外。記事のデータを含む）も送らない。
 
 ```sh
-rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:www/lyndbaum/
+rsync -av --exclude .git --exclude config.json --exclude 'var/*' --exclude 'pub/attachments' --exclude 'pub/site-icon' --exclude 'pub/rss.xml' --exclude 'pub/sitemap.xml' --exclude t/corpus ./ <ユーザー>@<ホスト>:www/lyndbaum/
 ```
 
-`.htaccess`がそろっていることを確かめる。`/pub/`の下だけをファイルとして返し、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、実在するファイルへのアクセスは403にする。
+`.htaccess`がそろっていることを確かめる。`/pub/`の下だけをファイルとして返し（`/favicon.ico`は、サイトのアイコンか既定のロゴの`favicon.ico`を返す）、ほかのURLはすべて`index.cgi`に渡す。`config.json`やDBなど、実在するファイルへのアクセスは403にする。
 
 ## 2. 権限
 
@@ -118,10 +118,11 @@ perl tools/check-env.pl
 
 ## バックアップ
 
-残すのは次の3つ。ほかはリポジトリから戻せる。
+残すのは次の4つ。ほかはリポジトリから戻せる。
 
 - `var/lyndbaum.db`（記事、コメント、設定、管理者）
 - `pub/attachments/`（添付ファイル）
+- `pub/site-icon/`（設定の画面で入れたサイトのアイコン。元の画像は残さないので、無くしたら入れ直す）
 - `config.json`
 
 DBは、書き込みの途中で写さないよう、`sqlite3 var/lyndbaum.db ".backup backup.db"`で写すとよい。

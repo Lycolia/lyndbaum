@@ -18,6 +18,10 @@
 <meta name="description" content="{{ blog.blog_description }}">
 {{/ if }}
 {{/ if }}
+{{! サイトのアイコン（Lyndbaum::SiteIcon）。/favicon.ico は Webサーバーが返す }}
+<link rel="icon" href="{{ urls.icon.icon_32 }}" sizes="32x32">
+<link rel="icon" href="{{ urls.icon.icon_192 }}" sizes="192x192">
+<link rel="apple-touch-icon" href="{{ urls.icon.apple_touch_icon }}">
 <link rel="stylesheet" href="{{ urls.style }}">
 <link rel="stylesheet" href="{{ urls.site_style }}">
 <link rel="stylesheet" href="{{ urls.lythumb_css }}">

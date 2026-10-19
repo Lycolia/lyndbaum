@@ -5,6 +5,7 @@ use utf8;
 use Test::More;
 
 use Lyndbaum::Parser::Markdown;
+use TestUtil ();   # テストの名前を UTF-8 で出す
 
 my $warnings = sub { Lyndbaum::Parser::Markdown->parse($_[0], sectioning => 1)->{warnings} };
 

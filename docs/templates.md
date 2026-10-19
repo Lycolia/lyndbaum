@@ -110,6 +110,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `urls.site_style` | `site.css`（公開側だけの見た目）のURL。`urls.style`の後に読む            |
 | `urls.lythumb_css`、`urls.prism_css`、`urls.prism_core`  | 画像の拡大表示とコードの色付けのファイルのURL      |
 | `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に`defer`で読む）                  |
+| `urls.icon`       | サイトのアイコンのURL（`icon_32`、`icon_192`、`apple_touch_icon`）。管理画面の`urls`にもある（`Lyndbaum::SiteIcon`） |
 | `form`            | 検索フォームの値（下の「form」）。検索のページでは、入力した検索語が入る |
 | `sidebar_tags`    | `sidebar_tags.html`の生成済みHTML（エスケープ済み）                     |
 | `sidebar_menu`    | `sidebar_menu.html`の生成済みHTML（自由欄も許可リストに通してある）     |
