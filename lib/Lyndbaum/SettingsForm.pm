@@ -5,10 +5,10 @@ package Lyndbaum::SettingsForm;
 #   型
 #     bool   0か1
 #     int    整数（min以上max以下）
-#            presets（数の配列）があれば、選択肢と「直接入力」で入れる（preset_field）。unit は数の後ろに付ける単位
-#            フォームでは、項目名に選んだ数（直接入力なら other）が、「項目名_other」に入れた数が来る
+#            presets（数の配列）があれば、選択肢と「直接入力」で入れる（preset_field）。unitは数の後ろに付ける単位
+#            フォームでは、項目名に選んだ数（直接入力ならother）が、「項目名_other」に入れた数が来る
 #     lines  1行に1つの一覧。checkで1行ずつ書き方を確かめる
-#     text   1行の文字。前後の空白を除く。required なら空にできない。max は文字数の上限。check で書き方を確かめる
+#     text   1行の文字。前後の空白を除く。requiredなら空にできない。maxは文字数の上限。checkで書き方を確かめる
 #            media が真なら、画面に「ファイル一覧から選択」を出す（添付ファイルの中のパスを入れる）
 use strict;
 use warnings;
@@ -21,7 +21,7 @@ sub defaults {
 
 # フォームの値を確かめて、保存する値にする
 #   $getは項目名からフォームの値を返す関数
-#   戻り値は(\%values, \@errors)。errorsは { key, message } の並び
+#   戻り値は(\%values, \@errors)。errorsは{ key, message }の並び
 sub parse {
 	my ($class, $fields, $get) = @_;
 	my (%values, @errors);
@@ -65,9 +65,9 @@ sub parse {
 	return (\%values, \@errors);
 }
 
-# 選択肢と「直接入力」の欄（templates/preset_field.html）に渡す値。$field は presets のある int の項目
-#   $value が選択肢にあればそれを選び、無ければ「直接入力」を選んで、入力欄にその値を入れておく
-#   %opt の name はフォームの項目名（無ければ name を付けない。フォームで送らず、JavaScript で読むとき）
+# 選択肢と「直接入力」の欄（templates/preset_field.html）に渡す値。$fieldはpresetsのあるintの項目
+#   $valueが選択肢にあればそれを選び、無ければ「直接入力」を選んで、入力欄にその値を入れておく
+#   %optのnameはフォームの項目名（無ければnameを付けない。フォームで送らず、JavaScriptで読むとき）
 sub preset_field {
 	my ($class, $field, $value, %opt) = @_;
 	my $unit   = $field->{unit} // '';

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="pub/assets/logo/logo-vector.svg" height="64" width="64">
+  <img src="docs/logo-vector.svg" height="64" width="64">
 </div>
 
 # Lyndbaum

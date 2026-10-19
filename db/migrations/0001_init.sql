@@ -27,13 +27,8 @@ CREATE TABLE articles (
     body_src      TEXT    NOT NULL DEFAULT '',  -- 本文（原文）。これが正
     body_html     TEXT,                         -- 変換済みHTML。保存時と再構築時に作る。NULLなら未変換
     description   TEXT    NOT NULL DEFAULT '',  -- OGP や meta description 用
-    eyecatch      TEXT    NOT NULL DEFAULT '',  -- アイキャッチ（添付ファイルの中のパス。eyecatch_mode が chosen のとき）
-    eyecatch_mode TEXT    NOT NULL DEFAULT 'auto'
-                  CHECK (eyecatch_mode IN ('auto', 'chosen', 'none')),
-                  -- アイキャッチの決め方（docs/ogp.md）
-                  -- auto:   本文の最初の画像
-                  -- chosen: eyecatch の画像（編集の画面でメディアから選んだもの）
-                  -- none:   使わない（ブログの画像を使う）
+    eyecatch      TEXT    NOT NULL DEFAULT '',  -- アイキャッチ（添付ファイルの中のパス。編集の画面でメディアから選んだもの）
+                                                -- 空なら本文の最初の画像、それも無ければブログの画像（docs/ogp.md）
     status        TEXT    NOT NULL DEFAULT 'draft'
                   CHECK (status IN ('draft', 'published')),
     published_at  INTEGER,                      -- 公開日時（記事の日付）。下書きは NULL でもよい

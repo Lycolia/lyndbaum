@@ -12,7 +12,7 @@ use Lyndbaum::Parser::Common;
 # 公開中の記事を表す条件
 my $PUBLIC = q{status = 'published' AND deleted_at IS NULL};
 
-my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, eyecatch, eyecatch_mode, published_at, updated_at, comments_open';
+my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, eyecatch, published_at, updated_at, comments_open';
 
 # 一覧などで取る列（ほかのモデルから記事を取るときにも使う）
 sub columns { $COLUMNS }
@@ -200,10 +200,10 @@ sub digest {
 	my ($class, $dbh, $id) = @_;
 	require Digest::SHA;
 	my $row = $dbh->selectrow_hashref(
-		'SELECT title, body_src, status, published_at, comments_open, eyecatch, eyecatch_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
+		'SELECT title, body_src, status, published_at, comments_open, eyecatch, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
 	my $tag_ids = $class->tag_ids_of($dbh, $id)->{$id} // [];
 	return Digest::SHA::sha256_hex(Encode::encode_utf8(join "\0",
-		map { $_ // '' } @$row{qw(title body_src status published_at comments_open eyecatch eyecatch_mode updated_at)}, sort { $a <=> $b } @$tag_ids));
+		map { $_ // '' } @$row{qw(title body_src status published_at comments_open eyecatch updated_at)}, sort { $a <=> $b } @$tag_ids));
 }
 
 # 記事を保存する。$v は Lyndbaum::ArticleForm->parse の値
@@ -234,7 +234,6 @@ sub save {
 		published_at  => $v->{published_at} // ($v->{status} eq 'published' ? $now : undef),
 		comments_open => $v->{comments_open},
 		eyecatch      => $v->{eyecatch} // '',
-		eyecatch_mode => $v->{eyecatch_mode} // 'auto',
 		updated_at    => $now,
 	);
 	delete $row{updated_at} if $v->{keep_updated} && defined $opt{id};
@@ -301,6 +300,7 @@ sub next_id {
 # コンテンツページの列（slug、parent_id、sort_order）。$old は今のページ（新しいページなら undef）
 #   戻り値は（列, 理由の一覧）
 my %RESERVED = map { $_ => 1 } qw(search pub admin);   # ルーターが先に使うパス（Lyndbaum::App）
+my $MAX_PAGE_NAME = 100;                                 # ページの名前（題名）の長さ
 sub _page_columns {
 	my ($class, $dbh, $v, $old) = @_;
 	my @errors;
@@ -314,10 +314,7 @@ sub _page_columns {
 		}
 	}
 	my $name = $v->{page_name};
-	if (!$parent && !@errors) {
-		push @errors, '親の無いページの名前は、0で始められません（記事のURLと区別するため）。' if $name =~ /\A0/;
-		push @errors, "「$name」は管理画面などが使うので、親の無いページの名前にはできません。" if $RESERVED{ lc $name };
-	}
+	push @errors, $class->page_name_errors($name, root => !$parent) if !@errors;
 	return ({}, \@errors) if @errors;
 
 	my $slug = $parent ? "$parent->{slug}/$name" : $name;
@@ -333,6 +330,23 @@ sub _page_columns {
 		// $dbh->selectrow_array(q{SELECT COALESCE(MAX(sort_order), 0) + 1 FROM articles WHERE kind = 'page' AND parent_id IS ?},
 			undef, $v->{parent_id});
 	return ({ slug => $slug, parent_id => $v->{parent_id}, sort_order => $order }, \@errors);
+}
+
+# ページの名前（ページの題名。slug の最後の区切りになる）として使えない理由の一覧。使えれば空
+#   %opt の root が真なら、親の無いページの名前としても確かめる
+#   管理画面の入力（Lyndbaum::ArticleForm）と、旧データの取り込み（Lyndbaum::Legacy::Importer）で使う
+sub page_name_errors {
+	my ($class, $name, %opt) = @_;
+	my @errors;
+	if ($name =~ m{[/\\?#%\x00-\x1F\x7F]} || $name =~ /\A\.\.?\z/) {
+		push @errors, 'ページの題名はURLになるので、/ \\ ? # % は使えません。「.」と「..」だけの題名にもできません。';
+	} elsif (length $name > $MAX_PAGE_NAME) {
+		push @errors, "ページの題名はURLになるので、${MAX_PAGE_NAME}文字までにしてください。";
+	} elsif ($opt{root}) {
+		push @errors, '親の無いページの題名は、0で始められません（記事のURLと区別するため）。' if $name =~ /\A0/;
+		push @errors, "「$name」は管理画面などが使うので、親の無いページの題名にはできません。" if $RESERVED{ lc $name };
+	}
+	return @errors;
 }
 
 # 子孫のページ（ゴミ箱の中を含む）[ { id, slug, deleted_at }, ... ]
@@ -357,12 +371,6 @@ sub _move_descendants {
 		my $article = $dbh->selectrow_hashref('SELECT id, slug, title, syntax, body_src FROM articles WHERE id = ?', undef, $d->{id});
 		$class->rebuild_body($dbh, $article, %context);
 	}
-}
-
-# ページの名前（slug の最後の区切り）
-sub page_name {
-	my ($class, $article) = @_;
-	return $article->{slug} =~ m{([^/]+)\z} ? $1 : $article->{slug};
 }
 
 # 親に選べるページを木の順に並べ、深さを付けて返す（ゴミ箱の中は除く）
@@ -537,10 +545,12 @@ sub _add_heading_ids {
 #   %contextはLyndbaum::Parser->parseに渡すもの（記事IDはここで足す）
 #   変換するのは、記事の保存時と再構築（rebuild_all）のときだけ。表示や検索のときには変換しない
 #   （パーサーを直しても、再構築するまでは今の出力が変わらないようにするため）
+#   %context の on_warnings は、変換で警告が出たときに（$article, 警告のリスト）で呼ぶ関数（パーサーには渡さない）
 sub rebuild_body {
 	my ($class, $dbh, $article, %context) = @_;
 	require Lyndbaum::Parser;
 	my $url_of = delete $context{article_url_of};
+	my $on_warnings = delete $context{on_warnings};
 	my $result = Lyndbaum::Parser->parse($article->{syntax}, $article->{body_src}, %context, article_id => $article->{id},
 		($url_of ? (article_url => $url_of->($article->{slug})) : ()));
 	$dbh->do('UPDATE articles SET body_html = ?, description = ? WHERE id = ?', undef,
@@ -551,6 +561,7 @@ sub rebuild_body {
 		Lyndbaum::Parser::Common->search_text($article->{title}, $result->{html}),
 		Lyndbaum::Parser::Common->search_source($article->{title}, $article->{body_src}));
 	$class->_save_links($dbh, $article->{id}, $result->{links} // []);
+	$on_warnings->($article, $result->{warnings}) if $on_warnings && @{ $result->{warnings} // [] };
 	$article->{body_html} = $result->{html};
 	return $result->{html};
 }

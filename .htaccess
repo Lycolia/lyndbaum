@@ -9,6 +9,13 @@ RewriteRule ^pub/lycolia/image/(.*)$ /pub/attachments/$1 [R=301,END]
 RewriteRule ^pub/lycolia/rss\.xml$ /pub/rss.xml [R=301,END]
 RewriteRule ^pub/lycolia/sitemap\.xml$ /pub/sitemap.xml [R=301,END]
 
+# /favicon.ico は、設定の画面で入れたアイコン（pub/branding/）。無ければ既定のロゴ（Lyndbaum::SiteIcon）
+#   1つ目の RewriteCond で、このフォルダのパスを取り出す（%1）
+RewriteCond %{REQUEST_FILENAME} ^(.*/)favicon\.ico$
+RewriteCond %1pub/branding/favicon.ico -f
+RewriteRule ^favicon\.ico$ pub/branding/favicon.ico [END]
+RewriteRule ^favicon\.ico$ pub/assets/logo/favicon.ico [END]
+
 RewriteRule ^pub(?:/|$) - [END]
 
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -18,3 +25,18 @@ RewriteRule ^ index.cgi [END]
 RewriteRule ^ - [F]
 
 Options -Indexes
+
+# 添付ファイルの種類（docs/admin.md の「ファイルのアップロード」）。サーバーによって知らないものや違うものがあるので決めておく
+#   テキストは UTF-8 を前提にして charset を付ける（受け付けるときは文字コードを問わない。UTF-8 でなければブラウザでは文字化けする）
+#   AddType と Header は、上の RewriteEngine と同じ権限（AllowOverride FileInfo）で書ける
+AddType text/plain .txt .md
+AddType text/csv .csv
+AddType text/tab-separated-values .tsv
+AddType application/json .json
+AddType application/x-7z-compressed .7z
+AddType audio/mpeg .mp3
+AddCharset UTF-8 .txt .md .csv .tsv
+# ブラウザに中身から種類を推測させない（テキストに書いたHTMLをHTMLとして開かせない）
+<IfModule mod_headers.c>
+Header set X-Content-Type-Options nosniff
+</IfModule>

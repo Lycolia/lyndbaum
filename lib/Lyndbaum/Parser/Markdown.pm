@@ -41,10 +41,15 @@ sub parse {
 
 	my $html = $context{sectioning} ? $self->_render_sections($blocks) : $self->_render_blocks($blocks, {});
 	$html .= "\n" . $self->_render_footnotes if @{ $self->{footnote_order} };
+	# 書いた人に直してもらう点（編集の画面と tools/rebuild-html.pl が出す）。出力は変えない
+	#   今は、目次を置いた記事で、段を飛ばしたために目次に入らない見出しだけ
+	my $warnings = $html =~ /\Q$TOC_MARK\E/ ? Lyndbaum::Parser::Common->toc_warnings($self->{headings}) : [];
 	my $toc = Lyndbaum::Parser::Common->toc_html($self->{headings}, $self->{context}{article_url});
-	$html =~ s/\Q$TOC_MARK\E/$toc/g;
+	# 目次が空なら、印の後の改行も消す（空行が残らないように）
+	my $mark = $toc eq '' ? qr/\Q$TOC_MARK\E\n?/ : qr/\Q$TOC_MARK\E/;
+	$html =~ s/$mark/$toc/g;
 
-	return { html => "$html\n", toc => $self->{headings}, links => $self->{links} };
+	return { html => "$html\n", toc => $self->{headings}, links => $self->{links}, warnings => $warnings };
 }
 
 # 見出しの識別子の無い見出しに、識別子を書き足した原文を返す

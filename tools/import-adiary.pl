@@ -17,6 +17,7 @@ use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Model::Article;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::Backlinks;
+use Lyndbaum::BlogImage;
 
 my ($data_dir, $blog_id, $config_file) = @ARGV;
 die "使い方: $0 <旧システムの data> <ブログID> [設定ファイル]\n" if !defined $blog_id;
@@ -27,6 +28,11 @@ my %context = $app->parser_context;
 
 my $result = Lyndbaum::Legacy::Importer->run($app->db, $data_dir, $blog_id,
 	attachment_path => $context{attachment_path});
+# ブログの画像は、添付ファイルの中から pub/branding/ へ写す（添付ファイルは先に置いておく。docs/migrate-from-adiary.md）
+my $blog_image_error;
+if (defined $result->{blog_image}) {
+	eval { Lyndbaum::BlogImage->copy_attachment($app, $result->{blog_image}); 1 } or ($blog_image_error = $@) =~ s/\n\z//;
+}
 my $rebuilt = Lyndbaum::Model::Article->rebuild_all($app->db, %context);
 Lyndbaum::SidebarCache->rebuild($app);
 Lyndbaum::Backlinks->rebuild($app, all => 1);
@@ -40,6 +46,8 @@ print "タグ: $result->{tags} 件\n";
 print "記事とタグの対応: $result->{article_tags} 件\n";
 print "コメント: $result->{comments} 件（取り込まなかった非公開コメント: $result->{private_comments} 件）\n";
 print "設定: $result->{settings} 件\n";
+print defined $blog_image_error ? "ブログの画像（$result->{blog_image}）を写せませんでした: $blog_image_error。ブログの設定の画面で入れ直してください\n"
+	: defined $result->{blog_image} ? "ブログの画像: $result->{blog_image} を写しました\n" : '';
 print "本文を変換した記事: $rebuilt 件\n";
 
 # 本文が変わったので、RSSとサイトマップも書き出し直す。site_url が無いなど、書き出せなくても変換の結果は残す

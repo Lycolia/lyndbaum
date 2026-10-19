@@ -5,11 +5,13 @@ use utf8;
 use Test::More;
 
 use Encode qw(encode_utf8);
+use File::Path qw(make_path);
 use File::Spec;
 use File::Temp qw(tempdir);
 use JSON::PP ();
 use Lyndbaum::App;
 use Lyndbaum::Config;
+use Lyndbaum::Media;
 use Lyndbaum::Thumbnail;
 use Lyndbaum::Upload;
 use AdminTest;
@@ -25,7 +27,9 @@ sub exists_file { -e encode_utf8(File::Spec->catfile($dir, split m{/}, $_[0])) }
 
 # 中身の先頭だけが正しい、画像としては読めないファイル
 my %FAKE = (jpg => "\xFF\xD8\xFF\xE0fake", png => "\x89PNG\r\n\x1A\nfake", gif => 'GIF89afake',
-	webp => 'RIFF1234WEBPfake', mp4 => "\0\0\0\x18ftypmp42", webm => "\x1A\x45\xDF\xA3fake");
+	webp => 'RIFF1234WEBPfake', mp4 => "\0\0\0\x18ftypmp42", webm => "\x1A\x45\xDF\xA3fake",
+	mp3 => "ID3\x04\0fake", txt => encode_utf8("テキスト\n"), md => encode_utf8("# 見出し\n"), csv => "a,b\n1,2\n", tsv => "a\tb\n", json => '{"a":1}',
+	zip => "PK\x03\x04fake", '7z' => "7z\xBC\xAF\x27\x1Cfake", pdf => "%PDF-1.7\nfake");
 
 subtest 'ファイル名' => sub {
 	is(Lyndbaum::Upload->clean_name('a b:c].png'), 'a_b_c_.png', '空白と、記法の区切りは _ にする');
@@ -54,6 +58,24 @@ subtest '種類を確かめる' => sub {
 	like $@, qr{拡張子と中身の種類が合いません}, '画像のふりをしたファイル';
 	eval { save(filename => 'noext', data => $FAKE{jpg}) };
 	like $@, qr{置けない種類};
+
+	# ブラウザがこのサイトのオリジンでスクリプトを動かせる種類と、サーバーで動くおそれのある種類は置けない
+	for my $ext (qw(html htm xhtml shtml svg xml php cgi pl js)) {
+		eval { save(filename => "a.$ext", data => 'text') };
+		like $@, qr{置けない種類}, "$ext は置けない";
+	}
+	ok save(filename => 'frame.mp3', data => "\xFF\xFB\x90\x00fake"), 'ID3 の無い mp3（フレームの先頭）';
+	ok save(filename => 'empty.zip', data => "PK\x05\x06" . ("\0" x 18)), '空の zip';
+	ok save(filename => 'sjis.csv', data => "\x82\xA0,\x82\xA2\r\n"), 'テキストの文字コードは問わない（Shift_JIS）';
+	ok save(filename => 'empty.txt', data => ''), '空のテキスト';
+	eval { save(filename => 'a.txt', data => "PK\x03\x04\0\0") };
+	like $@, qr{拡張子と中身の種類が合いません}, 'NUL を含むものはテキストではない';
+	eval { save(filename => 'a.zip', data => '%PDF-1.7') };
+	like $@, qr{拡張子と中身の種類が合いません};
+	eval { save(filename => 'a.pdf', data => '<html>') };
+	like $@, qr{拡張子と中身の種類が合いません};
+	eval { save(filename => 'a.mp3', data => "\xFF\xD8\xFF\xE0") };
+	like $@, qr{拡張子と中身の種類が合いません}, 'JPEG は mp3 ではない';
 };
 
 subtest '同じ名前' => sub {
@@ -68,6 +90,9 @@ subtest '同じ名前' => sub {
 subtest '記法' => sub {
 	my $video = save(filename => 'v.webm', data => $FAKE{webm});
 	is(Lyndbaum::Upload->tag_of($video), '[file:webm:posts/2026/10/:v.webm]', '動画は file');
+	my $pdf = save(filename => 'doc.PDF', data => $FAKE{pdf});
+	is_deeply [ @$pdf{qw(image thumbnail)} ], [0, 0], '画像でないものはサムネイルを作らない';
+	is(Lyndbaum::Upload->tag_of($pdf), '[file:pdf:posts/2026/10/:doc.PDF]', '画像でないものは file（種類は小文字）');
 	my $broken = save(filename => 'broken.jpg', data => $FAKE{jpg});
 	is $broken->{thumbnail}, 0, '読めない画像はサムネイルを作れない';
 	is(Lyndbaum::Upload->tag_of($broken), '[image:L:posts/2026/10/:broken.jpg]', 'サムネイルが無ければ、元の画像を出す（L）');
@@ -114,6 +139,48 @@ SKIP: {
 		my $kept = save(filename => 'exif.jpg', data => $jpeg);
 		open my $fh, '<:raw', encode_utf8(File::Spec->catfile($dir, 'posts', '2026', '10', 'exif.jpg')) or die $!;
 		is do { local $/; <$fh> }, $jpeg, '元の画像には手を加えない（Exif も残す）';
+
+		# GIF と WebP は、読むときにフルカラーの引数を渡せない（渡すと die する）
+		my $gif = GD::Image->newPalette(400, 200);   # new は、Thumbnail が trueColor(1) にした後ではフルカラーになる
+		$gif->transparent($gif->colorAllocate(255, 255, 255));
+		$gif->filledRectangle(100, 0, 299, 199, $gif->colorAllocate(255, 0, 0));
+		is save(filename => 'anim.gif', data => $gif->gif)->{thumbnail}, 1, 'GIF のサムネイル';
+		$out = GD::Image->newFromJpegData(Lyndbaum::Thumbnail->make($gif->gif, 'gif', 240), 1);
+		is_deeply [ $out->rgb($out->getPixel(0, 0)) ], [ 255, 255, 255 ], 'GIF の透明な色のところは白にする';
+		is_deeply [ $out->getBounds ], [ 240, 120 ];
+		is save(filename => 'photo.webp', data => $image->webp)->{thumbnail}, 1, 'WebP のサムネイル';
+	};
+
+	subtest 'サムネイルを作り直す（tools/rebuild-thumbnails.pl）' => sub {
+		my $root = tempdir(CLEANUP => 1);
+		my $put = sub {
+			my ($path, $data) = @_;
+			my $file = encode_utf8(File::Spec->catfile($root, split m{/}, $path));
+			make_path((File::Spec->splitpath($file))[1]);
+			open my $fh, '>:raw', $file or die $!;
+			print $fh $data;
+			close $fh;
+		};
+		my $image = GD::Image->new(800, 400, 1);
+		$put->('posts/2026/10/あり.png', $image->png);
+		$put->('posts/2026/10/.thumbnail/あり.png.jpg', GD::Image->new(240, 120, 1)->jpeg);
+		$put->('@system/素材/なし.png', $image->png);
+		$put->('@system/偽物.png', 'not png');
+		$put->('@system/動画.mp4', $FAKE{mp4});
+		$put->('.trashbox/posts/ゴミ.png', $image->png);
+		my $media = Lyndbaum::Media->new(dir => $root, trash_dir => "$root/.trashbox");
+		my $bounds = sub { [ GD::Image->newFromJpeg(encode_utf8("$root/$_[0]"), 1)->getBounds ] };
+
+		my $result = Lyndbaum::Upload->rebuild_thumbnails(dir => $root, media => $media, size => 160, missing => 1);
+		is_deeply $result, { made => 1, skipped => 1, errors => [] }, '--missing：無いものだけ作る（画像でないもの、中身の合わないものは数えない）';
+		is_deeply $bounds->('@system/素材/.thumbnail/なし.png.jpg'), [160, 80];
+		is_deeply $bounds->('posts/2026/10/.thumbnail/あり.png.jpg'), [240, 120], 'あるものは変えない';
+
+		$result = Lyndbaum::Upload->rebuild_thumbnails(dir => $root, media => $media, size => 320);
+		is $result->{made}, 2, 'すべて作り直す';
+		is_deeply $bounds->('posts/2026/10/.thumbnail/あり.png.jpg'), [320, 160], '新しい大きさにする';
+		ok !-e encode_utf8("$root/\@system/.thumbnail/偽物.png.jpg"), '中身の合わないものには作らない';
+		ok !-e encode_utf8("$root/.trashbox/posts/.thumbnail/ゴミ.png.jpg"), 'ゴミ箱の中は作らない';
 	};
 }
 
@@ -146,6 +213,15 @@ subtest '/admin/upload' => sub {
 	is_deeply $json->{files}, [ { name => '動画.mp4', url => "/pub/attachments/$folder%E5%8B%95%E7%94%BB.mp4", tag => "[file:mp4:$folder:動画.mp4]" } ],
 		'置いたファイルと、本文に入れる記法';
 	like $json->{errors}[0], qr{「virus\.exe」は置けない種類}, '置けなかったファイルの理由';
+
+	make_path(encode_utf8("$root/\@system/素材"));
+	$res = $post->($multipart->(csrf_token => $csrf, undef, folder => '@system/素材/', undef, file => $FAKE{mp4}, 'b.mp4'));
+	is(JSON::PP->new->decode($res->body)->{files}[0]{tag}, '[file:mp4:@system/素材/:b.mp4]', '置くフォルダを決められる（メディアの画面）');
+	ok -f encode_utf8("$root/\@system/素材/b.mp4");
+	for my $bad ('無い/', '../', '/') {
+		$res = $post->($multipart->(csrf_token => $csrf, undef, folder => $bad, undef, file => $FAKE{mp4}, 'c.mp4'));
+		is $res->status, 400, "「$bad」には置かない";
+	}
 
 	is $post->($multipart->(csrf_token => $csrf, undef))->status, 400, 'ファイルが無い';
 	is $post->($multipart->(csrf_token => 'wrong', undef, file => $FAKE{mp4}, 'a.mp4'))->status, 403, 'CSRFトークンが違う';

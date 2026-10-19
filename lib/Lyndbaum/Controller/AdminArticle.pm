@@ -19,6 +19,7 @@ use utf8;
 
 use JSON::PP ();
 use Lyndbaum::ArticleForm;
+use Lyndbaum::BlogImage;
 use Lyndbaum::Controller qw(page_number);
 use Lyndbaum::Controller::Admin;
 use Lyndbaum::Date qw(format_date);
@@ -26,9 +27,8 @@ use Lyndbaum::StaticFiles;
 use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Tag;
 use Lyndbaum::OGP;
+use Lyndbaum::Parser;
 use Lyndbaum::Response;
-use Lyndbaum::EditorSettings;
-use Lyndbaum::SettingsForm;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::Backlinks;
 use Lyndbaum::UrlTitle;
@@ -146,13 +146,13 @@ sub _save {
 	return $class->_render_form($app, $session, { %$v, id => $id }, errors => $errors, status => 400) if @$errors;
 
 	# [&URL] のページのタイトルは、変換する前に取得しておく（変換の途中では外へ取りに行かないため）
-	Lyndbaum::UrlTitle->fetch_missing($dbh, $v->{body_src}, context => { $app->parser_context }, agent => $class->_agent($app));
+	Lyndbaum::UrlTitle->fetch_missing($dbh, $v->{body_src}, context => { $app->parser_context }, site_url => $app->config->get('site_url'));
 	my $settings = $app->settings;
 	my $result = Lyndbaum::Model::Article->save($dbh, $v, id => $id, context => { $app->parser_context },
 		revision_interval => $settings->{revision_interval}, revision_max => $settings->{revision_max});
 	if (my $page_errors = $result->{errors}) {
 		return $class->_render_form($app, $session, { %$v, id => $id },
-			errors => [ map { +{ key => 'page_name', message => $_ } } @$page_errors ], status => 400);
+			errors => [ map { +{ key => 'title', message => $_ } } @$page_errors ], status => 400);
 	}
 	if (my $now = $result->{conflict}) {
 		# 書いた内容は消さずにフォームに戻す。要約は今の記事のものにするので、もう一度保存すれば上書きになる
@@ -289,24 +289,20 @@ sub rebuild {
 }
 
 # アイキャッチの欄に出すもの。auto_url は保存した本文の最初の画像、blog_url はブログの画像
+#   preview は今のアイキャッチ（選んだ画像、本文の最初の画像、ブログの画像の順）。chosen は画像を選んでいれば真、
+#   note は画像の下の説明（admin-article.js の noteOf と同じ文）
 sub _eyecatch {
 	my ($class, $app, $article, $v) = @_;
-	my $mode = $v->{eyecatch_mode} // 'auto';
-	my $blog = $app->settings->{blog_image} // '';
+	my $chosen = ($v->{eyecatch} // '') ne '';
 	my %urls = (
 		auto_url => $article ? Lyndbaum::OGP->first_image($article->{body_html}) // '' : '',
-		blog_url => $blog ne '' ? $app->url->attachment($blog) : '',
+		blog_url => Lyndbaum::BlogImage->url($app) // '',
 	);
-	my $preview = $mode eq 'chosen' && ($v->{eyecatch} // '') ne '' ? $app->url->attachment($v->{eyecatch})
-		: $mode eq 'auto' && $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
-	return { %urls, $mode => 1, preview => $preview, attachment_base => $app->url->attachment('') };
-}
-
-# 外部のページを取りに行くときの User-Agent
-sub _agent {
-	my ($class, $app) = @_;
-	my $site = $app->config->get('site_url');
-	return 'Lyndbaum' . (defined $site && $site ne '' ? " (+$site)" : '');
+	my $preview = $chosen ? $app->url->attachment($v->{eyecatch}) : $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
+	my $note = $chosen ? '画像を押すと変更できます。'
+		: $urls{auto_url} ne '' ? '設定しなければ、本文の最初の画像を使います。'
+		: $urls{blog_url} ne '' ? '設定しなければ、ブログの画像を使います。' : '画像はありません。';
+	return { %urls, chosen => $chosen, preview => $preview, note => $note, attachment_base => $app->url->attachment('') };
 }
 
 # RSS とサイトマップを書き出す（Lyndbaum::StaticFiles）。書き出せなくても記事の保存は取り消さず、
@@ -325,14 +321,21 @@ sub _values_of {
 	my $tag_ids = Lyndbaum::Model::Article->tag_ids_of($app->db, $article->{id})->{ $article->{id} } // [];
 	return {
 		%$article,
-		($article->{kind} eq 'page' ? (
-			page_name => Lyndbaum::Model::Article->page_name($article),
-			sort_text => $article->{sort_order},
-		) : ()),
+		($article->{kind} eq 'page' ? (sort_text => $article->{sort_order}) : ()),
 		tag_chips      => [ map { +{ name => $_, new => 0 } } sort map { $tags->{$_}{full_name} } grep { $tags->{$_} } @$tag_ids ],
 		published_text => defined $article->{published_at} ? format_date($article->{published_at})->{input} : '',
 		digest         => Lyndbaum::Model::Article->digest($app->db, $article->{id}),
 	};
+}
+
+# 本文の直したほうがよい点（目次に入らない見出しなど）。保存は止めず、編集の画面に出すだけ
+#   変換の結果は保存しないので、画面を出すたびに変換する
+sub _body_warnings {
+	my ($class, $app, $article, $v) = @_;
+	return [] if ($v->{body_src} // '') eq '';
+	my %context = $app->parser_context;
+	delete $context{article_url_of};
+	return Lyndbaum::Parser->parse($article ? $article->{syntax} : 'markdown', $v->{body_src}, %context)->{warnings} // [];
 }
 
 # フォームを出す。$v はフォームの値（id があれば編集）
@@ -374,7 +377,6 @@ sub _render_form {
 			keep_updated   => $v->{keep_updated},
 			digest         => $v->{digest} // '',
 			eyecatch       => $v->{eyecatch} // '',
-			page_name      => $v->{page_name} // '',
 			sort_order     => $v->{sort_text} // '',
 		},
 		revision_count => scalar @$revisions,
@@ -385,6 +387,7 @@ sub _render_form {
 		eyecatch         => $class->_eyecatch($app, $article, $v),
 		error_of    => \%error_of,
 		errors      => $opt{errors} // [],
+		warnings    => $class->_body_warnings($app, $article, $v),
 		saved       => $opt{saved},
 		feed_failed => $opt{feed_failed},
 		conflict    => $opt{conflict},
@@ -397,9 +400,6 @@ sub _render_form {
 		# 「一覧から選ぶ」。木の形が分かるよう、深さの分だけ字下げする
 		tag_options => [ map { +{ name => $_->{full_name}, label => ('　' x $_->{depth}) . $_->{name} } } @$tree ],
 		script      => $app->url->static('js/admin-article.js'),
-		# アップロードのサムネイルの大きさ（選択肢と「直接入力」）。フォームでは送らず、admin-article.js が読む
-		thumbnail_preset => [ Lyndbaum::SettingsForm->preset_field(Lyndbaum::EditorSettings->field('thumbnail_size'),
-			$app->settings->{thumbnail_size}) ],
 	}, session => $session, status => $opt{status},
 		# 左のナビ：新しく書くときは「新しい記事」か「新しいページ」、既存の記事やページの編集はそれぞれの一覧
 		nav => defined $id ? ($is_page ? 'pages' : 'articles') : $is_page ? 'new_page' : 'new_article');

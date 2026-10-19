@@ -6,18 +6,15 @@ use utf8;
 
 use HTML::Entities qw(decode_entities);
 use URI;
+use Lyndbaum::BlogImage;
 
 # 記事のアイキャッチ（サイトの中のパスか、外部の URL）。無ければ undef
-#   eyecatch_mode
-#     auto    本文の最初の画像。サムネイルを元の画像へのリンクで囲んでいれば、元の画像（旧システムと同じ）
-#     chosen  eyecatch（添付ファイルの中のパス）
-#     none    使わない
+#   選んだ画像（eyecatch。添付ファイルの中のパス）があればそれを、無ければ本文の最初の画像
+#   （サムネイルを元の画像へのリンクで囲んでいれば、元の画像。旧システムと同じ）
 sub article_image {
 	my ($class, $app, $article) = @_;
-	my $mode = $article->{eyecatch_mode} // 'auto';
-	return undef if $mode eq 'none';
-	return $app->url->attachment($article->{eyecatch}) if $mode eq 'chosen' && ($article->{eyecatch} // '') ne '';
-	return $mode eq 'auto' ? $class->first_image($article->{body_html}) : undef;
+	return $app->url->attachment($article->{eyecatch}) if ($article->{eyecatch} // '') ne '';
+	return $class->first_image($article->{body_html});
 }
 
 # 本文の HTML の最初の画像
@@ -48,7 +45,7 @@ sub tags {
 	my $settings = $app->settings;
 	my $image = $args{image};
 	my $large = defined $image;   # 記事の画像があれば大きなカードにする（旧システムと同じ）
-	$image //= ($settings->{blog_image} // '') ne '' ? $app->url->attachment($settings->{blog_image}) : undef;
+	$image //= Lyndbaum::BlogImage->url($app);
 	$image = URI->new_abs($image, "$args{base}/")->as_string if defined $image;
 	my @tags = (
 		[ property => 'og:type',        $args{type} ],

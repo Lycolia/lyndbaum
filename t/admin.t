@@ -36,6 +36,8 @@ subtest 'ログインしていなければログインの画面へ' => sub {
 	is header($res, 'Cache-Control'), 'no-store', '管理画面は保存させない';
 	is header($res, 'X-Frame-Options'), 'DENY', '枠の中に表示させない';
 	like $res->body, qr{<meta name="robots" content="noindex, nofollow">};
+	my @styles = $res->body =~ m{<link rel="stylesheet" href="([^"]+)">}g;
+	is_deeply \@styles, [ '/pub/assets/css/common.css', '/pub/assets/css/admin.css' ], '見た目は、両方で使うものと管理画面のもの';
 };
 
 subtest 'ログイン' => sub {

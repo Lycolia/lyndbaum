@@ -45,6 +45,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
 | RSS                        | `docs/feed.md`                               |
 | OGP                        | `docs/ogp.md`                                |
 | デプロイ                   | `docs/deploy.md`                             |
+| adiaryからの移行           | `docs/migrate-from-adiary.md`                |
 | テンプレートの書き方と変数 | `docs/templates.md`                          |
 
 仕様書とテストが食い違う場合は、勝手にどちらかに合わせず、作者に確認してください。
@@ -87,6 +88,7 @@ adiaryで今できていることを、モダンな構成で再現すること�
   - 旧システムのデータの取り込みは`perl tools/import-adiary.pl data lycolia`（取り込み先のDBは空であること）。取り込んだ後、全記事の本文を変換する
   - 全記事の本文を変換し直すには`perl tools/rebuild-html.pl`。表示や検索のときには変換しないので、パーサーを直したら実行する（旧システムの再構築ボタンにあたる）。参照元（`templates/backlinks.html`）も保存時に作っておくので、このテンプレートを変えたときも実行する
   - サイトの絶対URL（RSSに使う）は`config.json`の`site_url`。RSSは`pub/rss.xml`、サイトマップは`pub/sitemap.xml`に書き出す（記事の保存、取り込みと再構築のときにも書き出す。手で書き出すには`perl tools/build-feed.pl`）
+  - 編集の設定のサムネイルの大きさを変えたら、`perl tools/rebuild-thumbnails.pl`で今までのサムネイルも作り直す（`--missing`なら無いものだけ作る）
   - 管理者のログイン名とパスワードは`perl tools/set-password.pl`で登録する（Webの初期設定画面は無い）
   - コメントのフォームのトークンの署名には、`config.json`の`secret_key`を使う。無ければコメントのフォームを出さない。作るには`perl -Ilib -MLyndbaum::Random=random_token -e 'print random_token(32), "\n"'`
   - 手元での確認は`perl tools/devserver.pl`で起動し、<http://127.0.0.1:8080/>を開く。既定ではこの端末の中（127.0.0.1と::1）だけで待ち受ける。LAN内の別の端末から見るときは`--host all`を付ける（IPv4とIPv6の両方）。httpで管理画面にログインするときは、`config.json`に`"cookie_secure": false`を入れる（既定ではログインのCookieにSecureを付けるため）

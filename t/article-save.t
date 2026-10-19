@@ -150,34 +150,43 @@ subtest 'コンテンツページ' => sub {
 		my $r = save($v, id => $id);
 		return ($r, $r->{errors} // []);
 	};
-	my ($top) = $page->(page_name => 'about');
-	is $dbh->selectrow_array('SELECT slug FROM articles WHERE id = ?', undef, $top->{id}), 'about', '親が無ければ名前が slug';
+	my ($top) = $page->(title => 'about');
+	is $dbh->selectrow_array('SELECT slug FROM articles WHERE id = ?', undef, $top->{id}), 'about', '親が無ければ題名が slug';
 	is $dbh->selectrow_array('SELECT kind FROM articles WHERE id = ?', undef, $top->{id}), 'page';
-	my ($child) = $page->(page_name => '署名', parent_id => $top->{id});
-	my ($grandchild) = $page->(page_name => '孫', parent_id => $child->{id});
-	is $grandchild->{slug}, 'about/署名/孫', '「親の slug/名前」';
-	my ($second) = $page->(page_name => '二つ目', parent_id => $top->{id});
+	my ($child) = $page->(title => '署名', parent_id => $top->{id});
+	my ($grandchild) = $page->(title => '孫', parent_id => $child->{id});
+	is $grandchild->{slug}, 'about/署名/孫', '「親の slug/題名」';
+	my ($second) = $page->(title => '二つ目', parent_id => $top->{id});
 	my $orders = $dbh->selectcol_arrayref('SELECT sort_order FROM articles WHERE id IN (?, ?) ORDER BY id', undef, $child->{id}, $second->{id});
 	is $orders->[1], $orders->[0] + 1, '並び順が空なら、同じ親のいちばん後ろ';
 
-	$page->(id => $top->{id}, page_name => 'profile');
+	$page->(id => $top->{id}, title => 'profile');
 	is_deeply $dbh->selectcol_arrayref('SELECT slug FROM articles WHERE id IN (?, ?, ?) ORDER BY id', undef, $top->{id}, $child->{id}, $grandchild->{id}),
-		['profile', 'profile/署名', 'profile/署名/孫'], '名前を変えると、子孫の slug も付け替える';
-	$page->(id => $grandchild->{id}, page_name => '孫', parent_id => $second->{id});
+		['profile', 'profile/署名', 'profile/署名/孫'], '題名を変えると、子孫の slug も付け替える';
+	$page->(id => $grandchild->{id}, title => '孫', parent_id => $second->{id});
 	is $dbh->selectrow_array('SELECT slug FROM articles WHERE id = ?', undef, $grandchild->{id}), 'profile/二つ目/孫', '親を変える';
 
-	my (undef, $errors) = $page->(id => $top->{id}, page_name => 'profile', parent_id => $second->{id});
+	my (undef, $errors) = $page->(id => $top->{id}, title => 'profile', parent_id => $second->{id});
 	like $errors->[0], qr{自分の子孫のページを親にはできません}, '子孫を親にはできない';
-	(undef, $errors) = $page->(page_name => '0123');
+	(undef, $errors) = $page->(title => '0123');
 	like $errors->[0], qr{0で始められません};
-	(undef, $errors) = $page->(page_name => 'Admin');
+	(undef, $errors) = $page->(title => 'Admin');
 	like $errors->[0], qr{管理画面などが使う};
-	(undef, $errors) = $page->(page_name => '署名', parent_id => $top->{id});
-	like $errors->[0], qr{URL「/profile/署名」は、「ページ」が使っています。}, 'slug はぶつけられない';
-	(undef, $errors) = $page->(page_name => 'a/b');
-	like $errors->[0], qr{使えません}, '名前に / は使えない';
-	(undef, $errors) = $page->(page_name => 'x', parent_id => 99999);
+	(undef, $errors) = $page->(title => '署名', parent_id => $top->{id});
+	like $errors->[0], qr{URL「/profile/署名」は、「署名」が使っています。}, 'slug はぶつけられない';
+	(undef, $errors) = $page->(title => 'a/b');
+	like $errors->[0], qr{使えません}, '題名に / は使えない';
+	(undef, $errors) = $page->(title => 'x', parent_id => 99999);
 	like $errors->[0], qr{親のページがありません};
+	my ($spaced) = $page->(title => 'よくある 質問', parent_id => $top->{id});
+	is $spaced->{slug}, 'profile/よくある 質問', '題名の空白はそのまま slug に入れる';
+	for my $bad ('a\\b', 'a?b', 'a#b', '100%', '.', '..') {
+		(undef, $errors) = $page->(title => $bad);
+		like $errors->[0], qr{URLになるので、/ \\ \? # % は使えません}, "題名に使えない文字：$bad";
+	}
+	(undef, $errors) = $page->(title => 'あ' x 101);
+	like $errors->[0], qr{100文字まで}, 'ページの題名は100文字まで';
+	ok !@{ ($page->(title => 'あ' x 100))[1] }, '100文字なら使える';
 };
 
 subtest '見出しと目次のリンクには記事のURLを付ける' => sub {
@@ -197,12 +206,12 @@ subtest '見出しと目次のリンクには記事のURLを付ける' => sub {
 		);
 		return save($v, id => $id);
 	};
-	my $parent = $page->(page_name => 'docs');
-	my $child  = $page->(page_name => '使い方', parent_id => $parent->{id});
+	my $parent = $page->(title => 'docs');
+	my $child  = $page->(title => '使い方', parent_id => $parent->{id});
 	my $body_of = sub { $dbh->selectrow_array('SELECT body_html FROM articles WHERE id = ?', undef, $_[0]) };
 	like $body_of->($child->{id}), qr{<a href="/docs/%E4%BD%BF%E3%81%84%E6%96%B9#[^"]+">}, 'ページは slug のURL（Lyndbaum::URL->article と同じ形）';
-	$page->(id => $parent->{id}, page_name => 'manual');
-	like $body_of->($parent->{id}), qr{<a href="/manual#[^"]+">}, '名前を変えたページ';
+	$page->(id => $parent->{id}, title => 'manual');
+	like $body_of->($parent->{id}), qr{<a href="/manual#[^"]+">}, '題名を変えたページ';
 	like $body_of->($child->{id}), qr{<a href="/manual/%E4%BD%BF%E3%81%84%E6%96%B9#[^"]+">}, '子孫の本文も変換し直す';
 };
 

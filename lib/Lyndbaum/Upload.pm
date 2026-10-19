@@ -1,7 +1,9 @@
 package Lyndbaum::Upload;
-# 添付ファイル（画像と動画）のアップロード（docs/admin.md の「画像のアップロード」）
+# 添付ファイルのアップロード（docs/admin.md の「ファイルのアップロード」）
 #   pub/attachments/posts/年/月/ に置き、画像なら .thumbnail/ファイル名.jpg にサムネイルを作る
 #   拡張子と中身（先頭のバイト）の両方で種類を確かめる（CLAUDE.md の「セキュリティ」）
+#   画像のサムネイルを作るとき（GD）のほかは、中身を解釈しない（展開、変換、外部のコマンドを使わない）。
+#   デコードする処理の脆弱性（TIFF や ImageMagick など）を持ち込まないため
 use strict;
 use warnings;
 use utf8;
@@ -15,8 +17,11 @@ use Lyndbaum::Thumbnail;
 # 拡張子 => 種類。種類ごとに、中身の先頭がどうなっているべきかを決める
 my %KIND_OF_EXT = (
 	jpg => 'jpeg', jpeg => 'jpeg', png => 'png', apng => 'png', gif => 'gif', webp => 'webp',
-	mp4 => 'mp4', webm => 'webm',
+	mp4 => 'mp4', webm => 'webm', mp3 => 'mp3',
+	txt => 'text', md => 'text', csv => 'text', tsv => 'text', json => 'text',
+	zip => 'zip', '7z' => '7z', pdf => 'pdf',
 );
+# HTML、SVG、XML など、ブラウザがこのサイトのオリジンでスクリプトを動かせる種類は入れない（管理画面を操作されるため）
 my %MAGIC = (
 	jpeg => sub { $_[0] =~ /\A\xFF\xD8\xFF/ },
 	png  => sub { $_[0] =~ /\A\x89PNG\r\n\x1A\n/ },
@@ -24,6 +29,14 @@ my %MAGIC = (
 	webp => sub { $_[0] =~ /\ARIFF....WEBP/s },
 	mp4  => sub { $_[0] =~ /\A....ftyp/s },
 	webm => sub { $_[0] =~ /\A\x1A\x45\xDF\xA3/ },
+	# ID3 タグか、フレームの先頭（同期の11ビット）
+	mp3  => sub { $_[0] =~ /\A(?:ID3|\xFF[\xE0-\xFF])/ },
+	# テキストには決まった先頭が無いので、NUL を含まないことだけを見る。文字コードは問わない（Shift_JIS の CSV など。作者の判断）
+	text => sub { index($_[0], "\0") < 0 },
+	# 空の zip は終わりの印（PK\x05\x06）だけになる
+	zip  => sub { $_[0] =~ /\APK(?:\x03\x04|\x05\x06)/ },
+	'7z' => sub { $_[0] =~ /\A7z\xBC\xAF\x27\x1C/ },
+	pdf  => sub { $_[0] =~ /\A%PDF-/ },
 );
 my %IS_IMAGE = map { $_ => 1 } qw(jpeg png gif webp);
 my $MAX_NAME = 100;
@@ -35,17 +48,16 @@ my $MAX_NAME = 100;
 #     data            中身（バイト列）
 #     thumbnail_size  サムネイルの長い辺（px）
 #     now             今の時刻（テスト用。フォルダの年月に使う。日本時間）
+#     folder          置くフォルダ（「posts/2026/10/」の形。あるフォルダ）。省けば今の年月のフォルダ（posts/年/月/）
 #   戻り値は { folder => 'posts/2026/10/', name => ファイル名, kind => 種類, image => 画像か, thumbnail => サムネイルを作れたか }
 #   置けないときは die する（理由の文）
 sub save {
 	my ($class, %args) = @_;
 	my $name = $class->clean_name($args{filename} // '');
 	my ($ext) = $name =~ /\.([^.]+)\z/;
-	my $kind = $KIND_OF_EXT{ lc($ext // '') }
-		// die "「$args{filename}」は置けない種類のファイルです（置けるのは " . join('、', sort keys %KIND_OF_EXT) . "）。\n";
-	die "「$args{filename}」は、拡張子と中身の種類が合いません。\n" if !$MAGIC{$kind}->($args{data} // '');
+	my $kind = $class->kind_of($args{filename}, $args{data}, [ sort keys %KIND_OF_EXT ]);
 
-	my $folder = $class->folder_of($args{now} // time);
+	my $folder = $args{folder} // $class->folder_of($args{now} // time);
 	my $dir = File::Spec->catdir($args{dir}, split m{/}, $folder);
 	make_path(encode_utf8($dir), { mode => 0755 });
 	$name = $class->_unique_name($dir, $name);
@@ -53,16 +65,72 @@ sub save {
 
 	my $thumbnail = 0;
 	if ($IS_IMAGE{$kind}) {
-		my $jpeg = eval { Lyndbaum::Thumbnail->make($args{data}, $kind, $args{thumbnail_size}) };
-		warn "サムネイルを作れませんでした: $folder$name: $@" if !defined $jpeg;
-		if (defined $jpeg) {
-			my $thumb_dir = File::Spec->catdir($dir, '.thumbnail');
-			make_path(encode_utf8($thumb_dir), { mode => 0755 });
-			_write(File::Spec->catfile($thumb_dir, "$name.jpg"), $jpeg);
-			$thumbnail = 1;
-		}
+		$thumbnail = eval { _write_thumbnail($dir, $name, $args{data}, $kind, $args{thumbnail_size}); 1 } ? 1 : 0;
+		warn "サムネイルを作れませんでした: $folder$name: $@" if !$thumbnail;
 	}
 	return { folder => $folder, name => $name, kind => $kind, ext => lc $ext, image => $IS_IMAGE{$kind} ? 1 : 0, thumbnail => $thumbnail };
+}
+
+# ファイルの種類（jpeg、png など）。拡張子と中身（先頭のバイト）の両方で確かめる
+#   $exts は受け付ける拡張子の並び。受け付けない種類か、拡張子と中身が合わなければ die する（理由の文）
+sub kind_of {
+	my ($class, $filename, $data, $exts) = @_;
+	my ($ext) = ($filename // '') =~ /\.([^.\/\\]+)\z/;
+	$ext = lc($ext // '');
+	my $kind = (grep { $_ eq $ext } @$exts) ? $KIND_OF_EXT{$ext} : undef;
+	die "「$filename」は置けない種類のファイルです（置けるのは " . join('、', @$exts) . "）。\n" if !$kind;
+	die "「$filename」は、拡張子と中身の種類が合いません。\n" if !$MAGIC{$kind}->($data // '');
+	return $kind;
+}
+
+# サムネイル（.thumbnail/名前.jpg）を作って置く。作れなければ die
+sub _write_thumbnail {
+	my ($dir, $name, $data, $kind, $size) = @_;
+	my $jpeg = Lyndbaum::Thumbnail->make($data, $kind, $size);
+	my $thumb_dir = File::Spec->catdir($dir, '.thumbnail');
+	make_path(encode_utf8($thumb_dir), { mode => 0755 });
+	_write(File::Spec->catfile($thumb_dir, "$name.jpg"), $jpeg);
+}
+
+# 添付ファイルの画像のサムネイルを作り直す（tools/rebuild-thumbnails.pl。編集の設定の大きさを変えたとき）
+#   %args
+#     dir      添付ファイルの置き場所
+#     media    Lyndbaum::Media（フォルダとファイルの一覧。. で始まるフォルダ（ゴミ箱など）は含まない）
+#     size     サムネイルの長い辺（px）
+#     missing  真なら、サムネイルが無い画像だけ作る（あるものは大きさが違っても変えない）
+#   戻り値は { made => 作った数, skipped => そのままにした数, errors => [ 理由, ... ] }
+#   画像でないファイル、拡張子と中身の種類が合わないファイルは数えない
+sub rebuild_thumbnails {
+	my ($class, %args) = @_;
+	my %result = (made => 0, skipped => 0, errors => []);
+	my @queue = @{ $args{media}->folders };
+	while (my $node = shift @queue) {
+		push @queue, @{ $node->{children} };
+		my $folder = $node->{folder};
+		my $dir = File::Spec->catdir($args{dir}, split m{/}, $folder);
+		for my $file (@{ $args{media}->files($folder) }) {
+			my $kind = $KIND_OF_EXT{ $file->{ext} } // next;
+			next if !$IS_IMAGE{$kind};
+			if ($args{missing} && $file->{thumbnail}) {
+				$result{skipped}++;
+				next;
+			}
+			my $made = eval {
+				my $path = encode_utf8(File::Spec->catfile($dir, $file->{name}));
+				open my $fh, '<:raw', $path or die "$!\n";
+				my $data = do { local $/; <$fh> };
+				return 0 if !$MAGIC{$kind}->($data);
+				_write_thumbnail($dir, $file->{name}, $data, $kind, $args{size});
+				1;
+			};
+			if ($made) {
+				$result{made}++;
+			} elsif (!defined $made) {
+				push @{ $result{errors} }, "$folder$file->{name}: " . ($@ =~ s/\n\z//r);
+			}
+		}
+	}
+	return \%result;
 }
 
 # 本文に入れる記法（docs/markdown-syntax.md）。サムネイルが無い画像は、元の画像を出す（L）

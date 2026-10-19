@@ -1,5 +1,5 @@
 package Lyndbaum::EditorSettings;
-# 記事の編集の設定の項目（settingsテーブルに保存する）。決まりは docs/admin.md の「更新履歴」と「画像のアップロード」
+# 記事の編集の設定の項目（settingsテーブルに保存する）。決まりは docs/admin.md の「更新履歴」と「ファイルのアップロード」
 #   項目の書き方は Lyndbaum::SettingsForm
 use strict;
 use warnings;

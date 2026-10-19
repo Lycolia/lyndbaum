@@ -1,6 +1,9 @@
 <h1>メディア</h1>
-<p>上げたファイルの一覧です。ファイルを選ぶと、本文に入れる記法と、そのファイルを使っている記事を出します。ゴミ箱へ移したファイルは、Webからは見えなくなります（ゴミ箱から戻せます）。新しいファイルは、記事の編集の画面から上げます。</p>
+<p>上げたファイルの一覧です。ファイルを選ぶと、本文に入れる記法と、そのファイルを使っている記事を出します。ゴミ箱へ移したファイルは、Webからは見えなくなります（ゴミ箱から戻せます）。「ファイルを追加」か、一覧へファイルを落とすと、開いているフォルダへ上げます。</p>
 <noscript><p class="admin-error">メディアの画面にはJavaScriptが必要です。</p></noscript>
 {{! 中身は admin-media.js が /admin/media/… の JSON から組む }}
-<div class="media-page" data-base="{{ urls.media }}" data-csrf="{{ csrf_token }}"></div>
+<div class="media-page" data-base="{{ urls.media }}" data-upload="{{ urls.upload }}" data-csrf="{{ csrf_token }}"></div>
+{{! メディアの一覧で画像を拡大して出す（Lythumb。admin-media.js から開く）。この画面だけで使うので、ここで読み込む }}
+<link rel="stylesheet" href="{{ urls.lythumb_css }}">
+<script src="{{ urls.lythumb_script }}" defer></script>
 <script src="{{ script }}" defer></script>

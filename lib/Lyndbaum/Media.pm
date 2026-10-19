@@ -14,13 +14,18 @@ use Encode qw(decode_utf8 encode_utf8);
 use File::Copy qw(move);
 use File::Path qw(make_path);
 use File::Spec;
+use JSON::PP ();
 
 # ゴミ箱のフォルダの名前（添付ファイルの置き場所の中）
 our $TRASH = '.trashbox';
 
+# 名前を変えたり消したりできないフォルダ（アップロード先と、ブログの画像などの置き場所）。この下のフォルダは変えられる
+my %PROTECTED = map { $_ => 1 } 'posts/', '@system/';
+
 my %KIND_OF_EXT = (
 	jpg => 'image', jpeg => 'image', png => 'image', apng => 'image', gif => 'image', webp => 'image',
-	mp4 => 'video', webm => 'video',
+	mp4 => 'video', webm => 'video', mp3 => 'audio',
+	txt => 'text', md => 'text', csv => 'text', tsv => 'text', json => 'text',
 );
 
 # %args：dir（添付ファイルの置き場所）、trash_dir（ゴミ箱）
@@ -50,7 +55,8 @@ sub _path {
 	return encode_utf8(File::Spec->catfile($base, (split m{/}, $folder), defined $name ? $name : ()));
 }
 
-# フォルダの木 [ { folder => 'posts/', name => 'posts', count => ファイルの数, total => 下のフォルダを含めたファイルの数, children => [...] }, ... ]
+# フォルダの木 [ { folder => 'posts/', name => 'posts', count => ファイルの数, total => 下のフォルダを含めたファイルの数,
+#                  protected => 名前を変えたり消したりできないなら真, children => [...] }, ... ]
 #   名前の逆順（新しい年月を先に）
 sub folders {
 	my ($self) = @_;
@@ -66,7 +72,7 @@ sub folders {
 			my $children = __SUB__->($child);
 			my $total = $count;
 			$total += $_->{total} for @$children;
-			+{ folder => $child, name => $name, count => $count, total => $total, children => $children }
+			+{ folder => $child, name => $name, count => $count, total => $total, protected => $PROTECTED{$child} ? JSON::PP::true : JSON::PP::false, children => $children }
 		} @names ];
 	};
 	return $walk->('');
@@ -109,6 +115,119 @@ SQL
 	my $re = qr{(?:\Q$folder:$name\E(?=[:\]])|\Q$folder$name\E(?=[\s"'<>()\]?#]|\z))};
 	return [ map { +{ id => $_->{id}, title => $_->{title}, deleted_at => $_->{deleted_at} } }
 		grep { $_->{eyecatch} eq "$folder$name" || $_->{body_src} =~ $re } @$rows ];
+}
+
+# 画面で付ける名前（フォルダを作る、名前を変える）に使えない文字。記法（[image:S:フォルダ/:名前]）の区切りや、
+# URL で困る文字、空白（Lyndbaum::Upload->clean_name が _ にする文字と同じ）
+my $BAD_CHARS = qr{[\x00-\x1F\x7F/\\:*?"<>|#%&\[\]\s]};
+
+# 画面で付ける名前を確かめる。正しくなければ理由を die
+#   file が真ならファイルの名前：名前の中の「.」は拡張子の前の1つだけ（Lyndbaum::Upload->clean_name と同じ理由）
+sub check_name {
+	my ($class, $name, %opt) = @_;
+	my $what = $opt{file} ? 'ファイル' : 'フォルダ';
+	die "${what}の名前を入れてください。\n" if !defined $name || $name eq '';
+	die "${what}の名前に、空白と「/ \\ : * ? \" < > | # % & [ ]」は使えません。\n" if $name =~ $BAD_CHARS;
+	die "${what}の名前は「.」で始められません。\n" if $name =~ /\A\./;
+	die "ファイルの名前の中の「.」は、拡張子の前の1つだけにしてください。\n" if $opt{file} && ($name =~ tr/.//) > 1;
+	die "${what}の名前が長すぎます（100文字まで）。\n" if length $name > 100;
+	return 1;
+}
+
+# フォルダがあるか（いちばん上の空の文字列は含めない）
+sub has_folder {
+	my ($self, $folder) = @_;
+	return $folder ne '' && -d $self->_path($self->{dir}, $folder);
+}
+
+# フォルダを作る。$parent の中に $name（区切りを含まない名前）のフォルダを作り、そのフォルダ（/ で終わる）を返す
+#   名前が正しくないとき、同じ名前のフォルダかファイルがあるとき、$parent が無いときは die
+sub make_folder {
+	my ($self, $parent, $name) = @_;
+	$self->check_name($name);
+	die "フォルダ「$parent」はありません。\n" if !-d $self->_path($self->{dir}, $parent);
+	my $folder = "$parent$name/";
+	my $path = $self->_path($self->{dir}, $folder);
+	die "「$parent」には同じ名前の「$name」があります。\n" if -e $path;
+	mkdir $path or die "フォルダ「$folder」を作れません: $!\n";
+	return $folder;
+}
+
+# フォルダの名前を変える。新しいフォルダ（/ で終わる）を返す。中のファイルを使っている記事は書き換えない
+sub rename_folder {
+	my ($self, $folder, $name) = @_;
+	die "「$folder」の名前は変えられません。\n" if $PROTECTED{$folder};
+	die "フォルダ「$folder」はありません。\n" if !$self->has_folder($folder);
+	$self->check_name($name);
+	my ($parent) = $folder =~ m{\A(.*/)?[^/]+/\z};
+	my $to = ($parent // '') . "$name/";
+	return $to if $to eq $folder;
+	die "「" . ($parent // 'いちばん上') . "」には同じ名前の「$name」があります。\n" if -e $self->_path($self->{dir}, $to);
+	rename $self->_path($self->{dir}, $folder), $self->_path($self->{dir}, $to) or die "フォルダ「$folder」の名前を変えられません: $!\n";
+	return $to;
+}
+
+# 空のフォルダを消す。中にファイルかフォルダがあれば消さずに die
+#   サムネイルのフォルダ（.thumbnail）は、元のファイルが無いので中ごと消す。ほかの . で始まるものがあれば消さない
+sub remove_folder {
+	my ($self, $folder) = @_;
+	die "「$folder」は消せません。\n" if $PROTECTED{$folder};
+	die "フォルダ「$folder」はありません。\n" if !$self->has_folder($folder);
+	my $path = $self->_path($self->{dir}, $folder);
+	opendir my $dh, $path or die "フォルダ「$folder」を開けません: $!\n";
+	my @entries = grep { $_ ne '.' && $_ ne '..' } readdir $dh;
+	closedir $dh;
+	my @visible = grep { !/\A\./ } @entries;
+	die "フォルダ「$folder」は空ではありません（" . scalar(@visible) . "件のファイルかフォルダがあります）。\n" if @visible;
+	die "フォルダ「$folder」には、画面に出ないファイル（" . join('、', map { decode_utf8($_) } grep { $_ ne '.thumbnail' } @entries) . "）があるので消せません。\n"
+		if grep { $_ ne '.thumbnail' } @entries;
+	if (grep { $_ eq '.thumbnail' } @entries) {
+		opendir my $th, "$path/.thumbnail" or die "フォルダ「$folder.thumbnail」を開けません: $!\n";
+		my @thumbs = grep { !-d "$path/.thumbnail/$_" } readdir $th;
+		closedir $th;
+		unlink "$path/.thumbnail/$_" for @thumbs;
+		rmdir "$path/.thumbnail" or die "フォルダ「$folder.thumbnail」を消せません: $!\n";
+	}
+	rmdir $path or die "フォルダ「$folder」を消せません: $!\n";
+	return 1;
+}
+
+# ファイルの名前を変える（サムネイルも）。拡張子は変えられない（アップロードで確かめた種類を変えさせないため）
+#   新しい名前を返す。使っている記事は書き換えない
+sub rename_file {
+	my ($self, $folder, $name, $new) = @_;
+	my $src = $self->_path($self->{dir}, $folder, $name);
+	die "「$folder$name」はありません。\n" if !-f $src;
+	$self->check_name($new, file => 1);
+	my ($ext)     = $name =~ /(\.[^.]*)\z/;
+	my ($new_ext) = $new =~ /(\.[^.]*)\z/;
+	die "拡張子は変えられません（「" . ($ext // 'なし') . "」のままにしてください）。\n" if lc($ext // '') ne lc($new_ext // '');
+	return $name if $new eq $name;
+	my $dest = $self->_path($self->{dir}, $folder, $new);
+	die "「$folder」には同じ名前のファイル「$new」があります。\n" if -e $dest;
+	rename $src, $dest or die "「$folder$name」の名前を変えられません: $!\n";
+	my $thumb = $self->_path($self->{dir}, $folder, ".thumbnail/$name.jpg");
+	rename $thumb, $self->_path($self->{dir}, $folder, ".thumbnail/$new.jpg") if -f $thumb;
+	return $new;
+}
+
+# 別のフォルダへ移す（サムネイルも）。移す先のフォルダはあるものに限る。同じ名前があれば移さずに die
+#   使っている記事は書き換えない（docs/admin.md の「メディア」）
+sub move_to {
+	my ($self, $folder, $name, $to) = @_;
+	my $src = $self->_path($self->{dir}, $folder, $name);
+	die "「$folder$name」はありません。\n" if !-f $src;
+	die "移す先のフォルダ「$to」はありません。\n" if $to eq '' || !-d $self->_path($self->{dir}, $to);
+	return $name if $to eq $folder;
+	my $dest = $self->_path($self->{dir}, $to, $name);
+	die "「$to」には同じ名前のファイル「$name」があります。\n" if -e $dest;
+	move($src, $dest) or die "「$folder$name」を移せません: $!\n";
+	my $thumb = $self->_path($self->{dir}, $folder, ".thumbnail/$name.jpg");
+	if (-f $thumb) {
+		make_path($self->_path($self->{dir}, $to, '.thumbnail'));
+		move($thumb, $self->_path($self->{dir}, $to, ".thumbnail/$name.jpg"));
+	}
+	return $name;
 }
 
 # ゴミ箱へ移す（サムネイルも）。ゴミ箱での名前を返す。無ければ die

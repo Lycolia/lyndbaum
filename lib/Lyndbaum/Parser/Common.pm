@@ -44,21 +44,47 @@ sub new_heading_id {
 #   $url は記事のURL（リンクを「記事のURL#ID」にする。一覧に本文を並べても、その記事の見出しへ行くように）
 #   見出しの並びを、より浅い見出しを親とする木にしてから出力する
 #   1段目は # の見出し。段を飛ばした見出し（# の無い ##、## の直後の #### など）は目次に入れない（旧システムと同じ）
+#   目次に入る見出しが無ければ空文字列（空の <ul> は出さない。docs/compat-diffs.md）
 sub toc_html {
 	my ($class, $headings, $url) = @_;
+	my ($root) = _toc_tree($headings);
+	return @{ $root->{children} } ? _toc_list($root->{children}, $url // '', 0, ' class="toc"') : '';
+}
+
+# 段を飛ばしたために目次に入らない見出しの警告（文字列のリスト）。書いた人に直してもらうため、編集の画面などに出す
+sub toc_warnings {
+	my ($class, $headings) = @_;
+	my (undef, $warnings) = _toc_tree($headings);
+	return $warnings;
+}
+
+# 見出しの並びを木にする。戻り値は（根, 警告のリスト）
+sub _toc_tree {
+	my ($headings) = @_;
 	my $root = { level => 0, children => [] };
 	my @stack = ($root);
+	my @warnings;
 	for my $h (@$headings) {
 		pop @stack while $stack[-1]{level} >= $h->{level};
-		if ($h->{level} > $stack[-1]{level} + 1) {
-			$stack[-1]{skipped} = 1;   # 子が無くても空の <ul> を出す（旧システムと同じ）
+		my $parent = $stack[-1];
+		if ($h->{level} > $parent->{level} + 1) {
+			$parent->{skipped} = 1;   # 子が無くても空の <ul> を出す（旧システムと同じ）
+			push @warnings, $parent->{level}
+				? '見出し' . _heading_name($h) . 'は、' . _heading_name($parent) . 'から段を飛ばしているため、目次に入りません'
+				: '見出し' . _heading_name($h) . 'の前に # の見出しが無いため、目次に入りません';
 			next;
 		}
 		my $node = { %$h, children => [] };
-		push @{ $stack[-1]{children} }, $node;
+		push @{ $parent->{children} }, $node;
 		push @stack, $node;
 	}
-	return @{ $root->{children} } ? _toc_list($root->{children}, $url // '', 0, ' class="toc"') : qq{<ul class="toc"></ul>\n};
+	return ($root, \@warnings);
+}
+
+# 警告に出す見出しの名前（「見出しの文字」（##））
+sub _heading_name {
+	my ($h) = @_;
+	return '「' . plain_text($h->{html}) . '」（' . ('#' x $h->{level}) . '）';
 }
 
 sub _toc_list {

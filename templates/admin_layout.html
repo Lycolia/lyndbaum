@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>{{ title }} - 管理画面 - {{ blog.blog_title }}</title>
+{{! サイトのアイコン（Lyndbaum::SiteIcon）。/favicon.ico は Webサーバーが返す }}
+<link rel="icon" href="{{ urls.icon.icon_32 }}" sizes="32x32">
+<link rel="icon" href="{{ urls.icon.icon_192 }}" sizes="192x192">
+<link rel="apple-touch-icon" href="{{ urls.icon.apple_touch_icon }}">
 <link rel="stylesheet" href="{{ urls.style }}">
+<link rel="stylesheet" href="{{ urls.admin_style }}">
 </head>
 <body class="admin">
 {{# if logged_in }}

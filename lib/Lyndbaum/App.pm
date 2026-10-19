@@ -20,8 +20,10 @@ use Lyndbaum::View;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::OGP;
 use Lyndbaum::SearchForm;
+use Lyndbaum::SiteIcon;
+use Lyndbaum::Version;
 
-my $APP_VERSION = '0.1-beta5';
+my $APP_VERSION = $Lyndbaum::Version::VERSION;
 
 # ルーティング表。URLから処理を追うときはここを見る
 # URLの組み立ては Lyndbaum::URL にある
@@ -50,8 +52,13 @@ my $ROUTER = Lyndbaum::Router->new(
 	[ POST => qr{\A/admin/tags\z},              'Lyndbaum::Controller::AdminTag',     'save'      ],
 	[ GET  => qr{\A/admin/media\z},             'Lyndbaum::Controller::AdminMedia',   'page'       ],
 	[ GET  => qr{\A/admin/media/folders\z},     'Lyndbaum::Controller::AdminMedia',   'folders'    ],
+	[ POST => qr{\A/admin/media/folders\z},     'Lyndbaum::Controller::AdminMedia',   'make_folder' ],
 	[ GET  => qr{\A/admin/media/files\z},       'Lyndbaum::Controller::AdminMedia',   'files'      ],
 	[ GET  => qr{\A/admin/media/usage\z},       'Lyndbaum::Controller::AdminMedia',   'usage'      ],
+	[ POST => qr{\A/admin/media/folders/rename\z}, 'Lyndbaum::Controller::AdminMedia', 'rename_folder' ],
+	[ POST => qr{\A/admin/media/folders/delete\z}, 'Lyndbaum::Controller::AdminMedia', 'delete_folder' ],
+	[ POST => qr{\A/admin/media/rename\z},      'Lyndbaum::Controller::AdminMedia',   'rename_file' ],
+	[ POST => qr{\A/admin/media/move\z},        'Lyndbaum::Controller::AdminMedia',   'move'       ],
 	[ POST => qr{\A/admin/media/trash\z},       'Lyndbaum::Controller::AdminMedia',   'trash'      ],
 	[ GET  => qr{\A/admin/media/trash\z},       'Lyndbaum::Controller::AdminMedia',   'trash_list' ],
 	[ POST => qr{\A/admin/media/trash/restore\z}, 'Lyndbaum::Controller::AdminMedia', 'restore'    ],
@@ -62,6 +69,7 @@ my $ROUTER = Lyndbaum::Router->new(
 	[ POST => qr{\A/admin/comments/(\d+)\z},    'Lyndbaum::Controller::AdminComment', 'update'        ],
 	[ GET  => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'form' ],
 	[ POST => qr{\A/admin/sidebar\z},           'Lyndbaum::Controller::AdminSidebar', 'save' ],
+	[ POST => qr{\A/admin/settings/(icon|blog_image)\z}, 'Lyndbaum::Controller::AdminSettings', 'save_image' ],
 	[ GET  => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'form' ],
 	[ POST => qr{\A/admin/settings/(\w+)\z},   'Lyndbaum::Controller::AdminSettings', 'save' ],
 	# 記事（/0575）とコンテンツページ（/親/子）。パスは slug と同じ
@@ -224,17 +232,22 @@ sub render {
 		urls         => {
 			top    => $self->url->top,
 			search => $self->url->search,
-			style  => $self->url->static('css/style.css'),
+			# 見た目は、両方で使う common.css と、公開側だけの site.css
+			style      => $self->url->static('css/common.css'),
+			site_style => $self->url->static('css/site.css'),
 			feed   => $self->url->feed,
 			# 画像の拡大表示（Lythumb。読み込むと自分で動く）とコードの色付け（Prism.js。pub/assets/js/article.js が動かす）
+			# sidebar.js はサイドバーの引き出し、toc.js は追従する目次のボタン
 			lythumb_css => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
 			prism_css   => $self->url->static('js/extlib/prismjs/prism.css'),
 			prism_core  => $self->url->static('js/extlib/prismjs/prism-core.min.js'),
+			# サイトのアイコン（Lyndbaum::SiteIcon）
+			icon        => Lyndbaum::SiteIcon->urls($self),
 			scripts     => [ map { $self->url->static($_) }
 				'js/extlib/lythumb/lythumb.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
-				'js/article.js', 'js/sidebar.js' ],
+				'js/article.js', 'js/sidebar.js', 'js/toc.js' ],
 		},
 		form         => Lyndbaum::SearchForm->values,   # サイドバーの検索フォーム
 		%$sidebar,
@@ -305,6 +318,7 @@ sub render_admin {
 		blog       => $self->settings,
 		urls       => {
 			top    => $self->url->top,
+			icon             => Lyndbaum::SiteIcon->urls($self),
 			admin            => $self->url->admin,
 			logout           => $self->url->admin('logout'),
 			articles         => $self->url->admin('articles'),
@@ -316,6 +330,9 @@ sub render_admin {
 			upload           => $self->url->admin('upload'),
 			media            => $self->url->admin('media'),
 			media_script     => $self->url->static('js/admin-media.js'),
+			# メディアの一覧で画像を拡大して出す（Lythumb。admin-media.js から開く。メディアの一覧を使う画面のテンプレートで読み込む）
+			lythumb_css      => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
+			lythumb_script   => $self->url->static('js/extlib/lythumb/lythumb.min.js'),
 			admin_script     => $self->url->static('js/admin.js'),
 			unsaved_script   => $self->url->static('js/admin-unsaved.js'),
 			rebuild          => $self->url->admin('rebuild'),
@@ -324,7 +341,9 @@ sub render_admin {
 			comment_settings => $self->url->admin('settings/comments'),
 			editor_settings  => $self->url->admin('settings/editor'),
 			sidebar          => $self->url->admin('sidebar'),
-			style  => $self->url->static('css/style.css'),
+			# 見た目は、公開側と両方で使う common.css と、管理画面だけの admin.css
+			style            => $self->url->static('css/common.css'),
+			admin_style      => $self->url->static('css/admin.css'),
 		},
 		logged_in  => $session ? 1 : 0,
 		csrf_token => $session ? $session->{csrf_token} : '',

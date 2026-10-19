@@ -179,6 +179,16 @@ subtest 'RSSを書き出せなくても保存する' => sub {
 	like get('/admin/articles/5?feed=failed&saved=1')->body, qr{RSSかサイトマップを書き出せませんでした};
 };
 
+subtest '本文の直したほうがよい点' => sub {
+	my $res = post('/admin/articles/5', title => '題名を直した', body => "[*toc]\n\n## 見出し", status => 'published', digest => digest(5));
+	is $res->status, 303, '保存は止めない';
+	my $body = get('/admin/articles/5?saved=1')->body;
+	like $body, qr{<div class="admin-warning" role="status">};
+	like $body, qr{<li>見出し「見出し」（##）の前に # の見出しが無いため、目次に入りません</li>};
+	post('/admin/articles/5', title => '題名を直した', body => "[*toc]\n\n# 見出し", status => 'published', digest => digest(5));
+	unlike get('/admin/articles/5')->body, qr{admin-warning}, '直せば出ない';
+};
+
 subtest '再構築' => sub {
 	$dbh->do('UPDATE articles SET body_html = NULL');
 	unlink $feed;
@@ -196,28 +206,35 @@ subtest 'ページ' => sub {
 	like $res->body, qr{<input type="hidden" name="kind" value="page">};
 	like $res->body, qr{<option value="3">ページ</option>}, '親に選べるページ';
 
-	$res = post('/admin/articles', kind => 'page', title => '子', page_name => '子', parent_id => 3, sort_order => '');
+	like $res->body, qr{<p class="admin-help" id="page-title-help">題名がURLになります}, 'ページでは、題名がURLになることを示す';
+	unlike $res->body, qr{name="page_name"}, '名前の欄は無い';
+	unlike get('/admin/articles/new')->body, qr{page-title-help}, '記事では示さない';
+
+	$res = post('/admin/articles', kind => 'page', title => '子', parent_id => 3, sort_order => '');
 	is $res->status, 303;
 	my ($id) = header($res, 'Location') =~ m{/admin/articles/(\d+)};
 	is $dbh->selectrow_array('SELECT slug FROM articles WHERE id = ?', undef, $id), 'ページ/子';
 	$res = get("/admin/articles/$id");
 	like $res->body, qr{<h1>ページの編集</h1>};
 	like $res->body, qr{<option value="3" selected>ページ</option>};
-	like $res->body, qr{name="page_name" value="子"};
 	unlike get('/admin/articles/3')->body, qr{<option value="3"}, '自分は親に選べない';
 	unlike get('/admin/articles/3')->body, qr{<option value="$id"}, '子孫も親に選べない';
 
-	$res = post('/admin/articles', kind => 'page', title => '同じ', page_name => '子', parent_id => 3);
+	$res = post('/admin/articles', kind => 'page', title => '子', body => '別の本文', parent_id => 3);
 	is $res->status, 400;
 	like $res->body, qr{URL「/ページ/子」は、「子」が使っています。};
-	like $res->body, qr{name="page_name" value="子"}, '書いた内容は消さない';
+	like $res->body, qr{<div class="admin-field admin-field-error">\s*<label>題名<br><input type="text" name="title" value="子"}, '題名の欄に誤りの印を付け、書いた内容は消さない';
+
+	$res = post('/admin/articles', kind => 'page', title => 'a/b', parent_id => 3);
+	is $res->status, 400;
+	like $res->body, qr{ページの題名はURLになるので}, '題名にURLに使えない文字があれば保存しない';
 };
 
 subtest '更新履歴' => sub {
 	unlike get('/admin/articles/new')->body, qr{class="revisions"}, '新しい記事には履歴の欄を出さない';
 	like get('/admin/articles/3')->body, qr{<summary>履歴\(0件\)</summary>.*この記事の履歴はまだありません}s;
 
-	my $res = post('/admin/articles/3', kind => 'page', title => 'ページ', body => '新しい本文', page_name => 'ページ', status => 'published', digest => digest(3));
+	my $res = post('/admin/articles/3', kind => 'page', title => 'ページ', body => '新しい本文', status => 'published', digest => digest(3));
 	is $res->status, 303;
 	my $body = get('/admin/articles/3')->body;
 	like $body, qr{<summary>履歴\(1件\)</summary>};
@@ -262,27 +279,23 @@ subtest 'サムネイルの大きさ（選択肢と直接入力）' => sub {
 	};
 	my $select_of = sub { ($_[0] =~ m{(<select class="preset-select"[^>]*>.*?</select>)}s)[0] };
 
-	my $form = get('/admin/articles/new')->body;
-	my $select = $select_of->($form);
-	is_deeply [ $select =~ m{<option value="(\w+)"(?: selected)?>[^<]*</option>}g ], [qw(120 160 240 320 480 640 other)],
-		'選択肢は旧システムと同じ（「その他」は「直接入力」と出す）';
-	like $select, qr{<option value="240" selected>240px</option>}, '記事の編集：既定（編集の設定）の大きさを選んでおく';
-	unlike $select, qr{name=}, '記事の編集：フォームでは送らない（JavaScript が読む）';
-	like $form, qr{<label class="preset-other" hidden><input type="number" value="240" min="60" max="800"}, '「直接入力」でなければ、入力欄を隠す';
+	unlike get('/admin/articles/new')->body, qr{preset-select}, '記事の編集の画面では選ばない（大きさは編集の設定の1か所だけで決める）';
 
 	my $settings = get('/admin/settings/editor')->body;
-	like $settings, qr{<select class="preset-select" name="thumbnail_size"[^>]*>.*?<option value="240" selected>240px</option>}s, '編集の設定も同じ部品';
-	like $settings, qr{<label class="preset-other" hidden><input type="number" name="thumbnail_size_other" value="240"};
+	my $select = $select_of->($settings);
+	is_deeply [ $select =~ m{<option value="(\w+)"(?: selected)?>[^<]*</option>}g ], [qw(120 160 240 320 480 640 other)],
+		'選択肢は旧システムと同じ（「その他」は「直接入力」と出す）';
+	like $settings, qr{<select class="preset-select" name="thumbnail_size"[^>]*>.*?<option value="240" selected>240px</option>}s, '編集の設定：今の大きさを選んでおく';
+	like $settings, qr{<label class="preset-other" hidden><input type="number" name="thumbnail_size_other" value="240"}, '「直接入力」でなければ、入力欄を隠す';
 
 	is header($editor->(thumbnail_size => '480', thumbnail_size_other => '999'), 'Location'), '/admin/settings/editor?saved=1';
 	my $saved = sub { Lyndbaum::Model::Setting->all($t->dbh)->{thumbnail_size} };
 	is $saved->(), 480, '選んだ大きさを保存する（直接入力の欄は見ない）';
 	$editor->(thumbnail_size => 'other', thumbnail_size_other => ' 200 ');
 	is $saved->(), 200, '「直接入力」なら入れた数を保存する';
-	like get('/admin/settings/editor')->body, qr{<option value="other" selected>直接入力</option>}, '選択肢に無い数なら「直接入力」を選んでおく';
-	$form = get('/admin/articles/new')->body;
-	like $form, qr{<option value="other" selected>直接入力</option>}, '記事の編集でも';
-	like $form, qr{<label class="preset-other"><input type="number" value="200"}, '入力欄に既定の数を入れて出す';
+	$settings = get('/admin/settings/editor')->body;
+	like $settings, qr{<option value="other" selected>直接入力</option>}, '選択肢に無い数なら「直接入力」を選んでおく';
+	like $settings, qr{<label class="preset-other"><input type="number" name="thumbnail_size_other" value="200"}, '入力欄にその数を入れて出す';
 	is $editor->(thumbnail_size => 'other', thumbnail_size_other => '801')->status, 400, '直接入力でも範囲を確かめる';
 	is $editor->(thumbnail_size => '9999')->status, 400, '選択肢に無い数を送っても範囲を確かめる';
 	$editor->(thumbnail_size => '240');

@@ -14,12 +14,7 @@ my $QUALITY = 85;
 #   透明なところは白にする。読めなければ die する
 sub make {
 	my ($class, $data, $kind, $size) = @_;
-	require GD;
-	GD::Image->trueColor(1);
-	my $method = { jpeg => 'newFromJpegData', png => 'newFromPngData', gif => 'newFromGifData', webp => 'newFromWebpData' }->{$kind}
-		// die "サムネイルを作れない種類です: $kind\n";
-	die "この GD は $kind を読めません\n" if !GD::Image->can($method);
-	my $src = GD::Image->$method($data, 1) // die "画像を読めません\n";
+	my $src = _read($data, $kind);
 
 	my ($w, $h) = $src->getBounds;
 	my $scale = $w > $size || $h > $size ? $size / ($w > $h ? $w : $h) : 1;
@@ -31,6 +26,35 @@ sub make {
 
 	$thumb = _orient($thumb, $kind eq 'jpeg' ? $class->orientation($data) : 1);
 	return $thumb->jpeg($QUALITY);
+}
+
+# 画像（バイト列）を GD の画像（フルカラー。透明なところは残す）にする。JPEG は Exif の向きに合わせて回す
+#   サイトのアイコン（Lyndbaum::SiteIcon）が使う。読めなければ die する
+sub load {
+	my ($class, $data, $kind) = @_;
+	my $image = _read($data, $kind);
+	return _orient($image, $kind eq 'jpeg' ? $class->orientation($data) : 1);
+}
+
+sub _read {
+	my ($data, $kind) = @_;
+	require GD;
+	GD::Image->trueColor(1);
+	my $method = { jpeg => 'newFromJpegData', png => 'newFromPngData', gif => 'newFromGifData', webp => 'newFromWebpData' }->{$kind}
+		// die "サムネイルを作れない種類です: $kind\n";
+	die "この GD は $kind を読めません\n" if !GD::Image->can($method);
+	# フルカラーで読む引数があるのは PNG と JPEG だけ（GIF と WebP に渡すと、引数の数が違うので die する）
+	my $image = ($kind eq 'png' || $kind eq 'jpeg' ? GD::Image->$method($data, 1) : GD::Image->$method($data))
+		// die "画像を読めません\n";
+	return $image if $image->isTrueColor;
+	# GIF は256色の画像になるので、フルカラーの画像に写す（透明な色のところは透明のまま）
+	my ($w, $h) = $image->getBounds;
+	my $true = GD::Image->new($w, $h, 1);
+	$true->alphaBlending(0);
+	$true->saveAlpha(1);
+	$true->filledRectangle(0, 0, $w - 1, $h - 1, $true->colorAllocateAlpha(0, 0, 0, 127));
+	$true->copy($image, 0, 0, 0, 0, $w, $h);
+	return $true;
 }
 
 sub _round { int($_[0] + 0.5) }

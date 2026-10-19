@@ -5,12 +5,14 @@ package Lyndbaum::Legacy::Importer;
 use strict;
 use warnings;
 use utf8;
+use feature 'current_sub';
 
 use File::Spec;
 use Time::Local qw(timegm);
 use Lyndbaum::Legacy::TextDB;
 use Lyndbaum::Parser;
 use Lyndbaum::Parser::Markdown;
+use Lyndbaum::Model::Article;
 use Lyndbaum::Model::Comment;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::Model::Tag;
@@ -52,6 +54,9 @@ sub run {
 		$result{article_tags} = $class->_import_article_tags($dbh, $articles, $tags);
 		($result{comments}, $result{private_comments}) = $class->_import_comments($dbh, $comments);
 		$result{settings}     = $class->_import_settings($dbh, $setting, $articles);
+		# ブログの画像（OGP で、記事に画像が無いときに出すもの）。旧システムのパス（pub/ブログID/image/…）を添付ファイルの中のパスにして返す
+		#   ファイルを pub/branding/ へ写すのは呼んだ側（tools/import-adiary.pl。Lyndbaum::BlogImage->copy_attachment）
+		$result{blog_image}   = ($setting->{blog_image} // '') =~ m{\A/?pub/[^/]+/image/(.+)\z} ? $class->rename_folder($1) : undef;
 		# 取り込んだコメントは、新着として数えない
 		Lyndbaum::Model::Comment->mark_seen($dbh);
 		# 記事のIDを使い回さないよう、最後に使ったIDを記録する（Lyndbaum::Model::Article->next_id）
@@ -89,12 +94,13 @@ sub _import_articles {
 	my ($class, $dbh, $articles, $rewrite) = @_;
 	my $sth = $dbh->prepare(<<'SQL');
 INSERT INTO articles (
-    id, kind, slug, title, syntax, body_src, description, eyecatch, eyecatch_mode,
+    id, kind, slug, title, syntax, body_src, description, eyecatch,
     status, published_at, created_at, updated_at, sort_order,
     comments_open
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 SQL
 
+	my $page_slugs = $class->_page_slugs($articles);
 	my %parent_of;
 	my ($rewritten, $image_alts, $heading_ids, $article_links, $lythumb) = (0, 0, 0, 0, 0);
 	for my $art (@$articles) {
@@ -106,13 +112,7 @@ SQL
 		$article_links += $changed->{article_links};
 		$lythumb += $changed->{lythumb};
 		my $kind = ($art->{ctype} // '') ne '' ? 'page' : 'post';
-		my $slug = $art->{link_key};
-
-		# 旧システムのリンク項目とトップページ指定は、実データに無いので扱わない。来たら止める
-		die "記事 $art->{pkey}: リンク項目（$slug）の取り込みは未対応です\n"
-			if $kind eq 'page' && $slug =~ m{\A(?:https?://|/)};
-		die "記事 $art->{pkey}: トップページ指定（$slug）の取り込みは未対応です\n"
-			if $kind eq 'page' && $slug =~ /\A(?:FrontPage|top|index)\z/;
+		my $slug = $kind eq 'page' ? $page_slugs->{ $art->{pkey} } : $art->{link_key};
 
 		# 下書きには公開日時が無い。作成日時は tm（無ければ更新日時）
 		my $published_at = _published_at($art);
@@ -124,9 +124,8 @@ SQL
 			$art->{parser} || 'markdown',
 			$body,
 			$art->{description} // '',
-			$class->rename_folder($art->{main_image} // ''),
 			# アイキャッチが決まっていれば、その画像を出す（docs/ogp.md）。無ければ本文の最初の画像
-			($art->{main_image} // '') ne '' ? 'chosen' : 'auto',
+			$class->rename_folder($art->{main_image} // ''),
 			$art->{enable} ? 'published' : 'draft',
 			$published_at,
 			$art->{tm} // $art->{update_tm},
@@ -143,6 +142,43 @@ SQL
 	$update->execute($parent_of{$_}, $_) for sort { $a <=> $b } keys %parent_of;
 
 	return (scalar @$articles, $rewritten, $image_alts, $heading_ids, $article_links, $lythumb);
+}
+
+# コンテンツページの slug を、管理画面で保存したときと同じ「親の slug/題名」にする（{ ID => slug }）
+#   旧システムの link_key は題名と別に付けられたが、新しいシステムでは題名から作る（docs/compat-diffs.md）
+#   題名がURLに使えないときや、ほかのページとぶつかるときは止める
+sub _page_slugs {
+	my ($class, $articles) = @_;
+	my %page = map { $_->{pkey} => $_ } grep { ($_->{ctype} // '') ne '' } @$articles;
+	for my $art (values %page) {
+		my $key = $art->{link_key} // '';
+		# 旧システムのリンク項目とトップページ指定は、実データに無いので扱わない。来たら止める
+		die "記事 $art->{pkey}: リンク項目（$key）の取り込みは未対応です\n" if $key =~ m{\A(?:https?://|/)};
+		die "記事 $art->{pkey}: トップページ指定（$key）の取り込みは未対応です\n" if $key =~ /\A(?:FrontPage|top|index)\z/;
+	}
+
+	my (%slug, %visiting);
+	my $slug_of = sub {
+		my ($id) = @_;
+		return $slug{$id} if defined $slug{$id};
+		my $art = $page{$id};
+		die "記事 $id: 親子関係が輪になっています\n" if $visiting{$id}++;
+		my $title = $art->{title} // '';
+		$title =~ s/\A\s+|\s+\z//g;
+		my $parent = _id_or_null($art->{upnode});
+		die "記事 $id: 親のページ（$parent）がありません\n" if defined $parent && !$page{$parent};
+		my @errors = $title eq '' ? ('題名がありません。') : Lyndbaum::Model::Article->page_name_errors($title, root => !defined $parent);
+		die "記事 $id: 題名「$title」からページのURLを作れません：$errors[0]\n" if @errors;
+		return $slug{$id} = defined $parent ? __SUB__->($parent) . "/$title" : $title;
+	};
+	my %owner;
+	for my $id (sort { $a <=> $b } keys %page) {
+		my $slug = $slug_of->($id);
+		die "記事 $owner{$slug} と記事 $id のURL「/$slug」がぶつかります（同じ親の中に同じ題名のページがあります）\n"
+			if defined $owner{$slug};
+		$owner{$slug} = $id;
+	}
+	return \%slug;
 }
 
 # 取り込むときに本文を書き換える関数を返す（全記事の比較ツールでも使う）
@@ -289,11 +325,6 @@ sub _import_settings {
 	for my $old (sort keys %SETTING_KEYS) {
 		next if !defined $setting->{$old} || $setting->{$old} eq '';
 		Lyndbaum::Model::Setting->set($dbh, $SETTING_KEYS{$old}, $setting->{$old});
-		$count++;
-	}
-	# ブログの画像（OGP で、記事に画像が無いときに出すもの）。旧システムのパス（pub/ブログID/image/…）を添付ファイルの中のパスにする
-	if (($setting->{blog_image} // '') =~ m{\A/?pub/[^/]+/image/(.+)\z}) {
-		Lyndbaum::Model::Setting->set($dbh, blog_image => $class->rename_folder($1));
 		$count++;
 	}
 	my ($author) = grep { defined && $_ ne '' } map { $_->{name} } sort { $a->{pkey} <=> $b->{pkey} } @$articles;

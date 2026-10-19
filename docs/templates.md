@@ -106,9 +106,11 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `urls.top`        | トップページのURL                                                         |
 | `urls.search`     | 検索のURL                                                                 |
 | `urls.feed`       | RSSのURL                                                                  |
-| `urls.style`      | `style.css`のURL                                                         |
+| `urls.style`      | `common.css`（公開側と管理画面の両方で使う見た目）のURL                  |
+| `urls.site_style` | `site.css`（公開側だけの見た目）のURL。`urls.style`の後に読む            |
 | `urls.lythumb_css`、`urls.prism_css`、`urls.prism_core`  | 画像の拡大表示とコードの色付けのファイルのURL      |
 | `urls.scripts`    | 読み込むJavaScriptのURLの配列（この順に`defer`で読む）                  |
+| `urls.icon`       | サイトのアイコンのURL（`icon_32`、`icon_192`、`apple_touch_icon`）。管理画面の`urls`にもある（`Lyndbaum::SiteIcon`） |
 | `form`            | 検索フォームの値（下の「form」）。検索のページでは、入力した検索語が入る |
 | `sidebar_tags`    | `sidebar_tags.html`の生成済みHTML（エスケープ済み）                     |
 | `sidebar_menu`    | `sidebar_menu.html`の生成済みHTML（自由欄も許可リストに通してある）     |
@@ -227,7 +229,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `article.show_updated` | 更新日を出すなら真（投稿日と日付が違うとき。投稿日が無いときも真）   |
 | `article.tags`         | 付いているタグの配列（下の「タグ」。親を含めた名前の順）             |
 | `article.comments_open`| コメントを受け付ける記事なら1                                       |
-| `article.eyecatch`、`article.eyecatch_mode` | アイキャッチの設定（OGPで使う。`docs/ogp.md`） |
+| `article.eyecatch`     | 選んだアイキャッチ（添付ファイルの中のパス）。選んでいなければ空（`docs/ogp.md`） |
 
 個別ページ（`article.html`）だけで使える項目。
 
@@ -374,7 +376,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | 変数         | 中身                                                           |
 | ------------ | -------------------------------------------------------------- |
 | `blog`       | ブログの設定（公開側と同じ）                                   |
-| `urls`       | 管理画面の各ページのURL（`admin`、`articles`、`new_article`、`new_page`、`trash`、`tags`、`media`、`comments`、`blog_settings`、`comment_settings`、`editor_settings`、`sidebar`、`rebuild`、`logout`など）と、`top`、`style`、`admin_script`、`media_script`、`unsaved_script` |
+| `urls`       | 管理画面の各ページのURL（`admin`、`articles`、`new_article`、`new_page`、`trash`、`tags`、`media`、`comments`、`blog_settings`、`comment_settings`、`editor_settings`、`sidebar`、`rebuild`、`logout`など）と、`top`、`style`（`common.css`）、`admin_style`（`admin.css`。`style`の後に読む）、`admin_script`、`media_script`、`unsaved_script` |
 | `logged_in`  | ログインしていれば1                                           |
 | `csrf_token` | フォームに入れるCSRFのトークン。ログインしていなければ空      |
 | `content`    | ページのテンプレートの出力（`admin_layout.html`だけ）         |
@@ -404,11 +406,11 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 
 | 変数             | 中身                                                                   |
 | ---------------- | ---------------------------------------------------------------------- |
-| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない（記事の編集の画面のアップロードの欄。`admin-article.js`が読む） |
+| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない |
 | `preset.label`   | 欄の名前（`aria-label`に使う）                                        |
 | `preset.options` | 選択肢の配列。要素は`value`（数か`other`）、`label`、`selected`        |
 | `preset.other`   | 「直接入力」を選んでいれば真（入力欄を出す）                           |
 | `preset.value`、`preset.min`、`preset.max`、`preset.unit` | 入力欄の値、範囲、後ろに付ける単位          |
 
-使う場所は、編集の設定（`admin_settings.html`の`field.preset`）と、記事の編集の画面のアップロードの欄（`admin_article_form.html`の`thumbnail_preset`）。
+使う場所は、編集の設定（`admin_settings.html`の`field.preset`）。
 管理画面のフォームには、必ず`<input type="hidden" name="csrf_token" value="{{ csrf_token }}">`を入れる（`docs/admin.md`）。

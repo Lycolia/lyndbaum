@@ -6,12 +6,12 @@ use utf8;
 
 use Encode qw(decode_utf8);
 
-# POST の本文の大きさの上限（バイト）。フォームの送信だけなので小さくてよい
+# POSTの本文の大きさの上限（バイト）。フォームの送信だけなので小さくてよい
 my $MAX_BODY = 1024 * 1024;
 
 # %opt
-#   input       POST の本文を読むファイルハンドル（既定は STDIN）
-#   max_upload  ファイルを送るフォーム（multipart/form-data）の本文の大きさの上限（バイト。既定は 20MB）
+#   input       POSTの本文を読むファイルハンドル（既定はSTDIN）
+#   max_upload  ファイルを送るフォーム（multipart/form-data）の本文の大きさの上限（バイト。既定は20MB）
 sub new {
 	my ($class, $env, %opt) = @_;
 	return bless { env => $env, input => $opt{input} // \*STDIN, max_upload => $opt{max_upload} // 20 * 1024 * 1024 }, $class;
@@ -23,8 +23,8 @@ sub method {
 }
 
 # アプリの中でのパス（先頭は必ず /）
-#   /index.cgi/123 のように呼ばれたときは PATH_INFO を使う
-#   mod_rewrite で /123 を index.cgi に渡したときは REQUEST_URI から取る
+#   /index.cgi/123のように呼ばれたときはPATH_INFOを使う
+#   mod_rewriteで/123をindex.cgiに渡したときはREQUEST_URIから取る
 sub path {
 	my ($self) = @_;
 	return $self->{path} //= do {
@@ -68,14 +68,14 @@ sub params {
 	return @{ $self->{params}{$name} // [] };
 }
 
-# POST の本文（application/x-www-form-urlencoded）の値。同じ名前が複数あるときは最初のもの
+# POSTの本文（application/x-www-form-urlencoded）の値。同じ名前が複数あるときは最初のもの
 sub body_param {
 	my ($self, $name) = @_;
 	my ($first) = $self->body_params($name);
 	return $first;
 }
 
-# POST の本文の値をすべて（同じ名前で複数送られるもの。記事のタグなど）
+# POSTの本文の値をすべて（同じ名前で複数送られるもの。記事のタグなど）
 sub body_params {
 	my ($self, $name) = @_;
 	$self->_read_form;
@@ -119,7 +119,7 @@ sub _read_form {
 	$self->{body_params} = \%params;
 }
 
-# POST の本文（バイト列）。フォームの送信でなければ空
+# POSTの本文（バイト列）。フォームの送信でなければ空
 sub _body {
 	my ($self) = @_;
 	my $env = $self->{env};
@@ -141,7 +141,7 @@ sub _read {
 	return $body;
 }
 
-# Cookie の値。無ければ undef
+# Cookieの値。無ければundef
 sub cookie {
 	my ($self, $name) = @_;
 	$self->{cookies} //= do {
@@ -155,14 +155,14 @@ sub cookie {
 	return $self->{cookies}{$name};
 }
 
-# 接続してきた IP アドレス
+# 接続してきたIPアドレス
 sub remote_addr {
 	my ($self) = @_;
 	return $self->{env}{REMOTE_ADDR} // '';
 }
 
 # 接続してきたホストの名前。WebサーバーがREMOTE_HOSTを渡していればそれ（空でも）、無ければ逆引きする
-#   逆引きは $DNS_TIMEOUT 秒で打ち切る。引けなければ空
+#   逆引きは$DNS_TIMEOUT秒で打ち切る。引けなければ空
 #   IPv6は逆引きしない（設定していないプロバイダーが多く、関係のない名前が返ることもあるため）
 our $DNS_TIMEOUT = 2;
 sub remote_host {
@@ -180,7 +180,7 @@ sub user_agent {
 
 # 逆引きした名前を正引きし、元のIPアドレスに戻るときだけ使う（FCrDNS）
 #   逆引きの名前は、そのIPアドレスを持つ人が自由に付けられるため
-#   2回の問い合わせを合わせて $DNS_TIMEOUT 秒で打ち切る
+#   2回の問い合わせを合わせて$DNS_TIMEOUT秒で打ち切る
 sub _reverse_lookup {
 	my ($ip) = @_;
 	# IPv4をIPv6の形で書いたもの（::ffff:192.0.2.1）は、中のIPv4で引く
@@ -219,7 +219,7 @@ sub _addresses {
 	} @results;
 }
 
-# リクエストの Origin ヘッダー。無ければ Referer の scheme://host[:port] の部分。どちらも無ければ undef
+# リクエストの Originヘッダー。無ければRefererのscheme://host[:port]の部分。どちらも無ければundef
 sub origin {
 	my ($self) = @_;
 	my $env = $self->{env};
@@ -228,7 +228,7 @@ sub origin {
 	return undef;
 }
 
-# このサイトの scheme://host[:port]（Host ヘッダーから作る）
+# このサイトのscheme://host[:port]（Hostヘッダーから作る）
 sub own_origin {
 	my ($self) = @_;
 	my $env = $self->{env};
