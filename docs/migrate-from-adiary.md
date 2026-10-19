@@ -12,8 +12,8 @@
 
 ```sh
 cd <置き場所>
-cp -a <adiary>/pub/lycolia/image/. pub/attachments/     # . を付けて、ゴミ箱（.trashbox）も写す
-mv pub/attachments/adiary pub/attachments/posts         # フォルダの名前を変える（docs/compat-diffs.md）
+sudo cp -a <adiary>/pub/lycolia/image/. pub/attachments/     # . を付けて、ゴミ箱（.trashbox）も写す
+sudo mv pub/attachments/adiary pub/attachments/posts         # フォルダの名前を変える（docs/compat-diffs.md）
 perl tools/import-adiary.pl <adiary>/data lycolia       # 取り込んで、全記事を変換し、RSSとサイトマップを書き出す
 ```
 
