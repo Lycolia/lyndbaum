@@ -103,7 +103,7 @@
       </div>
       {{/ if }}
       <dl class="publish-box-status">
-        <dt>状態</dt><dd>{{# if article.published }}公開中{{# else }}下書き{{# if article }}（管理者にだけ見えます）{{/ if }}{{/ if }}</dd>
+        <dt>状態</dt><dd>{{# if article.published }}公開中{{# else }}下書き{{/ if }}</dd>
         {{# if article }}<dt>更新日時</dt><dd><time datetime="{{ article.updated.iso }}">{{ article.updated.datetime }}</time></dd>{{/ if }}
       </dl>
       <div class="admin-field{{# if error_of.published_at }} admin-field-error{{/ if }}">
