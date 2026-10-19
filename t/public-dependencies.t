@@ -1,4 +1,6 @@
 # 通常の閲覧が、検索実行・認証・投稿用のモジュールを巻き込まないことを確かめる
+#   書き出し用のモジュール（サイトのアイコンやブログの画像の入れ替え、RSS とサイトマップ、アップロード）も読み込まない
+#   CGI は毎回すべてを読み込み直すので、読み込むものが増えると表示が遅くなる
 use strict;
 use warnings;
 use utf8;
@@ -17,6 +19,7 @@ for my $path ('/', '/07') {
 		for my $module (qw(
 			Controller/Search Model/Search Highlight Model/Session Password
 			AddressMatch Multipart Controller/Admin Media Parser Parser/Markdown
+			SiteIcon/Writer BlogImage/Writer Branding/Writer StaticFiles Feed Sitemap Upload Thumbnail
 		)) {
 			ok !exists $INC{"Lyndbaum/$module.pm"}, "$module は未ロード";
 		}

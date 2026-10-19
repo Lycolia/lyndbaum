@@ -17,7 +17,7 @@ use Lyndbaum::Legacy::Importer;
 use Lyndbaum::Model::Article;
 use Lyndbaum::SidebarCache;
 use Lyndbaum::Backlinks;
-use Lyndbaum::BlogImage;
+use Lyndbaum::BlogImage::Writer;
 
 my ($data_dir, $blog_id, $config_file) = @ARGV;
 die "使い方: $0 <旧システムの data> <ブログID> [設定ファイル]\n" if !defined $blog_id;
@@ -31,7 +31,7 @@ my $result = Lyndbaum::Legacy::Importer->run($app->db, $data_dir, $blog_id,
 # ブログの画像は、添付ファイルの中から pub/branding/ へ写す（添付ファイルは先に置いておく。docs/migrate-from-adiary.md）
 my $blog_image_error;
 if (defined $result->{blog_image}) {
-	eval { Lyndbaum::BlogImage->copy_attachment($app, $result->{blog_image}); 1 } or ($blog_image_error = $@) =~ s/\n\z//;
+	eval { Lyndbaum::BlogImage::Writer->copy_attachment($app, $result->{blog_image}); 1 } or ($blog_image_error = $@) =~ s/\n\z//;
 }
 my $rebuilt = Lyndbaum::Model::Article->rebuild_all($app->db, %context);
 Lyndbaum::SidebarCache->rebuild($app);

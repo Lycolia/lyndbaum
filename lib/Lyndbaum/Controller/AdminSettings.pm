@@ -4,13 +4,14 @@ package Lyndbaum::Controller::AdminSettings;
 #   /admin/settings/comments   コメントの設定（Lyndbaum::CommentSettings）
 #   /admin/settings/editor     編集の設定（Lyndbaum::EditorSettings）
 #   POST で保存する。書き方が正しくなければ400で、書いた値を残してフォームを出し直す
-#   /admin/settings/icon       サイトのアイコンの入れ替えと削除（POST だけ。ブログの設定の画面にフォームがある。Lyndbaum::SiteIcon）
-#   /admin/settings/blog_image ブログの画像の入れ替えと削除（同じ。Lyndbaum::BlogImage）
+#   /admin/settings/icon       サイトのアイコンの入れ替えと削除（POST だけ。ブログの設定の画面にフォームがある。Lyndbaum::SiteIcon::Writer）
+#   /admin/settings/blog_image ブログの画像の入れ替えと削除（同じ。Lyndbaum::BlogImage::Writer）
 use strict;
 use warnings;
 use utf8;
 
 use Lyndbaum::BlogImage;
+use Lyndbaum::BlogImage::Writer;
 use Lyndbaum::BlogSettings;
 use Lyndbaum::CommentSettings;
 use Lyndbaum::Controller::Admin;
@@ -18,12 +19,15 @@ use Lyndbaum::EditorSettings;
 use Lyndbaum::Model::Setting;
 use Lyndbaum::SettingsForm;
 use Lyndbaum::SiteIcon;
+use Lyndbaum::SiteIcon::Writer;
 
 # ブログの設定の画面で入れ替える画像。ファイルを送るので、設定の項目とは別のフォームにする
+#   module は表示用（custom）、writer は入れ替えと削除（save、remove）のモジュール
 #   preview は今の画像のURL（入れていなければ既定のロゴか undef）。saved と deleted は、入れ替えた後と消した後に出す文
 my %IMAGES = (
 	icon => {
 		module  => 'Lyndbaum::SiteIcon',
+		writer  => 'Lyndbaum::SiteIcon::Writer',
 		title   => 'サイトのアイコン',
 		help    => 'ブラウザのタブ、ブックマーク、スマートフォンのホーム画面などに出します。正方形でなければ、真ん中を正方形に切り抜きます。512×512px以上を目安にしてください。動くGIFは最初の1コマだけを使います。',
 		square  => 1,
@@ -35,6 +39,7 @@ my %IMAGES = (
 	},
 	blog_image => {
 		module  => 'Lyndbaum::BlogImage',
+		writer  => 'Lyndbaum::BlogImage::Writer',
 		title   => 'ブログの画像',
 		help    => 'OGPで、記事に画像が無いときや、トップページに出します。画像はそのまま使います（1200×630pxくらいを目安に）。',
 		default => 'ありません（OGPに画像を出しません）',
@@ -95,13 +100,13 @@ sub save_image {
 		# 大きすぎる本文は読まないので、CSRFトークンも読めない。何も変えずに理由を出す
 		$error = sprintf 'ファイルが大きすぎます（%dMBまで）。', $app->upload_max_bytes / 1024 / 1024;
 	} elsif (($req->body_param('op') // '') eq 'delete') {
-		$image->{module}->remove($app);
+		$image->{writer}->remove($app);
 		return $app->redirect($app->url->admin('settings/blog', image => $key, done => 'deleted') . "#$key", 303);
 	} else {
 		my ($upload) = $req->uploads('file');
 		if (!$upload || ($upload->{filename} // '') eq '') {
 			$error = '画像を選んでください。';
-		} elsif (!eval { $image->{module}->save($app, filename => $upload->{filename}, data => $upload->{data}); 1 }) {
+		} elsif (!eval { $image->{writer}->save($app, filename => $upload->{filename}, data => $upload->{data}); 1 }) {
 			($error = $@) =~ s/\n\z//;
 		} else {
 			return $app->redirect($app->url->admin('settings/blog', image => $key, done => 'saved') . "#$key", 303);
