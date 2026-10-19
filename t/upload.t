@@ -11,6 +11,7 @@ use File::Temp qw(tempdir);
 use JSON::PP ();
 use Lyndbaum::App;
 use Lyndbaum::Config;
+use Lyndbaum::Media;
 use Lyndbaum::Thumbnail;
 use Lyndbaum::Upload;
 use AdminTest;
@@ -117,6 +118,37 @@ SKIP: {
 		is do { local $/; <$fh> }, $jpeg, '元の画像には手を加えない（Exif も残す）';
 	};
 
+	subtest 'サムネイルを作り直す（tools/rebuild-thumbnails.pl）' => sub {
+		my $root = tempdir(CLEANUP => 1);
+		my $put = sub {
+			my ($path, $data) = @_;
+			my $file = encode_utf8(File::Spec->catfile($root, split m{/}, $path));
+			make_path((File::Spec->splitpath($file))[1]);
+			open my $fh, '>:raw', $file or die $!;
+			print $fh $data;
+			close $fh;
+		};
+		my $image = GD::Image->new(800, 400, 1);
+		$put->('posts/2026/10/あり.png', $image->png);
+		$put->('posts/2026/10/.thumbnail/あり.png.jpg', GD::Image->new(240, 120, 1)->jpeg);
+		$put->('@system/素材/なし.png', $image->png);
+		$put->('@system/偽物.png', 'not png');
+		$put->('@system/動画.mp4', $FAKE{mp4});
+		$put->('.trashbox/posts/ゴミ.png', $image->png);
+		my $media = Lyndbaum::Media->new(dir => $root, trash_dir => "$root/.trashbox");
+		my $bounds = sub { [ GD::Image->newFromJpeg(encode_utf8("$root/$_[0]"), 1)->getBounds ] };
+
+		my $result = Lyndbaum::Upload->rebuild_thumbnails(dir => $root, media => $media, size => 160, missing => 1);
+		is_deeply $result, { made => 1, skipped => 1, errors => [] }, '--missing：無いものだけ作る（画像でないもの、中身の合わないものは数えない）';
+		is_deeply $bounds->('@system/素材/.thumbnail/なし.png.jpg'), [160, 80];
+		is_deeply $bounds->('posts/2026/10/.thumbnail/あり.png.jpg'), [240, 120], 'あるものは変えない';
+
+		$result = Lyndbaum::Upload->rebuild_thumbnails(dir => $root, media => $media, size => 320);
+		is $result->{made}, 2, 'すべて作り直す';
+		is_deeply $bounds->('posts/2026/10/.thumbnail/あり.png.jpg'), [320, 160], '新しい大きさにする';
+		ok !-e encode_utf8("$root/\@system/.thumbnail/偽物.png.jpg"), '中身の合わないものには作らない';
+		ok !-e encode_utf8("$root/.trashbox/posts/.thumbnail/ゴミ.png.jpg"), 'ゴミ箱の中は作らない';
+	};
 }
 
 subtest '/admin/upload' => sub {

@@ -405,11 +405,11 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 
 | 変数             | 中身                                                                   |
 | ---------------- | ---------------------------------------------------------------------- |
-| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない（記事の編集の画面のアップロードの欄。`admin-article.js`が読む） |
+| `preset.name`    | フォームの項目名。選択肢は`name`、入力欄は`name_other`で送る。空ならフォームで送らない |
 | `preset.label`   | 欄の名前（`aria-label`に使う）                                        |
 | `preset.options` | 選択肢の配列。要素は`value`（数か`other`）、`label`、`selected`        |
 | `preset.other`   | 「直接入力」を選んでいれば真（入力欄を出す）                           |
 | `preset.value`、`preset.min`、`preset.max`、`preset.unit` | 入力欄の値、範囲、後ろに付ける単位          |
 
-使う場所は、編集の設定（`admin_settings.html`の`field.preset`）と、記事の編集の画面のアップロードの欄（`admin_article_form.html`の`thumbnail_preset`）。
+使う場所は、編集の設定（`admin_settings.html`の`field.preset`）。
 管理画面のフォームには、必ず`<input type="hidden" name="csrf_token" value="{{ csrf_token }}">`を入れる（`docs/admin.md`）。

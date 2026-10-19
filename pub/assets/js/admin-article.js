@@ -304,8 +304,6 @@
 		if (!bar) return;
 		var body   = form.elements.body;
 		var input  = bar.querySelector('.upload-input');
-		var preset = bar.querySelector('.preset-select');            // サムネイルの大きさ（templates/preset_field.html）
-		var size   = bar.querySelector('.preset-other input');
 		var status = bar.querySelector('.upload-status');
 		var busy   = false;
 
@@ -326,7 +324,6 @@
 			status.textContent = files.length + '件のファイルを上げています…';
 			var data = new FormData();
 			data.append('csrf_token', form.elements.csrf_token.value);
-			data.append('thumbnail_size', preset.value === 'other' ? size.value : preset.value);
 			files.forEach(function (f) { data.append('file', f, f.name); });
 			fetch(bar.dataset.uploadUrl, { method: 'POST', body: data, credentials: 'same-origin' })
 				.then(function (res) {

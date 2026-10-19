@@ -54,16 +54,60 @@ sub save {
 
 	my $thumbnail = 0;
 	if ($IS_IMAGE{$kind}) {
-		my $jpeg = eval { Lyndbaum::Thumbnail->make($args{data}, $kind, $args{thumbnail_size}) };
-		warn "サムネイルを作れませんでした: $folder$name: $@" if !defined $jpeg;
-		if (defined $jpeg) {
-			my $thumb_dir = File::Spec->catdir($dir, '.thumbnail');
-			make_path(encode_utf8($thumb_dir), { mode => 0755 });
-			_write(File::Spec->catfile($thumb_dir, "$name.jpg"), $jpeg);
-			$thumbnail = 1;
-		}
+		$thumbnail = eval { _write_thumbnail($dir, $name, $args{data}, $kind, $args{thumbnail_size}); 1 } ? 1 : 0;
+		warn "サムネイルを作れませんでした: $folder$name: $@" if !$thumbnail;
 	}
 	return { folder => $folder, name => $name, kind => $kind, ext => lc $ext, image => $IS_IMAGE{$kind} ? 1 : 0, thumbnail => $thumbnail };
+}
+
+# サムネイル（.thumbnail/名前.jpg）を作って置く。作れなければ die
+sub _write_thumbnail {
+	my ($dir, $name, $data, $kind, $size) = @_;
+	my $jpeg = Lyndbaum::Thumbnail->make($data, $kind, $size);
+	my $thumb_dir = File::Spec->catdir($dir, '.thumbnail');
+	make_path(encode_utf8($thumb_dir), { mode => 0755 });
+	_write(File::Spec->catfile($thumb_dir, "$name.jpg"), $jpeg);
+}
+
+# 添付ファイルの画像のサムネイルを作り直す（tools/rebuild-thumbnails.pl。編集の設定の大きさを変えたとき）
+#   %args
+#     dir      添付ファイルの置き場所
+#     media    Lyndbaum::Media（フォルダとファイルの一覧。. で始まるフォルダ（ゴミ箱など）は含まない）
+#     size     サムネイルの長い辺（px）
+#     missing  真なら、サムネイルが無い画像だけ作る（あるものは大きさが違っても変えない）
+#   戻り値は { made => 作った数, skipped => そのままにした数, errors => [ 理由, ... ] }
+#   画像でないファイル、拡張子と中身の種類が合わないファイルは数えない
+sub rebuild_thumbnails {
+	my ($class, %args) = @_;
+	my %result = (made => 0, skipped => 0, errors => []);
+	my @queue = @{ $args{media}->folders };
+	while (my $node = shift @queue) {
+		push @queue, @{ $node->{children} };
+		my $folder = $node->{folder};
+		my $dir = File::Spec->catdir($args{dir}, split m{/}, $folder);
+		for my $file (@{ $args{media}->files($folder) }) {
+			my $kind = $KIND_OF_EXT{ $file->{ext} } // next;
+			next if !$IS_IMAGE{$kind};
+			if ($args{missing} && $file->{thumbnail}) {
+				$result{skipped}++;
+				next;
+			}
+			my $made = eval {
+				my $path = encode_utf8(File::Spec->catfile($dir, $file->{name}));
+				open my $fh, '<:raw', $path or die "$!\n";
+				my $data = do { local $/; <$fh> };
+				return 0 if !$MAGIC{$kind}->($data);
+				_write_thumbnail($dir, $file->{name}, $data, $kind, $args{size});
+				1;
+			};
+			if ($made) {
+				$result{made}++;
+			} elsif (!defined $made) {
+				push @{ $result{errors} }, "$folder$file->{name}: " . ($@ =~ s/\n\z//r);
+			}
+		}
+	}
+	return \%result;
 }
 
 # 本文に入れる記法（docs/markdown-syntax.md）。サムネイルが無い画像は、元の画像を出す（L）

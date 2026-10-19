@@ -269,27 +269,23 @@ subtest 'サムネイルの大きさ（選択肢と直接入力）' => sub {
 	};
 	my $select_of = sub { ($_[0] =~ m{(<select class="preset-select"[^>]*>.*?</select>)}s)[0] };
 
-	my $form = get('/admin/articles/new')->body;
-	my $select = $select_of->($form);
-	is_deeply [ $select =~ m{<option value="(\w+)"(?: selected)?>[^<]*</option>}g ], [qw(120 160 240 320 480 640 other)],
-		'選択肢は旧システムと同じ（「その他」は「直接入力」と出す）';
-	like $select, qr{<option value="240" selected>240px</option>}, '記事の編集：既定（編集の設定）の大きさを選んでおく';
-	unlike $select, qr{name=}, '記事の編集：フォームでは送らない（JavaScript が読む）';
-	like $form, qr{<label class="preset-other" hidden><input type="number" value="240" min="60" max="800"}, '「直接入力」でなければ、入力欄を隠す';
+	unlike get('/admin/articles/new')->body, qr{preset-select}, '記事の編集の画面では選ばない（大きさは編集の設定の1か所だけで決める）';
 
 	my $settings = get('/admin/settings/editor')->body;
-	like $settings, qr{<select class="preset-select" name="thumbnail_size"[^>]*>.*?<option value="240" selected>240px</option>}s, '編集の設定も同じ部品';
-	like $settings, qr{<label class="preset-other" hidden><input type="number" name="thumbnail_size_other" value="240"};
+	my $select = $select_of->($settings);
+	is_deeply [ $select =~ m{<option value="(\w+)"(?: selected)?>[^<]*</option>}g ], [qw(120 160 240 320 480 640 other)],
+		'選択肢は旧システムと同じ（「その他」は「直接入力」と出す）';
+	like $settings, qr{<select class="preset-select" name="thumbnail_size"[^>]*>.*?<option value="240" selected>240px</option>}s, '編集の設定：今の大きさを選んでおく';
+	like $settings, qr{<label class="preset-other" hidden><input type="number" name="thumbnail_size_other" value="240"}, '「直接入力」でなければ、入力欄を隠す';
 
 	is header($editor->(thumbnail_size => '480', thumbnail_size_other => '999'), 'Location'), '/admin/settings/editor?saved=1';
 	my $saved = sub { Lyndbaum::Model::Setting->all($t->dbh)->{thumbnail_size} };
 	is $saved->(), 480, '選んだ大きさを保存する（直接入力の欄は見ない）';
 	$editor->(thumbnail_size => 'other', thumbnail_size_other => ' 200 ');
 	is $saved->(), 200, '「直接入力」なら入れた数を保存する';
-	like get('/admin/settings/editor')->body, qr{<option value="other" selected>直接入力</option>}, '選択肢に無い数なら「直接入力」を選んでおく';
-	$form = get('/admin/articles/new')->body;
-	like $form, qr{<option value="other" selected>直接入力</option>}, '記事の編集でも';
-	like $form, qr{<label class="preset-other"><input type="number" value="200"}, '入力欄に既定の数を入れて出す';
+	$settings = get('/admin/settings/editor')->body;
+	like $settings, qr{<option value="other" selected>直接入力</option>}, '選択肢に無い数なら「直接入力」を選んでおく';
+	like $settings, qr{<label class="preset-other"><input type="number" name="thumbnail_size_other" value="200"}, '入力欄にその数を入れて出す';
 	is $editor->(thumbnail_size => 'other', thumbnail_size_other => '801')->status, 400, '直接入力でも範囲を確かめる';
 	is $editor->(thumbnail_size => '9999')->status, 400, '選択肢に無い数を送っても範囲を確かめる';
 	$editor->(thumbnail_size => '240');

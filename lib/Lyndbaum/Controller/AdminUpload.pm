@@ -1,6 +1,7 @@
 package Lyndbaum::Controller::AdminUpload;
 # 添付ファイルのアップロード（docs/admin.md の「画像のアップロード」）
-#   POST /admin/upload   multipart/form-data。file（複数）、thumbnail_size、folder、csrf_token
+#   POST /admin/upload   multipart/form-data。file（複数）、folder、csrf_token
+#   サムネイルの大きさは、編集の設定の thumbnail_size だけで決める（変えたら tools/rebuild-thumbnails.pl で作り直す）
 #   応答は JSON { files => [ { name, url, tag }, ... ], errors => [ 理由, ... ] }
 #   編集の画面（pub/assets/js/admin-article.js）が送り、返った記法を本文に入れる。置くのは今の年月のフォルダ
 #   メディアの画面（pub/assets/js/admin-media.js）は、開いているフォルダ（folder）へ置く
@@ -9,7 +10,6 @@ use warnings;
 use utf8;
 
 use Lyndbaum::Controller::Admin;
-use Lyndbaum::EditorSettings;
 use Lyndbaum::Media;
 use Lyndbaum::Response;
 use Lyndbaum::Upload;
@@ -24,10 +24,7 @@ sub upload {
 
 	my @uploads = $req->uploads('file');
 	return $class->_json($app, 400, errors => ['ファイルを選んでください。']) if !@uploads;
-	# 範囲は編集の設定の項目と同じ。外れていれば既定の大きさ
-	my $field = Lyndbaum::EditorSettings->field('thumbnail_size');
-	my $size  = $req->body_param('thumbnail_size') // '';
-	$size = $app->settings->{thumbnail_size} if $size !~ /\A\d{1,9}\z/ || $size < $field->{min} || $size > $field->{max};
+	my $size = $app->settings->{thumbnail_size};
 
 	# 置くフォルダ。省けば今の年月のフォルダ
 	my $folder = $req->body_param('folder') // '';
