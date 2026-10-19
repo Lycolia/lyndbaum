@@ -5,6 +5,6 @@ use strict;
 use warnings;
 use utf8;
 
-our $VERSION = '0.1-beta9';
+our $VERSION = '0.1-beta10';
 
 1;
