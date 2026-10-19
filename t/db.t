@@ -57,6 +57,27 @@ subtest '失敗したマイグレーションは巻き戻す' => sub {
 	is $dbh->selectrow_array(q{SELECT COUNT(*) FROM sqlite_master WHERE name = 'ok_table'}), 0;
 };
 
+subtest '公開記事の一覧と件数は、公開記事の索引を使い、並べ替えをしない' => sub {
+	require Lyndbaum::Model::Article;
+	my $dbh = new_dbh();
+	Lyndbaum::DB->migrate($dbh, $migrations);
+	insert_article($dbh, title => "記事$_") for 1 .. 3;
+
+	# 統計（ANALYZE）が無い状態で選ばれることを確かめる
+	my @sql;
+	$dbh->sqlite_trace(sub { push @sql, $_[0] });
+	Lyndbaum::Model::Article->list_public_posts($dbh, limit => 5, offset => 0);
+	Lyndbaum::Model::Article->count_public_posts($dbh);
+	$dbh->sqlite_trace(undef);
+
+	is scalar @sql, 2;
+	for my $sql (@sql) {
+		my $plan = join "\n", map { $_->[3] } @{ $dbh->selectall_arrayref("EXPLAIN QUERY PLAN $sql") };
+		like $plan, qr/USING (?:COVERING )?INDEX idx_articles_public\b/, 'idx_articles_public を使う';
+		unlike $plan, qr/TEMP B-TREE/, '並べ替えをしない';
+	}
+};
+
 subtest '日本語を文字列として読み書きできる' => sub {
 	my $dbh = new_dbh();
 	Lyndbaum::DB->migrate($dbh, $migrations);
