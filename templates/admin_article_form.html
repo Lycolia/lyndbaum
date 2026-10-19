@@ -68,7 +68,7 @@
 
   <aside class="article-edit-side">
     {{! アイキャッチ（docs/ogp.md）。「ファイル一覧から選択」で選ぶと chosen にする（admin-article.js） }}
-    <section class="publish-box eyecatch-box{{# if error_of.eyecatch }} admin-field-error{{/ if }}">
+    <section class="admin-card eyecatch-box{{# if error_of.eyecatch }} admin-field-error{{/ if }}">
       <h2>アイキャッチ</h2>
       <input type="hidden" name="eyecatch" value="{{ form.eyecatch }}">
       <div class="admin-field eyecatch-modes">
@@ -81,7 +81,7 @@
     </section>
     {{! WordPress の「公開」の枠のような形。Enter で送ったときは最初の送信ボタン（今の状態のままにするほう）になるので、
         公開中の記事では「更新」を先に置き、「下書きに戻す」は CSS で上に並べる。上のアイキャッチの枠には送信ボタンを置かない }}
-    <section class="publish-box">
+    <section class="admin-card publish-box">
       <h2>公開</h2>
       {{# if article.published }}
       <div class="publish-box-bottom">
@@ -122,7 +122,7 @@
       {{/ if }}
     </section>
     {{# if is_page }}
-    <section class="publish-box page-box">
+    <section class="admin-card page-box">
       <h2>ページの場所</h2>
       <div class="admin-field">
         <label>親のページ<br><select name="parent_id">
