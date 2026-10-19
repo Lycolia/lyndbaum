@@ -289,17 +289,21 @@ sub rebuild {
 }
 
 # アイキャッチの欄に出すもの。auto_url は保存した本文の最初の画像、blog_url はブログの画像
+#   preview は今のアイキャッチ（選んだ画像、本文の最初の画像、ブログの画像の順）。chosen は画像を選んでいれば真、
+#   note は画像の下の説明（admin-article.js の noteOf と同じ文）
 sub _eyecatch {
 	my ($class, $app, $article, $v) = @_;
-	my $mode = $v->{eyecatch_mode} // 'auto';
+	my $chosen = ($v->{eyecatch} // '') ne '';
 	my $blog = $app->settings->{blog_image} // '';
 	my %urls = (
 		auto_url => $article ? Lyndbaum::OGP->first_image($article->{body_html}) // '' : '',
 		blog_url => $blog ne '' ? $app->url->attachment($blog) : '',
 	);
-	my $preview = $mode eq 'chosen' && ($v->{eyecatch} // '') ne '' ? $app->url->attachment($v->{eyecatch})
-		: $mode eq 'auto' && $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
-	return { %urls, $mode => 1, preview => $preview, attachment_base => $app->url->attachment('') };
+	my $preview = $chosen ? $app->url->attachment($v->{eyecatch}) : $urls{auto_url} ne '' ? $urls{auto_url} : $urls{blog_url};
+	my $note = $chosen ? '画像を押すと変更できます。'
+		: $urls{auto_url} ne '' ? '設定しなければ、本文の最初の画像を使います。'
+		: $urls{blog_url} ne '' ? '設定しなければ、ブログの画像を使います。' : '画像はありません。';
+	return { %urls, chosen => $chosen, preview => $preview, note => $note, attachment_base => $app->url->attachment('') };
 }
 
 # RSS とサイトマップを書き出す（Lyndbaum::StaticFiles）。書き出せなくても記事の保存は取り消さず、

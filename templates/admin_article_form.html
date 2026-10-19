@@ -71,17 +71,19 @@
   </div>
 
   <aside class="article-edit-side">
-    {{! アイキャッチ（docs/ogp.md）。「ファイル一覧から選択」で選ぶと chosen にする（admin-article.js） }}
+    {{! アイキャッチ（docs/ogp.md）。WordPress の「アイキャッチ画像」の枠のような形。
+        「アイキャッチ画像を設定」でメディアの窓を開き、選んだ画像を eyecatch に入れる（admin-article.js）。
+        選んでいなければ、本文の最初の画像かブログの画像を、そのことがわかるように出す }}
     <section class="admin-card eyecatch-box{{# if error_of.eyecatch }} admin-field-error{{/ if }}">
-      <h2>アイキャッチ</h2>
+      <h2>アイキャッチ画像</h2>
       <input type="hidden" name="eyecatch" value="{{ form.eyecatch }}">
-      <div class="admin-field eyecatch-modes">
-        <label><input type="radio" name="eyecatch_mode" value="auto"{{# if eyecatch.auto }} checked{{/ if }}>自動（本文の最初の画像）</label>
-        <label><input type="radio" name="eyecatch_mode" value="chosen"{{# if eyecatch.chosen }} checked{{/ if }}>選んだ画像</label>
-        <label><input type="radio" name="eyecatch_mode" value="none"{{# if eyecatch.none }} checked{{/ if }}>使わない（ブログの画像）</label>
-      </div>
-      <p class="eyecatch-preview" data-auto="{{ eyecatch.auto_url }}" data-blog="{{ eyecatch.blog_url }}" data-attachments="{{ eyecatch.attachment_base }}">{{# if eyecatch.preview }}<img src="{{ eyecatch.preview }}" alt="アイキャッチ">{{# else }}<span class="admin-help">画像はありません。</span>{{/ if }}</p>
-      <p><button type="button" class="eyecatch-pick" data-base="{{ urls.media }}">ファイル一覧から選択</button></p>
+      {{! 選んだ画像はボタンにして、押すと選び直せるようにする（WordPress と同じ）。本文の最初の画像とブログの画像は見せるだけ }}
+      <p class="eyecatch-preview" data-auto="{{ eyecatch.auto_url }}" data-blog="{{ eyecatch.blog_url }}" data-attachments="{{ eyecatch.attachment_base }}">{{# if eyecatch.chosen }}<button type="button" class="eyecatch-change" title="画像を変更"><img src="{{ eyecatch.preview }}" alt="アイキャッチ"></button>{{# else }}{{# if eyecatch.preview }}<img src="{{ eyecatch.preview }}" alt="アイキャッチ">{{/ if }}{{/ if }}</p>
+      <p class="admin-help eyecatch-note">{{ eyecatch.note }}</p>
+      <p class="eyecatch-actions" data-base="{{ urls.media }}">
+        <button type="button" class="eyecatch-link eyecatch-pick"{{# if eyecatch.chosen }} hidden{{/ if }}>アイキャッチ画像を設定</button>
+        <button type="button" class="eyecatch-link eyecatch-remove"{{# if eyecatch.chosen }}{{# else }} hidden{{/ if }}>アイキャッチ画像を削除</button>
+      </p>
     </section>
     {{! WordPress の「公開」の枠のような形。Enter で送ったときは最初の送信ボタン（今の状態のままにするほう）になるので、
         公開中の記事では「更新」を先に置き、「下書きに戻す」は CSS で上に並べる。上のアイキャッチの枠には送信ボタンを置かない }}

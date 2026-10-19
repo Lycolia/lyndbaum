@@ -12,7 +12,7 @@ use Lyndbaum::Parser::Common;
 # 公開中の記事を表す条件
 my $PUBLIC = q{status = 'published' AND deleted_at IS NULL};
 
-my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, eyecatch, eyecatch_mode, published_at, updated_at, comments_open';
+my $COLUMNS = 'id, kind, slug, title, syntax, body_src, body_html, description, eyecatch, published_at, updated_at, comments_open';
 
 # 一覧などで取る列（ほかのモデルから記事を取るときにも使う）
 sub columns { $COLUMNS }
@@ -200,10 +200,10 @@ sub digest {
 	my ($class, $dbh, $id) = @_;
 	require Digest::SHA;
 	my $row = $dbh->selectrow_hashref(
-		'SELECT title, body_src, status, published_at, comments_open, eyecatch, eyecatch_mode, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
+		'SELECT title, body_src, status, published_at, comments_open, eyecatch, updated_at FROM articles WHERE id = ?', undef, $id) // return '';
 	my $tag_ids = $class->tag_ids_of($dbh, $id)->{$id} // [];
 	return Digest::SHA::sha256_hex(Encode::encode_utf8(join "\0",
-		map { $_ // '' } @$row{qw(title body_src status published_at comments_open eyecatch eyecatch_mode updated_at)}, sort { $a <=> $b } @$tag_ids));
+		map { $_ // '' } @$row{qw(title body_src status published_at comments_open eyecatch updated_at)}, sort { $a <=> $b } @$tag_ids));
 }
 
 # 記事を保存する。$v は Lyndbaum::ArticleForm->parse の値
@@ -234,7 +234,6 @@ sub save {
 		published_at  => $v->{published_at} // ($v->{status} eq 'published' ? $now : undef),
 		comments_open => $v->{comments_open},
 		eyecatch      => $v->{eyecatch} // '',
-		eyecatch_mode => $v->{eyecatch_mode} // 'auto',
 		updated_at    => $now,
 	);
 	delete $row{updated_at} if $v->{keep_updated} && defined $opt{id};

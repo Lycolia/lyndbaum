@@ -26,8 +26,7 @@ my $MAX_TITLE = 200;
 #     published_text  書いたままの公開日時の欄
 #     comments_open   0 か 1
 #     keep_updated    更新日時を変えないなら 1
-#     eyecatch_mode   アイキャッチの決め方（auto、chosen、none。docs/ogp.md）
-#     eyecatch        chosen のときの画像（添付ファイルの中のパス「フォルダ/名前」）。ほかのときは空
+#     eyecatch        選んだアイキャッチ（添付ファイルの中のパス「フォルダ/名前」）。選んでいなければ空（docs/ogp.md）
 #     digest          フォームを開いたときの記事の中身の要約（ほかの画面で保存されていないかを見るため）
 #     kind            page か post（新しい記事のとき）
 #   コンテンツページのとき
@@ -83,15 +82,8 @@ sub parse {
 
 	$v{comments_open} = ($first->('comments_open') // '') eq '1' ? 1 : 0;
 
-	my $mode = $first->('eyecatch_mode') // '';
-	$v{eyecatch_mode} = $mode =~ /\A(?:auto|chosen|none)\z/ ? $mode : 'auto';
 	$v{eyecatch} = $trim->('eyecatch');
-	if ($v{eyecatch_mode} eq 'chosen') {
-		$error->(eyecatch => 'アイキャッチを選んでください。') if $v{eyecatch} eq '';
-		$error->(eyecatch => 'アイキャッチのパスが正しくありません。') if $v{eyecatch} ne '' && !Lyndbaum::BlogSettings::valid_attachment($v{eyecatch});
-	} else {
-		$v{eyecatch} = '';
-	}
+	$error->(eyecatch => 'アイキャッチのパスが正しくありません。') if $v{eyecatch} ne '' && !Lyndbaum::BlogSettings::valid_attachment($v{eyecatch});
 	$v{keep_updated}  = ($first->('keep_updated') // '') eq '1' ? 1 : 0;
 	$v{kind} = $args{page} ? 'page' : 'post';
 	if ($args{page}) {

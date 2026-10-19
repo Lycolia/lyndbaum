@@ -358,7 +358,7 @@
 					csrf: form.elements.csrf_token.value,
 					actions: [
 						{ label: '本文に入れる', when: function (f) { return !!f.tag; }, run: function (f) { insert(f.tag); } },
-						{ label: 'アイキャッチにする', when: function (f) { return f.kind === 'image'; }, run: function (f) { form.eyecatchChoose && form.eyecatchChoose(f); } },
+						{ label: 'アイキャッチ画像に設定', when: function (f) { return f.kind === 'image'; }, run: function (f) { form.eyecatchChoose && form.eyecatchChoose(f); } },
 					],
 				});
 			});
@@ -394,25 +394,44 @@
 		var box = form.querySelector('.eyecatch-box');
 		if (!box) return;
 		var preview = box.querySelector('.eyecatch-preview');
+		var note    = box.querySelector('.eyecatch-note');
+		var actions = box.querySelector('.eyecatch-actions');
+		var pickButton   = box.querySelector('.eyecatch-pick');
+		var removeButton = box.querySelector('.eyecatch-remove');
 		var hidden  = form.elements.eyecatch;
 		var chosenUrl = null;   // 選んだ画像の URL（今の画面で選んだもの）
 
+		// 選んだ画像があればそれを、無ければ本文の最初の画像、それも無ければブログの画像を見せる
 		function show() {
-			var mode = form.querySelector('input[name="eyecatch_mode"]:checked').value;
-			var url = mode === 'chosen' ? (chosenUrl || (hidden.value ? attachmentUrl(hidden.value) : ''))
-				: mode === 'auto' ? (preview.dataset.auto || preview.dataset.blog) : preview.dataset.blog;
+			var chosen = hidden.value !== '';
+			var url = chosen ? (chosenUrl || attachmentUrl(hidden.value)) : (preview.dataset.auto || preview.dataset.blog);
 			preview.textContent = '';
 			if (url) {
 				var img = document.createElement('img');
 				img.src = url;
 				img.alt = 'アイキャッチ';
-				preview.appendChild(img);
-			} else {
-				var span = document.createElement('span');
-				span.className = 'admin-help';
-				span.textContent = mode === 'chosen' ? 'まだ選んでいません。「ファイル一覧から選択」で選んでください。' : '画像はありません。';
-				preview.appendChild(span);
+				if (chosen) {
+					// 選んだ画像は押すと選び直せる（WordPress と同じ）
+					var change = document.createElement('button');
+					change.type = 'button';
+					change.className = 'eyecatch-change';
+					change.title = '画像を変更';
+					change.appendChild(img);
+					preview.appendChild(change);
+				} else {
+					preview.appendChild(img);
+				}
 			}
+			note.textContent = noteOf(chosen);
+			// メディアの窓が無ければ選べないので、選ぶためのボタンは出さない（削除はできる）
+			pickButton.hidden = chosen || !window.LyndbaumMedia;
+			removeButton.hidden = !chosen;
+		}
+		// 画像の下の説明（AdminArticle.pm の _eyecatch と同じ文）
+		function noteOf(chosen) {
+			return chosen ? '画像を押すと変更できます。'
+				: preview.dataset.auto ? '設定しなければ、本文の最初の画像を使います。'
+				: preview.dataset.blog ? '設定しなければ、ブログの画像を使います。' : '画像はありません。';
 		}
 		// 添付ファイルの中のパスから URL を作る（頭は設定の attachment_path）
 		function attachmentUrl(path) {
@@ -422,21 +441,24 @@
 		form.eyecatchChoose = function (f) {
 			hidden.value = f.folder + f.name;
 			chosenUrl = f.thumbnail || f.url;
-			form.querySelector('input[name="eyecatch_mode"][value="chosen"]').checked = true;
 			show();
 		};
-		box.addEventListener('change', function (evt) { if (evt.target.name === 'eyecatch_mode') show(); });
-		var pickButton = box.querySelector('.eyecatch-pick');
+		removeButton.addEventListener('click', function () {
+			hidden.value = '';
+			chosenUrl = null;
+			show();
+		});
 		if (window.LyndbaumMedia) {
-			pickButton.addEventListener('click', function () {
+			var pick = function () {
 				window.LyndbaumMedia.pick({
-					base: pickButton.dataset.base,
+					base: actions.dataset.base,
 					csrf: form.elements.csrf_token.value,
-					actions: [{ label: 'アイキャッチにする', when: function (f) { return f.kind === 'image'; }, run: form.eyecatchChoose }],
+					actions: [{ label: 'アイキャッチ画像に設定', when: function (f) { return f.kind === 'image'; }, run: form.eyecatchChoose }],
 				});
-			});
-		} else {
-			pickButton.hidden = true;
+			};
+			pickButton.addEventListener('click', pick);
+			preview.addEventListener('click', function (evt) { if (evt.target.closest('.eyecatch-change')) pick(); });
 		}
+		show();
 	}
 })();

@@ -353,19 +353,16 @@ subtest '一覧のアイキャッチ' => sub {
 	unlike $list->('/03'), qr{summary-image}, '記事のページには出さない';
 
 	# 記事2：選んだ画像
-	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'chosen', eyecatch = 'posts/2026/10/a.png' WHERE id = 2});
-	like $result_of->('02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像';
-	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'none' WHERE id = 2});
-	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 2', undef, qq{<p><img src="$image"></p>});
-	unlike $result_of->('02'), qr{summary-image}, '使わないにしたら出さない';
+	$dbh->do('UPDATE articles SET eyecatch = ?, body_html = ? WHERE id = 2', undef, 'posts/2026/10/a.png', qq{<p><img src="$image"></p>});
+	like $result_of->('02'), qr{<img src="/pub/attachments/posts/2026/10/a\.png"}, '選んだ画像は本文の画像より先';
 
 	# 外部の画像
-	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', body_html = '<p><img src="https://example.com/a.png"></p>' WHERE id = 2});
+	$dbh->do(q{UPDATE articles SET eyecatch = '', body_html = '<p><img src="https://example.com/a.png"></p>' WHERE id = 2});
 	$summary = $result_of->('02');
 	unlike $summary, qr{summary-image|has-image}, '外部の画像は出さない';
 	like $summary, qr{<div class="summary-text">}, '画像が無くても、本文は同じ形で出す';
 
-	$dbh->do(q{UPDATE articles SET eyecatch_mode = 'auto', eyecatch = '', body_html = ? WHERE id = 2}, undef, $html2);
+	$dbh->do(q{UPDATE articles SET eyecatch = '', body_html = ? WHERE id = 2}, undef, $html2);
 	$dbh->do('UPDATE articles SET body_html = ? WHERE id = 3', undef, $html3);
 };
 

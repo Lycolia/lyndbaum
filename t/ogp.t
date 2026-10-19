@@ -24,8 +24,7 @@ Lyndbaum::Model::Setting->set($dbh, blog_image => '@system/blog.png');
 
 insert_article($dbh, id => 1, title => '画像のある記事', body_src => "前置き\n\n[image:S:posts/2026/10/:a b.png:代替]\n\n![図](/pub/attachments/posts/2026/10/c.png)");
 insert_article($dbh, id => 2, title => '画像の無い記事', body_src => '本文だけ');
-insert_article($dbh, id => 3, title => '選んだ画像', body_src => '[image:S:posts/2026/10/:a.png]', eyecatch => 'posts/2026/09/x.jpg', eyecatch_mode => 'chosen');
-insert_article($dbh, id => 4, title => '使わない', body_src => '[image:S:posts/2026/10/:a.png]', eyecatch_mode => 'none');
+insert_article($dbh, id => 3, title => '選んだ画像', body_src => '[image:S:posts/2026/10/:a.png]', eyecatch => 'posts/2026/09/x.jpg');
 insert_article($dbh, id => 5, title => '下書き', status => 'draft');
 Lyndbaum::Model::Article->rebuild_all($dbh, $t->app->parser_context);
 
@@ -64,9 +63,6 @@ subtest '記事' => sub {
 	is $tags->{'og:image'}, 'https://blog.example/pub/attachments/%40system/blog.png', '画像が無ければブログの画像';
 	is $tags->{'twitter:card'}, 'summary';
 	is ogp($t->request(GET => '/03'))->{'og:image'}, 'https://blog.example/pub/attachments/posts/2026/09/x.jpg', '選んだ画像';
-	$tags = ogp($t->request(GET => '/04'));
-	is $tags->{'og:image'}, 'https://blog.example/pub/attachments/%40system/blog.png', '使わない：ブログの画像';
-	is $tags->{'twitter:card'}, 'summary';
 
 	Lyndbaum::Model::Setting->set($dbh, blog_image => '');
 	$tags = ogp($t->request(GET => '/02'));
@@ -101,23 +97,29 @@ sub post {
 
 subtest '編集の画面' => sub {
 	my $res = $t->request(GET => '/admin/articles/1', cookie => $cookie);
-	like $res->body, qr{<input type="radio" name="eyecatch_mode" value="auto" checked>}, '既定は自動';
+	like $res->body, qr{<button type="button" class="eyecatch-link eyecatch-pick">アイキャッチ画像を設定</button>}, '選んでいなければ「設定」を出す';
+	like $res->body, qr{<button type="button" class="eyecatch-link eyecatch-remove" hidden>}, '「削除」は隠す';
+	like $res->body, qr{設定しなければ、本文の最初の画像を使います。};
 	like $res->body, qr{data-auto="/pub/attachments/posts/2026/10/a%20b\.png"}, '自動のときの画像';
 	like $res->body, qr{<img src="/pub/attachments/posts/2026/10/a%20b\.png" alt="アイキャッチ">};
-	like $t->request(GET => '/admin/articles/3', cookie => $cookie)->body, qr{<input type="hidden" name="eyecatch" value="posts/2026/09/x\.jpg">};
+	like $t->request(GET => '/admin/articles/2', cookie => $cookie)->body, qr{設定しなければ、ブログの画像を使います。}, '本文に画像が無ければブログの画像';
+	$res = $t->request(GET => '/admin/articles/3', cookie => $cookie);
+	like $res->body, qr{<input type="hidden" name="eyecatch" value="posts/2026/09/x\.jpg">};
+	like $res->body, qr{<button type="button" class="eyecatch-change" title="画像を変更"><img src="/pub/attachments/posts/2026/09/x\.jpg" alt="アイキャッチ"></button>}, '選んだ画像は押すと選び直せる';
+	like $res->body, qr{<button type="button" class="eyecatch-link eyecatch-pick" hidden>}, '選んでいれば「設定」は隠す';
+	like $res->body, qr{<button type="button" class="eyecatch-link eyecatch-remove">アイキャッチ画像を削除</button>};
 
 	my $digest = Lyndbaum::Model::Article->digest($dbh, 2);
-	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => 'posts/2026/10/a.png', digest => $digest);
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch => 'posts/2026/10/a.png', digest => $digest);
 	is $res->status, 303;
-	is_deeply $dbh->selectrow_arrayref('SELECT eyecatch_mode, eyecatch FROM articles WHERE id = 2'), ['chosen', 'posts/2026/10/a.png'];
+	is $dbh->selectrow_array('SELECT eyecatch FROM articles WHERE id = 2'), 'posts/2026/10/a.png';
 
-	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'none', eyecatch => 'posts/2026/10/a.png', digest => Lyndbaum::Model::Article->digest($dbh, 2));
-	is_deeply $dbh->selectrow_arrayref('SELECT eyecatch_mode, eyecatch FROM articles WHERE id = 2'), ['none', ''], '選んでいなければ画像は持たない';
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch => '', digest => Lyndbaum::Model::Article->digest($dbh, 2));
+	is $res->status, 303;
+	is $dbh->selectrow_array('SELECT eyecatch FROM articles WHERE id = 2'), '', '削除すれば選んでいない状態に戻る';
 
-	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => '');
+	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch => '../etc/passwd');
 	is $res->status, 400;
-	like $res->body, qr{アイキャッチを選んでください。};
-	$res = post('/admin/articles/2', title => '画像の無い記事', eyecatch_mode => 'chosen', eyecatch => '../etc/passwd');
 	like $res->body, qr{アイキャッチのパスが正しくありません。};
 };
 

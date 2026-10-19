@@ -228,7 +228,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `article.show_updated` | 更新日を出すなら真（投稿日と日付が違うとき。投稿日が無いときも真）   |
 | `article.tags`         | 付いているタグの配列（下の「タグ」。親を含めた名前の順）             |
 | `article.comments_open`| コメントを受け付ける記事なら1                                       |
-| `article.eyecatch`、`article.eyecatch_mode` | アイキャッチの設定（OGPで使う。`docs/ogp.md`） |
+| `article.eyecatch`     | 選んだアイキャッチ（添付ファイルの中のパス）。選んでいなければ空（`docs/ogp.md`） |
 
 個別ページ（`article.html`）だけで使える項目。
 

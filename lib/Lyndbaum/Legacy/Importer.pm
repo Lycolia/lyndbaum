@@ -91,10 +91,10 @@ sub _import_articles {
 	my ($class, $dbh, $articles, $rewrite) = @_;
 	my $sth = $dbh->prepare(<<'SQL');
 INSERT INTO articles (
-    id, kind, slug, title, syntax, body_src, description, eyecatch, eyecatch_mode,
+    id, kind, slug, title, syntax, body_src, description, eyecatch,
     status, published_at, created_at, updated_at, sort_order,
     comments_open
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 SQL
 
 	my $page_slugs = $class->_page_slugs($articles);
@@ -121,9 +121,8 @@ SQL
 			$art->{parser} || 'markdown',
 			$body,
 			$art->{description} // '',
-			$class->rename_folder($art->{main_image} // ''),
 			# アイキャッチが決まっていれば、その画像を出す（docs/ogp.md）。無ければ本文の最初の画像
-			($art->{main_image} // '') ne '' ? 'chosen' : 'auto',
+			$class->rename_folder($art->{main_image} // ''),
 			$art->{enable} ? 'published' : 'draft',
 			$published_at,
 			$art->{tm} // $art->{update_tm},
