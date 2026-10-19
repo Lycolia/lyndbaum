@@ -288,12 +288,14 @@ a.button-primary, a.button { display: inline-block; text-decoration: none; }
   .admin-articles td:first-child { display: block; }
 }
 
-/* 記事の編集。本文とタグを左に、公開の枠を右に置く（狭い画面では縦に並べる） */
-.admin-main:has(.article-edit) { max-width: 72rem; }
+/* 記事の編集。本文とタグを左に、公開の枠を右に置く（狭い画面では縦に並べる）
+   WordPressと同じく、左の列は画面の幅いっぱいまで広げ、右の列は幅を決めておく */
+.admin-main:has(.article-edit) { max-width: none; }
 .article-edit input[type="text"] { max-width: none; }
 @media (min-width: 56rem) {
   .article-edit { display: grid; grid-template-columns: minmax(0, 1fr) 17rem; gap: 0 1.5rem; align-items: start; }
-  .article-edit-side { position: sticky; top: 1rem; }
+  /* 上の管理者のメニュー（高さ2.5rem、動かない）の下に止める */
+  .article-edit-side { position: sticky; top: 3.5rem; }
 }
 /* 右の列の箱（.admin-card）。「公開」の枠（.publish-box）は、ボタンの並びをCSSで入れ替える（テンプレートのコメントを参照） */
 .article-edit-side .admin-card + .admin-card { margin-top: 1rem; }
