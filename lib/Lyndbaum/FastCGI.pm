@@ -18,6 +18,7 @@ my $RESPAWN_WAIT = 1;
 #   root          アプリの置き場所
 #   config_file   設定ファイル
 #   socket        待ち受けるソケット。UNIXソケットのパスか、「:ポート」「ホスト:ポート」
+#   socket_mode   UNIXソケットの権限（数値）。省くとumaskのまま
 #   procs         子のプロセスの数
 #   max_requests  1つの子が受けるリクエストの数
 sub run {
@@ -26,6 +27,10 @@ sub run {
 	unlink $args{socket} if -S $args{socket};
 	my $socket = FCGI::OpenSocket($args{socket}, 128);
 	die "ソケットを開けません: $args{socket}: $!\n" if !defined $socket || $socket < 0;
+	# UNIXソケットに繋ぐには書き込みの権限が要る。Webサーバーが別のユーザーで動くときに、グループから繋げるように
+	if (defined $args{socket_mode} && -S $args{socket}) {
+		chmod $args{socket_mode}, $args{socket} or die "ソケットの権限を変えられません: $args{socket}: $!\n";
+	}
 
 	my %children;   # pid => 作った時刻
 	my $stopping = 0;

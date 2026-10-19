@@ -9,6 +9,7 @@ Group=www-data
 WorkingDirectory=<置き場所>
 # /run/lyndbaum/をUserのものとして作る
 RuntimeDirectory=lyndbaum
+# ソケットの権限は既定で0660。Webサーバーが別のユーザーなら、そのユーザーをGroupのグループに入れる（docs/deploy.mdの「FastCGIで動かす」）
 ExecStart=/usr/bin/perl <置き場所>/index.fcgi /run/lyndbaum/lyndbaum.sock 4 1000
 Restart=always
 

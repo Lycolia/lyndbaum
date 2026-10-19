@@ -30,11 +30,12 @@ my $socket = File::Spec->catfile($dir, 'fcgi.sock');
 # 子のプロセスは1つ、1つの子が受けるのは4件まで。5件目からは作り直した子が受ける
 sub start {
 	my (%env) = @_;
+	my @options = @{ delete $env{options} // [] };
 	my $pid = fork // die $!;
 	if (!$pid) {
 		local %ENV = (%ENV, LYNDBAUM_CONFIG => $config, %env);
 		open STDERR, '>', File::Spec->catfile($dir, 'stderr') or die $!;
-		exec $^X, File::Spec->catfile(root_dir(), 'index.fcgi'), $socket, 1, 4 or die $!;
+		exec $^X, File::Spec->catfile(root_dir(), 'index.fcgi'), @options, $socket, 1, 4 or die $!;
 	}
 	for (1 .. 100) { last if -S $socket; sleep 0.05 }
 	return $pid;
@@ -79,6 +80,7 @@ my %base = (HTTP_HOST => 'blog.example', HTTPS => 'on', REMOTE_ADDR => '192.0.2.
 subtest '同じプロセスで続けて受けても、前のリクエストが残らない' => sub {
 	my $pid = start();
 	ok -S $socket, 'ソケットを開く';
+	is sprintf('%04o', (stat $socket)[2] & 07777), '0660', '既定ではグループまで繋げる';
 
 	my $out = fcgi_request(%base, REQUEST_METHOD => 'GET', PATH_INFO => '/07');
 	like $out, qr{\AStatus: 200 OK\r\n}, 'ステータス行';
@@ -101,6 +103,23 @@ subtest '同じプロセスで続けて受けても、前のリクエストが�
 
 	is stop($pid), 0, '止める合図で終わる';
 	ok !-e $socket, 'ソケットのファイルを消す';
+};
+
+subtest 'ソケットの権限を変える' => sub {
+	my $pid = start(options => ['--socket-mode', '0600']);
+	is sprintf('%04o', (stat $socket)[2] & 07777), '0600';
+	like fcgi_request(%base, REQUEST_METHOD => 'GET', PATH_INFO => '/07'), qr{\AStatus: 200 OK\r\n}, '繋げる';
+	stop($pid);
+};
+
+subtest '権限の書き方が違えば起動しない' => sub {
+	open my $saved, '>&', \*STDERR or die $!;
+	open STDERR, '>', File::Spec->catfile($dir, 'stderr') or die $!;
+	my $status = system $^X, File::Spec->catfile(root_dir(), 'index.fcgi'), '--socket-mode', '660x', $socket;
+	open STDERR, '>&', $saved or die $!;
+	is $status >> 8, 2;
+	like slurp(File::Spec->catfile($dir, 'stderr')), qr{--socket-mode}, '使い方を出す';
+	ok !-e $socket, 'ソケットを作らない';
 };
 
 subtest '例外が起きたら500' => sub {
