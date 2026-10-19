@@ -132,6 +132,26 @@ mark { background: #ffe066; color: #000; }
 /* おとりの欄は画面の外に置く（display: none だと、それを見て避けるボットがあるため） */
 .comment-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .draft-notice { border: 1px solid #e0a800; border-left-width: 4px; padding: .5rem 1rem; }
+/* 追従する目次（toc.js）。本文の枠の先頭に高さ0で置き、枠の中で画面の上端に貼り付ける
+   ボタンは、本文の目次が画面の上へ抜けたとき（is-shown）だけ出す。--toc-float-top は管理者のメニューの高さ */
+.toc-float { position: sticky; top: calc(var(--toc-float-top, 0px) + .5rem); z-index: 150; height: 0; display: flex; justify-content: flex-end; }
+.toc-float-button {
+  position: relative; display: none; align-items: center; gap: .3rem; height: 2rem; padding: 0 .6rem;
+  background: var(--bg); color: var(--text); border: 1px solid var(--border); font: inherit; cursor: pointer;
+  box-shadow: 0 1px 4px rgb(0 0 0 / .15);
+}
+.toc-float.is-shown .toc-float-button { display: inline-flex; }
+.toc-float-button svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.toc-float-button[aria-expanded="true"] { color: var(--link); border-color: var(--link); }
+.toc-float-panel {
+  position: absolute; top: 2.25rem; right: 0; width: min(24rem, calc(100vw - 2rem));
+  max-height: calc(100vh - var(--toc-float-top, 0px) - 4rem); overflow-y: auto; overscroll-behavior: contain;
+  padding: .5rem 1rem .5rem 2rem; background: var(--bg); border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgb(0 0 0 / .2);
+}
+.toc-float:not(.is-shown) .toc-float-panel { display: none; }
+.toc-float-panel .toc { margin: 0; padding-left: 0; }
+.toc-float-panel ul ul { padding-left: 1.25rem; }
 
 /* 本文の各要素。記事の題名が h1（一覧では h2）なので、本文の見出しは h3 から始まる */
 .article-body h3, .article-body h4, .article-body h5, .article-body h6 { line-height: 1.35; }

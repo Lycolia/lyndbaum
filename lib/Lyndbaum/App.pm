@@ -235,6 +235,7 @@ sub render {
 			site_style => $self->url->static('css/site.css'),
 			feed   => $self->url->feed,
 			# 画像の拡大表示（Lythumb。読み込むと自分で動く）とコードの色付け（Prism.js。pub/assets/js/article.js が動かす）
+			# sidebar.js はサイドバーの引き出し、toc.js は追従する目次のボタン
 			lythumb_css => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
 			prism_css   => $self->url->static('js/extlib/prismjs/prism.css'),
 			prism_core  => $self->url->static('js/extlib/prismjs/prism-core.min.js'),
@@ -242,7 +243,7 @@ sub render {
 				'js/extlib/lythumb/lythumb.min.js',
 				'js/extlib/prismjs/prism-autoloader.min.js', 'js/extlib/prismjs/prism-line-numbers.min.js',
 				'js/extlib/prismjs/prism-toolbar.min.js', 'js/extlib/prismjs/prism-copy-to-clipboard.min.js',
-				'js/article.js', 'js/sidebar.js' ],
+				'js/article.js', 'js/sidebar.js', 'js/toc.js' ],
 		},
 		form         => Lyndbaum::SearchForm->values,   # サイドバーの検索フォーム
 		%$sidebar,
