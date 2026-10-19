@@ -11,7 +11,7 @@ sub scope {
 	return defined $in && exists $SCOPES{$in} ? $in : 'text';
 }
 
-# templates/search_form.html に渡す値
+# templates/search_form.htmlに渡す値
 sub values {
 	my ($class, $q, $in) = @_;
 	return {

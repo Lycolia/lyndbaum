@@ -4,13 +4,13 @@ use strict;
 use warnings;
 use utf8;
 
-# 引数は [メソッド, パスの正規表現, コントローラのクラス, アクション名] の並び
+# 引数は(メソッド, パスの正規表現, コントローラのクラス, アクション名)の並び
 sub new {
 	my ($class, @routes) = @_;
 	return bless { routes => \@routes }, $class;
 }
 
-# 一致したら (クラス, アクション, 正規表現の捕捉...) を返す。一致しなければ空リスト
+# 一致したら(クラス, アクション, 正規表現の捕捉...)を返す。一致しなければ空リスト
 sub match {
 	my ($self, $method, $path) = @_;
 	$method = 'GET' if $method eq 'HEAD';
