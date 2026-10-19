@@ -225,7 +225,9 @@ sub render {
 		urls         => {
 			top    => $self->url->top,
 			search => $self->url->search,
-			style  => $self->url->static('css/style.css'),
+			# 見た目は、両方で使う common.css と、公開側だけの site.css
+			style      => $self->url->static('css/common.css'),
+			site_style => $self->url->static('css/site.css'),
 			feed   => $self->url->feed,
 			# 画像の拡大表示（Lythumb。読み込むと自分で動く）とコードの色付け（Prism.js。pub/assets/js/article.js が動かす）
 			lythumb_css => $self->url->static('js/extlib/lythumb/lythumb.min.css'),
@@ -325,7 +327,9 @@ sub render_admin {
 			comment_settings => $self->url->admin('settings/comments'),
 			editor_settings  => $self->url->admin('settings/editor'),
 			sidebar          => $self->url->admin('sidebar'),
-			style  => $self->url->static('css/style.css'),
+			# 見た目は、公開側と両方で使う common.css と、管理画面だけの admin.css
+			style            => $self->url->static('css/common.css'),
+			admin_style      => $self->url->static('css/admin.css'),
 		},
 		logged_in  => $session ? 1 : 0,
 		csrf_token => $session ? $session->{csrf_token} : '',

@@ -19,6 +19,7 @@
 {{/ if }}
 {{/ if }}
 <link rel="stylesheet" href="{{ urls.style }}">
+<link rel="stylesheet" href="{{ urls.site_style }}">
 <link rel="stylesheet" href="{{ urls.lythumb_css }}">
 <link rel="stylesheet" href="{{ urls.prism_css }}">
 {{! Prism は data-manual で自動では色付けしない（article.js が言語の名前を整えてから動かす）。defer なので、この順に動く }}
@@ -52,7 +53,7 @@
 {{ raw content }}
 </main>
 {{! 3カラム：左のサイドバー（検索、タグ）、本文、右のサイドバー（コンテンツ、自由欄、最近の記事、最近のコメント、過去ログ）
-    HTMLは本文を先に置く。2カラムでは左を、1カラムでは左右を引き出しにして、ヘッダーのボタンで開く（sidebar.js、style.css）
+    HTMLは本文を先に置く。2カラムでは左を、1カラムでは左右を引き出しにして、ヘッダーのボタンで開く（sidebar.js、site.css）
     JavaScript が無いときは、2カラムでは本文の右に左と右を重ね、1カラムでは本文、左、右の順に縦に並べる }}
 <aside class="site-sidebar sidebar-left" id="sidebar-left" aria-label="検索とタグ">
   <section class="sidebar-section">

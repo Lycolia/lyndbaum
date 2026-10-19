@@ -260,6 +260,8 @@ subtest '検索' => sub {
 
 subtest '画像の拡大表示とコードの色付け（Lythumb、Prism.js）' => sub {
 	my $body = get('/01')->body;
+	my @styles = $body =~ m{<link rel="stylesheet" href="/pub/assets/css/([^"]+)">}g;
+	is_deeply \@styles, [ 'common.css', 'site.css' ], '見た目は、両方で使うものと公開側のもの（管理画面のものは読まない）';
 	like $body, qr{<link rel="stylesheet" href="/pub/assets/js/extlib/lythumb/lythumb\.min\.css">};
 	like $body, qr{<link rel="stylesheet" href="/pub/assets/js/extlib/prismjs/prism\.css">};
 	like $body, qr{<script src="/pub/assets/js/extlib/prismjs/prism-core\.min\.js" data-manual defer></script>}, 'Prism は自動では動かさない';

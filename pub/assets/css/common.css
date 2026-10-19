@@ -1,0 +1,65 @@
+:root {
+  --text: #222;
+  --muted: #666;
+  --link: #0a58ca;
+  --border: #ddd;
+  --bg: #fff;
+  --code-bg: #f6f8fa;
+  /* 一覧の偶数行の背景。文字の色を少し混ぜるので、暗い画面でもそのまま使える */
+  --row-alt: color-mix(in srgb, var(--text) 5%, var(--bg));
+  --admin-bg: #fcfcfe;
+  /* 公開側のページの地の色。記事やサイドバーの枠（--bg）と見分けられるよう、少し沈める */
+  --page-bg: #f0f0f1;
+  /* 本文の見出しや表の見出しに使う色 */
+  --accent: #4450c8;
+  --accent-soft: #e9ebfd;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text: #e6e6e6;
+    --muted: #9a9a9a;
+    --link: #6ea8fe;
+    --border: #3a3a3a;
+    --bg: #181818;
+    --code-bg: #222;
+    --admin-bg: #181818;
+    --page-bg: #0e0e0e;
+    --accent: #9aa2ff;
+    --accent-soft: #252946;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "メイリオ", sans-serif;
+  font-size: 90%;
+  line-height: 1.4;
+}
+a { color: var(--link); }
+
+.site-header { border-bottom: 1px solid var(--border); }
+/* ログイン中に公開側のページの上に出す、管理者のメニュー。明るい画面でも暗い画面でも同じ色にする */
+.admin-bar {
+  position: sticky; top: 0; z-index: 100;
+  display: flex; flex-wrap: wrap; align-items: center; gap: .25rem 1rem;
+  margin-bottom: 1rem; padding: .35rem .75rem;
+  background: #1d2327; color: #f0f0f1; font-size: .9rem;
+}
+.admin-bar a { color: #f0f0f1; text-decoration: none; }
+.admin-bar a:hover, .admin-bar a:focus-visible { color: #72aee6; text-decoration: underline; }
+.admin-bar-count { display: inline-block; min-width: 1.4em; padding: 0 .35em; background: #d63638; color: #fff; font-size: .8rem; text-align: center; }
+.admin-bar-new { background: #2271b1; }   /* 新着のコメント。承認待ち（赤）と見分ける */
+.admin-bar-logout { margin: 0 0 0 auto; }
+.admin-bar-logout button { background: none; border: 0; padding: 0; color: #f0f0f1; font: inherit; cursor: pointer; }
+.admin-bar-logout button:hover, .admin-bar-logout button:focus-visible { color: #72aee6; text-decoration: underline; }
+.site-title { font-size: 1.5rem; font-weight: bold; margin: 0; }
+.site-title a { color: inherit; text-decoration: none; }
+.site-description { color: var(--muted); margin: .25rem 0 0; }
+.pager { display: flex; justify-content: space-between; gap: 1rem; margin: 1.5rem 0; }
+.comment-meta { margin: 0; color: var(--muted); font-size: .9rem; }
+.comment-author { color: var(--text); font-weight: bold; }
+.comment-badge { border: 1px solid var(--border); padding: 0 .25em; font-size: .8rem; }
+.comment-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: .25rem 0 0; }
