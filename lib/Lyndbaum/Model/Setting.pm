@@ -13,6 +13,7 @@ my %DEFAULT = (
 	blog_author      => '',   # 書いた人の名前（RSSに出す）。空なら出さない
 	per_page         => 5,
 	feed_items       => 10,   # RSSに載せる記事の数
+	head_html        => '',   # 公開側の <head> の終わりにそのまま入れるHTML（アクセス解析のタグなど）
 	blog_image       => '',   # ブログの画像（OGP。pub/branding/ の中の名前）。Lyndbaum::BlogImage
 	site_icon        => '',   # サイトのアイコンを書き出した時刻。空なら既定のロゴ。Lyndbaum::SiteIcon
 	sidebar_boxes    => '[]', # サイドバーの自由欄（JSON）。Lyndbaum::SidebarBoxes

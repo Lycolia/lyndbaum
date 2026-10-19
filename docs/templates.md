@@ -197,6 +197,7 @@ HTMLは`templates/*.html`のテンプレートから作る。エンジンは自�
 | `blog.blog_description` | ブログの説明。空のこともある             |
 | `blog.blog_author`      | 書いた人の名前。空のこともある           |
 | `blog.per_page`         | 1ページの記事の数                        |
+| `blog.head_html`        | `<head>`の終わりに入れるHTML。空のこともある（`raw`で出す） |
 
 ほかに、コメントの設定（`comments_*`）や編集の設定（`revision_*`）なども入っている。
 

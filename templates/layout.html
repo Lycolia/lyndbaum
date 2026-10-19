@@ -31,6 +31,10 @@
 {{# for script in urls.scripts }}<script src="{{ script }}" defer></script>
 {{/ for }}
 <link rel="alternate" type="application/rss+xml" title="{{ blog.blog_title }}" href="{{ urls.feed }}">
+{{! ブログの設定の「<head>に入れるHTML」（アクセス解析のタグなど）。管理者が書いたものを、そのまま出すのでエスケープしない }}
+{{# if blog.head_html }}
+{{ raw blog.head_html }}
+{{/ if }}
 </head>
 <body>
 {{# if admin_bar }}

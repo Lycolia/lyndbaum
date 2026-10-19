@@ -15,6 +15,8 @@ our @FIELDS = (
 	{ key => 'blog_author',      type => 'text', max => 100, label => '書いた人の名前', help => 'RSSに出します。空なら出しません。' },
 	{ key => 'per_page',         type => 'int', min => 1, max => 100, label => '1ページに出す記事の数' },
 	{ key => 'feed_items',       type => 'int', min => 1, max => 100, label => 'RSSに載せる記事の数' },
+	{ key => 'head_html',        type => 'html', max => 10000, label => '<head>に入れるHTML',
+	  help => 'アクセス解析のタグなどを、公開側のすべてのページの</head>の前にそのまま入れます（確かめずに出すので、信頼できるものだけを入れてください）。管理画面には入れません。' },
 );
 
 sub fields { \@FIELDS }

@@ -158,6 +158,7 @@ sub _render {
 				preset   => $f->{presets} ? [ Lyndbaum::SettingsForm->preset_field($f, $values->{ $f->{key} }, name => $f->{key}) ] : [],
 				is_lines => $f->{type} eq 'lines',
 				is_text  => $f->{type} eq 'text',
+				is_html  => $f->{type} eq 'html',
 				value    => $values->{ $f->{key} },
 				checked  => $f->{type} eq 'bool' && $values->{ $f->{key} },
 				errors   => $error_of{ $f->{key} } // [],
