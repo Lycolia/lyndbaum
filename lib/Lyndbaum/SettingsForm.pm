@@ -10,6 +10,7 @@ package Lyndbaum::SettingsForm;
 #     lines  1行に1つの一覧。checkで1行ずつ書き方を確かめる
 #     text   1行の文字。前後の空白を除く。requiredなら空にできない。maxは文字数の上限。checkで書き方を確かめる
 #            media が真なら、画面に「ファイル一覧から選択」を出す（添付ファイルの中のパスを入れる）
+#     html   複数行の文字をそのまま（改行は LF にそろえ、前後の空白行だけ除く）。maxは文字数の上限
 use strict;
 use warnings;
 use utf8;
@@ -49,6 +50,13 @@ sub parse {
 				push @errors, { key => $key, message => "$field->{label}は$field->{max}文字までにしてください。" };
 			} elsif ($text ne '' && $field->{check} && !$field->{check}->($text)) {
 				push @errors, { key => $key, message => "$field->{label}の書き方が正しくありません。" };
+			}
+		} elsif ($field->{type} eq 'html') {
+			(my $text = $raw) =~ s/\r\n?/\n/g;
+			$text =~ s/\A\s*\n|\s+\z//g;
+			$values{$key} = $text;
+			if ($field->{max} && length $text > $field->{max}) {
+				push @errors, { key => $key, message => "$field->{label}は$field->{max}文字までにしてください。" };
 			}
 		} else {
 			my @lines = grep { $_ ne '' } map { s/\A\s+|\s+\z//gr } split /\r?\n/, $raw;

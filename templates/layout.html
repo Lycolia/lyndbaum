@@ -31,6 +31,10 @@
 {{# for script in urls.scripts }}<script src="{{ script }}" defer></script>
 {{/ for }}
 <link rel="alternate" type="application/rss+xml" title="{{ blog.blog_title }}" href="{{ urls.feed }}">
+{{! ブログの設定の「<head>に入れるHTML」（アクセス解析のタグなど）。管理者が書いたものを、そのまま出すのでエスケープしない }}
+{{# if blog.head_html }}
+{{ raw blog.head_html }}
+{{/ if }}
 </head>
 <body>
 {{# if admin_bar }}
@@ -73,7 +77,7 @@
 </aside>
 </div>
 <footer class="site-footer">
-  <p>Lyndbaum {{ app_version }}</p>
+  <p><a href="https://github.com/Lycolia/lyndbaum">Lyndbaum {{ app_version }}</a></p>
 </footer>
 </body>
 </html>
