@@ -47,7 +47,6 @@ Helpers.push({
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	math_i:	{ func: 'inline',	tag: '[[math:$0]]' },
 	album:	{ func: 'album' },
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
@@ -82,7 +81,6 @@ Helpers.push({
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	math_i:	{ func: 'inline',	tag: '[[math:$0]]' },
 	album:	{ func: 'album' },
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
@@ -117,7 +115,6 @@ Helpers.push({
 
 	toc:	null,
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	math:	{ func: 'block',	start: '<pre class="math">',		 end: '</pre>', pre: true },
 	album:	{ func: 'album' },
 	image:	{
 		//	%a : image attribute

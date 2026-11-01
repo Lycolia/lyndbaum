@@ -34,8 +34,6 @@ sub new {
 	$self->{satsuki_footnote} = 0;	# (())による注釈
 	$self->{satsuki_in_htmlblk}= 1;	# HTML Blocks中のsatsuki記法を許可する
 
-	$self->{qiita_math}       = 1;	# Qiitaのmathブロック記法
-
 	# 処理する記事ごとに設定
 	$self->{thisurl}  = '';		# 記事のURL
 	$self->{thispkey} = '';		# 記事のpkey = unique id = [0-9]+
@@ -227,23 +225,6 @@ sub parse_block {
 			if (defined $x) {
 				push(@ary, $x . ($endmark ? $endmark : "\x01"));
 			}
-			next;
-		}
-
-		#---------------------------------------------------------------
-		# [Qiita] MathJax
-		#---------------------------------------------------------------
-		if ($self->{qiita_math} && $x =~ /^```math\s*$/) {
-			$self->p_block_end(\@ary, \@p_block, $pmode);
-			my @code;
-			$x = shift(@$lines);
-			while(@$lines && $x !~ /^```\s*$/) {
-				push(@code, "$x\x02");
-				$x = shift(@$lines);
-			}
-			push(@ary, "<div class=\"math\">\x02");
-			push(@ary, @code);
-			push(@ary, "</div>\x02");
 			next;
 		}
 

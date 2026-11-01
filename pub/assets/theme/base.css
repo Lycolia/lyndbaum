@@ -141,10 +141,6 @@ pre {
 	overflow-x:		auto;
 }
 
-div.math {
-	overflow-x:		auto;
-}
-
 /* nowrap */
 .nowrap {
 	white-space:	nowrap;
@@ -167,12 +163,6 @@ div.ascii-art {
 /* 麻雀記法 */
 img.mahjong {
 	vertical-align:	bottom;
-}
-
-/* mathjax.js */
-:not(span.mathref) > span.MathJax {
-	margin-left:	0.2em;
-	margin-right:	0.2em;
 }
 
 /* 等幅 */

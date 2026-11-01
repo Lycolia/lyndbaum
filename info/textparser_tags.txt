@@ -46,15 +46,6 @@ qt = >title
 niconico    = ニコニコ動画, ASCII, 1, <module name="nico" vid="$1">
 
 #------------------------------------------------------------------------------
-# TeX記法
-#------------------------------------------------------------------------------
-tex =>math
-math  = MathJax API, ASCII, 1, <span class="math">#1</span>
-mathd = MathJax API, ASCII, 1, <span class="math">\displaystyle #1</span>
-mref  = MathJax Ref, ASCII, 1, <span class="mathref math">\ref{#1}</span>
-mrefa = MathJax Ref, ASCII, 1, html:(<span class="mathref math">\ref{#1}</span>)
-
-#------------------------------------------------------------------------------
 # 画像プラグイン／画像アルバム
 #------------------------------------------------------------------------------
 # plugin image
@@ -172,12 +163,6 @@ xx-small = html:span.xx-small
 
 *toc2
 <toc>depth=2:#0</toc>
-
-*tex
-::tex_mode=1
-
-*tex-off
-::tex_mode=0
 
 #------------------------------------------------------------------------------
 # お知らせ・警告・エラーバナー

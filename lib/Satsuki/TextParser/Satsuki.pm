@@ -28,7 +28,7 @@ my %allow_override = (
 	section_number => 2, section_start  => 2,
 	section_prefix => 1, section_suffix => 1,
 	br_mode => 2, p_mode => 2, p_class => 1, ls_mode => 1,
-	seemore_msg => 1, list_br => 2, tex_mode => 2
+	seemore_msg => 1, list_br => 2
 );
 ################################################################################
 # ■基本処理
@@ -208,12 +208,6 @@ push(@Blocks, {
 	pre    => 1
 });
 push(@Blocks, {
-	start  => '```math',
-	end    => '```',
-	tag    => 'div',
-	class  => 'math'
-});
-push(@Blocks, {
 	start  => '```',
 	end    => '```',
 	tag    => 'pre',
@@ -328,28 +322,6 @@ push(@Blocks, {
 	atag   => 1,
 	p      => 1
 });
-push(@Blocks, {
-	start  => sub {
-		my ($self, $line) = @_;
-		if (!$self->{tex_mode} || $line !~ m|^\\\[(.*)|) { return; }
-		return ['math'];
-	},
-	end    => '\]',
-	tag    => 'div'
-});
-push(@Blocks, {
-	start  => sub {
-		my ($self, $line) = @_;
-		if (!$self->{tex_mode} || $line !~ m|^\\begin\{([^\}]*)\}$|) { return; }
-		return {
-			before => $line,
-			after  => "\\end{$1}",
-			end    => "\\end{$1}",
-			tag    => 'div',
-			opt    => 'math'
-		}
-	},
-});
 foreach(@Blocks) {
 	$_->{len} = length($_->{start});
 }
@@ -391,7 +363,7 @@ sub block_parser_main {
 		}
 
 		#-----------------------------------------------------
-		# ブロック記法の開始 / \begin{}があるため先に処理
+		# ブロック記法の開始
 		#-----------------------------------------------------
 		if ($st->{atag}) {
 			my $blk;
@@ -478,12 +450,6 @@ sub block_parser_main {
 				chop($line);
 				$line  =~ s/ +$//;	# \ の手前のスペース除去
 				$line .= shift(@$lines);
-			}
-			# TeXモード
-			if ($self->{tex_mode}) {
-				$line =~ s/\$\$(.*?)\$\$/'[[mathd:' . &tex_escape($1) . ']]'/eg;
-				$line =~ s/\$(.*?)\$/    '[[math:'  . &tex_escape($1) . ']]'/eg;
-				$line =~ s/\\ref(a)?\{([^\]\}]*)\}/[mref$1:$2]/g;
 			}
 			# mini verbatim表記  {xxx}, {<tag>}, {[xxx:tag]}
 			$line =~ s/\\([\{\}])/ "\x01#" . ord($1) . ';'/eg;	# { } のエスケープ
@@ -1106,12 +1072,6 @@ sub parse_section {
 ################################################################################
 sub replace_original_tag {
 	my ($self, $lines) = @_;
-
-	sub tex_escape() {
-		my $t = shift;
-		$t =~ s/([\[\{])/"&#" . ord($1) . ';'/eg;
-		return $t;
-	}
 
 	my @ary;
 	foreach(@$lines) {

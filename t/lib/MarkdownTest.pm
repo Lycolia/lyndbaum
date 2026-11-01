@@ -60,7 +60,6 @@ sub new_parser {
 		satsuki_syntax_h => 1,
 		satsuki_seemore  => 1,
 		satsuki_footnote => 1,
-		qiita_math       => 1,
 		seemore_msg      => '続きを読む',
 		image_attr       => 'data-lythumb="k%k"',
 		%opt

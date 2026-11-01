@@ -275,38 +275,6 @@ css_init(function(){
 			+ '}';
 });
 
-////////////////////////////////////////////////////////////////////////////////
-//●MathJaxの自動ロード
-////////////////////////////////////////////////////////////////////////////////
-init(function(){
-	const math = document.querySelectorAll('span.math, div.math');
-	if (!math.length) return;
-
-	const MathJaxURL = 'https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js';
-	window.MathJax = {
-		tex: {
-			tags: "ams",
-			inlineMath:  [["\x01\x01", "\x01\x01"]],
-			displayMath: [["\x01\x02", "\x01\x02"]],
-			processEscapes: false,
-			processEnvironments: false,
-			processRefs: false,
-			autoload: {
-				color: [],
-				colorv2: ['color']
-			}
-		},
-		extensions: ["TeX/AMSmath.js", "TeX/AMSsymbol.js"]
-	};
-	this.load_script(MathJaxURL, async function(){
-		for(const dom of math) {
-			const deli = dom.tagName === 'SPAN' ? "\x01\x01" : "\x01\x02";
-			dom.innerHTML = deli + dom.innerHTML + deli;
-		}
-		await MathJax.typesetPromise(Array.from(math));
-	});
-});
-
 //##############################################################################
 // ■dom extend
 //##############################################################################
