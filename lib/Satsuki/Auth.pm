@@ -26,7 +26,7 @@ sub new {
 	$self->{name_notag}      = 1;
 
 	$self->{disallow_num_pass}=1;
-	$self->{pass_min} = 4;
+	$self->{pass_min} = 8;
 	$self->{expires}  = 14*86400;	# 14days
 
 	$self->{sessions}    = 1;

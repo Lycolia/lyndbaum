@@ -39,7 +39,8 @@ my @update_versions = (
 	{ ver => 4.21, plugin=>1, theme=>1, func => 'sys_update_421', rebuild_cond=>[	# 古いテーマをレスポンシブにした。デザインのスケルトンを、今のテーマの雛形を外して作り直す。公開フォルダを整理し、テーマの色の調整をブログの設定に移した
 		'\[(?:for-)?(?:sp|pc):'	# スマホとPCで出し分ける記法（[sp:]、[pc:]）を削除した。使っていた記事は、記法を文字のまま出す
 	]},
-	{ ver => 4.22, func => 'sys_update_422', system=>1 }	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
+	{ ver => 4.22, func => 'sys_update_422', system=>1 },	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
+	{ ver => 4.23, func => 'sys_update_423', system=>1 }	# パスワードをbcryptで保存するようにした。アップデートを行う管理者は、ここで新しいパスワードを決める（system_update）
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -52,6 +53,23 @@ sub system_update {
 
 	my %opt;
 	my $cur = $self->{sys}->{VERSION};
+
+	# パスワードの再設定（Ver4.23）。bcryptで保存されていなければ、新しいパスワードが無いとアップデートしない
+	# 保存すると自分のセッションも消えるので、保存はすべての処理の後に行う
+	my $new_crypted;
+	if ($cur < 4.23 && $auth->{need_pass_reset}) {
+		my $form = $ROBJ->{Form};
+		$ROBJ->clear_form_err();
+		if ($form->{pass} eq '') {
+			$ROBJ->form_err('pass', 'New password is empty');
+		} elsif ($auth->check_new_pass($form->{pass}, $form->{pass2})) {
+			$new_crypted = $auth->hash_pass($form->{pass});
+			if (!defined $new_crypted) {
+				$ROBJ->form_err('pass', 'bcrypt is not supported on this server');
+			}
+		}
+		if ($ROBJ->form_err()) { return 10; }
+	}
 
 	# データの持ち方の変更（Ver4.10）。各バージョンの処理は新しいテーブル名とパスで動くので、それより先に行う
 	if ($cur < 4.10) {
@@ -124,6 +142,16 @@ sub system_update {
 	}
 
 	$self->update_sysdat('VERSION', $cur);
+
+	# 新しいパスワードを保存する。セッションが消えるので、このあとログインし直す
+	if (defined $new_crypted) {
+		my $r = $auth->update_user_data({ id => $auth->{id}, crypted_pass => $new_crypted });
+		if ($r->{ret}) {
+			$ROBJ->message('Password save failed');
+			return -1;
+		}
+		$self->{pass_reset_done} = 1;
+	}
 	return 0;
 }
 
@@ -380,6 +408,22 @@ sub sys_update_422 {
 	if (!$blog) { return; }
 	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
 		$self->update_blogset($blog, 'parser', 'markdown');
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.23
+#-------------------------------------------------------------------------------
+# パスワードをbcryptで保存するようにした。アップデートを行う管理者のパスワードは system_update で保存し直す。
+# ほかのユーザーは、ハッシュがbcryptでないことで、次のログインの後に再設定を求める（force_pass_reset）
+sub sys_update_423 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $auth = $ROBJ->{Auth};
+	my $ary  = $auth->{DB}->select($auth->{table}, { cols => ['id', 'pass'] });
+	my $cnt  = grep { $_->{id} ne $auth->{id} && $_->{pass} ne '*' && substr($_->{pass}, 0, 4) ne '$2b$' } @$ary;
+	if ($cnt) {
+		$ROBJ->message("%d users must reset the password at the next login", $cnt);
 	}
 }
 

@@ -88,7 +88,7 @@
 <$Auth.table = '_users'>
 
 # パスワード最低文字数
-#<$Auth.pass_min = 4>
+#<$Auth.pass_min = 8>
 # セッション保持時間（秒） 14 days
 #<$Auth.expires = 14day>
 

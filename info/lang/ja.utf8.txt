@@ -141,6 +141,10 @@ Too long name (max %d)=ユーザー名は最大 %d 文字（全角なら半分�
 Not allow password is number only=数字のみのパスワードは使用できません
 Too short password (min %d)=パスワードが短すぎます（最低%d文字以上）
 Mismatch password and retype password=確認用パスワードと一致していません
+Too long password (max %d bytes)=パスワードが長すぎます（最大%dバイトまで）
+bcrypt is not supported on this server=このサーバーではbcryptが使えないため、パスワードを保存できません
+Password save failed=パスワードを保存できませんでした
+%d users must reset the password at the next login=%d人のユーザーは、次のログインのあとにパスワードの再設定が要ります
 
 ###############################################################################
 # DB_text

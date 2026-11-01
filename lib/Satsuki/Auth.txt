@@ -20,7 +20,7 @@ $self->{uid_notag}       = 1;		ユーザーIDに " ' < > & を含ませない
 $self->{name_notag}      = 1;		ユーザー名に " ' < > & を含ませない
 
 $self->{disallow_num_pass}=1;		数字のみのパスワードを拒否する
-$self->{pass_min}        = 4;		パスワードの最低文字数（デフォルト4文字）
+$self->{pass_min}        = 8;		パスワードの最低文字数（デフォルト8文字）
 $self->{expires}	 = 180*86400;	ログインの有効期限（秒）
 
 $self->{max_sessions} = 1;	１ユーザーあたりの最大ログインセッション数

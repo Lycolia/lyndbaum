@@ -4,6 +4,11 @@
 <$action_return = v.system_update()>
 
 POST成功時の処理
+<$ifexec(action_return eq '0' && v.pass_reset_done, begin)>
+	<@> 新しいパスワードを保存して、セッションが消えた。ログインし直す
+	<$message('システムアップデートを実行しました。新しいパスワードでログインし直してください')>
+	<$jump('_sub/reload_message', v.myself . '?login')>
+<$end>
 <$ifexec(action_return eq '0', begin)>
 	<$message('システムアップデートを実行しました')>
 	<@> 続けて、動画のサムネイルをブラウザーで作る（system/update）

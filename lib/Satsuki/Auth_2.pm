@@ -189,6 +189,7 @@ sub logout {
 	undef $self->{isadmin};
 	undef $self->{isroot};
 	undef $self->{disabled_admin};
+	undef $self->{need_pass_reset};
 	$self->{ext} = {};
 
 	# セッション情報の消去
@@ -243,6 +244,10 @@ sub set_logininfo {
 	$self->{isadmin} = $user->{isadmin};	# 管理者権限
 	$self->{isroot}  = 0;
 	$self->{disabled_admin} = 0;
+
+	# bcryptで保存されていなければ、パスワードの再設定が要る（無効なパスワード'*'は除く）
+	my $pass = $user->{pass};
+	$self->{need_pass_reset} = ($pass ne '' && $pass ne '*' && substr($pass, 0, 4) ne '$2b$') ? 1 : 0;
 
 	# 拡張カラム
 	my %h = %$user;
