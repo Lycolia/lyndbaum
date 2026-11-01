@@ -37,17 +37,17 @@ Helpers.push({
 	escape:	true,
 	url:	'https://adiary.org/v3man/Satsuki/',
 	head:	{ func: 'block',	tag:  '*$0',	form_type: 'text' },
-	strong:	{ func: 'inline',	tag: '[bf:$0]' },
+	strong:	{ func: 'inline',	tag: '[bf:$0]',	escape: true },
 	link:	{ func: 'inline',	tag: '[$0$1]',   arg_format: ':$1' },
 	anno:	{ func: 'inline',	tag: '(($0))'	},
 	list:	{ func: 'block',	tag: '-$0'	},
 	quote:	{ func: 'block',	start: '>>$1', end: '<<', sp:true, arg_format: '[&$1]' },
-	color:	{ func: 'inline',	tag: '[color:$1:$0]' },
-	fsize:	{ func: 'inline',	tag: '[$1:$0]'	},
+	color:	{ func: 'inline',	tag: '[color:$1:$0]',	escape: true },
+	fsize:	{ func: 'inline',	tag: '[$1:$0]',		escape: true },
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	google:	{ func: 'inline',	tag: '[g:$0$1]', arg_format: ':$1' },
-	wiki:	{ func: 'inline',	tag: '[w:$0]' },
+	wiki:	{ func: 'inline',	tag: '[w:$0]',	escape: true },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	code:	{ func: 'block',	start: '>|?|', end: '||<' },
 	math:	{ func: 'block',	start: '>>>||math', end: '||<<<' },
@@ -81,12 +81,12 @@ Helpers.push({
 	anno:	{ func: 'inline',	tag: '(($0))'	},
 	list:	{ func: 'block',	tag: '- $0'	},
 	quote:	{ func: 'block',	tag: '> $0'	},
-	color:	{ func: 'inline',	tag: '[color:$1:$0]' },
-	fsize:	{ func: 'inline',	tag: '[$1:$0]'	},
+	color:	{ func: 'inline',	tag: '[color:$1:$0]',	escape: true },
+	fsize:	{ func: 'inline',	tag: '[$1:$0]',		escape: true },
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	google:	{ func: 'inline',	tag: '[g:$0$1]', arg_format: ':$1' },
-	wiki:	{ func: 'inline',	tag: '[w:$0]' },
+	wiki:	{ func: 'inline',	tag: '[w:$0]',	escape: true },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	code:	{ func: 'block',	start: '```', end: '```' },
 	math:	{ func: 'block',	start: '```math', end: '```' },
@@ -118,7 +118,7 @@ Helpers.push({
 	strong:	{ func: 'inline',	tag: '<strong>$0</strong>' },
 	link:	{ func: 'inline',	tag: '<a href="$0">$1</a>' },
 	anno:	null,
-	list:	{ func: 'block',	tag: '-$0'	},
+	list:	{ func: 'block',	start: '<ul>', end: '</ul>', tag: '<li>$0</li>' },
 	quote:	{ func: 'block',	start: '<blockquote$1>', end: '</blockquote>' },
 	color:	{ func: 'inline',	tag: '<span style="color:$1">$0</span>' },
 	fsize:	{ func: 'inline',	tag: '<span class="$1">$0</span>'	},
@@ -255,7 +255,10 @@ helper.prototype.insert = function(help, $obj) {
 //------------------------------------------------------------------------------
 helper.prototype.inline = function(help, $obj) {
 	if ($obj.data('msg1')) return this.ex_inline(help, $obj);
-	if (this.selected()) return this._inline(help, $obj);
+
+	// 色・サイズのセレクトは呼び出し後すぐ空に戻るので、ダイアログを開く前に値を取っておく
+	const arg = $obj.val();
+	if (this.selected()) return this._inline(help, arg);
 
 	const self = this;
 	adiary.form_dialog({
@@ -263,12 +266,12 @@ helper.prototype.inline = function(help, $obj) {
 		callback: function (h) {
 			if (h.str == '' || h.str.match(/^\s*$/)) return;
 			self.insert_text_and_select(h.str);
-			self._inline(help, $obj)
+			self._inline(help, arg);
 		}
 	});
 }
-helper.prototype._inline = function(help, $obj) {
-	this.replace(help, $obj.val());
+helper.prototype._inline = function(help, arg) {
+	this.replace(help, arg);
 }
 
 //------------------------------------------------------------------------------
@@ -567,16 +570,23 @@ helper.prototype.normalize_block = function(text) {
 //------------------------------------------------------------------------------
 helper.prototype.esc_satsuki_tag_nested = function(str) {
 	var buf = [];
-	str =str.replace(/[\x01-\x03]/g, '')
+	str =str.replace(/[\x01-\x04]/g, '')
 		.replace(/\\\[/g, "\x01")
 		.replace(/\\\]/g, "\x02");
+	// タグを内側から \x03番号\x04 に退避する（番号の直後に数字が続いても区切れるように \x04 で閉じる）
 	var ma;
 	while(ma = str.match(/^(.*)(\[[^\[\]]*\])(.*)$/)) {
-		str = ma[1] + "\x03" + buf.length + ma[3];
+		str = ma[1] + "\x03" + buf.length + "\x04" + ma[3];
 		buf.push(ma[2]);
 	}
-	str = adiary.esc_satsuki_tag(str)
-		.replace(/\x03(\d+)/, function(all, num) { return buf[num] })
+	str = adiary.esc_satsuki_tag(str);
+	// 入れ子のタグは退避したタグの中にも印が残るので、無くなるまで戻す
+	const reg = /\x03(\d+)\x04/g;
+	while(reg.test(str)) {
+		reg.lastIndex = 0;
+		str = str.replace(reg, function(all, num) { return buf[num] });
+	}
+	str = str
 		.replace(/\x02/g, "\\]")
 		.replace(/\x01/g, "\\[");
 	return str;
