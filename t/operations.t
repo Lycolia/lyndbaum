@@ -587,7 +587,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.21$/m, 'バージョンが今のデータのバージョン（4.21）になる');
+	like(read_file($sys), qr/^VERSION=4\.22$/m, 'バージョンが今のデータのバージョン（4.22）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -638,6 +638,51 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、管理画面に知らせが出ない');
 	unlike(body($app->get('admin', $art)), qr{admin-bar-update}, 'アップデート処理の後は、管理バーにリンクが出ない');
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
+};
+
+#-------------------------------------------------------------------------------
+# 標準記法の削除（4.22）
+#-------------------------------------------------------------------------------
+subtest '標準記法の削除' => sub {
+	my $write = sub {
+		my ($file, $text) = @_;
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $text;
+		close($fh);
+	};
+
+	# 4.21までの設定ファイルと、標準記法を既定にしたブログ
+	my $cf = "$dir/lyndbaum.conf.cgi";
+	my $conf = read_file($cf);
+	$conf =~ s/^(\tmarkdown\s*=.*\n)/$1\tdefault       = 標準（改行処理）\n\tdefault_p1    = １行＝１段落\n\tdefault_p2    = 空行で段落処理\n/m;
+	$write->($cf, $conf);
+	my $bs = "$dir/data/blog/setting.dat";
+	my $set = read_file($bs);
+	$set =~ s/^parser=.*$/parser=default/m;
+	$write->($bs, $set);
+	my $sys = "$dir/data/system_config.dat";
+	my $sc = read_file($sys);
+	$sc =~ s/^VERSION=.*$/VERSION=4.21/m;
+	$write->($sys, $sc);
+
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	unlike(read_file($cf), qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
+	like(read_file($cf), qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
+	ok(-e "$dir/data/lyndbaum.conf.cgi.422.bak", '書き換える前の設定ファイルの控えを残す');
+	like(read_file($bs), qr/^parser=markdown$/m, 'ブログの既定のパーサーがMarkdownになる');
+
+	my $b = body($app->get('owner', 'edit'));
+	unlike($b, qr{<option value="default}, '記事の作成画面で、標準記法を選べない');
+	unlike($b, qr{この記事の記法（}, '新しい記事では、選べない記法の知らせを出さない');
+
+	# 標準記法で書いた古い記事は、黙ってMarkdownに変わらないように知らせる
+	ok(AppTest::is_reload($app->post('owner', '', { %ART, title => '標準記法の記事', body_txt => "本文\n" })), '記事を書く');
+	my ($pkey) = body($app->get('owner', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>標準記法の記事<};
+	my $af = sprintf("$dir/data/db/art/%05d.dat", $pkey);
+	my $a = read_file($af);
+	ok($a =~ s/^parser=.*$/parser=default/m, '記事の記法を標準記法にする');
+	$write->($af, $a);
+	like(body($app->get('owner', "/0$pkey?edit")), qr{この記事の記法（default）は選べません。}, '標準記法の記事の編集画面に、知らせを出す');
 };
 
 subtest '操作の記録' => sub {

@@ -901,7 +901,10 @@ sub save_article {
 	# データ整形処理
 	##############################################################
 	my $now_tm = $ROBJ->{TM};
-	$art->{parser} ||= 'default_p1';
+	# 記法の指定が無い、または選べない記法（4.22で削除した標準記法など）なら、HTML（改行処理）で取り込む
+	if ($art->{parser} eq '' || !$ROBJ->check_skeleton("_parser/$art->{parser}")) {
+		$art->{parser} = 'simple_br';
+	}
 	$art->{tm}     ||= $now_tm;
 	$art->{name}   ||= $auth->{name};
 	$art->{id}       = $auth->{id};
@@ -1469,19 +1472,6 @@ sub export_text_split {
 		}
 	} else {
 		my $text = $h->{text};
-
-		# 記事内リンクの処理
-		if ($parser =~ /^default/) {
-			$self->post_process_link_key( $h );
-			my $thisurl = $self->{myself2} . $h->{elink_key};
-			$text =~ s!(<a\b[^>]*?href=)"([^"]*?)#!
-					if (index($2, $thisurl)==0) {
-						"$1\"#";	# PATH除去
-					} else {
-						"$1\"$2#";	# そのまま
-					}
-				!eg;
-		}
 
 		# 続きを読む、処理
 		my $append;

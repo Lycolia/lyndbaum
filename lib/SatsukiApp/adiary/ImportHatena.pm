@@ -1,7 +1,10 @@
 use strict;
 #-------------------------------------------------------------------------------
-# データインポート for はてな形式(xml)/adiary形式
+# データインポート for adiary形式(xml)
 #                                                   (C)2006 nabe / nabe@abk.nu
+#-------------------------------------------------------------------------------
+# はてな形式の取り込み（はてな記法を標準記法に変換する）は、標準記法と一緒に4.22で削除した。
+# モジュール名は、取り込み画面のボタン（skel/mainte/_import/00_adiary.html の name="Hatena"）が使うので残す。
 #-------------------------------------------------------------------------------
 package SatsukiApp::adiary::ImportHatena;
 ################################################################################
@@ -19,7 +22,7 @@ sub new {
 # ■データインポータ
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●はてな/adiary形式のデータインポート
+# ●adiary形式のデータインポート
 #-------------------------------------------------------------------------------
 sub import_arts {
 	my ($self, $aobj, $form, $session) = @_;
@@ -31,7 +34,7 @@ sub import_arts {
 	{
 		my $check_data = substr($data, 0, 1024);
 		if ($check_data !~ /<\?xml .*? encoding="([\w\-]*)".*?\?>.*<diary>/s) {
-			$session->msg('Data format error (%s)', 'adiary/hatena');
+			$session->msg('Data format error (%s)', 'adiary');
 			return 1;
 		}
 		my $file_coding = $1;
@@ -132,10 +135,12 @@ sub import_arts {
 		}
 
 		#---------------------------------------------------------------
-		# はてなスタイルのデータをadiaryスタイルに整形（本文の記法変換）
+		# adiaryデータではない → はてな形式のデータ（4.22で取り込みをやめた）
 		#---------------------------------------------------------------
-		# adiaryデータではない → はてな形式のデータ
-		if (! $art{adiary}) { $self->convert_hatena_to_adiary( \%art, $form, $session ); }
+		if (! $art{adiary}) {
+			$session->msg('Data format error (%s)', 'adiary');
+			return 1;
+		}
 
 		#---------------------------------------------------------------
 		# 日付加工
@@ -178,160 +183,6 @@ sub tag_dencode_for_xml {
 		$_ =~ s/&#39;|&apos;/'/g;
 	}
 	return $_[0];
-}
-
-#-------------------------------------------------------------------------------
-# ●はてな形式コンバータ
-#-------------------------------------------------------------------------------
-sub convert_hatena_to_adiary {
-	my ($self, $art, $option, $session) = @_;
-
-	# はてな向けの設定
-	my $style_conv = $option->{style_conv};
-	my $link_stop  = $option->{link_stop};
-	my $autolink   = $option->{autolink};
-	my $p_stop     = $option->{p_stop};
-	my $pre_end    = $option->{pre_end};
-	my $f_delete   = $option->{f_delete};
-	my $sec2title  = $option->{section2title};
-	my $up_section = $option->{up_section};
-
-	$art->{parser} = $option->{parser} || 'default_p1';	# 1行=1段落
-
-	#-----------------------------------------
-	# superプレ記法を退避
-	#-----------------------------------------
-	my @spbuf;
-	my $text = $art->{text};
-	$text =~ s/[\x00-\x03\e]//g;
-	$text =~ s/(^|\n)(>\|(?:\?|\w*)\|\s*\n.*?\n\|\|<)\n/
-		push(@spbuf, $2);
-		"$1\x01" . $#spbuf . "\x02\n"/seg;
-
-	my @newary;
-	my @ary = split("\n", $text);
-	my $first_sec = 1;
-	my $do_up_section;
-	while( @ary ) {
-		my $x = shift(@ary);
-		if (substr($x,-1) eq "\x02") {	# super pre buffer
-			push(@newary, $x);
-			next;
-		}
-		#---------------------------------
-		#  <p>タグ停止記法
-		#---------------------------------
-		if ($p_stop) {	#
-			if ($x =~ /^></) {	# p stop div block
-				$x = ">>>|\n" . substr($x, 1);
-			} elsif ($x =~ /><$/) {	# block end
-				chop($x);
-				$x .= "\n|<<<";
-			}
-		}
-		#---------------------------------
-		# タグを保存しておく
-		#---------------------------------
-		my @tags;
-		$x =~ s/(<\w([^>"']|[=\s\n]".*?"|[=\s\n]'.*?')*?>)/push(@tags, $1), "<\e$#tags>"/esg;
-		#---------------------------------
-		# 行末 |< による pre ブロックの終わりを変換する
-		#---------------------------------
-		if ($x ne '|<' && $x ne '||<' && substr($x, -2) eq '|<' && substr($x, -3) ne '||<') {
-			chop($x); chop($x);
-			$x = $x . "\n|<";
-		}
-
-		# 自動リンク停止記法を除去
-		if ($link_stop) {
-			$x =~ s/\[\](.+?)\[\]/$1/g;
-		}
-		# 拡張引用記法の書き換え
-		$x =~ s|^>(https?://.*?)>|>>[$1]|;
-		# 行末 \ のエスケープ
-		if (substr($x, -1) eq "\\") { $x .= " "; }
-
-		#---------------------------------
-		# 最初のサブタイトル抽出
-		#---------------------------------
-		my $is_section;
-		if ($x =~ /^\*[^\*]/) {		# 「*見出し」
-			$is_section=1;
-			$do_up_section=0;	# 見出し書き換えは最初のみ
-		}
-		if ($first_sec && $is_section) {		# 最初のsection
-			$first_sec = 0;
-			if ($x =~ /\*(?:(\w*)\*)?((?:\[.*?\])*)(.*)/) {
-				if ($sec2title) {
-					$do_up_section = $up_section;
-					$art->{title} = $art->{title} || $3;
-				}
-				my $tm = int($1);
-				if ($tm) { $art->{tm} = $tm; }
-				my $tags = $2;
-				$tags =~ s/\]\[/,/g;
-				$tags =~ s/[\[\]]//g;
-				$art->{tags} = $tags;
-			}
-		}
-		if ($do_up_section) {	# *見出し→タイトル、**小見出し→*見出し
-			if ($is_section) {
-				if ($ary[0] eq '') {
-					# 次が空行なら読み捨てる
-					shift(@ary);
-				}
-				next;
-			} else {
-				$x =~ s/^\*\*/*/;
-			}
-		}
-
-		#---------------------------------
-		# 記法変換
-		#---------------------------------
-		if ($x =~ m!\w:(?:\w|//)!) {
-			# 写真へのリンクをコメントアウト
-			if ($f_delete) {
-				$x =~ s/(\[?f:id:[\w:]+\]?)/<!-- $1 -->/g;
-			}
-			# はてな記法を置き換える
-			if ($style_conv) {
-				# 正規表現用の調整
-				$x = " $x";
-				$x =~ s/([^\w:\[])((jan|ean|question|idea|graph|map):[\w:]+)/$1\[$2\]/ig;
-				# x:id:? → [hatena:x:id:?]
-				$x =~ s/([^\w:\[])(\w:)(id|t|keyword):([\w:]+)/$1\[hatena:$2$3:$4\]/g;
-				$x =~ s/\[(\w:)(id|t|keyword):(.+?)\]/[hatena:$1$2:$3]/g;
-				# g:? → [hatena:g:?]
-				$x =~ s/([^\w:\[])g:([\w:]+)/$1\[hatena:g:$2\]/g;
-				$x =~ s/\[g:(.+?)\]/[hatena:g:$1]/g;
-				# id:? → [hatena:id:?]
-				$x =~ s/([^\w:\[])id:([\w:\#]+)/$1\[hatena:id:$2\]/g;
-				$x =~ s/\[id:(.+?)\]/[hatena:id:$1]/g;
-				# [tex:?] → [[tex:?]]
-				$x =~ s/\[tex:(.*?)\]/[[tex:$1\]\]/g;
-				# 元に戻す
-				$x = substr($x, 1);
-			}
-			# 自動リンクを生成
-			if ($autolink) {
-				$x =~ s!(^|[^\w\[:])(https?):(//[\w\./\#\@\?\&\~\=\+\-%\[\]:;,\!*]+)!
-					my $x="$1\[$2:"; my $y=$3;
-					$y =~ s/([\[\]:])/"&#" . ord($1) . ';'/eg;
-					"$x$y]";
-				       !eg;
-				$x =~ s|(mailto:[\w\-\.]+\@[\w\.\-]+)|\[$1\]|g;
-			}
-		}
-
-		# タグを書き戻す
-		$x =~ s/<\e(\d+)>/$tags[$1]/g;
-		push(@newary, $x);
-	}
-	$art->{text} = join("\n", @newary);
-	# super preを戻す
-	$art->{text} =~ s/\x01(\d+)\x02/$spbuf[$1]/g;
-	return ;
 }
 
 1;

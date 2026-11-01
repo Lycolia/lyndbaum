@@ -30,40 +30,6 @@ $(function(){
 //##############################################################################
 var Helpers = [];
 //------------------------------------------------------------------------------
-// Satsuki
-//------------------------------------------------------------------------------
-Helpers.push({
-	regexp:	/^(?:default|satsuki)/i,
-	escape:	true,
-	url:	'https://adiary.org/v3man/Satsuki/',
-	head:	{ func: 'block',	tag:  '*$0',	form_type: 'text' },
-	strong:	{ func: 'inline',	tag: '[bf:$0]',	escape: true },
-	link:	{ func: 'inline',	tag: '[$0$1]',   arg_format: ':$1' },
-	anno:	{ func: 'inline',	tag: '(($0))'	},
-	list:	{ func: 'block',	tag: '-$0'	},
-	quote:	{ func: 'block',	start: '>>$1', end: '<<', sp:true, arg_format: '[&$1]' },
-	color:	{ func: 'inline',	tag: '[color:$1:$0]',	escape: true },
-	fsize:	{ func: 'inline',	tag: '[$1:$0]',		escape: true },
-
-	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
-	cont:	{ func: 'insert',	tag: "\n====\n" },
-	album:	{ func: 'album' },
-	image:	{
-		original:	'[image:L:%d:%f:%c]',
-		thumbnail:	'[image:S:%d:%f:%c]',
-		file:		'[file:%e:%d:%f]',
-		chain:		"\n",
-		exif:		true
-	},
-	figure: {
-		html:		false,
-		start:		">>|figure$1$2",
-		end:		"|<<",
-		arg1_format:	" $1",
-		arg2_format:	" caption=$1"
-	}
-});
-//------------------------------------------------------------------------------
 // Markdown
 //------------------------------------------------------------------------------
 Helpers.push({

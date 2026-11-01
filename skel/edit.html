@@ -171,7 +171,12 @@
 		<@foreach_hash(t, v.parsers, begin)>
 		<option value="<@t.key>"<@if(art.parser eq t.key, ' selected')>><@t.val></option>
 		<$end>
-	</select></span>
+	</select>
+	<@> 選べない記法の記事（4.22で削除した標準記法など）。黙ってMarkdownで保存しないように知らせる
+	<@ifexec(art.parser ne '' && !v.parsers.(art.parser), begin)>
+	<span class="warning">この記事の記法（<@art.parser>）は選べません。MarkdownかHTMLを選んで書き直してください。</span>
+	<$end>
+	</span>
 	<button type="button" id="edit-file-upload" class="fileup" data-folder="<@if(s.edit_upload ne '', s.edit_upload, 'posts/%y/')>" data-paste="<@s.edit_paste>" data-exif="<@if(s.edit_paste_exif, 1, 0)>" data-class="<@s.edit_paste_class>" data-title="ファイルを選択">Upload</button>
 	<@ifexec(edit_pkey, begin)>
 	<button type="button" id="edit-revision" data-title="更新履歴">履歴</button>

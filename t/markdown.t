@@ -55,11 +55,4 @@ foreach my $file (@files) {
 # （上のケースでは数値文字参照を文字に戻して比較しているため、ここで確認する）
 unlike(parse_md('<user@example.com>'), qr/user\@example\.com/, 'inline: メールアドレスは難読化して出力する');
 
-# 画像を <figure> で囲まないのは Markdown の記事だけ。さつき記法の記事（他のテーマ向け）は今までどおり囲む
-{
-	my $sat = MarkdownTest::new_parser()->{satsuki_obj};
-	parse_md('[image:S:a/:x.png:y]');
-	like(scalar $sat->parse('[image:S:a/:x.png:y]'), qr|<figure><a [^>]*><img [^>]*></a></figure>|, 'adiary: さつき記法の記事の画像は figure で囲む');
-}
-
 done_testing();
