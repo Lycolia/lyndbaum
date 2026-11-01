@@ -30,7 +30,6 @@ sub new {
 	$self->{PID}  = $$;
 	$self->{CMD}  = $0;
 	$self->{STDIN}= *STDIN;
-	$self->{IsWindows} = $^O eq 'MSWin32';
 
 	# 初期設定
 	$self->{Status}  = 200;		# HTTP status (200 = OK)
@@ -94,7 +93,6 @@ sub start_up {
 	}
 
 	my $cgi = $0;
-	if ($self->{IsWindows}) { $cgi =~ tr|\\|/|; }
 
 	my $env;
 	my $conf;
@@ -1080,7 +1078,7 @@ sub parse_hash {
 #-------------------------------------------------------------------------------
 sub read_lock {
 	my ($self, $fh) = @_;
-	$self->flock($fh, $self->{IsWindows} ? &Fcntl::LOCK_EX : &Fcntl::LOCK_SH );
+	$self->flock($fh, &Fcntl::LOCK_SH );
 }
 sub write_lock {
 	my ($self, $fh) = @_;
@@ -1092,11 +1090,6 @@ sub write_lock_nb {
 }
 sub flock {
 	my ($self, $fh, $mode) = @_;
-	if ($self->{IsWindows}) {
-		# Windowsでは、同一 $fh に2回以上 lock できない
-		if ($self->{WinLock}->{$fh}) { return 100; }
-		$self->{WinLock}->{$fh} = 1;
-	}
 	return flock($fh, $mode);
 }
 ################################################################################

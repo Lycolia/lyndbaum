@@ -15,8 +15,10 @@
 
 # 動作環境
 
+- Linux（WSLを含む）
 - nginxまたはApache2
 - Perl 5.14.0以降（pure Perl可）
+  - `crypt()`がbcrypt（`$2b$`）に対応していること（libxcryptを使うLinuxなら対応している）
 
 Perl標準モジュールのほかに、使い方によって次のモジュールが必要です。
 
@@ -26,7 +28,6 @@ Perl標準モジュールのほかに、使い方によって次のモジュー�
 | Image::Magick                     | 画像のサムネイルを作るとき。無いと、画像のサムネイルの代わりにアイコンを出す                               |
 | Net::SSLeay                       | 外部のサイトとhttpsで通信するとき（更新通知、`[&URL]`のタイトルの取得、記事の画像の取り込みなど）          |
 | threads（スレッドに対応したPerl） | `lyndbaum.httpd.pl`（Perlだけで動くWebサーバー）を使うとき                                                 |
-| Encode::Locale、Crypt::glibc      | Windowsで`lyndbaum.httpd.pl`を使うとき                                                                     |
 
 # インストール方法
 

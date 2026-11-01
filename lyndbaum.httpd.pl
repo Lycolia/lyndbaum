@@ -2,7 +2,6 @@
 use 5.14.0;
 use strict;
 our $VERSION  = '1.24';
-our $SPEC_VER = '1.12';	# specification version for compatibility
 ################################################################################
 # Satsuki system - HTTP Server
 #					Copyright (C)2019-2023 nabe@abk
@@ -25,15 +24,6 @@ use POSIX;		# for waitpid(<pid>, WNOHANG);
 use Cwd;		# for $ENV{DOCUMENT_ROOT}
 use Time::HiRes;	# for ualarm() and generate random string
 #-------------------------------------------------------------------------------
-# Crypt patch for Windows
-#-------------------------------------------------------------------------------
-if (crypt('','$1$') eq '' || crypt('','$5$') eq '' || crypt('','$6$') eq ''){
-	eval {
-		require Crypt::glibc;
-		*CORE::GLOBAL::crypt = *Crypt::glibc::crypt;
-	};
-};
-#-------------------------------------------------------------------------------
 # pre load modules
 #-------------------------------------------------------------------------------
 eval { require Image::Magick; };
@@ -41,17 +31,15 @@ eval { require Net::SSLeay;   };
 ################################################################################
 # setting
 ################################################################################
-my $IsWindows    = ($^O eq 'MSWin32');
 my $SILENT_CGI   = 0;
 my $SILENT_FILE  = 0;
 my $SILENT_OTHER = 0;
-my $OPEN_BROWSER = $IsWindows;
 my $GENERATE_CONF= 1;
 
 my $UNIX_SOCK;
 my $PATH      = '/';
-my $PORT      = $IsWindows ? 80 : 8888;
-my $ITHREADS  = $IsWindows;
+my $PORT      = 8888;
+my $ITHREADS  = 0;
 my $TIMEOUT   =  3;
 my $DEAMONS   = 10;
 my $DEBUG_SINGLE = 0;	# single process mode for debugger
@@ -65,17 +53,8 @@ my $R_BITS;	# select socket bits
 
 my $MAX_CGI_REQUESTS = 10000;
 
-my $SYS_CODE = 'UTF-8';
-my $FS_CODE;
 my $PATH0;	# Remove last '/' from PATH
 my $PATH0_len;	# $PATH0's length
-#-------------------------------------------------------------------------------
-if ($IsWindows) {
-	require Encode::Locale;
-	import  Encode::Locale;
-	$FS_CODE = $Encode::Locale::ENCODING_LOCALE;
-}
-
 #-------------------------------------------------------------------------------
 # Web Server data
 #-------------------------------------------------------------------------------
@@ -128,7 +107,6 @@ my %SIZE_UNIT = ('K' => 1024, 'M' => 1024*1024, 'G' => 1024*1024*1024);
 
 			if ($k eq 'h') { $key=$kx; $help=1; next; }
 			if ($k eq '?') { $key=$kx; $help=1; next; }
-			if ($k eq 'n') { $key=$kx; $OPEN_BROWSER=0; next; }
 			if ($k eq 'i') { $key=$kx; $ITHREADS=1; next; }
 			if ($k eq 'f') { $key=$kx; $ITHREADS=0; next; }
 			if ($k eq 'D') { $key=$kx; $DEBUG_SINGLE=1; next; }
@@ -146,14 +124,11 @@ my %SIZE_UNIT = ('K' => 1024, 'M' => 1024*1024, 'G' => 1024*1024*1024);
 			if ($k2 eq 'sf') { $key=$ky; $SILENT_FILE = $SILENT_OTHER = 1; next; }
 			if ($k  eq 's')  { $key=$kx; $SILENT_CGI  = $SILENT_FILE = $SILENT_OTHER = 1; next; }
 
-			# system code
-			if ($k2 eq 'cs') { $key=$ky; $SYS_CODE = shift(@ary); next; }
-
 			#---------------------------------------------
 			# option with argument
 			#---------------------------------------------
 			my $val;
-			if ($key =~ /^(?:[ptdmecbu])(.*)/) {
+			if ($key =~ /^(?:[ptdmebu])(.*)/) {
 				$key = '';
 				$val = $1 ne '' ? $1 : shift(@ary);
 				if ($val eq '') {
@@ -163,7 +138,6 @@ my %SIZE_UNIT = ('K' => 1024, 'M' => 1024*1024, 'G' => 1024*1024*1024);
 			}
 			# string argument
 			if ($k eq 'e') { $MIME_FILE = $val; next; }
-			if ($k eq 'c') { $FS_CODE   = $val; next; }
 			if ($k eq 'u') { $UNIX_SOCK = $val; next; }
 
 			#---------------------------------------------
@@ -223,20 +197,17 @@ my %SIZE_UNIT = ('K' => 1024, 'M' => 1024*1024, 'G' => 1024*1024*1024);
 	if ($BUFSIZE < 65536) { $BUFSIZE_u='64K'; $BUFSIZE = 65536; }
 
 	if ($help) {
-		my $n = $IsWindows ? "  -n\t\tdo not open web browser\n" : '';
 		print <<HELP;
 Satsuki HTTP Server - Version $VERSION
 
 Usage: $0 [options] [path]
 Available options are:
   path		working web path (default:/)
-  -p port	bind port (default:8888, windows:80)
+  -p port	bind port (default:8888)
   -t timeout	connection timeout second (default:3, min:0.001)
   -d daemons	start daemons (default:10, min:1)
   -m max_req	maximum cgi requests per daemon (default:10000, min:100)
   -e mime_file	load mime types file name (default: /etc/mime.types)
-  -c  fs_code	set file system's character code (default is auto)
-  -cs sys_code	set cgi  system's character code (default: UTF-8)
   -b bufsize	buffer size [KB] (default:1024 = 1M, min:64)
   -u filename	UNIX domain socket mode
   -f		use fork()
@@ -249,7 +220,7 @@ Available options are:
   -s		silent mode
   -sc		silent mode for cgi  access
   -sf		silent mode for file access
-$n  -?|-h		view this help
+  -?|-h		view this help
 HELP
 		exit(0);
 	}
@@ -258,26 +229,6 @@ HELP
 # start up
 ################################################################################
 print "Satsuki HTTP Server - Version $VERSION\n";
-if ($0 =~ /\.exe$/i) {
-	my $pl = $0;
-	$pl =~ s/\.exe/.httpd.pl/;
-	if (sysopen(my $fh, $pl, O_RDONLY)) {
-		my $pl_ver=0;
-		while(<$fh>) {
-			if ($_ !~ /\$SPEC_VER\s*=\s*[\"\']?(\d+\.\d+)/) { next; }
-			$pl_ver = $1;
-			last;
-		}
-		close($fh);
-		if ($SPEC_VER ne $pl_ver) {
-			print STDERR "*** lyndbaum.httpd.pl's specification version $pl_ver mismatch!!\n";	# debug-safe
-			print STDERR "*** Please update '$0'\n";						# debug-safe
-			print STDERR "\n<<push any key for exit>>";						# debug-safe
-			my $key = <STDIN>;
-			exit(-1);
-		}
-	}
-}
 
 #-------------------------------------------------------------------------------
 # safety (Do not run on CGI/HTTP SERVER)
@@ -286,11 +237,9 @@ $ENV{SERVER_PROTOCOL} && die "Do not run on CGI/HTTP SERVER";
 #-------------------------------------------------------------------------------
 # ENV setting
 #-------------------------------------------------------------------------------
-if (!$IsWindows) {
-	foreach(keys(%ENV)) {
-		if ($_ =~ /^Satsuki/) { next; }
-		delete $ENV{$_};
-	}
+foreach(keys(%ENV)) {
+	if ($_ =~ /^Satsuki/) { next; }
+	delete $ENV{$_};
 }
 $ENV{GATEWAY_INTERFACE} = 'CGI/1.1';
 $ENV{SERVER_NAME}     = 'localhost';
@@ -299,22 +248,6 @@ $ENV{SERVER_PROTOCOL} = 'HTTP/1.1';
 $ENV{SERVER_SOFTWARE} = 'Satsuki';
 $ENV{REQUEST_SCHEME}  = 'http';
 $ENV{DOCUMENT_ROOT}   = Cwd::getcwd();
-
-#-------------------------------------------------------------------------------
-# windows port check
-#-------------------------------------------------------------------------------
-if ($IsWindows) {
-	my $sock;
-	socket($sock, PF_INET, SOCK_STREAM, getprotobyname('tcp'));
-	my $addr = sockaddr_in($PORT, inet_aton('localhost'));
-	my $r = connect($sock, $addr);
-	close($sock);
-
-	if ($r) {
-		&open_browser_on_windows();
-		die "bind port $PORT failed: Address already in use";
-	}
-}
 
 #-------------------------------------------------------------------------------
 # bind port
@@ -337,7 +270,7 @@ if ($UNIX_SOCK ne '') {
 	# IPv6 + IPv4 dual stack. If IPv6 is not available, use IPv4 only.
 	my $v6 = eval {
 		socket($srv, PF_INET6, SOCK_STREAM, getprotobyname('tcp'))	|| die;
-		setsockopt($srv, IPPROTO_IPV6, IPV6_V6ONLY, pack("l", 0))	|| die;	# Windows default is 1
+		setsockopt($srv, IPPROTO_IPV6, IPV6_V6ONLY, pack("l", 0))	|| die;
 		1;
 	};
 	if (!$v6) {
@@ -398,28 +331,6 @@ if ($MIME_FILE && -e $MIME_FILE) {
 }
 
 #-------------------------------------------------------------------------------
-# file system encode
-#-------------------------------------------------------------------------------
-if ($FS_CODE) {
-	require Encode;
-
-	my $enc = Encode::find_encoding($FS_CODE);
-	if (!$enc) {
-		print STDERR "Unknown file system code: $FS_CODE\n";	# debug-safe
-		exit(-1);
-	}
-	$FS_CODE = $enc->mime_name || $enc->name;
-
-	my $enc2 = Encode::find_encoding($SYS_CODE);
-	if (!$enc2) {
-		print STDERR "Unknown cgi system code: $SYS_CODE\n";	# debug-safe
-		exit(-1);
-	}
-	$SYS_CODE = $enc2->mime_name || $enc2->name;
-	print "\tFile system code: $FS_CODE (cgi system is $SYS_CODE)\n";
-}
-
-#-------------------------------------------------------------------------------
 # PATH and SCRIPT_NAME
 #-------------------------------------------------------------------------------
 {
@@ -432,10 +343,6 @@ if ($FS_CODE) {
 
 	## SCRIPT_NAME
 	my $scr = $0;
-	if ($IsWindows) {
-		$scr =~ s|^\w+:||;
-		$scr =~ s|\\|/|g;
-	}
 	$scr = ($scr =~ m|([^/]*)$|) ? "$PATH$1" : $scr;
 	$ENV{SCRIPT_NAME} = $scr;
 }
@@ -450,7 +357,6 @@ $PID = $ITHREADS ? &thread_id() : $$;
 ################################################################################
 if ($GENERATE_CONF) {
 	my $cmd = $0;
-	if ($IsWindows) { $cmd =~ tr|\\|/|; }
 	if ($cmd =~ m|/([^/\.]*)[^/]*$|) {
 		my $conf   = $1 . '.conf.cgi';
 		my $sample = $conf . '.sample';
@@ -489,11 +395,6 @@ if ($DEBUG_SINGLE) {
 		$SIG{CHLD} = 'IGNORE';
 	}
 
-	# open Browser on windows
-	if ($PORT && $IsWindows && $OPEN_BROWSER) {
-		&open_browser_on_windows();
-	}
-
 	# main thread
 	while(1) {
 		sleep(3);
@@ -523,7 +424,6 @@ sub daemon_main {
 	}
 
 	$PID = $ITHREADS ? &thread_id() : $$;
-	$IsWindows && sleep(1);		# accept() blocking main thread on Windows
 
 	&preload_satsuki_lib();
 
@@ -542,7 +442,7 @@ sub daemon_main {
 
 	if ($ITHREADS) {
 		threads->detach();
-		if (!$IsWindows) { kill('SIGUSR1', $$); }
+		kill('SIGUSR1', $$);
 	}
 }
 
@@ -795,14 +695,7 @@ sub try_file_read {
 		$file .= $INDEX;
 	}
 
-	#---------------------------------------------------
-	# file system encode
-	#---------------------------------------------------
 	my $_file = substr($file,1);	# /index.html to index.html
-
-	if ($FS_CODE && $FS_CODE ne $SYS_CODE) {
-		Encode::from_to($_file, $SYS_CODE, $FS_CODE);
-	}
 	if (!-e $_file) {
 		if ($file ne '/favicon.ico') { return; }
 		$state->{type} = 'file';
@@ -923,11 +816,6 @@ sub exec_cgi {
 		$ROBJ->{STDIN}      = $sock;
 
 		$ROBJ->init_for_httpd($state, $PATH);
-
-		if ($FS_CODE) {
-			# file system's locale setting
-			$ROBJ->set_fslocale($FS_CODE);
-		}
 
 		#-----------------------------------------------------
 		# main
@@ -1063,10 +951,10 @@ sub generate_random_string {
 #-------------------------------------------------------------------------------
 sub my_alarm {
 	my $timeout = shift;
-	if (!$IsWindows && !$ITHREADS) {
+	if (!$ITHREADS) {
 		return Time::HiRes::alarm($timeout);
 	}
-	# $IsWindows or $ITHREADS
+	# $ITHREADS
 	if ($timeout <= 0) { return; }
 
 	my $sock = shift;
@@ -1074,16 +962,6 @@ sub my_alarm {
 
 	if (!$r) {	# timeout
 		&{ $SIG{ALRM} }();
-	}
-}
-
-#-------------------------------------------------------------------------------
-# open Browser on windows
-#-------------------------------------------------------------------------------
-sub open_browser_on_windows {
-	if ($IsWindows && $OPEN_BROWSER) {
-		my $url = 'http://' . $ENV{SERVER_NAME} . ($PORT==80 ? '' : ":$PORT");
-		system("cmd.exe /c start $url?login_auto");
 	}
 }
 

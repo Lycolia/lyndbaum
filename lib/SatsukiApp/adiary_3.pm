@@ -75,7 +75,7 @@ sub get_dir_tree {
 			next;
 		}
 		# ディレクトリ
-		my $d    = $ROBJ->fs_decode($_);
+		my $d    = $_;
 		my $tree = $self->get_dir_tree("$dir$_", "$path$d");
 		$tree->{name} = $d;
 		push(@dirs, $tree);
@@ -105,7 +105,6 @@ sub load_image_files {
 	my @ary;
 	foreach(@$files) {
 		my @st = stat("$dir$_");
-		$ROBJ->fs_decode(\$_);
 		push(@ary,{
 			name => $_,
 			size => $st[7],
@@ -170,7 +169,6 @@ sub make_thumbnail {
 
 	$ROBJ->mkdir("${dir}.thumbnail/");
 	foreach(@$files) {
-		$ROBJ->fs_encode(\$_);
 		my $thumb = "${dir}.thumbnail/$_.jpg";
 		# すでに存在したら生成しない
 		if (!$opt->{force} && -r $thumb) { next; }
@@ -239,26 +237,12 @@ sub make_jpeg_thumbnail {
 	my $src  = shift;
 	my $dest = shift;
 	my $size = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	# Windowsで日本語ファイル名がなぜか読み書きできない
-	my $tmpfile;
-	if ($^O eq 'MSWin32' && $ROBJ->{FsConvert}) {
-		$tmpfile = $self->blogimg_dir() . '.imagetmp' . rand();
-	}
 
 	my $img = $self->load_image_magick( 'jpeg:size'=>"$size x $size" );
 	if (!$img) { return -99; }
 	my ($w, $h);
 	eval {
-		my $f = $src;
-		if ($tmpfile &&  $f =~ /[^\x20-\x7e]/) {
-			rename($f, $tmpfile);
-			$self->read_image( $img, $tmpfile );
-			rename($tmpfile, $f);
-		} else {
-			$self->read_image( $img, $f );
-		}
+		$self->read_image( $img, $src );
 		$img = $img->[0];
 		$img->AutoOrient();
 		($w, $h) = $img->Get('width', 'height');
@@ -285,14 +269,7 @@ sub make_jpeg_thumbnail {
 	}
 	# ファイルに書き出し
 	$img->Set( quality => ($self->{album_jpeg_quality} || 80) );
-	my $f = $dest;
-	if ($tmpfile && $f =~ /[^\x20-\x7e]/) {
-		$tmpfile .= '.jpg';
-		$img->Write( $tmpfile );
-		rename($tmpfile, $f);
-	} else {
-		$img->Write( $f );
-	}
+	$img->Write( $dest );
 	return 0;
 }
 
@@ -352,7 +329,6 @@ sub make_thumbnail_for_notimage {
 		my $fs = $self->size_format($st[7]);
 		my $name = $file;
 		my $code = $ROBJ->{SystemCode};
-		$ROBJ->fs_decode(\$name);
 		if ($code ne 'UTF-8') {
 			my $jcode = $ROBJ->load_codepm();
 			$name = $jcode->from_to($name, $code, 'UTF-8');
@@ -374,16 +350,9 @@ sub make_thumbnail_for_notimage {
 	# ファイルに書き出し
 	$img->Set( quality => 98 );
 
-	# patch for windows
 	my $f = "${dir}.thumbnail/$file.jpg";
-	if ($^O eq 'MSWin32' && $ROBJ->{FsConvert} &&  $f =~ /[^\x20-\x7e]/) {
-		my $tmpfile = $self->blogimg_dir() . '.imagetmp'  . rand() . '.jpg';
-		$img->Write( $tmpfile );
-		rename($tmpfile, $f);
-	} else {
-		$f =~ s/%/%%/g;
-		$img->Write( $f );
-	}
+	$f =~ s/%/%%/g;
+	$img->Write( $f );
 	return 0;
 }
 
@@ -533,7 +502,7 @@ sub do_upload {
 	}
 
 	# ファイルの保存
-	my $save_file = $dir . $ROBJ->fs_encode($file_name);
+	my $save_file = $dir . $file_name;
 	if (-e $save_file && !$file_h->{overwrite}) {	# 同じ名前のファイルが存在する
 		# 中身が同じなら、保存せずに今あるファイルを使う（同じ画像をもう一度上げたとき）
 		if ($self->is_same_upload_file($save_file, $file_h)) {
@@ -542,7 +511,7 @@ sub do_upload {
 		}
 		# 中身が違えば、別の名前で保存する
 		$file_name = $self->unique_upload_name($dir, $file_name);
-		$save_file = $dir . $ROBJ->fs_encode($file_name);
+		$save_file = $dir . $file_name;
 	}
 
 	my $fail;
@@ -577,7 +546,7 @@ sub unique_upload_name {
 	my ($base, $ext) = $file_name =~ /^(.*)(\.[^\.]+)$/ ? ($1, $2) : ($file_name, '');
 	$base .= '_' . $ROBJ->print_tmf('%Y%m%d-%H%M%S');
 	my $name = "$base$ext";
-	for(my $i=2; -e $dir . $ROBJ->fs_encode($name); $i++) {
+	for(my $i=2; -e $dir . $name; $i++) {
 		$name = "${base}_$i$ext";
 	}
 	return $name;
@@ -642,7 +611,6 @@ sub remove_exifjpeg {
 	foreach(@$files) {
 		if (!$self->is_image($_) || $_ !~ /\.jpe?g$/i) { next; }
 		push(@names, $_);
-		$ROBJ->fs_encode(\$_);
 		my $r = $jpeg->strip("$dir$_");
 		$fail += $r ? 1 : 0;
 	}
@@ -713,7 +681,6 @@ sub save_video_thumbnail {
 	my ($self, $dir, $file, $poster) = @_;
 	my $ROBJ = $self->{ROBJ};
 	if (!$self->check_file_name($file) || !$self->is_video($file)) { return 1; }
-	$ROBJ->fs_encode(\$file);
 	if (!-f "$dir$file") { return 2; }
 	if (!ref($poster)) { return 3; }
 
@@ -780,7 +747,7 @@ sub load_videos_need_thumbnail {
 				my ($w, $h) = Satsuki::ImageFormat::get_size($poster);
 				if ($w && $w <= $VIDEO_POSTER_MAX && $h <= $VIDEO_POSTER_MAX) { next; }
 			}
-			push(@ary, { folder => $ROBJ->fs_decode("$folder"), name => $ROBJ->fs_decode("$_") });
+			push(@ary, { folder => "$folder", name => "$_" });
 		}
 	}
 	return \@ary;
@@ -798,7 +765,6 @@ sub create_folder {
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($name) ) { return -1; }
 
-	$ROBJ->fs_encode(\$name);
 	my $r = $ROBJ->mkdir("$dir$name") ? 0 : 1;
 	$ROBJ->mkdir("$dir$name/.thumbnail");
 
@@ -816,8 +782,6 @@ sub rename_folder {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $old  = $self->chop_slash( $form->{old}  );
 	my $name = $self->chop_slash( $form->{name} );
-	$ROBJ->fs_encode(\$old );
-	$ROBJ->fs_encode(\$name);
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
 
@@ -850,7 +814,6 @@ sub move_files {
 			push(@fail, $_);
 			next;
 		}
-		$ROBJ->fs_encode(\$_);
 		my $src = $_;
 		my $des = $_;
 		#---------------------------------
@@ -922,8 +885,6 @@ sub rename_file {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $old  = $form->{old};
 	my $name = $form->{name};
-	$ROBJ->fs_encode(\$old );
-	$ROBJ->fs_encode(\$name);
 
 	my $r  = rename("$dir$old", "$dir$name");
 	my $r2;
@@ -965,7 +926,6 @@ sub delete_files {
 	my @fail;
 	foreach(@$files) {
 		my $file = $_;
-		$ROBJ->fs_encode(\$file);
 		my $r = unlink("$dir$file");
 		if (!$r) {
 			push(@fail, $_);
@@ -1023,7 +983,6 @@ sub image_folder_to_dir {
 	$folder =~ s|/*$|/|;
 	$folder =~ s|^/||;
 	$folder =~ s|[\x00-\x1f]| |g;
-	$self->{ROBJ}->fs_encode(\$folder);
 	return $self->blogimg_dir() . $folder;
 }
 

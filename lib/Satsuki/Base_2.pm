@@ -453,8 +453,7 @@ sub get_tmpdir {
 	my $self  = shift;
 	my $dir = $self->{Temp};
 	if ($dir eq '') {
-		$dir = $ENV{TMPDIR} || $ENV{TEMP} || $ENV{TMP} || '/tmp';
-		$dir =~ tr|\\|/|;		# for windows
+		$dir = $ENV{TMPDIR} || '/tmp';
 		if ($dir eq '') { return ; }	# 失敗
 		$dir .= '/satsuki-system/';
 	}
@@ -540,39 +539,6 @@ sub file_lock {
 	my $r = $self->$type($fh);
 	if (!$r) { close($fh); return; }
 	return $fh;
-}
-
-#-------------------------------------------------------------------------------
-# file system's locale
-#-------------------------------------------------------------------------------
-sub set_fslocale {
-	my $self = shift;
-	$self->{FsLocale} = shift;
-	$self->init_fslocale();
-}
-sub init_fslocale {
-	my $self = shift;
-	my $fs   = $self->{FsLocale};
-	if (!$fs || $fs =~ /utf-?8/i && $self->{SystemCode} =~ /utf-?8/i) {
-		$self->{FsConvert}=0;
-		return;
-	}
-	require Encode;
-	$self->{FsConvert}=1;
-}
-sub fs_decode {
-	my $self = shift;
-	my $file = ref($_[0]) ? shift : \(my $x = shift);
-	if (!$self->{FsConvert}) { return $$file; }
-	Encode::from_to( $$file, $self->{FsLocale}, $self->{SystemCode});
-	return $$file;
-}
-sub fs_encode {
-	my $self = shift;
-	my $file = ref($_[0]) ? shift : \(my $x = shift);
-	if (!$self->{FsConvert}) { return $$file; }
-	Encode::from_to( $$file, $self->{SystemCode}, $self->{FsLocale});
-	return $$file;
 }
 
 ################################################################################
@@ -718,7 +684,7 @@ sub read_multipart_form {
 	my $header_max_size = 1024;
 
 	# boundary の読み出し
-	binmode($self->{STDIN});	# for Windows
+	binmode($self->{STDIN});
 	$content_type =~ /boundary=(.*)/;
 	my $boundary = $1;
 	my $form     = {};
