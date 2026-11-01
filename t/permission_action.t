@@ -9,6 +9,8 @@ use utf8;
 #	・下限より下の人が送っても、data/ と pub/ が何も変わらず、通ったときの応答も返らない
 #	・下限の人が同じものを送ると通る（送る中身が正しいことの確かめ。これが無いと、
 #	  中身の誤りで弾かれているのか、権限で弾かれているのか分からない）
+#	・同じものをGETで送ると、システム管理者でも通らない（ログインのCookieはSameSite=Laxで、
+#	  ほかのサイトのリンクから開くGETにはCookieが乗るため。docs/仕様/機能一覧.md の「CSRFの対策」）
 # 権限は docs/仕様/機能一覧.md の「2. 操作（POSTとAjax）」の表のとおり。
 #
 use FindBin;
@@ -206,6 +208,14 @@ my %SKIP = (
 	'etc/myblog_create' => 'ブログが1つしか作れず、作った後では下限の人でも通らない',
 );
 
+# 上の表に入れない操作を、GETで送るときの中身
+my %SKIP_FORM = (
+	'_ajax_login'       => { adiary_id => 'admin', pass => $AppTest::PASS },
+	'comment_post'      => { a_pkey => 1, comment_txt => 'GETのコメント', name => 'admin' },
+	'etc/dummy'         => {},
+	'etc/myblog_create' => { load_design => 1 },
+);
+
 #-------------------------------------------------------------------------------
 # skel/ の操作と _ajax_ の関数が、すべて表に入っているか
 #-------------------------------------------------------------------------------
@@ -234,6 +244,49 @@ my %SKIP = (
 my $app  = AppTest->new()->setup()->seed();
 my $snap = $app->snapshot();
 
+#-------------------------------------------------------------------------------
+# GETで送っても通らない
+#-------------------------------------------------------------------------------
+# フォームの中身をクエリにして、システム管理者で送る。送り方は2通り
+#	?action=操作&名前=値...
+#	?操作の画面&action=操作&名前=値...（set/role のように、画面と同じ名前の操作を、その画面のURLで送る）
+# ファイル（multipartで送るもの）はクエリにできないので、ファイル名だけを入れる
+sub get_queries {
+	my ($action, $form) = @_;
+	my @f = @$form;
+	my @list;
+	while(@f) {
+		my $k = shift(@f);
+		my $v = shift(@f);
+		$v = $v->{filename} if (ref($v));
+		push(@list, AppTest::_uri_escape($k) . '=' . AppTest::_uri_escape($v));
+	}
+	my $q = join('&', @list);
+	return $action =~ /^_/ ? ($q) : ($q, "$action&$q");
+}
+sub check_get {
+	my ($label, $action, $form, $ok, $before) = @_;
+	foreach my $q (get_queries($action, $form)) {
+		my $r = $app->get('admin', $q);
+		my @changed = AppTest::diff_fingerprint($before, $app->fingerprint());
+		ok(!@changed && !($ok && $ok->($r)), "$label をGET（?$q）で送っても通らない")
+			or diag(@changed ? "変わったファイル: @changed" : "通ったときの応答が返った: status=$r->{status} " . substr($r->{body}, 0, 200));
+		if (@changed) {
+			$app->restore($snap);
+		}
+	}
+}
+
+is_deeply([ sort keys(%SKIP_FORM) ], [ sort keys(%SKIP) ], '表に入れない操作の、GETで送る中身がそろっている');
+foreach my $action (sort keys(%SKIP_FORM)) {
+	my $f = $SKIP_FORM{$action};
+	$app->restore($snap);
+	check_get($action, $action, [ action => $action, map { ($_, $f->{$_}) } sort keys(%$f) ], undef, $app->fingerprint());
+}
+
+#-------------------------------------------------------------------------------
+# 表の操作
+#-------------------------------------------------------------------------------
 foreach my $c (@ACTIONS) {
 	my $label = $c->{label} || $c->{action};
 	my $ok    = $c->{ok};
@@ -242,6 +295,9 @@ foreach my $c (@ACTIONS) {
 
 	$app->restore($snap);
 	my $before = $app->fingerprint();
+
+	# GET
+	check_get($label, $c->{action}, \@form, $ok, $before);
 
 	# 下限より下の人
 	foreach my $who (grep { $LEVEL{$_} < $LEVEL{$c->{min}} } @ROLES) {
