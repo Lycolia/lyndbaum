@@ -47,6 +47,7 @@ Helpers.push({
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
+	details: { func: 'block',	start: "<details>$1\n", end: "\n</details>", sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },	// 中身にMarkdownが効くように、空行で挟む
 	album:	{ func: 'album' },
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
@@ -81,6 +82,7 @@ Helpers.push({
 
 	toc:	null,
 	cont:	{ func: 'insert',	tag: "\n====\n" },
+	details: { func: 'block',	start: '<details>$1', end: '</details>', sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },
 	album:	{ func: 'album' },
 	image:	{
 		//	%a : image attribute
@@ -330,6 +332,7 @@ helper.prototype._block = function(help, $obj) {
 				const reg = RegExp(sp_reg, 'i');
 				if (! reg.test(h.arg)) h.arg='';
 			}
+			if (h.arg != '' && help['arg_esc']) h.arg = adiary.tag_esc(h.arg);	// HTMLのタグにしない（<details>の見出し）
 			if (h.arg != '' && help['arg_format'] != '') {
 				let x = help['arg_format'];
 				h.arg = x.replace(/\$1/g, h.arg);
