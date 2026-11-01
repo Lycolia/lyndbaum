@@ -27,7 +27,6 @@ my %allow_override = (
 	chain_line => 2,
 	section_number => 2, section_start  => 2,
 	section_prefix => 1, section_suffix => 1,
-	timestamp_date => 1,
 	br_mode => 2, p_mode => 2, p_class => 1, ls_mode => 1,
 	seemore_msg => 1, list_br => 2, tex_mode => 2
 );
@@ -52,7 +51,6 @@ sub new {
 	$self->{section_number} = 0;	# 章番号なし
 	$self->{section_start}  = 1;	# 章の開始番号
 
-	$self->{timestamp_date} = '%Y/%m/%d';
 	$self->{indent} = '';		# indent all line
 	$self->{seemore_msg} = '';	# default "See More..."
 	$self->{image_attr}  = '';	# image link attribute for image viewer
@@ -324,18 +322,6 @@ push(@Blocks, {
 });
 push(@Blocks, {
 	start  => '>>',
-	end    => '<<',
-	tag    => 'blockquote',
-	htag   => 1,
-	atag   => 1,
-	p      => 1
-});
-push(@Blocks, {		# Hatena's blockquote, >http://example.com/
-	start  => sub {
-		my ($self, $line) = @_;
-		if ($line !~ m|^>(https?://[^>]*)>(.*)|) { return; }
-		return ["[$1]", $2];
-	},
 	end    => '<<',
 	tag    => 'blockquote',
 	htag   => 1,
@@ -1071,10 +1057,9 @@ sub parse_section {
 
 			# output html
 			my $h  = $self->{section_hnum} + $level -1;
-			my $tm = ($level==1) ? $self->make_section_timestamp($name) : '';
 
 			if (6 < $h) { $h=6; }
-			push(@out, "$self->{indent}<h$h id=\"$id\"><a href=\"$self->{thisurl}#$id\">$num_text$title</a>$tm</h$h>\n");
+			push(@out, "$self->{indent}<h$h id=\"$id\"><a href=\"$self->{thisurl}#$id\">$num_text$title</a></h$h>\n");
 
 			# タグ処理
 			$sec->{title} = $self->parse_tag( $sec->{title} );	# タグ処理
@@ -1114,30 +1099,6 @@ sub parse_section {
 	push(@out,'',"</section>\n");
 
 	return \@out;
-}
-
-#-------------------------------------------------------------------------------
-# ●section timestamp
-#-------------------------------------------------------------------------------
-sub make_section_timestamp {
-	my $self = shift;
-	my $name = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	my $tm;
-	if ($name >= 100000000) {	# 時刻記法
-		my $ROBJ   = $self->{ROBJ};
-		my $format = $self->{timestamp_date} || '%Y/%m/%d';
-		$tm = $ROBJ->print_tmf($format, $name);
-	} elsif (  $name =~ m|^\d+/\d+(?:/\d+)?(?: \d+:\d+)?$|
-		|| $name =~ m|^\d+-\d+(?:-\d+)?(?: \d+:\d+)?$|
-		|| $name =~ m|^\d+:\d+$|)
-	{
-		$tm = $name;
-	} else {
-		return;
-	}
-	return " <span class=\"timestamp\">$tm</span>";
 }
 
 ################################################################################

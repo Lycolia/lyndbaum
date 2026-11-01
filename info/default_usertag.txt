@@ -6,19 +6,16 @@
 #　・url には「,」を含めない。
 # （参考）http://adiary.blog.abk.nu/066
 #-----------------------------------------------------------------------------
-# サンプル（すべて定義済）
+# サンプル
 #-----------------------------------------------------------------------------
-#google         = Google検索,          UTF-8, http://www.google.co.jp/search?lr=lang_ja&ie=utf-8&oe=utf-8&q=
-#google:image   = Googleイメージ検索,  UTF-8, http://images.google.co.jp/images?lr=lang_ja&ie=utf-8&oe=utf-8&q=
-#search:keyword = はてなキーワード検索,EUC-JP,    http://search.hatena.ne.jp/keyword?word=
-#hatena:id#2    = はてなダイアリー,    EUC-JP, 2, http://d.hatena.ne.jp/$1/$2
+#npm            = npmのパッケージ,     ASCII, 1, https://www.npmjs.com/package/$1
+#github#2       = GitHubのリポジトリ,  ASCII, 2, https://github.com/$1/$2
 #
 # エイリアス（別名）
-#g            = >google
-#g:img        = >google:image
+#n            = >npm
 #
-# ブロック置換	「$0」はadiaryのディレクトリ（パス）になります。
-#tex   = mimeTeX, ASCII, 1, <img src="$0mimetex/mimetex.cgi?$1" alt="$1" class="tex">
+# タグ置換
+#kbd   = キー入力, ASCII, 1, <kbd>#1</kbd>
 #
 # HTMLタグ置換
 #bf    = html:strong

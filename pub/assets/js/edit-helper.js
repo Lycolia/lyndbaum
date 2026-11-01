@@ -46,11 +46,7 @@ Helpers.push({
 	fsize:	{ func: 'inline',	tag: '[$1:$0]',		escape: true },
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
-	google:	{ func: 'inline',	tag: '[g:$0$1]', arg_format: ':$1' },
-	wiki:	{ func: 'inline',	tag: '[w:$0]',	escape: true },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	code:	{ func: 'block',	start: '>|?|', end: '||<' },
-	math:	{ func: 'block',	start: '>>>||math', end: '||<<<' },
 	math_i:	{ func: 'inline',	tag: '[[math:$0]]' },
 	album:	{ func: 'album' },
 	image:	{
@@ -85,11 +81,7 @@ Helpers.push({
 	fsize:	{ func: 'inline',	tag: '[$1:$0]',		escape: true },
 
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
-	google:	{ func: 'inline',	tag: '[g:$0$1]', arg_format: ':$1' },
-	wiki:	{ func: 'inline',	tag: '[w:$0]',	escape: true },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	code:	{ func: 'block',	start: '```', end: '```' },
-	math:	{ func: 'block',	start: '```math', end: '```' },
 	math_i:	{ func: 'inline',	tag: '[[math:$0]]' },
 	album:	{ func: 'album' },
 	image:	{
@@ -124,12 +116,8 @@ Helpers.push({
 	fsize:	{ func: 'inline',	tag: '<span class="$1">$0</span>'	},
 
 	toc:	null,
-	google:	null,
-	wiki:	null,
 	cont:	{ func: 'insert',	tag: "\n====\n" },
-	code:	{ func: 'block',	start: '<pre class="syntax-highlight">', end: '</pre>', pre: true },
 	math:	{ func: 'block',	start: '<pre class="math">',		 end: '</pre>', pre: true },
-	math_i:	{ func: 'inline',	tag:   '<span class="math">$0</span>'	              , pre: true },
 	album:	{ func: 'album' },
 	image:	{
 		//	%a : image attribute
