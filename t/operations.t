@@ -531,6 +531,56 @@ subtest 'ユーザー' => sub {
 	unlike(body($app->get('admin', 'user/')), qr{>user<}, 'ユーザーの一覧から消える');
 };
 
+subtest 'パスワード' => sub {
+	my $pass_of = sub {
+		my $id = shift;
+		foreach my $file (glob("$dir/data/db/_users/0*.dat")) {
+			my $t = read_file($file);
+			return $1 if ($t =~ /^id=\Q$id\E$/m && $t =~ /^pass=(.*)$/m);
+		}
+		return '';
+	};
+	like($pass_of->('admin'), qr/^\$2b\$12\$[.\/A-Za-z0-9]{53}$/, 'bcryptで保存する');
+
+	my $add = sub {
+		my ($id, $pass, $pass2) = @_;
+		return $app->post('admin', '', { action => '_ajax_user_add', adiary_id => $id, name => $id, pass => $pass, pass2 => $pass2 // $pass, email => '', isadmin => 0 });
+	};
+	ok(!json_ok($add->('short', 'abcdefg')), '7文字では追加できない');
+	ok(!json_ok($add->('longpass', 'a' x 73)), '72バイトを超えると追加できない');
+	ok(!json_ok($add->('mismatch', 'abcdefgh', 'abcdefgx')), '確認用と違うと追加できない');
+	ok(json_ok($add->('reset', 'abcdefgh')), '8文字なら追加できる');
+	like($pass_of->('reset'), qr/^\$2b\$/, '追加したユーザーもbcrypt');
+	isnt($pass_of->('reset'), $pass_of->('admin'), 'saltは毎回違う');
+
+	# 前のSHA-512のハッシュに戻す（4.22までに保存したユーザー）
+	my $sha = crypt('old-pass-1234', '$6$abcdefghijklmnop$');
+	foreach my $file (glob("$dir/data/db/_users/0*.dat")) {
+		my $t = read_file($file);
+		next if ($t !~ /^id=reset$/m);
+		$t =~ s/^pass=.*$/pass=$sha/m;
+		open(my $fh, '>:utf8', $file) || die; print $fh $t; close($fh);
+	}
+	my $r = $app->post('reset', '', { action => '_ajax_login', adiary_id => 'reset', pass => 'old-pass-1234' });
+	ok(json_ok($r), 'SHA-512のハッシュでもログインできる');
+
+	$r = $app->get('reset', 'menu');
+	is($r->{status}, 302, '再設定するまで、ほかの画面は開けない');
+	like($r->{headers}->{location} // '', qr{\?personal/$}, 'パスワードの変更画面へ送る');
+	$r = $app->get('reset', 'personal/');
+	is($r->{status}, 200, 'パスワードの変更画面は開ける');
+	like(body($r), qr{パスワードの保存方式を変えました}, '再設定の知らせが出る');
+	ok(!json_ok($app->post('reset', '', { action => '_ajax_self_change_name', name => 'x' })), 'ほかの操作はできない');
+
+	$r = $app->post('reset', '', { action => '_ajax_self_change_pass', now_pass => 'old-pass-1234', pass => 'new-pass-5678', pass2 => 'new-pass-5678' });
+	ok(json_ok($r), 'パスワードを変えられる');
+	like($pass_of->('reset'), qr/^\$2b\$/, '変えるとbcryptになる');
+	ok(json_ok($app->post('reset', '', { action => '_ajax_login', adiary_id => 'reset', pass => 'new-pass-5678' })), '新しいパスワードでログインできる');
+	is($app->get('reset', 'menu')->{status}, 200, '再設定の後は、ほかの画面も開ける');
+
+	ok(json_ok($app->post('admin', '', { action => '_ajax_user_delete', id => 'reset' })), '後片付け');
+};
+
 subtest '同時ログイン数' => sub {
 	# システム設定の画面のフォームの値に、変えたい値を重ねて保存する
 	my $save = sub {
@@ -587,7 +637,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.22$/m, 'バージョンが今のデータのバージョン（4.22）になる');
+	like(read_file($sys), qr/^VERSION=4\.23$/m, 'バージョンが今のデータのバージョン（4.23）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -638,6 +688,53 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、管理画面に知らせが出ない');
 	unlike(body($app->get('admin', $art)), qr{admin-bar-update}, 'アップデート処理の後は、管理バーにリンクが出ない');
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
+};
+
+#-------------------------------------------------------------------------------
+# パスワードのbcrypt化（4.23）
+#-------------------------------------------------------------------------------
+subtest 'アップデート処理でのパスワードの再設定' => sub {
+	my $user_file = sub {
+		my $id = shift;
+		foreach my $file (glob("$dir/data/db/_users/0*.dat")) {
+			return $file if (read_file($file) =~ /^id=\Q$id\E$/m);
+		}
+	};
+	my $file = $user_file->('admin');
+	my $write = sub {
+		my ($f, $text) = @_;
+		open(my $fh, '>:utf8', $f) || die "$f: $!";
+		print $fh $text;
+		close($fh);
+	};
+	# 4.22までのデータ（管理者のパスワードがSHA-512）にする
+	my $t = read_file($file);
+	my $sha = crypt($AppTest::PASS, '$6$abcdefghijklmnop$');
+	$t =~ s/^pass=.*$/pass=$sha/m;
+	$write->($file, $t);
+	my $sys = "$dir/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.22/m;
+	$write->($sys, $conf);
+
+	like(body($app->get('admin', 'system/update')), qr{name="pass".*name="pass2"}s, 'アップデート処理の画面に、新しいパスワードの欄が出る');
+	is($app->get('admin', 'menu')->{status}, 200, 'アップデートが要るときの管理者は、パスワードの変更画面へ送らない');
+
+	foreach my $f ({}, { pass => 'abcdefg', pass2 => 'abcdefg' }, { pass => 'abcdefgh', pass2 => 'abcdefgx' }) {
+		my $r = $app->post('admin', 'system/update', { action => 'system/update', %$f });
+		ok(!AppTest::is_reload($r), 'パスワードが規則に合わなければ、アップデート処理を行わない（' . ($f->{pass} // '空') . '）');
+		like(read_file($sys), qr/^VERSION=4\.22$/m, '版はそのまま');
+	}
+
+	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
+	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
+	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
+	like(read_file($sys), qr/^VERSION=4\.23$/m, '版が4.23になる');
+	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
+	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
+	$app->login('admin');
+	is($app->get('admin', 'menu')->{status}, 200, '新しいパスワードでログインし直せる');
+	unlike(body($app->get('admin', 'system/update')), qr{name="pass"}, 'アップデート処理の後は、パスワードの欄を出さない');
 };
 
 #-------------------------------------------------------------------------------

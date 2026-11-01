@@ -321,17 +321,12 @@ sub check_user_data {
 
 	# パスワードの確認
 	my $pass = $user->{pass};
-	if ($pass ne '') {	# パスワードを変更する
-		if ($self->{disallow_num_pass} && $pass =~ /^\d+$/) {
-			$ROBJ->form_err('pass', "Not allow password is number only");
-		}
-		if (length($pass) < $self->{pass_min}) {
-			$ROBJ->form_err('pass',"Too short password (min %d)", $self->{pass_min});
-		} elsif (defined $user->{pass2} && $pass ne $user->{pass2}) {
-			$ROBJ->form_err('pass2',"Mismatch password and retype password");
+	if ($pass ne '' && $self->check_new_pass($pass, $user->{pass2})) {	# パスワードを変更する
+		my $crypted = $self->hash_pass($pass);
+		if (defined $crypted) {
+			$update{pass} = $crypted;
 		} else {
-			$pass = $ROBJ->crypt_by_rand($pass);
-			$update{pass} = $pass;
+			$ROBJ->form_err('pass', "bcrypt is not supported on this server");
 		}
 	}
 	if ($user->{crypted_pass}) { $update{pass}=$user->{crypted_pass}; }
@@ -381,6 +376,60 @@ sub update_user_data {
 
 	$self->log_save($id, 'update');
 	return { ret => 0 };
+}
+
+#-------------------------------------------------------------------------------
+# ●新しいパスワードが規則に合うか確かめる
+#-------------------------------------------------------------------------------
+# 合わなければform_errを積んで偽を返す。$pass2がundefなら確認用との比較はしない
+sub check_new_pass {
+	my ($self, $pass, $pass2) = @_;
+	my $ROBJ = $self->{ROBJ};
+
+	my $ok = 1;
+	if ($self->{disallow_num_pass} && $pass =~ /^\d+$/) {
+		$ROBJ->form_err('pass', "Not allow password is number only");
+		$ok = 0;
+	}
+	if (length($pass) < $self->{pass_min}) {
+		$ROBJ->form_err('pass',"Too short password (min %d)", $self->{pass_min});
+		return 0;
+	}
+	# bcryptは72バイトより後を無視するので、長すぎるものは断る
+	if (do { use bytes; length($pass) } > 72) {
+		$ROBJ->form_err('pass',"Too long password (max %d bytes)", 72);
+		return 0;
+	}
+	if (defined $pass2 && $pass ne $pass2) {
+		$ROBJ->form_err('pass2',"Mismatch password and retype password");
+		return 0;
+	}
+	return $ok;
+}
+
+#-------------------------------------------------------------------------------
+# ●パスワードをbcryptでハッシュにする
+#-------------------------------------------------------------------------------
+# OSのcrypt()の$2b$（libxcrypt）を使う。対応していなければundef
+my $BCRYPT_COST = 12;
+my $BCRYPT_B64  = './ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+sub hash_pass {
+	my ($self, $plain) = @_;
+
+	# 16バイトの乱数を、bcryptのBase64で22文字にする
+	my $raw;
+	if (open(my $fh, '<:raw', '/dev/urandom')) {
+		read($fh, $raw, 16);
+		close($fh);
+	}
+	if (length($raw) != 16) { return; }
+	my $bits = unpack('B*', $raw) . '0000';		# 128bit → 132bit（6bit×22）
+	my $salt = join('', map { substr($BCRYPT_B64, oct("0b$_"), 1) } ($bits =~ /(.{6})/g));
+
+	my $prefix = sprintf('$2b$%02d$', $BCRYPT_COST);
+	my $crypted = crypt($plain, $prefix . $salt);
+	if (!defined $crypted || substr($crypted, 0, length($prefix)) ne $prefix || length($crypted) != 60) { return; }
+	return $crypted;
 }
 
 #-------------------------------------------------------------------------------

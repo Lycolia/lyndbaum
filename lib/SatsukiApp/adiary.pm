@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.22;
+our $VERSION    = 4.23;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.22;
+our $DATA_VERSION = 4.23;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -146,6 +146,15 @@ sub main {
 
 	# 表示スケルトン選択
 	$self->select_skeleton( $ROBJ->{Query}->{_} || $self->{query0} );
+
+	#-------------------------------------------------------------
+	# パスワードの再設定（bcryptで保存されていないユーザー）
+	#-------------------------------------------------------------
+	# 管理者でアップデートが要るときは、アップデート処理の画面で再設定する
+	my $auth = $ROBJ->{Auth};
+	if ($auth->{ok} && $auth->{need_pass_reset} && !($auth->{isadmin} && $self->{require_update})) {
+		$self->force_pass_reset();
+	}
 
 	#-------------------------------------------------------------
 	# POST action判定
