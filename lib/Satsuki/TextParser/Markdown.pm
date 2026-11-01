@@ -201,7 +201,10 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# HTML block
 		#---------------------------------------------------------------
-		if (!$nest && $x =~ /^<($block_tags)\b[^>]*>/i) {
+		# 閉じタグで終わる行か空行の、早いほうまでをHTMLブロックとする。
+		# 空行の後はMarkdownに戻るので、GFMと同じく<details>の中にMarkdownを書ける。
+		# 閉じタグだけの行（</details>など）もHTMLブロックにする（段落の<p>で囲まない）。
+		if (!$nest && $x =~ m!^</?($block_tags)\b[^>]*>!i) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			my $tagend = qr|</$1\s*>\s*$|;
 			my $endmark = "\x02";
@@ -214,8 +217,16 @@ sub parse_block {
 				push(@ary, $x . ($first ? "\x01" : $endmark));
 				$first=0;
 				$x = shift(@$lines);
+				if ($x =~ /^\s*$/) {
+					# 空行は、HTMLブロックの外として通常の処理に戻す
+					unshift(@$lines, $x);
+					undef $x;
+					last;
+				}
 			}
-			push(@ary, $x . ($endmark ? $endmark : "\x01"));
+			if (defined $x) {
+				push(@ary, $x . ($endmark ? $endmark : "\x01"));
+			}
 			next;
 		}
 
