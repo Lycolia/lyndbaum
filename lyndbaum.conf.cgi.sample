@@ -178,9 +178,6 @@
 #----------------------------------------------------------
 <$v.parsers = begin_hash_order>
 	markdown      = Markdown
-	default       = 標準（改行処理）
-	default_p1    = １行＝１段落
-	default_p2    = 空行で段落処理
 	simple	      = HTML（そのまま）
 	simple_br     = HTML（改行処理）
 <$end>

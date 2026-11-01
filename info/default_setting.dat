@@ -2,7 +2,7 @@ blog_name=（ブログのタイトルを入力）
 enable=1
 com_ok=1
 ping=1
-parser=default
+parser=markdown
 rss_items_int=10
 allow_com_users=*
 image_data=lythumb=k%k

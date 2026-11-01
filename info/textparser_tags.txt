@@ -34,82 +34,16 @@ adiary:tag = タグ検索
 
 search = 検索,         UTF-8,  ${myself}?all=1&q=
 title  = タイトル検索, UTF-8,  ${myself}?q=
-theme  = テーマ,       ASCII,  ${myself2}?_theme=
 
 category = >adiary:tag
 q  = >search
 qt = >title
 
 #------------------------------------------------------------------------------
-# Google
-#------------------------------------------------------------------------------
-google       = Google検索,         UTF-8, https://www.google.co.jp/search?udm=14&q=
-google:image = Googleイメージ検索, UTF-8, https://www.google.co.jp/search?tbm=isch&q=
-google:video = Google動画検索,     UTF-8, https://www.google.co.jp/search?tbm=vid&q=
-google:news  = Googleニュース検索, UTF-8, https://www.google.co.jp/search?tbm=nws&q=
-google:transit = Googleトランジット, UTF-8, 2, https://www.google.com/maps?saddr=$1&daddr=$2
-
-g   = >google
-gi  = >google:image
-gv  = >google:video
-gn  = >google:news
-tr  = >google:transit
-
-# youtube は Tag_url_filter.pm（サムネイルを出すため）
-
-# 代替
-qr = QRコード生成, image, 999, https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=40&data=$0
-
-#------------------------------------------------------------------------------
 # 色々
 #------------------------------------------------------------------------------
-wikipedia = Wikipedia, UTF-8, https://ja.wikipedia.org/wiki/
-w    = >wikipedia
-wiki = >wikipedia
-uc   = アンサイクロペディア, UTF-8, http://ja.uncyclopedia.info/wiki/
-ei   = 英辞郎, UTF-8, 1, http://eow.alc.co.jp/$1/UTF-8/
-e2j  = >ej
-
-man  = >jman
-jman = Linux jman, ASCII, http://linuxjm.osdn.jp/cgi-bin/man.cgi?Sec1=on&Sec2=on&Sec3=on&Sec4=on&Sec5=on&Sec6=on&Sec7=on&Sec8=on&Pagename=
-
+# youtube は Tag_url_filter.pm（サムネイルを出すため）
 niconico    = ニコニコ動画, ASCII, 1, <module name="nico" vid="$1">
-niconico##2 = ニコニコ動画, ASCII, 2, <a href="http://www.nicovideo.jp/thumb?v=$1">#2</a><br><module name="nico" vid="$1">
-
-#------------------------------------------------------------------------------
-# はてな記法互換のためのタグ
-# ※使用上およそ問題ありませんが、完全互換ではありません
-#------------------------------------------------------------------------------
-# [jan:-] [f:-]
-# plugin hatena
-jan         = はてなjanコード
-ean         = >jan
-hatena:f    = はてなフォトライフ
-hatena:f:id = >hatena:f
-graph       = はてなグラフ
-
-keyword         = はてなキーワード,     EUC-JP, http://d.hatena.ne.jp/keyword/
-
-hatena:id   = はてなダイアリー, EUC-JP, 1, http://d.hatena.ne.jp/$1/
-hatena:id#2 = はてなダイアリー, EUC-JP, 2, http://d.hatena.ne.jp/$1/$2
-hatena:id#3 = はてなダイアリー, EUC-JP, 3, http://d.hatena.ne.jp/$1/$2/$3
-hatena:d         = >hatena:id
-hatena:d:id      = >hatena:id
-hatena:d:keyword = >keyword
-
-#------------------------------------------------------------------------------
-# TeX記法
-#------------------------------------------------------------------------------
-tex =>math
-gtex=>math
-
-math  = MathJax API, ASCII, 1, <span class="math">#1</span>
-mathd = MathJax API, ASCII, 1, <span class="math">\displaystyle #1</span>
-mref  = MathJax Ref, ASCII, 1, <span class="mathref math">\ref{#1}</span>
-mrefa = MathJax Ref, ASCII, 1, html:(<span class="mathref math">\ref{#1}</span>)
-
-# mimeTeX（要インストール http://adiary.org/v3man/Satsuki-tag/tex#mimetex）
-mtex = mimeTeX, ASCII, 1, <img src="${Basepath}mimetex.cgi?$1" alt="#1" title="#1" class="tex">
 
 #------------------------------------------------------------------------------
 # 画像プラグイン／画像アルバム
@@ -157,26 +91,9 @@ file:m4v  = >video
 comment = comment,, 1, <!--#1-->
 # inline class
 class = class, ASCII, 2, <span class="$1">#2</span>
-# 画像icon
-icon  = icon, ASCII, 1, <img class="icon" alt="$1" title="$1" src="${pubdist}icon/$1.gif">
-
-# twitter
-twitter = twitter, ASCII, http://twitter.com/
-tw      = >twitter
 
 # ルビ
 ruby = ルビ, ASCII, 2, <ruby>#1<rp>(</rp><rt>#2</rt><rp>)</rp></ruby>
-
-# CPAN
-cpan   = CPANモジュール, ASCII, 1, http://search.cpan.org/dist/$1/
-cpan#3 = CPANモジュール, ASCII, 3, http://search.cpan.org/dist/$1-$3/
-cpan#5 = CPANモジュール, ASCII, 5, http://search.cpan.org/dist/$1-$3-$5/
-
-# footer
-footer = <div style="text-align:right; right-margin:2em; font-size: 90%;">#1</div>
-
-# popup
-popup = popup, ASCII, 2, <module name="popup" class="popup" text="#1" popup="#2">
 
 # tel
 tel   = <a href="tel:$0">#0</a>
@@ -227,31 +144,6 @@ large    = html:span.large
 small    = html:span.small
 x-small  = html:span.x-small
 xx-small = html:span.xx-small
-
-#------------------------------------------------------------------------------
-# マクロ設定（空行で一区切り） / #0 : 引数と置換
-#------------------------------------------------------------------------------
-# マクロ名に「:」を使わないこと
-*section_number
-::section_number=1
-
-*sectnum
-::section_number=1
-
-*toc
-<toc>#0</toc>
-
-*toc1
-<toc>depth=1:#0</toc>
-
-*toc2
-<toc>depth=2:#0</toc>
-
-*tex
-::tex_mode=1
-
-*tex-off
-::tex_mode=0
 
 #------------------------------------------------------------------------------
 # お知らせ・警告・エラーバナー

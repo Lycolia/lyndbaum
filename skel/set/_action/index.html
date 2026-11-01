@@ -15,7 +15,6 @@
 	description_txt:filter1     = file:<@v.allow_tags_head>description.txt
 	description_txt:filter1_opt = <@v.trust_mode>
 
-	markdown = flag
 	private = flag
 	ping = flag
 
@@ -38,11 +37,6 @@
 <$end>
 <$ifbreak(form_error())>
 <$ifset(h2.iconfile, h.iconfile, v.plugin_image_dir(h2.iconfile))>
-
-<$ifset( h.markdown,   h.parser, 'markdown')>
-<$ifset(!h.markdown && v.blog.parser eq 'markdown', h.parser, 'default')>
-<$delete(h.markdown)>
-
 
 <@> 設定保存
 <$action_return = v.save_blogset(h)>

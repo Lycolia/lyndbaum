@@ -18,13 +18,12 @@
 <$parser.satsuki_syntax_h = true>	syntaxハイライトをsatsuki記法に準拠させる
 <$parser.satsuki_seemore  = true>	「続きを読む」記法
 <$parser.satsuki_footnote = true>	(())によるコメント記法
-<$parser.qiita_math       = true>	Qiitaのmathブロック記法
 <$parser.seemore_msg = s.seemore_msg || '続きを読む'>
 <$parser.image_attr  = 'data-lythumb="k%k"'>
 
-さつきパーサーのロード
+さつき記法のタグを処理するパーサーのロード
 <$ifexec(parser.satsuki_tags, begin)>
-	<$parser.satsuki_obj = v.load_parser('default')>
+	<$parser.satsuki_obj = call('_sub/satsuki_tags_parser')>
 <$end>
 
 <$return(parser)>

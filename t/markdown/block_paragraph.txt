@@ -73,6 +73,56 @@ ___
 内容
 </div>
 
+=== HTMLブロックは空行で終わり、その後はMarkdownになる
+--- input
+<details>
+<summary>題</summary>
+
+```bash
+echo a
+```
+
+**太字**
+
+</details>
+--- expected
+<details>
+<summary>題</summary>
+<pre><code class="language-bash">echo a
+</code></pre>
+<p><strong>太字</strong></p>
+</details>
+
+=== HTMLブロックの中に空行が無ければMarkdownにしない
+--- input
+<details>
+<summary>題</summary>
+```bash
+echo a
+```
+**太字**
+</details>
+--- expected
+<details>
+<summary>題</summary>
+```bash
+echo a
+```
+**太字**
+</details>
+
+=== 閉じタグだけの行は段落にしない
+--- input
+前
+
+</details>
+
+後
+--- expected
+<p>前</p>
+</details>
+<p>後</p>
+
 === HTMLコメント
 --- input
 前

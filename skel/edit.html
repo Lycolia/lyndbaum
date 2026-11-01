@@ -128,12 +128,8 @@
 	<select id="other-helper" title="その他の機能を呼び出します。">
 		<option value="" selected>その他</option>
 		<option class="helper" data-type="toc">目次</option>
-		<option class="helper" data-type="google" data-msg="Google検索へのリンクを生成" data-msg0="検索する言葉" data-msg1="リンク文字列（省略可）">検索</option>
-		<option class="helper" data-type="wiki"   data-msg="Wikipediaの項目へリンク">Wikipedia</option>
 		<option class="helper" data-type="cont">続きを読む</option>
-		<option class="helper" data-type="code" data-msg="ソースコードを入力">Code</option>
-		<option class="helper" data-type="math"   data-msg="TeX形式の数式を入力">数式</option>
-		<option class="helper" data-type="math_i" data-msg="TeX形式の数式を入力">数式（文中）</option>
+		<option class="helper" data-type="details" data-msg="折りたたむ文章を入力" data-sp-msg="見出し（いつも見える部分）を入力。空なら「詳細」と出ます">折りたたみ</option>
 	</select>
 
 	<select class="helper" data-type="color" title="選択した文字列に色を付けます。" data-msg="色を変更したい文字列を入力">
@@ -176,7 +172,12 @@
 		<@foreach_hash(t, v.parsers, begin)>
 		<option value="<@t.key>"<@if(art.parser eq t.key, ' selected')>><@t.val></option>
 		<$end>
-	</select></span>
+	</select>
+	<@> 選べない記法の記事（4.22で削除した標準記法など）。黙ってMarkdownで保存しないように知らせる
+	<@ifexec(art.parser ne '' && !v.parsers.(art.parser), begin)>
+	<span class="warning">この記事の記法（<@art.parser>）は選べません。MarkdownかHTMLを選んで書き直してください。</span>
+	<$end>
+	</span>
 	<button type="button" id="edit-file-upload" class="fileup" data-folder="<@if(s.edit_upload ne '', s.edit_upload, 'posts/%y/')>" data-paste="<@s.edit_paste>" data-exif="<@if(s.edit_paste_exif, 1, 0)>" data-class="<@s.edit_paste_class>" data-title="ファイルを選択">Upload</button>
 	<@ifexec(edit_pkey, begin)>
 	<button type="button" id="edit-revision" data-title="更新履歴">履歴</button>

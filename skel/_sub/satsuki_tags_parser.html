@@ -1,16 +1,17 @@
 <@40.is_function>
-<@local(s,parser)>
+<@local(parser)>
 <@>
-<@> モード：そのまま改行
+<@> さつき記法のタグ（[image:...]など）を処理するパーサー
+<@>	呼び出し元：skel/_parser/markdown.html（Markdownの記事のタグ、脚注、目次）
+<@>	            skel/etc/satsuki_tags.html（記法タグの一覧）
+<@>	記事のパーサー（skel/_parser/）ではないので、記事の記法として選ぶことはできない。
+<@>	4.21までは標準記法のパーサー（_parser/default.html）を使っていた。
 <@>
-<$s = v.blog>
 
 <$parser = loadpm('TextParser::Satsuki', "<@v.data_dir>textparser_plugin_cache.dat")>
 <$parser.load_tagdata( "<@v.info_dir>textparser_tags.txt", 1 )>
 <$parser.load_tagdata( "<@v.blog_dir>usertag.txt" )>
 
-<#$parser.indent = "\t\t">
-<$parser.seemore_msg = s.seemore_msg || '続きを読む'>
 <$parser.image_attr  = 'data-lythumb="k%k"'>
 
 タグ置換用データ
@@ -27,10 +28,5 @@
 adiary記法用
 <$parser.aobj = v>
 <$weaken( parser.aobj )>
-
-<$parser.br_mode = 1>	改行を<br>に置換する
-<$parser.p_mode  = 0>	段落処理をしない
-<$parser.ls_mode = 1>	連続する空行を改行処理する
-<$parser.list_br = 1>	リスト中の改行を<br>に置換
 
 <$return(parser)>

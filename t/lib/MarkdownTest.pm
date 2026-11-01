@@ -2,7 +2,7 @@ use strict;
 #-------------------------------------------------------------------------------
 # Markdownパーサーのテスト用ヘルパー
 #-------------------------------------------------------------------------------
-# パーサーは本番と同じ設定（skel/_parser/markdown.html, skel/_parser/default.html）
+# パーサーは本番と同じ設定（skel/_parser/markdown.html, skel/_sub/satsuki_tags_parser.html）
 # で組み立てる。本番の設定を変えたときは、ここも合わせること。
 #
 package MarkdownTest;
@@ -40,12 +40,7 @@ sub new_parser {
 			myself2  => '/',
 			image    => 'pub/attachments/',
 		};
-		$SATSUKI->{seemore_msg} = '続きを読む';
 		$SATSUKI->{image_attr}  = 'data-lythumb="k%k"';
-		$SATSUKI->{br_mode} = 1;
-		$SATSUKI->{p_mode}  = 0;
-		$SATSUKI->{ls_mode} = 1;
-		$SATSUKI->{list_br} = 1;
 	}
 
 	my $md = $ROBJ->loadpm('TextParser::Markdown');
@@ -60,7 +55,6 @@ sub new_parser {
 		satsuki_syntax_h => 1,
 		satsuki_seemore  => 1,
 		satsuki_footnote => 1,
-		qiita_math       => 1,
 		seemore_msg      => '続きを読む',
 		image_attr       => 'data-lythumb="k%k"',
 		%opt

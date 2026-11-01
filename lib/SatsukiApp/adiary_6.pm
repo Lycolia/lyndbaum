@@ -38,7 +38,8 @@ my @update_versions = (
 	{ ver => 4.19, func => 'sys_update_419' },	# 動画の記事用のサムネイルを、サーバーで作るようにした。前に作ったものは、アップデートの後にブラウザーで作り直す
 	{ ver => 4.21, plugin=>1, theme=>1, func => 'sys_update_421', rebuild_cond=>[	# 古いテーマをレスポンシブにした。デザインのスケルトンを、今のテーマの雛形を外して作り直す。公開フォルダを整理し、テーマの色の調整をブログの設定に移した
 		'\[(?:for-)?(?:sp|pc):'	# スマホとPCで出し分ける記法（[sp:]、[pc:]）を削除した。使っていた記事は、記法を文字のまま出す
-	]}
+	]},
+	{ ver => 4.22, func => 'sys_update_422', system=>1 }	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -365,6 +366,24 @@ sub sys_update_419 {
 }
 
 #-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.22
+#-------------------------------------------------------------------------------
+# 標準記法（default、default_p1、default_p2）のパーサーを削除した。
+# ・設定ファイルの v.parsers から、スケルトンの無いパーサーの行を消す（4.11の書き換えと同じ処理。ほかの書き換えは済んでいれば何もしない）
+# ・ブログの既定のパーサーが消したものなら、Markdownにする
+# 標準記法で書いた記事は、作り直さない（保存してあるHTMLのまま出る）
+sub sys_update_422 {
+	my $self = shift;
+	$self->update_conf_411('422');
+
+	my $blog = $self->{blog};
+	if (!$blog) { return; }
+	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
+		$self->update_blogset($blog, 'parser', 'markdown');
+	}
+}
+
+#-------------------------------------------------------------------------------
 # ●システムアップデート for Ver4.21
 #-------------------------------------------------------------------------------
 # ・公開フォルダを整理した。pub/css.d/ → data/blog/css.d/、pub/js/ → pub/plugin/js/、
@@ -603,9 +622,9 @@ sub sys_update_411 {
 		if (!exists($blog->{$_})) { next; }
 		$self->update_blogset($blog, $_, undef);
 	}
-	# 消したパーサーが既定になっていたら、標準に戻す（4.10の設定の画面と同じ）
+	# 消したパーサーが既定になっていたら、Markdownにする（標準記法は4.22で削除した）
 	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
-		$self->update_blogset($blog, 'parser', 'default');
+		$self->update_blogset($blog, 'parser', 'markdown');
 	}
 }
 
@@ -629,6 +648,7 @@ my %Conf_removed_comment_411 = map { $_ => 1 } (
 );
 sub update_conf_411 {
 	my $self = shift;
+	my $ver  = shift || '411';	# 書き換える前のファイルの控えの名前に付ける
 	my $ROBJ = $self->{ROBJ};
 	my $file = $ROBJ->{Conf_file};
 	if (!-r $file) { return; }
@@ -645,7 +665,7 @@ sub update_conf_411 {
 		} elsif ($in_parsers && $line =~ /^<\$end>/) {
 			$in_parsers = 0;
 		} elsif ($in_parsers && $line =~ /^\s*(\w+)\s*=/) {
-			# パーサーのスケルトン（skel/_parser/）が無いもの。reStructuredText（4.10）など
+			# パーサーのスケルトン（skel/_parser/）が無いもの。reStructuredText（4.10）、標準記法（4.22）など
 			$remove = !$ROBJ->check_skeleton("_parser/$1");
 		} elsif ($line =~ $Conf_removed_411) {
 			$remove = 1;
@@ -678,7 +698,7 @@ sub update_conf_411 {
 
 	# 書き換える前のファイルを写す
 	my $base   = $file =~ m|([^/]+)$| ? $1 : $file;
-	my $backup = $self->{data_dir} . "$base.411.bak";
+	my $backup = $self->{data_dir} . "$base.$ver.bak";
 	my $err    = $ROBJ->file_copy($file, $backup);
 	if (!$err) {
 		$err = $ROBJ->fwrite_lines($file, \@out);
