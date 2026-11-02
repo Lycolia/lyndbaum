@@ -41,7 +41,7 @@ my @update_versions = (
 	]},
 	{ ver => 4.22, func => 'sys_update_422', system=>1 },	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
 	{ ver => 4.23, func => 'sys_update_423', system=>1 },	# パスワードをbcryptで保存するようにした。アップデートを行う管理者は、ここで新しいパスワードを決める（system_update）
-	{ ver => 4.24, info=>1 }	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足した。ブログ付加情報の再構築で書き出し直す
+	{ ver => 4.24, info=>1, func => 'sys_update_424' }	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -410,6 +410,21 @@ sub sys_update_422 {
 	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
 		$self->update_blogset($blog, 'parser', 'markdown');
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.24
+#-------------------------------------------------------------------------------
+# 2つ目のRSS（決めたタグの記事だけを rss2.xml に書き出す）を削除した。設定とファイルを消す。
+# RSSの記録（rss_files）は、このあとの info=>1 の generate_rss で rss.xml だけになる
+sub sys_update_424 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $blog = $self->{blog};
+	foreach(qw(rss2_tag rss2_title rss2_no_comment)) {
+		$self->update_blogset($blog, $_, undef);
+	}
+	$ROBJ->file_delete($self->{blogpub_dir} . 'rss2.xml');
 }
 
 #-------------------------------------------------------------------------------

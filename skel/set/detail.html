@@ -132,30 +132,12 @@
 	<tbody>
 	<tr><th>RSSの配信件数</th>
 		<td<@err.rss_items_int>>
-			<input type="number" class="int w50 js-enable" data-target="#rss_no_comment, #tag-select, #rss2_title, #rss2_no_comment" name="rss_items_int" value="<@s.rss_items_int>" min="0" max="30">件（0～30）
+			<input type="number" class="int w50 js-enable" data-target="#rss_no_comment" name="rss_items_int" value="<@s.rss_items_int>" min="0" max="30">件（0～30）
 		</td>
 	</tr>
 	<tr><th>RSSオプション</th>
 		<td>
 		<label><input type="checkbox" id="rss_no_comment" name="rss_no_comment" value="1"<@if(s.rss_no_comment, ' checked')>>コメントを含めない</label>
-		</td>
-	</tr>
-	<tr><th rowspan="3">2つ目のRSS配信</th>
-		<td>対象記事のタグ
-		<select name="rss2_tag" id="tag-select" data-url="<@Basepath><@v.blogpub_dir>taglist.json?<@v.blog.json_tm>" data-default="<@s.rss2_tag>">
-			<option value="" class="special">【配信しない】</option>
-		</select>
-		</td>
-	</tr>
-	<tr>
-		<td>タイトル
-		<input type="text" id="rss2_title" name="rss2_title" class="w240" value="<@s.rss2_title>">
-		<span class="help-text">無記入の場合は「ブログ名」。RSSリーダーでのタイトルとなるのでブログ名もわかるようにしましょう。</span>
-		</td>
-	</tr>
-	<tr>
-		<td>
-		<label><input type="checkbox" id="rss2_no_comment" name="rss2_no_comment" value="1"<@if(s.rss2_no_comment, ' checked')>>コメントを含めない</label>
 		</td>
 	</tr>
 	</tbody>
@@ -196,6 +178,3 @@
 </div>
 </article>
 
-<script-defer><!--
-	adiary.load_tags_list($secure('#tag-select'));
---></script-defer>

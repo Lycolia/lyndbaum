@@ -18,7 +18,7 @@
 <@> <?xml-stylesheet href="" type="text/xsl" media="screen"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
 <$(logs, h) = v.load_arts_for_rss( opt )>
-<$title = esc_xml(if(opt.title ne '', opt.title, s.blog_name))>
+<$title = esc_xml(s.blog_name)>
 <@> サイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
 <$icon = ServerURL . Basepath . if(s.iconfile, s.iconfile, v.pubdist_dir . 'default-icon.png')>
 <channel>

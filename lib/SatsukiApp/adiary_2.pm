@@ -1509,26 +1509,6 @@ sub generate_rss {
 		$ROBJ->file_delete($file);
 	}
 
-	#---------------------------------------------------
-	# 2つ目のRSS生成
-	#---------------------------------------------------
-	my $file2 = $self->{blogpub_dir} . "rss2.xml";
-	if ( $blog->{rss2_tag} ne '' ) {
-		my $rss = $ROBJ->call( $self->{rss_skeleton}, {
-			file  => 'rss2.xml',
-			no_comment => $blog->{rss2_no_comment},
-			tag   => $blog->{rss2_tag},
-			title => $blog->{rss2_title},
-			items => $blog->{rss_items_int}
-		});
-		$jcode->from_to($rss, $ROBJ->{SystemCode}, 'UTF-8');
-		$rss =~ s/$XML_INVALID//g;
-		$ROBJ->fwrite_lines($file2, $rss);
-		push(@files, 'rss2.xml');
-	} else {
-		$ROBJ->file_delete($file2);
-	}
-
 	# RSSファイル情報記録（,区切り）
 	$self->update_blogset($blog, 'rss_files', join(',', @files));
 
@@ -1546,11 +1526,7 @@ sub load_arts_for_rss {
 	# load
 	$opt->{loads} ||= $opt->{items} || 10;
 	$opt->{blog_only} = $blog->{separate_blog};
-	my $query;
-	if ($opt->{tag}) {
-		$query->{t} = [ $opt->{tag} ];
-	}
-	my $logs = $self->load_articles( '', $query, $opt );
+	my $logs = $self->load_articles( '', undef, $opt );
 
 	#---------------------------------------------------
 	# RSSのタグエスケーパー
