@@ -22,6 +22,79 @@
 --- expected
 <p><a href="http://x.jp/a_(b_(c))">t</a></p>
 
+=== サイト内の画像へのリンクは画像ビューアーで開く
+--- input
+[画像](pub/attachments/posts/2026/a.png)
+--- expected
+<p><a href="pub/attachments/posts/2026/a.png" data-lythumb="k1" data-caption="画像">画像</a></p>
+
+=== サイト内の画像へのリンク（URLを<>で囲む）
+--- input
+[画像](</pub/attachments/a_(1).jpg>)
+--- expected
+<p><a href="/pub/attachments/a_(1).jpg" data-lythumb="k1" data-caption="画像">画像</a></p>
+
+=== サイト内の画像へのリンク（大文字の拡張子、クエリ付き）
+--- input
+[画像](a.JPEG?v=2#x)
+--- expected
+<p><a href="a.JPEG?v=2#x" data-lythumb="k1" data-caption="画像">画像</a></p>
+
+=== 画像へのリンクの文字は、強調などを処理した後の文字をキャプションにする
+--- input
+[**太字**の*画像* `a_b`](a.png)
+--- expected
+<p><a href="a.png" data-lythumb="k1" data-caption="太字の画像 a_b"><strong>太字</strong>の<em>画像</em> <code>a_b</code></a></p>
+
+=== 画像へのリンクのキャプションの"はエスケープする
+--- input
+[「"引用"」の画像](a.png)
+--- expected
+<p><a href="a.png" data-lythumb="k1" data-caption="「&quot;引用&quot;」の画像">「"引用"」の画像</a></p>
+
+=== 画像だけのリンクにはキャプションを付けない（中の画像の代替テキストを使う）
+--- input
+<a href="a.png" data-lythumb=""><img src="s.png" alt="代替"></a>
+--- expected
+<p><a href="a.png" data-lythumb=""><img src="s.png" alt="代替"></a></p>
+
+=== HTMLで書いたビューアーのリンクにもキャプションを付ける
+--- input
+<a href="https://example.com/a.png" data-lythumb="">外部の画像</a>
+--- expected
+<p><a href="https://example.com/a.png" data-lythumb="" data-caption="外部の画像">外部の画像</a></p>
+
+=== HTMLでキャプションを書いたリンクは変えない
+--- input
+<a href="a.png" data-lythumb="" data-caption="説明">文字</a>
+--- expected
+<p><a href="a.png" data-lythumb="" data-caption="説明">文字</a></p>
+
+=== 外部の画像へのリンクは画像ビューアーで開かない
+--- input
+[画像](https://example.com/a.png)
+--- expected
+<p><a href="https://example.com/a.png">画像</a></p>
+
+=== //で始まる画像へのリンクは画像ビューアーで開かない
+--- input
+[画像](//example.com/a.png)
+--- expected
+<p><a href="//example.com/a.png">画像</a></p>
+
+=== 画像でないファイルへのリンクは画像ビューアーで開かない
+--- input
+[資料](pub/attachments/a.pdf)
+--- expected
+<p><a href="pub/attachments/a.pdf">資料</a></p>
+
+=== 画像へのリンクでもimage_attrが無ければ属性を付けない
+--- options: image_attr=
+--- input
+[画像](a.png)
+--- expected
+<p><a href="a.png">画像</a></p>
+
 === 画像
 --- input
 ![代替](https://example.com/a.png)
