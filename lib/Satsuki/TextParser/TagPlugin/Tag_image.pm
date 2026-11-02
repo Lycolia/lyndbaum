@@ -32,6 +32,14 @@ use Satsuki::ImageFormat ();
 #  → <a href="http://image.xxx.jp/image/test.jpg" class="img" title="てすと">
 #	<img alt="てすと" src="http://image.xxx.jp/image/test_small.jpg"></a>
 #
+# 「タグ名#textlink」があると、画像を出さずにテキストのリンクにする。
+# 残りの引数がリンクの文字で、無ければファイル名（最後のURLの引数）を出す。
+#（設定例）
+#	image:T          = 画像へのリンク, image, 2, ${image}$1$2
+#	image:T#textlink = 画像へのリンク, image, 2, ${image}$1$2
+# [image:T:dir/:a.png:この写真]
+#  → <a href="pub/attachments/dir/a.png" class="tag-image-T">この写真</a>
+#
 #-------------------------------------------------------------------------------
 # ●コンストラクタ
 #-------------------------------------------------------------------------------
@@ -77,11 +85,19 @@ sub image {
 		$ary->[0] = $p . ':' . $ary->[0];
 	}
 
+	# テキストのリンクにするか。リンクの文字が無いときに出すファイル名を、URL生成で引数が消える前に取っておく
+	my $textlink = exists $tags->{"$tag_name#textlink"};
+	my $filename_arg = $ary->[ ($argc || 1) - 1 ];
+
 	# URL生成
 	{
 		my @ary2 = @$ary;
 		$url  = $pobj->replace_link($url,   $ary,  $argc);
 		$link = $pobj->replace_link($link, \@ary2, $argc);
+	}
+
+	if ($textlink) {
+		return &text_link($pobj, $tag, $ary, $link, $filename_arg);
 	}
 
 	# 画像サイズ
@@ -141,6 +157,27 @@ sub image {
 	if (!$caption && $pobj->{image_no_figure}) { return $tag; }
 
 	return "<figure>$tag$caption</figure>";
+}
+
+#-------------------------------------------------------------------------------
+# ●画像へのテキストのリンク
+#-------------------------------------------------------------------------------
+# 画像の大きさは読まず、<figure>でも囲まない。#はキャプションの印にせず、リンクの文字に含める。
+# titleはリンクの文字と同じで余計なので付けない
+#
+sub text_link {
+	my ($pobj, $tag, $ary, $link, $filename) = @_;
+	my $ROBJ = $pobj->{ROBJ};
+
+	my @rest = @$ary;
+	while(@rest && $rest[0] =~ /^(?:title|class|target)=/) { shift(@rest); }
+	my $text = join(':', @rest);
+	if ($text eq '') { $text = $filename; }
+	$ROBJ->tag_escape($text);
+
+	my $attr = $pobj->make_attr($ary, $tag, 'image');
+	$attr =~ s/ title="[^"]*"//;
+	return "<a href=\"$link\"$attr>$text</a>";
 }
 
 #-------------------------------------------------------------------------------

@@ -301,10 +301,11 @@ div.body-main > div > strong.warning { display: block; border: 1px solid #e0a800
 .article-body :is(h3, h4, h5, h6) > a { color: inherit; text-decoration: none; }
 .article-body :is(h3, h4, h5, h6) > a:hover { text-decoration: underline; }
 
-/* 画像。[image:...] はMarkdownでは段落の中に出るので、リンクに <figure> と同じ余白を付ける */
+/* 画像。[image:...] はMarkdownでは段落の中に出るので、リンクに <figure> と同じ余白を付ける。
+   画像へのテキストリンク（[image:T:...]）は文中に出るので除く */
 .article-body img { max-width: 100%; height: auto; margin: 5px 5px 0 0; vertical-align: bottom; }
 .article-body p ~ figure { margin-top: 1em; }
-.article-body a[class^="tag-image"] { display: inline-block; margin-top: 1em; }
+.article-body a[class^="tag-image"]:not(.tag-image-T) { display: inline-block; margin-top: 1em; }
 .article-body video, .article-body audio, .article-body iframe { max-width: 100%; }
 
 /* コードスパン。コードブロック（pre の中）は Prism の色を使うので除く */

@@ -58,6 +58,9 @@ img        = 画像, image
 image:L      = 画像アルバム, image, 2,  ${image}$1$2
 image:S      = 画像アルバム, image, 2,  ${image}$1.thumbnail/$2.jpg
 image:S#link = 画像アルバム, image, 2,  ${image}$1$2
+# 画像へのテキストリンク（#textlinkがあると、画像を出さずにリンクの文字を出す。Tag_image.pm）
+image:T          = 画像へのリンク, image, 2,  ${image}$1$2
+image:T#textlink = 画像へのリンク, image, 2,  ${image}$1$2
 # 360度写真（sp_view360プラグインで見回せる。tag-image-360のクラスが付く）
 image:360    = 360度写真,    image, 2,  ${image}$1$2
 

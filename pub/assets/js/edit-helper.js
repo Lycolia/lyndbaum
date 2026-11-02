@@ -52,6 +52,7 @@ Helpers.push({
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
 		thumbnail:	'[image:S:%d:%f:%c]',
+		text:		'[image:T:%d:%f:]',	// 画像へのテキストリンク。リンクの文字は貼り付けた後に、最後の:の後に書く
 		file:		'[file:%e:%d:%f]',
 		chain:		"\n",
 		exif:		true
@@ -90,6 +91,7 @@ Helpers.push({
 		//	alt にはファイル名を入れない（さつき記法、Markdownと同じ。説明は挿入した後に書く）
 		original:	'<a href="%p%d%f"><img alt="" src="%p%d%f"></a>',
 		thumbnail:	'<a href="%p%d%f"><img alt="" src="%p%d.thumbnail/%f"></a>',
+		text:		'<a href="%p%d%f" data-lythumb="">%f</a>',
 		file:		'<a href="%p%d%f">%f</a>',
 		chain:		"\n",
 		exif:		false
@@ -578,7 +580,10 @@ helper.prototype.insert_image = function(data) {
 	let text='';
 	for(let i in data.files) {
 		let file = data.files[i];
-		let tag  = file.isimg ? (file.thumbnail ? thumbnail_tag : original_tag) : image['file'];
+		// 画像へのテキストリンクは、記法が無ければ元画像にする。figureの指定があっても同じ記法を使う
+		let tag  = !file.isimg ? image['file']
+			 : (file.text && image['text']) ? image['text']
+			 : file.thumbnail ? thumbnail_tag : original_tag;
 		let exif = (image.exif && file.exif) ? this.exif_tag : '';
 		// console.log(file);
 
