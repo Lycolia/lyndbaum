@@ -75,7 +75,6 @@ sub parse {
 		$sobj->{thispkey} = $self->{thispkey};
 	}
 	$self->{sections} = [];
-	$self->{links}    = {};
 	$self->{ids}      = {};
 	$self->{heading_ids} = [];	# 見出しのID（出現順。引用の中の見出しは除く）
 	$self->{in_quote}    = 0;	# 引用の中を処理している
@@ -175,7 +174,6 @@ sub parse_block {
 	my $in_section = 0;
 	my $seemore    = 1;
 	my $tab_width  = $self->{tab_width};
-	my $links      = $self->{links};
 
 	my @p_block;
 
@@ -647,25 +645,6 @@ TEXT
 		}
 
 		#---------------------------------------------------------------
-		# リンク定義。[M] 参照名が空文字の場合は無効
-		#---------------------------------------------------------------
-		if ($x =~ /^ ? ? ?\[([^\]]+)\]:\s*(.*?)\s*(?:\s*("[^\"]*"|'[^\']*')\s*)?\s*$/) {
-			$self->p_block_end(\@ary, \@p_block, $pmode);
-			my $name = $1;
-			my $url  = $2;
-			my $title = substr($3,1);
-			chop($title);
-			$url =~ s/^<\s*(.*?)\s*>$/$1/;
-			$name =~ tr/A-Z/a-z/;
-			$self->tag_escape($url, $title);
-			$links->{$name} = { url => $url, title => $title };
-
-			# 次が空行なら除去する
-			if ($lines->[0] eq '') { shift(@$lines); }
-			next;
-		}
-
-		#---------------------------------------------------------------
 		# 通常文字
 		#---------------------------------------------------------------
 		$x =~ s/^ ? ? ?//;	# [M] 手前スペース3つまで削除
@@ -808,7 +787,6 @@ sub parse_inline {
 	my @footnote;
 	my %note_hash;
 
-	my $links = $self->{links};
 	foreach(@$lines) {
 		if (substr($_,-1) eq "\x02") {
 			# [S] (())の注釈の一覧は、節の終わり（</section>）の前に出す。
@@ -891,26 +869,6 @@ sub parse_inline {
 			$mail = $self->encode_email($mail);
 			"<a href=\"$mailto$mail\">$mail</a>";
 		|eg;
-
-		# 参照リンク記法の処理 [M] 間に許されるのはスペース1個のみ
-		$_ =~ s{(!?)(\[([^\]]*)\] ?\[([^\]]*)\])}
-		{
-			my $is_img= $1;
-			my $org   = $2;
-			my $text  = $3;
-			my $name  = $4 eq '' ? $3 : $4;
-			$name =~ tr/A-Z/a-z/;
-			if ($name ne '' && exists($links->{$name}) ) {
-				my $url   = $links->{$name}->{url};
-				my $title = $links->{$name}->{title};
-				if ($title ne '') { $title = " title=\"$title\""; }
-				$is_img ? "<img src=\"$url\" alt=\"$text\"$title />"
-					: "<a href=\"$url\"$title" . $self->image_link_attr($url) . ">$text</a>";
-			} else {
-				# 参照名が存在しないときはそのまま（書き換えない）
-				$org;
-			}
-		}eg;
 
 		# [MD Extra] 脚注参照 [^id]
 		$_ =~ s{\[\^([^\]]+)\]}{
