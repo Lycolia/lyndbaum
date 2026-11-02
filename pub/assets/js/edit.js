@@ -936,6 +936,7 @@ function open_upload_dialog(files) {
 				upload_files_insert(data, {
 					folder:		folder,
 					thumbnail:	$('#paste-thumbnail').val() == '0' ? false : true,
+					text:		$('#paste-thumbnail').val() == 'text',	// 画像へのテキストリンク
 					caption:	$('#paste-caption').val(),
 					exif:		$('#paste-to-exif').prop('checked'),
 					class:		$('#paste-class').val()
@@ -1023,7 +1024,8 @@ function upload_files_insert(data, opt) {
 			ext:	ext,
 			isimg:	file.isImg,
 			exif:	file.isImg && opt.exif,
-			thumbnail: opt.thumbnail
+			thumbnail: opt.thumbnail,
+			text:	opt.text ? true : false
 		});
 	}
 

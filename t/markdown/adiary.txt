@@ -56,6 +56,31 @@
 --- expected
 <p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="4:30と23:00" data-lythumb="k1"><img alt="4:30と23:00" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
+=== 画像へのテキストリンク
+# リンクの文字は、Markdownの画像へのリンクと同じくキャプション（data-caption）になる
+--- input
+文中の[image:T:adiary/2026/01/:a.png:この写真]を見る
+--- expected
+<p>文中の<a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="この写真">この写真</a>を見る</p>
+
+=== リンクの文字を省いた画像へのテキストリンクはファイル名をリンクの文字にする
+--- input
+[image:T:adiary/2026/01/:a.png]
+--- expected
+<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
+
+=== 貼り付けたままの画像へのテキストリンク（最後が:）はファイル名をリンクの文字にする
+--- input
+[image:T:adiary/2026/01/:a.png:]
+--- expected
+<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
+
+=== 画像へのテキストリンクの文字の : と # はそのまま出し、figure で囲まない
+--- input
+[image:T:adiary/2026/01/:a.png:4:30の#1]
+--- expected
+<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="4:30の#1">4:30の#1</a></p>
+
 === 名前を省いた添付ファイルはファイル名をリンクの文字にする
 --- input
 [file:pdf:posts/2026/10/:a.pdf] [file:zip:posts/2026/10/:demo.zip:デモ一式]

@@ -1468,6 +1468,16 @@ sub contents_next_prev_link {
 #-------------------------------------------------------------------------------
 # XML 1.0で使えない制御文字（タブ、改行以外）。UTF-8のバイト列のまま取り除く
 my $XML_INVALID = qr/[\x00-\x08\x0B\x0C\x0E-\x1F]/;
+# アイキャッチの media:content の type（拡張子から決める。無いものは type を書かない）
+my %RSS_IMAGE_TYPE = (
+	jpg  => 'image/jpeg',
+	jpeg => 'image/jpeg',
+	png  => 'image/png',
+	gif  => 'image/gif',
+	webp => 'image/webp',
+	avif => 'image/avif',
+	apng => 'image/apng'
+);
 
 sub generate_rss {
 	my $self = shift;
@@ -1499,26 +1509,6 @@ sub generate_rss {
 		$ROBJ->file_delete($file);
 	}
 
-	#---------------------------------------------------
-	# 2つ目のRSS生成
-	#---------------------------------------------------
-	my $file2 = $self->{blogpub_dir} . "rss2.xml";
-	if ( $blog->{rss2_tag} ne '' ) {
-		my $rss = $ROBJ->call( $self->{rss_skeleton}, {
-			file  => 'rss2.xml',
-			no_comment => $blog->{rss2_no_comment},
-			tag   => $blog->{rss2_tag},
-			title => $blog->{rss2_title},
-			items => $blog->{rss_items_int}
-		});
-		$jcode->from_to($rss, $ROBJ->{SystemCode}, 'UTF-8');
-		$rss =~ s/$XML_INVALID//g;
-		$ROBJ->fwrite_lines($file2, $rss);
-		push(@files, 'rss2.xml');
-	} else {
-		$ROBJ->file_delete($file2);
-	}
-
 	# RSSファイル情報記録（,区切り）
 	$self->update_blogset($blog, 'rss_files', join(',', @files));
 
@@ -1536,11 +1526,7 @@ sub load_arts_for_rss {
 	# load
 	$opt->{loads} ||= $opt->{items} || 10;
 	$opt->{blog_only} = $blog->{separate_blog};
-	my $query;
-	if ($opt->{tag}) {
-		$query->{t} = [ $opt->{tag} ];
-	}
-	my $logs = $self->load_articles( '', $query, $opt );
+	my $logs = $self->load_articles( '', undef, $opt );
 
 	#---------------------------------------------------
 	# RSSのタグエスケーパー
@@ -1572,6 +1558,13 @@ sub load_arts_for_rss {
 		# ページ内リンク（#見出し）は、リーダーが記事のページの外で開くので、記事のURLを付ける
 		my $url = $ROBJ->{ServerURL} . $self->{myself2} . $_->{elink_key};
 		$_->{description} =~ s/(\shref=")#/$1$url#/g;
+
+		# アイキャッチ（media:content に出す）。main_image はURLエンコード済みの、添付フォルダからの相対パス
+		if ($_->{main_image} ne '') {
+			$_->{main_image_url} = $ROBJ->{ServerURL} . $ROBJ->{Basepath} . $self->blogimg_dir() . $_->{main_image};
+			$_->{main_image_type} = $_->{main_image} =~ /\.(\w+)$/ ? $RSS_IMAGE_TYPE{lc($1)} : '';
+			$ROBJ->tag_escape_for_xml($_->{main_image_url});
+		}
 
 		# & のエスケープ
 		$ROBJ->tag_escape_for_xml($_->{title}, $_->{name}, $_->{tags});

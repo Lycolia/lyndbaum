@@ -1121,12 +1121,14 @@ paste_form.submit(function(){
 
 $('#paste-thumbnail').click( paste_button );
 $('#paste-original' ).click( paste_button );
+$('#paste-text'     ).click( paste_button );
 
 function paste_button(evt) {
 	var sel = view.find('.selected');
 	if (!sel.length) return false;
 
 	var thumb = $(evt.target).data('thumbnail') ? true : false;
+	var text  = $(evt.target).data('text') ? true : false;	// 画像へのテキストリンク
 	var exif  = $('#paste-to-exif').prop('checked');
 
 	var ary=[];
@@ -1141,7 +1143,8 @@ function paste_button(evt) {
 			ext:	ext,
 			isimg:	img.data('isimg') ? true : false,
 			exif:	img.data('isimg') && exif ? true : false,
-			thumbnail: thumb
+			thumbnail: thumb,
+			text:	text
 		});
 	}
 	var data = {

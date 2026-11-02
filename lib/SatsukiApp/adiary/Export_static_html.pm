@@ -55,7 +55,7 @@ sub export {
 		my $files = $ROBJ->search_files($dir, {dir=>1, all=>1});
 		foreach(@$files) {
 			my $f_   = "$dir$_";
-			my $file = $ROBJ->fs_decode( $_ );
+			my $file = $_;
 			if (-d $f_) {
 				$session->msg("\tdelete dir: $file");
 				$ROBJ->dir_delete( $f_ );
@@ -255,7 +255,7 @@ sub export {
 		# ファイルに書き出し
 		#---------------------------------------------------------------
 		$session->msg("\t$file: $_->{title}");
-		$ROBJ->fwrite_lines($ROBJ->fs_encode("$dir$file"), $out);
+		$ROBJ->fwrite_lines("$dir$file", $out);
 
 		#---------------------------------------------------------------
 		# 一覧用に記録

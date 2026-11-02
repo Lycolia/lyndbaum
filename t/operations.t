@@ -637,7 +637,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.23$/m, 'バージョンが今のデータのバージョン（4.23）になる');
+	like(read_file($sys), qr/^VERSION=4\.24$/m, 'バージョンが今のデータのバージョン（4.24）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -729,7 +729,7 @@ subtest 'アップデート処理でのパスワードの再設定' => sub {
 	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
 	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
 	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
-	like(read_file($sys), qr/^VERSION=4\.23$/m, '版が4.23になる');
+	like(read_file($sys), qr/^VERSION=4\.24$/m, '版が今のデータのバージョン（4.24）になる');
 	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
 	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
 	$app->login('admin');

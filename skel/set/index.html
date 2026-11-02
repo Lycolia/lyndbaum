@@ -46,14 +46,14 @@
 	</tr>
 	<tr><th>サイトアイコン</th>
 		<td>
-			<input type="file" name="iconfile"><br>
+			<input type="file" name="iconfile" accept=".png,.jpg,.jpeg,.gif"><br>
 			<@ifexec(s.iconfile, begin, begin)>
 			<a href="<@Basepath><@s.iconfile>" data-lythumb=""><img class="middle" src="<@Basepath><@s.iconfile>" style="max-width:24px; max-height:24px;"></a>
 			<label><input type="checkbox" name="iconfile_void" value="1">今のアイコンを削除して既定のアイコンに戻す</label>
 			<$else>
 			<img class="middle" src="<@Basepath><@v.pubdist_dir>default-icon.png" style="max-width:24px; max-height:24px;" alt=""> 既定のアイコン
 			<$end>
-			<span class="help-text">Faviconの設定。サイトをブックマークした時等に表示されるアイコンを設定します。64x64ピクセル程度を推奨します。</span>
+			<span class="help-text">Faviconの設定。サイトをブックマークした時等に表示されるアイコンを設定します。64x64ピクセル程度を推奨します。PNG・JPEG・GIFの画像が使えます。</span>
 		</td>
 	</tr>
 	</tbody>
