@@ -1,5 +1,5 @@
 <@20>
-<@local(h,h2)>
+<@local(h,h2,icon_ok)>
 <$ifbreak(! v.blog_admin && ! Auth.isadmin)>
 
 <$h = validator(begin_hash, Form)>
@@ -30,6 +30,14 @@
 <@> ファイル無効化
 <$v.void_plugin_images(h, Form)>
 
+<@> サイトアイコンは、RSSの<image>にも使うので、RSS 2.0で使える形式（GIF/JPEG/PNG）に限る
+<@> match() の前に ! を付けると =~ より先に効くので、いったん変数に入れる
+<$icon_ok = is_hash(Form.iconfile) && match(Form.iconfile.name, '(?i)\.(?:png|jpe?g|gif)$')>
+<$ifexec(is_hash(Form.iconfile) && Form.iconfile.size && !icon_ok, begin)>
+	<$form_error('iconfile', 'サイトアイコンにはPNG・JPEG・GIFの画像を指定してください')>
+<$end>
+<$ifbreak(form_error())>
+
 <@> ファイルアップロード処理
 <$h2 = new>
 <$v.plugin_upload_images(h2, 'sys', Form, begin_array)>
@@ -37,6 +45,11 @@
 <$end>
 <$ifbreak(form_error())>
 <$ifset(h2.iconfile, h.iconfile, v.plugin_image_dir(h2.iconfile))>
+<@> 幅と高さはRSSの<image>に書く（読めなかったときは空にして、書かない）
+<$ifexec(h2.iconfile, begin)>
+	<$h.iconfile_w = h2.iconfile_w>
+	<$h.iconfile_h = h2.iconfile_h>
+<$end>
 
 <@> 設定保存
 <$action_return = v.save_blogset(h)>

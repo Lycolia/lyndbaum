@@ -1,5 +1,5 @@
 <@7>
-<@local(logs, t, t2, s, url)>
+<@local(logs, t, t2, s, url, title, icon)>
 <$s = v.blog>
 <$opt = argv#0>
 <@>
@@ -11,12 +11,18 @@
 <@>
 <@> opt.file は書き出すファイル名（atom:link の rel="self" に使う）
 <@>
+<@> 画像はMastodonと同じ書き方にする。チャンネルは <image>（サイトアイコン）、記事は <media:content>（Media RSS。アイキャッチ）
+<@>	https://www.rssboard.org/media-rss
+<@>
 <?xml version="1.0" encoding="utf-8" ?>
 <@> <?xml-stylesheet href="" type="text/xsl" media="screen"?>
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
 <$(logs, h) = v.load_arts_for_rss( opt )>
+<$title = esc_xml(if(opt.title ne '', opt.title, s.blog_name))>
+<@> サイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
+<$icon = ServerURL . Basepath . if(s.iconfile, s.iconfile, v.pubdist_dir . 'default-icon.png')>
 <channel>
-	<title><@esc_xml(if(opt.title ne '', opt.title, s.blog_name))></title>
+	<title><@title></title>
 	<link><@ServerURL><@v.myself></link>
 	<language>ja</language>
 	<description><@esc_xml(s.description_txt)></description>
@@ -25,6 +31,17 @@
 	<generator><@v.REPOSITORY_URL>#<@v.VERSION></generator>
 	<docs>https://www.rssboard.org/rss-specification</docs>
 	<atom:link href="<@ServerURL><@Basepath><@v.blogpub_dir><@opt.file>" rel="self" type="application/rss+xml" />
+	<image>
+		<url><@esc_xml(icon)></url>
+<@>		title と link はチャンネルと同じにする（RSS Profileの推奨）
+		<title><@title></title>
+		<link><@ServerURL><@v.myself></link>
+<@>		幅は144、高さは400まで。分からないときと超えるときは書かない
+<@ifexec(s.iconfile && s.iconfile_w && s.iconfile_h && s.iconfile_w <= 144 && s.iconfile_h <= 400, begin)>
+		<width><@s.iconfile_w></width>
+		<height><@s.iconfile_h></height>
+<$end>
+	</image>
 <@forexec(t, logs, begin)>
 	<$url = ServerURL . v.myself2 . t.elink_key>
 	<item>
@@ -37,6 +54,10 @@
 <$end>
 		<pubDate><@t.rfc_date></pubDate>
 		<dc:creator><@t.name></dc:creator>
+<@>		アイキャッチ。本文に無い画像のこともある。NSFWの記事は出さない
+<@ifexec(t.main_image_url && !t.nsfw, begin)>
+		<media:content url="<@t.main_image_url>" medium="image"<@if(t.main_image_type, #' type="<@t.main_image_type>"')><@if(t.main_image_w && t.main_image_h, #' width="<@t.main_image_w>" height="<@t.main_image_h>"')> />
+<$end>
 <@>		NSFWの記事は、本文とコメントを出さない（RSSリーダーでは年齢確認を出せないため）
 		<description><![CDATA[<@if(t.nsfw, '<p>この記事には年齢確認があります。続きはブログで読んでください。</p>', t.description)>
 <@ifexec(!opt.no_comment && t.coms && !t.nsfw, begin.comment)>
