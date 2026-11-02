@@ -22,7 +22,7 @@
 	<form action="<@v.myself>?<@v.skeleton>" method="POST" enctype="multipart/form-data">
 	<input type="hidden" name="action" value="<@v.skeleton>">
 
-	<table class="blog-setting">
+	<table class="blog-setting blog-setting-stack">
 	<tbody>
 	<tr><th>トップ画面の記事</th>
 		<td>
@@ -128,7 +128,7 @@
 
 	<h3>RSSの設定</h3>
 
-	<table class="blog-setting">
+	<table class="blog-setting blog-setting-stack">
 	<tbody>
 	<tr><th>RSSの配信件数</th>
 		<td<@err.rss_items_int>>
@@ -145,7 +145,7 @@
 
 	<h3>OGP/Twitter CARDの設定</h3>
 
-	<table class="blog-setting">
+	<table class="blog-setting blog-setting-stack">
 	<tbody>
 	<tr><th>概要の文字数</th>
 		<td<@err.c_desc_len>>
