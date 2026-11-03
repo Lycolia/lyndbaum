@@ -416,23 +416,26 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 			poster => { filename => 'poster.png', content => shift, type => 'image/png' } ]);
 	};
 	my $post = sub { return $post_data->( $image->(@_) ) };
-	my $poster = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE.poster.jpg";
-	my $thumb  = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE.jpg";
-	my $quality = sub {
-		my $img = Image::Magick->new;
-		$img->Read(shift);
-		return $img->Get('quality');
-	};
+	# 画像のサムネイルと同じく、AVIFを書けるならAVIF、書けなければJPEG
+	my ($ext, $format) = Satsuki::ImageFormat::can_write_avif() ? ('avif', 'avif') : ('jpg', 'jpeg');
+	my $th     = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
+	my $poster = "$th.poster.$ext";
+	my $thumb  = "$th.$ext";
 
 	ok(!json_ok($post->(961, 540)), '961pxなら受け付けない');
 	ok(!-e $poster, '受け付けなければ、記事用のサムネイルは置かれない');
 	ok(json_ok($post->(960, 540)), '960pxなら受け付ける');
-	is(Satsuki::ImageFormat::detect($poster), 'jpeg', '記事用のサムネイルは、サーバーでJPEGにする');
+	is(Satsuki::ImageFormat::detect($poster), $format, "記事用のサムネイルは、サーバーで画像のサムネイルと同じ形式（$format）にする");
 	is(join('x', Satsuki::ImageFormat::get_size($poster)), '960x540', '記事用のサムネイルの大きさ');
-	is($quality->($poster), 80, '記事用のサムネイルの品質は、画像のサムネイルと同じ');
-	is(Satsuki::ImageFormat::detect($thumb), 'jpeg', '一覧用のサムネイルもJPEG');
+	is(Satsuki::ImageFormat::detect($thumb), $format, '一覧用のサムネイルも同じ形式');
 	is(join('x', Satsuki::ImageFormat::get_size($thumb)), '320x180', '一覧用のサムネイルは、設定の大きさに縮めて作る');
-	ok(!-e "$poster.tmp" && !-e "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE.poster.new.jpg", '作業用のファイルが残らない');
+	ok(!glob("$th.*tmp") && !glob("$th.*new*"), '作業用のファイルが残らない');
+	ok($ext eq 'jpg' || (!-e "$th.poster.jpg" && !-e "$th.jpg"), 'JPEGのサムネイルは残らない');
+
+	# 記事には、記事用のサムネイルを出す
+	my $r = $app->post('editor', '', { %ART, title => '動画の記事', body_txt => "[file:mp4:$AppTest::IMAGE_FOLDER:$AppTest::VIDEO_FILE]\n" });
+	ok(AppTest::is_reload($r), '動画を貼った記事を保存できる');
+	like(body($app->get('guest', '')), qr{class="video-thumb"[^>]*><img [^>]*src="[^"]*\.thumbnail/\Q$AppTest::VIDEO_FILE\E\.poster\.$ext"}, "記事のサムネイルが .poster.$ext を指す");
 	ok(!json_ok($post->(540, 961)), '縦長でも、長い辺が961pxなら受け付けない');
 	ok(!json_ok($post->(960, 540, 'jpeg')), 'JPEGは受け付けない（PNGだけ）');
 	ok(!json_ok($post_data->('not an image')), '画像でなければ受け付けない');
@@ -460,6 +463,31 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	ok($listed->(), 'アップデート処理より前に作ったサムネイルなら、一覧に出る');
 	ok(json_ok($post->(960, 540)), '作り直せる');
 	ok(!$listed->(), '作り直すと、一覧から消える');
+
+	# AVIFを書けるサーバーで、記事用のサムネイルがJPEG（4.25より前に作ったもの）
+	SKIP: {
+		skip('ImageMagickでAVIFを書けない', 4) if $ext ne 'avif';
+		unlink($poster, $thumb);
+		open($fh, '>:raw', "$th.poster.jpg") || die "$th.poster.jpg: $!";
+		print $fh $image->(960, 540, 'jpeg');
+		close($fh);
+		ok($listed->(), '記事用のサムネイルがJPEGなら、一覧に出る');
+		ok(json_ok($post->(960, 540)), '作り直せる');
+		ok(-e $poster && !-e "$th.poster.jpg", '作り直すと、AVIFになり、JPEGは消える');
+		ok(!$listed->(), '作り直すと、一覧から消える');
+	}
+
+	# 名前の変更、移動、削除で、記事用のサムネイルもついて行く
+	my $tdir = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail";
+	$r = $app->post('editor', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
+	ok(json_ok($r), '動画の名前を変えられる');
+	ok(-e "$tdir/v2.mp4.poster.$ext" && -e "$tdir/v2.mp4.$ext" && !-e $poster, 'サムネイルの名前も変わる');
+	$r = $app->post('editor', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
+	ok(json_ok($r), '動画を移せる');
+	ok(-e "$dir/pub/attachments/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
+	$r = $app->post('editor', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
+	ok(json_ok($r), '動画を削除できる');
+	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
 #-------------------------------------------------------------------------------

@@ -46,7 +46,7 @@
 	<h3>動画のサムネイル</h3>
 	<div id="video-thumbnail" data-url="<@Basepath><@v.blogimg_dir()>"<@if(Query.video_thumbnail, ' data-auto="1"')>
 	 data-msg-done="サムネイルを作りました" data-msg-fail="%n本の動画はサムネイルを作れませんでした（このブラウザーで再生できない形式など）">
-	<p>サムネイルの無い動画か、サムネイルが古い作り方（4.19より前）の動画が<@##videos+1>本あります。サムネイルの無い動画は、作るまで記事に今までどおりプレーヤーで表示されます。
+	<p>サムネイルの無い動画か、サムネイルが古い作り方（4.19より前）かJPEG（4.25より前）の動画が<@##videos+1>本あります。サムネイルの無い動画は、作るまで記事に今までどおりプレーヤーで表示されます。
 	<button type="button" class="make">サムネイルを作る</button> <span class="status"></span></p>
 	<ul class="small">
 	<@forexec(t, videos, begin)>

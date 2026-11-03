@@ -108,7 +108,7 @@ sub audio_video {
 #-------------------------------------------------------------------------------
 # ●動画のサムネイル
 #-------------------------------------------------------------------------------
-# 画像アルバムの動画に、管理画面で作ったサムネイル（.thumbnail/動画名.poster.jpg）があれば、
+# 画像アルバムの動画に、管理画面で作ったサムネイル（.thumbnail/動画名.poster.avif か .poster.jpg）があれば、
 # サムネイルの画像を動画へのリンクにして返す。無ければ空（docs/仕様/動画のサムネイル.md）
 # 大きさの指定が無ければ、長い辺を<video>やYouTubeの幅と同じ480pxに収める（縦長の動画が長くならないように）。
 # サムネイルのファイルは480pxの2倍（長い辺960px）なので、高解像度の画面でもぼやけない
@@ -117,13 +117,18 @@ my $VIDEO_THUMB_SIZE = 480;
 
 sub video_thumbnail {
 	my ($pobj, $url, $width, $height) = @_;
-	my $poster = $url;
-	$poster =~ s/[?#].*//;
-	if ($poster !~ s|^(.*/)?([^/]+)$|$1.thumbnail/$2.poster.jpg|) { return ''; }
+	my $base = $url;
+	$base =~ s/[?#].*//;
+	if ($base !~ s|^(.*/)?([^/]+)$|$1.thumbnail/$2.poster|) { return ''; }
 
-	# サイトの中のファイルだけを読む（外のサイトや読めないファイルなら空）
+	# サイトの中のファイルだけを読む（外のサイトや読めないファイルなら空）。AVIFを先に見る
 	require Satsuki::TextParser::TagPlugin::Tag_image;
-	my $size = Satsuki::TextParser::TagPlugin::Tag_image::image_size_attr($pobj->{ROBJ}, $poster);
+	my ($poster, $size);
+	foreach('avif', 'jpg') {
+		$poster = "$base.$_";
+		$size = Satsuki::TextParser::TagPlugin::Tag_image::image_size_attr($pobj->{ROBJ}, $poster);
+		if ($size ne '') { last; }
+	}
 	if ($size eq '') { return ''; }
 	if ($width || $height) {
 		$size = ($width ? " width=\"$width\"" : '') . ($height ? " height=\"$height\"" : '');

@@ -9,17 +9,22 @@ use strict;
 # 使い方:
 #   perl t/tools/clean_attachments.pl <pub/attachments/>               … 数えて出すだけ。何も変えない
 #   perl t/tools/clean_attachments.pl <pub/attachments/> --run         … 原本のメタ情報を消し、AVIFのサムネイルを作る
-#   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像の、JPEGのサムネイルを消す
+#   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
-#   --quality=80      サムネイルの画質
+#   --quality=60      サムネイルの画質（既定は lyndbaum.conf.cgi の album_jpeg_quality。無ければ80）
+#   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
 #   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
+#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.conf.cgi）
 #
 # 手順:
 #   1. --run で、原本を片付けてAVIFのサムネイルを作る。前のJPEGのサムネイルは残すので、記事はそのまま見られる
 #   2. 管理画面で全記事を再構築する。記事のサムネイルがAVIFを指すようになる
 #   3. --remove-old で、JPEGのサムネイルを消す。記事のHTMLがまだJPEGを指しているものは消さずに一覧に出す
 #
+# - 動画のサムネイルは、サーバーでは動画の1コマを切り出せないので作らない。
+#   管理画面の ?system/update の「動画のサムネイル」で、ブラウザーで作り直す（AVIFになる）。
+#   --remove-old では、AVIFで作り直した動画のJPEGのサムネイル（.poster.jpg と .jpg）を消す
 # - ゴミ箱（.trashbox）は触らない
 # - 原本の更新日時は元のままにする（画像アルバムの日付が変わらないように）
 #
@@ -30,20 +35,22 @@ use File::Find ();
 use Satsuki::ImageMeta;
 use Satsuki::ImageFormat;
 
-my %opt = (quality => 80);
-Getopt::Long::GetOptions(\%opt, 'run', 'remove-old', 'thumb-size=i', 'quality=i', 'data=s') || usage();
+my %opt;
+Getopt::Long::GetOptions(\%opt, 'run', 'remove-old', 'force', 'thumb-size=i', 'quality=i', 'data=s', 'conf=s') || usage();
 my $dir = shift(@ARGV);
-if ($dir eq '' || @ARGV || ($opt{run} && $opt{'remove-old'})) { usage(); }
+if ($dir eq '' || @ARGV || ($opt{run} && $opt{'remove-old'}) || ($opt{force} && $opt{'remove-old'})) { usage(); }
 $dir =~ s|/?$|/|;
 if (!-d $dir) { die "フォルダが無い: $dir\n"; }
 my $data = $opt{data} || "$dir../../data/";
 $data =~ s|/?$|/|;
+my $conf = $opt{conf} || "$dir../../lyndbaum.conf.cgi";
 
 my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（lyndbaum.conf.cgi の album_image_ext）
 my %CLEAN = map { $_ => 1 } qw(jpg jpeg png apng webp);		# メタ情報を消す形式
+my %VIDEO = map { $_ => 1 } qw(mp4 m4v webm ogv);		# 動画（SatsukiApp::adiary の is_video）
 
 sub usage {
-	die "usage: $0 <pub/attachments/> [--run | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>]\n";
+	die "usage: $0 <pub/attachments/> [--run [--force] | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>] [--conf=<file>]\n";
 }
 
 #-------------------------------------------------------------------------------
@@ -55,7 +62,7 @@ File::Find::find({
 	preprocess => sub { grep { $_ ne '.thumbnail' && $_ ne '.trashbox' } @_ },
 	wanted => sub {
 		if (!-f $_) { return; }
-		if ($_ =~ /\.(\w+)$/ && $IMAGE{lc($1)}) { push(@files, $_); }
+		if ($_ =~ /\.(\w+)$/ && ($IMAGE{lc($1)} || $VIDEO{lc($1)})) { push(@files, $_); }
 	}
 }, $dir);
 @files = sort @files;
@@ -70,9 +77,11 @@ if ($opt{'remove-old'}) {
 #-------------------------------------------------------------------------------
 my $avif = Satsuki::ImageFormat::can_write_avif();
 my $size = $opt{'thumb-size'} || thumb_size_setting() || 320;
+my $quality = $opt{quality} || album_jpeg_quality_setting() || 80;
 if (!$avif) { print "ImageMagickでAVIFを書けないので、サムネイルは作らない\n"; }
 
 my ($n, $cleaned, $saved, $thumbs, @fail) = (0, 0, 0, 0);
+@files = grep { /\.(\w+)$/ && $IMAGE{lc($1)} } @files;	# 動画は --remove-old だけで扱う
 foreach my $file (@files) {
 	$n++;
 	if ($n % 100 == 0) { print STDERR "\r$n/" . scalar(@files); }
@@ -102,11 +111,11 @@ foreach my $file (@files) {
 	if ($avif) {
 		my ($d, $name) = $file =~ m|^(.*/)([^/]+)$|;
 		my $thumb = "$d.thumbnail/$name.avif";
-		if (-e $thumb) { next; }
+		if (!$opt{force} && -e $thumb) { next; }
 		$thumbs++;
 		if (!$opt{run}) { next; }
 		if (!-d "$d.thumbnail") { mkdir("$d.thumbnail"); }
-		my $r = Satsuki::ImageFormat::make_thumbnail($file, $thumb, $size, { quality => $opt{quality} });
+		my $r = Satsuki::ImageFormat::make_thumbnail($file, $thumb, $size, { quality => $quality });
 		if ($r) { $thumbs--; push(@fail, "サムネイル ($r): $file"); }
 	}
 }
@@ -115,7 +124,7 @@ print STDERR "\r" if (@files >= 100);
 my $verb = $opt{run} ? '' : '（数えただけ。--run で実行する）';
 printf("画像: %d\n", scalar(@files));
 printf("メタ情報を消した画像: %d、減った大きさ: %.1f MB%s\n", $cleaned, $saved / 1048576, $verb);
-if ($avif) { printf("作ったAVIFのサムネイル（%dpx）: %d%s\n", $size, $thumbs, $verb); }
+if ($avif) { printf("作ったAVIFのサムネイル（%dpx、画質%d）: %d%s\n", $size, $quality, $thumbs, $verb); }
 if (@fail) { print "失敗:\n", map { "  $_\n" } @fail; }
 if ($opt{run} && $thumbs) {
 	print "\n次に、管理画面で全記事を再構築してから、--remove-old でJPEGのサムネイルを消してください\n";
@@ -134,10 +143,22 @@ sub thumb_size_setting {
 }
 
 #-------------------------------------------------------------------------------
+# ○サムネイルの画質（lyndbaum.conf.cgi の album_jpeg_quality。アップロードのときと同じ）
+#-------------------------------------------------------------------------------
+sub album_jpeg_quality_setting {
+	open(my $fh, '<', $conf) || return;
+	while(<$fh>) {
+		if (/^<\$v\.album_jpeg_quality\s*=\s*(\d+)\s*>/) { return $1; }
+	}
+	return;
+}
+
+#-------------------------------------------------------------------------------
 # ○JPEGのサムネイルを消す
 #-------------------------------------------------------------------------------
 sub remove_old {
 	# 記事のHTMLが指しているサムネイルの名前（ファイル名だけで見る。同じ名前なら別のフォルダのものも消さない）
+	# 動画の記事用のサムネイルは「動画名.poster」の名前で入る
 	my %used;
 	if (-d "${data}db") {
 		File::Find::find({ no_chdir => 1, wanted => sub {
@@ -158,12 +179,18 @@ sub remove_old {
 
 	my ($count, $bytes, @kept) = (0, 0);
 	foreach my $file (@files) {
-		my ($d, $name) = $file =~ m|^(.*/)([^/]+)$|;
-		my $jpg = "$d.thumbnail/$name.jpg";
-		if (!-e $jpg || !-e "$d.thumbnail/$name.avif") { next; }
-		if ($used{$name}) { push(@kept, $jpg); next; }
-		my $s = -s $jpg;
-		if (unlink($jpg)) { $count++; $bytes += $s; }
+		my ($d, $name, $ext) = $file =~ m|^(.*/)([^/]+?)(?:\.(\w+))?$|;
+		$name .= ".$ext";
+		# 動画は、記事用（.poster）と一覧用の両方がAVIFになっていれば消す
+		my @names = $VIDEO{lc($ext)} ? ("$name.poster", $name) : ($name);
+		if (grep { !-e "$d.thumbnail/$_.avif" } @names) { next; }
+		foreach(@names) {
+			my $jpg = "$d.thumbnail/$_.jpg";
+			if (!-e $jpg) { next; }
+			if ($used{$_}) { push(@kept, $jpg); next; }
+			my $s = -s $jpg;
+			if (unlink($jpg)) { $count++; $bytes += $s; }
+		}
 	}
 	printf("消したJPEGのサムネイル: %d、%.1f MB\n", $count, $bytes / 1048576);
 	if (@kept) {
