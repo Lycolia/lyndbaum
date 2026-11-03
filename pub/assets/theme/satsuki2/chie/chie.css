@@ -167,7 +167,7 @@ body {
 /* 記事部 + サイドバー */
 #hatena-body {
     margin:                 0 auto;
-    /* 100% - ヘッダー - div.main パディング - フッター */
+    /* 100% - ヘッダー - main.main パディング - フッター */
     min-height:             calc(100% - 46px - 80px);
 }
 
@@ -185,7 +185,7 @@ body {
 }
 
 /* 記事部 */
-div.main {
+main.main {
     grid-area:              main;
     height:                 100%;
     
@@ -1310,7 +1310,7 @@ h3.ui-accordion-header {
 		background:		none;
 		background-color:	#343131;
 	}
-	div.main {
+	main.main {
 		min-width:		auto;
 		width:			auto;
 		float:			none;
@@ -1415,7 +1415,7 @@ h3.ui-accordion-header {
 		font-size:		11pt;
 		padding:		0.8em 6px;
 	}
-	div.main>article:first-child {
+	main.main>article:first-child {
 		border-top:		none;
 	}
 	#adiary-body {
