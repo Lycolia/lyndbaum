@@ -761,15 +761,8 @@ sub http_headers {
 	if ($self->{No_httpheader}) { return''; }
 
 	# Status
-	my $header;
 	my $status = $self->{Status};
-	if ($self->{HTTPD}) {
-		$header  = "HTTP/1.0 $status\r\n";
-		my $st = $self->{HTTPD_state};
-		$header .= "Connection: " . ($st->{keep_alive} ? 'keep-alive' : 'close') . "\r\n";
-	} else {
-		$header  = "Status: $status\r\n";
-	}
+	my $header = "Status: $status\r\n";
 	$header .= join('', @{ $self->{Headers} });	# その他のヘッダ
 
 	# Content-Type;

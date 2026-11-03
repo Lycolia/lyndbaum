@@ -23,33 +23,6 @@ sub init_for_fastcgi {
 }
 
 ################################################################################
-# ■httpd用のスタートアップ
-################################################################################
-sub init_for_httpd {
-	my $self  = shift;
-	$self->{HTTPD_state} = shift;
-	my $path  = shift || '/';
-
-	$self->{CGI_cache}= 1;
-	$self->{HTTPD}    = 1;
-	$self->{CGI_mode} = 'httpd';
-
-	$self->{Initialized_path} = 1;
-	$self->{Basepath}   = $path;
-	$self->{ModRewrite} = 1;
-
-	$self->{myself}  = $path;
-	$self->{myself2} = $path;
-
-	my $port = int($ENV{SERVER_PORT});
-	my $https = (lc($ENV{HTTP_X_FORWARDED_PROTO}) eq 'https')
-		|| (lc($ENV{HTTPS}) eq 'on')
-		|| ($port == 443);
-	my $protocol = $https ? 'https://' : 'http://';
-	$self->{ServerURL} = $protocol . $ENV{SERVER_NAME} . (($port != 80 && $port != 443) ? ":$port" : '');
-}
-
-################################################################################
 # ■fork処理
 ################################################################################
 sub fork {

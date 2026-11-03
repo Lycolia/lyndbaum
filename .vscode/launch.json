@@ -2,12 +2,27 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "lyndbaum.httpd.pl",
+      "name": "lyndbaum.cgi",
       "type": "perl",
       "request": "launch",
-      "program": "${workspaceFolder}/lyndbaum.httpd.pl",
-      "args": ["-D", "-p", "8888"],
+      "program": "${workspaceFolder}/lyndbaum.cgi",
+      "args": [],
       "cwd": "${workspaceFolder}",
+      "env": {
+        "GATEWAY_INTERFACE": "CGI/1.1",
+        "REQUEST_METHOD": "GET",
+        "SCRIPT_NAME": "/lyndbaum.cgi",
+        "PATH_INFO": "/",
+        "QUERY_STRING": "",
+        "REQUEST_URI": "/lyndbaum.cgi/",
+        "SERVER_NAME": "localhost",
+        "SERVER_PORT": "80",
+        "HTTP_HOST": "localhost",
+        "REMOTE_ADDR": "127.0.0.1",
+        "HTTP_USER_AGENT": "debug",
+        "HTTP_ACCEPT_LANGUAGE": "ja",
+        "HTTP_COOKIE": ""
+      },
       "stopOnEntry": false
     },
     {
