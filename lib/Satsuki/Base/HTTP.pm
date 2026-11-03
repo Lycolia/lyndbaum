@@ -163,7 +163,7 @@ sub send_https_request {
 		return $self->error($sock, "Net::SSLeay Ver%s is too old (1.92 or later required)", $Net::SSLeay::VERSION);
 	}
 	#-----------------------------------------------------------------------
-	my ($data, $errs, $written, $verify_err);
+	my ($data, $errs, $written, $verify_err, $timeout);
 
 	my $ctx = Net::SSLeay::new_x_ctx();
 	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_new') or !$ctx;
@@ -192,6 +192,14 @@ sub send_https_request {
 	Net::SSLeay::set_fd($ssl, fileno($sock));
 	goto cleanup if $errs = Net::SSLeay::print_errs('set_fd');
 
+	# ハンドシェイク、送信、受信の合計に制限時間を掛ける
+	# Net::SSLeayの送受信は割り込まれても再試行するので、ソケットを閉じて抜ける
+	# シグナルはXSから戻るまで処理されず、途中まで書けたwrite()に吸収されると
+	# OpenSSLの中で止まり続けるので、抜けられるまで1秒ごとに送る（alarm(0)で止まる）
+	require Time::HiRes;
+	local $SIG{ALRM} = sub { close($sock); $timeout=1; };
+	Time::HiRes::setitimer(Time::HiRes::ITIMER_REAL(), $self->{timeout}, 1);
+
 	my $connected = Net::SSLeay::connect($ssl);
 	$errs = Net::SSLeay::print_errs('SSL_connect');
 	if ($connected != 1 || $errs) {
@@ -207,11 +215,17 @@ sub send_https_request {
 	($data, $errs) = Net::SSLeay::ssl_read_all($ssl);
 
 cleanup:
+	alarm(0);
 	Net::SSLeay::free($ssl);
 
 cleanup2:
 	Net::SSLeay::CTX_free($ctx);
 	close($sock);
+
+	# 途中まで受信していても、切れたデータは成功として扱わない
+	if ($timeout) {
+		return $self->error(undef, "Connection timeout '%s' (timeout %d sec)", $host, $self->{timeout});
+	}
 
 	#-----------------------------------------------------------------------
 	# parse
