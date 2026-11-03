@@ -834,7 +834,7 @@ sub parse_inline {
 			$self->tag_escape($url, $title);
 			if ($title ne '') { $title = " title=\"$title\""; }
 			$is_img ? "<img src=\"$url\" alt=\"$text\"$title />"
-				: "<a href=\"$url\"$title" . $self->image_link_attr($url) . ">$text</a>";
+				: "<a href=\"$url\"$title>$text</a>";
 		}eg;
 
 		# 直接リンク記法 - [text](https://example.com/hoge_\(fuga\))を処理できる方式
@@ -855,7 +855,7 @@ sub parse_inline {
 			$self->tag_escape($url, $title);
 			if ($title ne '') { $title = " title=\"$title\""; }
 			$is_img ? "<img src=\"$url\" alt=\"$text\"$title />"
-				: "<a href=\"$url\"$title" . $self->image_link_attr($url) . ">$text</a>";
+				: "<a href=\"$url\"$title>$text</a>";
 		}eg;
 
 		# 自動リンク記法
@@ -1043,29 +1043,10 @@ sub tag_escape {
 }
 
 #-------------------------------------------------------------------------------
-# ●画像へのリンクを画像ビューアーで開く属性
-#-------------------------------------------------------------------------------
-# サイト内の画像を指すリンクには、[image:...]と同じ属性（image_attr）を付け、
-# テキストのリンクでも画像ビューアー（Lythumb-viewer）で開けるようにする。
-# 外部のURL（スキームや//の付いたもの）は対象外。拡張子だけでは画像か判定しきれず、
-# 直リンクを禁止しているサイトもあるため
-#
-sub image_link_attr {
-	my $self = shift;
-	my $url  = shift;
-	my $attr = $self->{image_attr};
-	if ($attr eq '') { return ''; }
-	if ($url =~ m!^(?:[A-Za-z][A-Za-z0-9+.\-]*:|//)!) { return ''; }
-	my $path = $url;
-	$path =~ s/[?#].*//s;
-	if ($path !~ /\.(?:jpe?g|png|gif|webp|avif|bmp)$/i) { return ''; }
-	$attr =~ s/%k/$self->{thispkey}/g;
-	return ' ' . $attr;
-}
-
-#-------------------------------------------------------------------------------
 # ●画像ビューアーで開くリンクに、リンクの文字のキャプションを付ける
 #-------------------------------------------------------------------------------
+# 対象は data-lythumb の付いたリンク（[image:T:...]と、HTMLで書いたもの）。
+# Markdownのリンク [文字](URL) には data-lythumb を付けないので、対象にならない。
 # Lythumb-viewerは data-caption、無ければ中の<img>のaltをキャプションにする。
 # data-caption="" だとaltが使われなくなるので、文字の無いリンク（画像だけのリンク）には付けない
 #

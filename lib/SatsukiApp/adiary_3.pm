@@ -102,6 +102,11 @@ sub load_image_files {
 	}
 
 	my $files = $ROBJ->search_files( $dir );
+	# サムネイル生成
+	if (@$files) {
+		$self->make_thumbnail($dir, $files);
+	}
+
 	my @ary;
 	foreach(@$files) {
 		my @st = stat("$dir$_");
@@ -109,15 +114,12 @@ sub load_image_files {
 			name => $_,
 			size => $st[7],
 			date => $st[9],
-			isImg=> $self->is_image($_)
+			isImg=> $self->is_image($_),
+			thumb=> $self->thumbnail_name($dir, $_)	# .thumbnail/ の中のファイル名
 		});
 	}
-	# サムネイル生成
-	if (@ary) {
-		$self->make_thumbnail($dir, $files);
-	}
 
-	my $json = $self->generate_json(\@ary, ['name', 'size', 'date', 'isImg', 'children']);
+	my $json = $self->generate_json(\@ary, ['name', 'size', 'date', 'isImg', 'thumb', 'children']);
 	return (0, $json);
 }
 
@@ -158,6 +160,65 @@ sub thumbnail_size {
 }
 
 #-------------------------------------------------------------------------------
+# ●サムネイルの形式
+#-------------------------------------------------------------------------------
+# 画像と動画のサムネイルは、ImageMagickでAVIFを書けるならAVIF（.thumbnail/元の名前.avif）、書けなければJPEG（.jpg）。
+# 動画の記事用のサムネイル（.thumbnail/動画名.poster.avif か .poster.jpg）も同じ。
+# 画像でも動画でもないファイルのアイコンはいつもJPEG。
+# 前に作ったJPEGのサムネイルが残っていることもあるので、使うときは thumbnail_name、poster_file で今あるものを探す
+#
+# 下の関数の $suffix は、一覧用なら空、動画の記事用なら '.poster'
+#
+our @THUMBNAIL_EXTS = ('avif', 'jpg');
+
+sub thumbnail_ext {
+	my ($self, $file) = @_;
+	if (defined $file && !$self->is_image($file) && !$self->is_video($file)) { return 'jpg'; }
+	require Satsuki::ImageFormat;
+	return Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';
+}
+
+# 今あるサムネイルのファイル名（.thumbnail/ の中）。無ければ、これから作る名前
+sub thumbnail_name {
+	my ($self, $dir, $file) = @_;
+	foreach(@THUMBNAIL_EXTS) {
+		if (-e "${dir}.thumbnail/$file.$_") { return "$file.$_"; }
+	}
+	return "$file." . $self->thumbnail_ext($file);
+}
+
+# 今ある動画の記事用のサムネイルの実パス。無ければ空
+sub poster_file {
+	my ($self, $dir, $file) = @_;
+	foreach(@THUMBNAIL_EXTS) {
+		if (-e "${dir}.thumbnail/$file.poster.$_") { return "${dir}.thumbnail/$file.poster.$_"; }
+	}
+	return '';
+}
+
+# サムネイルを消す（どの形式も）
+sub delete_thumbnail {
+	my ($self, $dir, $file, $suffix) = @_;
+	foreach(@THUMBNAIL_EXTS) {
+		unlink("${dir}.thumbnail/$file$suffix.$_");
+	}
+}
+
+# サムネイルを移す（どの形式も）。移せなかったものは消す。ret : 1つでも移せたら1
+sub rename_thumbnail {
+	my ($self, $from, $src, $to, $des, $suffix) = @_;
+	my $r = 0;
+	if ("$from$src" ne "$to$des") { $self->delete_thumbnail($to, $des, $suffix); }	# 移した先の古いサムネイルを優先しないように
+	foreach(@THUMBNAIL_EXTS) {
+		my $f = "${from}.thumbnail/$src$suffix.$_";
+		if (!-e $f) { next; }
+		if (rename($f, "${to}.thumbnail/$des$suffix.$_")) { $r=1; next; }
+		unlink($f);
+	}
+	return $r;
+}
+
+#-------------------------------------------------------------------------------
 # ●サムネイル生成
 #-------------------------------------------------------------------------------
 sub make_thumbnail {
@@ -170,19 +231,20 @@ sub make_thumbnail {
 	$ROBJ->mkdir("${dir}.thumbnail/");
 	foreach(@$files) {
 		my $thumb = "${dir}.thumbnail/$_.jpg";
-		# すでに存在したら生成しない
-		if (!$opt->{force} && -r $thumb) { next; }
+		# すでに存在したら生成しない（前に作ったJPEGのサムネイルでもよい）
+		if (!$opt->{force} && -r "${dir}.thumbnail/" . $self->thumbnail_name($dir, $_)) { next; }
 		# 動画のサムネイルはブラウザーで作るので、作り直しでもアイコンに戻さない
-		if ($self->is_video($_) && -r "${dir}.thumbnail/$_.poster.jpg") { next; }
+		if ($self->is_video($_) && $self->poster_file($dir, $_)) { next; }
 
 		my $isImage = $self->is_image($_);
 		if ($isImage) {
-			if ($opt->{del_exif} && $_ =~ /\.jpe?g$/i) {
-				my $jpeg = $ROBJ->loadpm('Jpeg');
-				$jpeg->strip("$dir$_");
+			if ($opt->{del_exif}) {
+				require Satsuki::ImageMeta;
+				Satsuki::ImageMeta::clean_file("$dir$_", { exif => 1 });
 			}
 			my $r = $self->make_thumbnail_for_image($dir, $_);
 			if (!$r) { next; }
+			$self->delete_thumbnail($dir, $_);	# 作れなければアイコンにする
 		}
 		my $r = $self->make_thumbnail_for_notimage($dir, $_);
 		if (!$r) { next; }
@@ -205,6 +267,7 @@ sub make_thumbnail {
 #-------------------------------------------------
 # ○サムネイルパスを取得（for import_img() ）
 #-------------------------------------------------
+# 取り込んだ元のサイトのサムネイルを、そのままJPEGで置く
 sub get_thumbnail_file {
 	my $self = shift;
 	my $dir  = shift;
@@ -216,61 +279,40 @@ sub get_thumbnail_file {
 #-------------------------------------------------
 # ○画像ファイル
 #-------------------------------------------------
+# サムネイルを作ったら、ほかの形式の古いサムネイル（前に作ったJPEGなど）は消す
 sub make_thumbnail_for_image {
 	my $self = shift;
 	my $dir  = shift;	# 実パス
 	my $file = shift;
-	return $self->make_jpeg_thumbnail("$dir$file", "${dir}.thumbnail/$file.jpg", $self->thumbnail_size());
+	my $ext  = $self->thumbnail_ext($file);
+	my $r = $self->make_jpeg_thumbnail("$dir$file", "${dir}.thumbnail/$file.$ext", $self->thumbnail_size());
+	if ($r == -3 && $ext ne 'jpg') {	# AVIFを書けなかった画像はJPEGにする
+		$ext = 'jpg';
+		$r = $self->make_jpeg_thumbnail("$dir$file", "${dir}.thumbnail/$file.$ext", $self->thumbnail_size());
+	}
+	if ($r) { return $r; }
+	foreach(@THUMBNAIL_EXTS) {
+		if ($_ ne $ext) { unlink("${dir}.thumbnail/$file.$_"); }
+	}
+	return 0;
 }
 
 #-------------------------------------------------
-# ○画像を縮めてJPEGに書き出す
+# ○画像を縮めて書き出す
 #-------------------------------------------------
 # 画像のサムネイルと、動画のサムネイル（記事用と一覧用）で使う
 #	$src  : 読む画像の実パス
-#	$dest : 書き出すJPEGの実パス（拡張子は .jpg にする。ImageMagickは拡張子で形式を決める）
+#	$dest : 書き出す実パス。拡張子が .avif ならAVIF、ほかはJPEG
 #	$size : 長い辺の大きさ。これより小さい画像は縮めない
 #	ret   : 成功なら0
+# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら album_avif_quality（既定65）、JPEGなら album_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
 #
 sub make_jpeg_thumbnail {
-	my $self = shift;
-	my $src  = shift;
-	my $dest = shift;
-	my $size = shift;
-
-	my $img = $self->load_image_magick( 'jpeg:size'=>"$size x $size" );
-	if (!$img) { return -99; }
-	my ($w, $h);
-	eval {
-		$self->read_image( $img, $src );
-		$img = $img->[0];
-		$img->AutoOrient();
-		($w, $h) = $img->Get('width', 'height');
-	};
-	if ($@) { return -1; }	# load 失敗
-
-	if ($w<=$size && $h<=$size) {
-		$size = 0;	# resize しない
-	} elsif ($w>$h) {
-		$h = int($h*($size/$w));
-		$w = $size;
-	} else {
-		$w = int($w*($size/$h));
-		$h = $size;
-	}
-	if ($size) {	# リサイズ
-		eval { $img->Thumbnail(width => $w, height => $h); };
-		if ($@) {
-			# ImageMagick-5.x.x以前
-			eval { $img->Resize(width => $w, height => $h, blur => 0.7); };
-			if ($@) { return -2; }	# サムネイル作成失敗
-			eval { $img->Strip(); }	# exif削除
- 		}
-	}
-	# ファイルに書き出し
-	$img->Set( quality => ($self->{album_jpeg_quality} || 80) );
-	$img->Write( $dest );
-	return 0;
+	my ($self, $src, $dest, $size) = @_;
+	require Satsuki::ImageFormat;
+	return Satsuki::ImageFormat::make_thumbnail($src, $dest, $size, {
+		quality => ($dest =~ /\.avif$/i ? $self->{album_avif_quality} : $self->{album_jpeg_quality})	# 空なら make_thumbnail の既定値
+	});
 }
 
 #-------------------------------------------------
@@ -402,7 +444,7 @@ sub image_upload_form {
 		my $fname = $_->{name};
 		if ($fname eq '') { next; }
 
-		if ($self->do_upload( $dir, $_ )){
+		if ($self->do_upload( $dir, $_, { exif => $form->{del_exif} } )){
 			# $ROBJ->message('Upload fail: %s', $fname);
 			$count_f++;
 			next;
@@ -420,10 +462,8 @@ sub image_upload_form {
 		if ($tmp) { $ROBJ->file_delete($tmp); }
 	}
 
-	# サムネイル生成
-	$self->make_thumbnail( $dir, \@files, {
-		del_exif => $form->{del_exif}
-	});
+	# サムネイル生成（Exifの削除は、保存するときにdo_uploadで済ませてある）
+	$self->make_thumbnail( $dir, \@files );
 
 	# フォルダリストの再生成
 	$self->genarete_imgae_dirtree();
@@ -479,6 +519,7 @@ sub do_upload {
 	my $self = shift;
 	my $dir  = shift;
 	my $file_h = shift;
+	my $opt  = shift || {};		# { exif => 1 } ならExifも消す
 	my $ROBJ = $self->{ROBJ};
 
 	# ハッシュデータ（フォームデータの確認）
@@ -500,6 +541,9 @@ sub do_upload {
 		$ROBJ->message("File extension error : %s", $file_h->{name});
 		return 3;
 	}
+
+	# 画像のメタ情報を消す。同じ画像かどうかを、消した後の中身で比べるため、保存する前に消す
+	$self->clean_upload_meta($file_h, $opt);
 
 	# ファイルの保存
 	my $save_file = $dir . $file_name;
@@ -528,9 +572,31 @@ sub do_upload {
 	$file_h->{name} = $file_name;
 
 	# サムネイル削除
-	$ROBJ->file_delete( "${dir}.thumbnail/$file_name.jpg" );
-	$ROBJ->file_delete( "${dir}.thumbnail/$file_name.poster.jpg" );
+	$self->delete_thumbnail( $dir, $file_name );
+	$self->delete_thumbnail( $dir, $file_name, '.poster' );
 	return 0;	# 成功
+}
+
+#---------------------------------------------------------------------
+# ○アップロードした画像のメタ情報を消す
+#---------------------------------------------------------------------
+# 撮影情報（Exif）と表示に要るもの以外を消す。何を消すかはSatsuki::ImageMetaに書いてある
+# 画像でないファイルや、壊れていて読めない画像は、そのまま保存する
+#
+sub clean_upload_meta {
+	my ($self, $file_h, $opt) = @_;
+	if (!$self->is_image($file_h->{name})) { return; }
+	require Satsuki::ImageMeta;
+	my $o = { exif => $opt->{exif} ? 1 : 0 };
+	if ($file_h->{tmp}) {
+		Satsuki::ImageMeta::clean_file($file_h->{tmp}, $o);
+		return;
+	}
+	my ($r, $data) = Satsuki::ImageMeta::clean_data($file_h->{data}, $o);
+	if (!$r && defined $data) {
+		$file_h->{data} = $data;
+		$file_h->{size} = length($data);
+	}
 }
 
 #---------------------------------------------------------------------
@@ -604,14 +670,15 @@ sub remove_exifjpeg {
 	my $dir   = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $files = $form->{file_ary};
 
-	# Exif削除
-	my $jpeg = $ROBJ->loadpm('Jpeg');
+	# Exif削除（JPEG、PNG、WebP。ほかの形式は飛ばす）
+	require Satsuki::ImageMeta;
 	my $fail = 0;
 	my @names;
 	foreach(@$files) {
-		if (!$self->is_image($_) || $_ !~ /\.jpe?g$/i) { next; }
+		if (!$self->is_image($_)) { next; }
+		my ($r) = Satsuki::ImageMeta::clean_file("$dir$_", { exif => 1 });
+		if ($r > 0) { next; }
 		push(@names, $_);
-		my $r = $jpeg->strip("$dir$_");
 		$fail += $r ? 1 : 0;
 	}
 	# Exifの向きが消えると縦と横が入れ替わることがあるので、使っている記事を作り直す
@@ -653,9 +720,9 @@ sub rebuild_arts_using_files {
 # ●動画のサムネイルを保存する
 #-------------------------------------------------------------------------------
 # 動画の1コマは、管理画面でブラウザーが切り出してPNGで送る（サーバーではコマンドを動かさない）
-# サーバーは、それを画像のサムネイルと同じ処理（make_jpeg_thumbnail）でJPEGにする
-#   記事に出すサムネイル         → .thumbnail/動画名.poster.jpg
-#   画像アルバムの一覧に出すもの → .thumbnail/動画名.jpg
+# サーバーは、それを画像のサムネイルと同じ処理（make_jpeg_thumbnail）で、AVIFかJPEG（thumbnail_ext）にする
+#   記事に出すサムネイル         → .thumbnail/動画名.poster.avif（.poster.jpg）
+#   画像アルバムの一覧に出すもの → .thumbnail/動画名.avif（.jpg）
 # PNGで、大きさが決めた範囲のものだけを受け付ける。保存する名前はここで決める
 #
 my $VIDEO_POSTER_MAX = 960;	# 記事用のサムネイルの長い辺（記事での既定の表示480pxの2倍）
@@ -686,11 +753,10 @@ sub save_video_thumbnail {
 
 	require Satsuki::ImageFormat;
 	$ROBJ->mkdir("${dir}.thumbnail/");
-	# 送られたPNGを .tmp に書き、記事用と一覧用のJPEGを作れたら、記事用を置き換える
-	# どちらも送られたPNGから作る（JPEGからJPEGに縮めない）
-	my $f   = "${dir}.thumbnail/$file.poster.jpg";
-	my $new = "${dir}.thumbnail/$file.poster.new.jpg";
-	my $tmp = "$f.tmp";
+	# 送られたPNGを .tmp に書き、記事用と一覧用のサムネイルを作れたら、記事用を置き換える
+	# どちらも送られたPNGから作る（圧縮を1回にする）
+	my $th  = "${dir}.thumbnail/$file";
+	my $tmp = "$th.poster.png.tmp";
 	if ($poster->{tmp} ? $ROBJ->file_move($poster->{tmp}, $tmp) : $ROBJ->fwrite_lines($tmp, $poster->{data})) {
 		$ROBJ->file_delete($tmp);
 		return 4;
@@ -699,17 +765,34 @@ sub save_video_thumbnail {
 	if (Satsuki::ImageFormat::detect($tmp) eq 'png') {
 		($w, $h) = Satsuki::ImageFormat::get_size($tmp);
 	}
+	my $ext = $self->thumbnail_ext($file);
+	my $make = sub {
+		return $self->make_jpeg_thumbnail($tmp, "$th.poster.new.$ext", $VIDEO_POSTER_MAX)
+		    || $self->make_jpeg_thumbnail($tmp, "$th.new.$ext", $self->thumbnail_size());
+	};
 	my $fail;
 	if (!$w || $VIDEO_POSTER_MAX < $w || $VIDEO_POSTER_MAX < $h) {
 		$fail = 5;
-	} elsif ($self->make_jpeg_thumbnail($tmp, $new, $VIDEO_POSTER_MAX)
-	      || $self->make_jpeg_thumbnail($tmp, "${dir}.thumbnail/$file.jpg", $self->thumbnail_size())) {
-		$fail = 7;
-	} elsif (!rename($new, $f)) {
-		$fail = 6;
+	} else {
+		my $r = &$make();
+		if ($r == -3 && $ext ne 'jpg') {	# AVIFを書けなければJPEGにする
+			unlink("$th.poster.new.$ext", "$th.new.$ext");
+			$ext = 'jpg';
+			$r = &$make();
+		}
+		if ($r) {
+			$fail = 7;
+		} else {
+			# ほかの形式の古いサムネイルを消してから置き換える（古いほうを先に見つけないように）
+			foreach(@THUMBNAIL_EXTS) {
+				if ($_ ne $ext) { unlink("$th.poster.$_", "$th.$_"); }
+			}
+			if (!rename("$th.poster.new.$ext", "$th.poster.$ext")) { $fail = 6; }
+			elsif (!rename("$th.new.$ext", "$th.$ext"))           { $fail = 6; }
+		}
 	}
 	$ROBJ->file_delete($tmp);
-	if ($fail) { $ROBJ->file_delete($new); }
+	if ($fail) { unlink("$th.poster.new.$ext", "$th.new.$ext"); }
 	return $fail || 0;
 }
 
@@ -722,6 +805,8 @@ sub save_video_thumbnail {
 #   記事用のサムネイルが今の大きさ（$VIDEO_POSTER_MAX）より大きい動画（4.18より前に作ったもの）
 #   記事用のサムネイルが、v4.19のアップデート処理（video_poster_time）より前に作ったものの動画
 #   （4.19より前は、ブラウザーが品質0.85のJPEGで作っていた）
+#   AVIFを書けるサーバーで、記事用のサムネイルがJPEGの動画（4.25より前に作ったもの）
+#   （JPEGからAVIFに変換すると圧縮が2回になるので、動画から作り直す）
 # ret : [ { folder => 'posts/2026/', name => 'clip.mp4' }, ... ]
 #
 sub load_videos_need_thumbnail {
@@ -729,6 +814,7 @@ sub load_videos_need_thumbnail {
 	my $ROBJ = $self->{ROBJ};
 	my $base = $self->blogimg_dir();
 	my $since = $self->{sys}->{video_poster_time};
+	my $ext  = $self->thumbnail_ext('a.mp4');	# 動画のサムネイルの今の形式
 	require Satsuki::ImageFormat;
 
 	my @ary;
@@ -742,8 +828,9 @@ sub load_videos_need_thumbnail {
 				next;
 			}
 			if (!$self->is_video($_)) { next; }
-			my $poster = "${dir}.thumbnail/$_.poster.jpg";
-			if (-e $poster && (!$since || $since <= (stat($poster))[9])) {
+			my $poster = $self->poster_file($dir, $_);
+			if ($poster && $poster !~ /\.$ext$/) { $poster = ''; }	# 今の形式でない
+			if ($poster && (!$since || $since <= (stat($poster))[9])) {
 				my ($w, $h) = Satsuki::ImageFormat::get_size($poster);
 				if ($w && $w <= $VIDEO_POSTER_MAX && $h <= $VIDEO_POSTER_MAX) { next; }
 			}
@@ -851,16 +938,11 @@ sub move_files {
 		# ファイルを移動した場合、サムネイルも移動
 		if (-d "$to$des") { next; }
 		# $ROBJ->mkdir("${to}.thumbnail/");
-		if (!rename("${from}.thumbnail/$src.jpg", "${to}.thumbnail/$des.jpg")) {
-			# 移動失敗時はサムネイル消去
-			unlink("${from}.thumbnail/$src.jpg");
-		}
+		$self->rename_thumbnail($from, $src, $to, $des);	# 移動失敗時はサムネイル消去
 		# 動画の記事用のサムネイル
-		if (-e "${from}.thumbnail/$src.poster.jpg") {
+		if ($self->poster_file($from, $src)) {
 			$ROBJ->mkdir("${to}.thumbnail/");
-			if (!rename("${from}.thumbnail/$src.poster.jpg", "${to}.thumbnail/$des.poster.jpg")) {
-				unlink("${from}.thumbnail/$src.poster.jpg");
-			}
+			$self->rename_thumbnail($from, $src, $to, $des, '.poster');
 		}
 	}
 	my $f = $#fail+1;
@@ -890,20 +972,20 @@ sub rename_file {
 	my $r2;
 	# 画像ファイルのみ移動を試みる
 	if ($self->is_image($old) && $self->is_image($name)) {
-		$r2 = rename("$dir.thumbnail/$old.jpg", "$dir.thumbnail/$name.jpg");
+		$r2 = $self->rename_thumbnail($dir, $old, $dir, $name);
 	}
 	# 動画のサムネイル（ブラウザーで作ったもの）は、動画のままなら移す。動画でなくなれば消す
-	if ($r && -e "$dir.thumbnail/$old.poster.jpg") {
-		if ($self->is_video($name) && rename("$dir.thumbnail/$old.poster.jpg", "$dir.thumbnail/$name.poster.jpg")) {
-			$r2 = rename("$dir.thumbnail/$old.jpg", "$dir.thumbnail/$name.jpg");
+	if ($r && $self->poster_file($dir, $old)) {
+		if ($self->is_video($name) && $self->rename_thumbnail($dir, $old, $dir, $name, '.poster')) {
+			$r2 = $self->rename_thumbnail($dir, $old, $dir, $name);
 		} else {
-			$ROBJ->file_delete( "${dir}.thumbnail/$old.poster.jpg" );
+			$self->delete_thumbnail( $dir, $old, '.poster' );
 		}
 	}
 
 	if ($r && !$r2) {
 		# サムネイルだけ失敗時、古いサムネイルの削除
-		$ROBJ->file_delete( "${dir}.thumbnail/$old.jpg" );
+		$self->delete_thumbnail( $dir, $old );
 		# 新しいサムネイル生成
 		$self->make_thumbnail( $dir, [$name], {
 			force => 1
@@ -931,8 +1013,8 @@ sub delete_files {
 			push(@fail, $_);
 			next;
 		}
-		unlink("${dir}.thumbnail/$file.jpg");
-		unlink("${dir}.thumbnail/$file.poster.jpg");
+		$self->delete_thumbnail( $dir, $file );
+		$self->delete_thumbnail( $dir, $file, '.poster' );
 	}
 	my $f = $#fail + 1;
 	return wantarray ? ($f, \@fail) : $f;

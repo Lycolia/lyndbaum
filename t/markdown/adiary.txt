@@ -57,7 +57,7 @@
 <p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="4:30と23:00" data-lythumb="k1"><img alt="4:30と23:00" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
 === 画像へのテキストリンク
-# リンクの文字は、Markdownの画像へのリンクと同じくキャプション（data-caption）になる
+# リンクの文字は、画像ビューアーのキャプション（data-caption）になる
 --- input
 文中の[image:T:adiary/2026/01/:a.png:この写真]を見る
 --- expected
