@@ -305,13 +305,13 @@ sub make_thumbnail_for_image {
 #	$dest : 書き出す実パス。拡張子が .avif ならAVIF、ほかはJPEG
 #	$size : 長い辺の大きさ。これより小さい画像は縮めない
 #	ret   : 成功なら0
-# 回転してメタ情報を消し、画質80、4:2:0で書く。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
+# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら album_avif_quality（既定65）、JPEGなら album_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
 #
 sub make_jpeg_thumbnail {
 	my ($self, $src, $dest, $size) = @_;
 	require Satsuki::ImageFormat;
 	return Satsuki::ImageFormat::make_thumbnail($src, $dest, $size, {
-		quality => $self->{album_jpeg_quality} || 80
+		quality => ($dest =~ /\.avif$/i ? $self->{album_avif_quality} : $self->{album_jpeg_quality})	# 空なら make_thumbnail の既定値
 	});
 }
 

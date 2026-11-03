@@ -247,7 +247,7 @@ sub can_write_avif {
 #	$src  : 読む画像の実パス
 #	$dest : 書き出す実パス。拡張子が .avif ならAVIF、ほかはJPEG
 #	$size : 長い辺の大きさ。これより小さい画像は縮めない
-#	$opt  : { quality => 画質（既定80）, 'jpeg:size' => 読み込みの大きさのヒント }
+#	$opt  : { quality => 画質（既定はAVIFが65、JPEGが80）, 'jpeg:size' => 読み込みの大きさのヒント }
 #	ret   : 0=成功、-99=ImageMagickが無い、-1=読めない、-2=縮められない、-3=書けない
 #
 # 書き出しの設定（画質など）は、読み込んだ入れ物（$img）に設定する。$img->[0] に差し替えると効かない
@@ -256,7 +256,7 @@ sub make_thumbnail {
 	my ($src, $dest, $size, $opt) = @_;
 	$opt ||= {};
 	my $avif    = ($dest =~ /\.avif$/i);
-	my $quality = $opt->{quality} || 80;
+	my $quality = $opt->{quality} || ($avif ? 65 : 80);
 
 	eval { require Image::Magick; };
 	if ($@) { return -99; }

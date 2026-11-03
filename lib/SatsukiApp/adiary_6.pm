@@ -41,7 +41,8 @@ my @update_versions = (
 	]},
 	{ ver => 4.22, func => 'sys_update_422', system=>1 },	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
 	{ ver => 4.23, func => 'sys_update_423', system=>1 },	# パスワードをbcryptで保存するようにした。アップデートを行う管理者は、ここで新しいパスワードを決める（system_update）
-	{ ver => 4.24, info=>1, func => 'sys_update_424' }	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
+	{ ver => 4.24, info=>1, func => 'sys_update_424' },	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
+	{ ver => 4.25, func => 'sys_update_425', system=>1 }	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -413,6 +414,38 @@ sub sys_update_422 {
 }
 
 #-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.25
+#-------------------------------------------------------------------------------
+# AVIFのサムネイルの画質を、JPEGと別の設定（album_avif_quality、既定65）にした。
+# 設定ファイルに無ければ、album_jpeg_quality の行の後に足す（無いときも65で作るが、変えられることが分かるように）。
+# # で止めてある行も、その人が決めたことなので、あれば触らない
+sub sys_update_425 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $file = $ROBJ->{Conf_file};
+	if (!-r $file) { return; }
+
+	my $lines = $ROBJ->fread_lines($file);
+	if (grep { /^#?\s*<\$v\.album_avif_quality\s*=/ } @$lines) { return; }
+
+	my @add = ("# AVIFサムネイル生成時の品質\n", "<\$v.album_avif_quality = 65>\n");
+	my @out;
+	my $done;
+	foreach my $line (@$lines) {
+		push(@out, $line);
+		if (!$done && $line =~ /^#?\s*<\$v\.album_jpeg_quality\s*=/) {
+			push(@out, "\n", @add);
+			$done = 1;
+		}
+	}
+	if (!$done) {
+		if (@out && $out[$#out] !~ /\n$/) { $out[$#out] .= "\n"; }
+		push(@out, "\n", @add);
+	}
+	$self->write_conf_file($file, \@out, '425', "Can't update '%s'. Please add these lines by yourself.", \@add);
+}
+
+#-------------------------------------------------------------------------------
 # ●システムアップデート for Ver4.24
 #-------------------------------------------------------------------------------
 # 2つ目のRSS（決めたタグの記事だけを rss2.xml に書き出す）を削除した。設定とファイルを消す。
@@ -755,18 +788,28 @@ sub update_conf_411 {
 		push(@out, $line);
 	}
 	if (!@removed) { return; }
+	$self->write_conf_file($file, \@out, $ver, "Can't update '%s'. Please edit these lines by yourself.", \@removed);
+}
 
-	# 書き換える前のファイルを写す
+#-------------------------------------------------------------------------------
+# ○設定ファイルを書き換える
+#-------------------------------------------------------------------------------
+# 書き換える前のファイルを、データのフォルダに写してから書く。
+# 書き込めなければ、$msg と、直す行（$lines）を知らせる
+sub write_conf_file {
+	my ($self, $file, $out, $ver, $msg, $lines) = @_;
+	my $ROBJ = $self->{ROBJ};
+
 	my $base   = $file =~ m|([^/]+)$| ? $1 : $file;
 	my $backup = $self->{data_dir} . "$base.$ver.bak";
 	my $err    = $ROBJ->file_copy($file, $backup);
 	if (!$err) {
-		$err = $ROBJ->fwrite_lines($file, \@out);
+		$err = $ROBJ->fwrite_lines($file, $out);
 	}
 	if ($err) {
 		$ROBJ->clear_error();
-		$ROBJ->message("Can't update '%s'. Please edit these lines by yourself.", $file);
-		foreach(@removed) {
+		$ROBJ->message($msg, $file);
+		foreach(@$lines) {
 			my $x = $_;
 			$x =~ s/\s+$//;
 			$ROBJ->message("  %s", $x);

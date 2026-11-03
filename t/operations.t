@@ -712,7 +712,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.24$/m, 'バージョンが今のデータのバージョン（4.24）になる');
+	like(read_file($sys), qr/^VERSION=4\.25$/m, 'バージョンが今のデータのバージョン（4.25）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -804,12 +804,53 @@ subtest 'アップデート処理でのパスワードの再設定' => sub {
 	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
 	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
 	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
-	like(read_file($sys), qr/^VERSION=4\.24$/m, '版が今のデータのバージョン（4.24）になる');
+	like(read_file($sys), qr/^VERSION=4\.25$/m, '版が今のデータのバージョン（4.25）になる');
 	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
 	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
 	$app->login('admin');
 	is($app->get('admin', 'menu')->{status}, 200, '新しいパスワードでログインし直せる');
 	unlike(body($app->get('admin', 'system/update')), qr{name="pass"}, 'アップデート処理の後は、パスワードの欄を出さない');
+};
+
+#-------------------------------------------------------------------------------
+# AVIFのサムネイルの画質の設定（4.25）
+#-------------------------------------------------------------------------------
+subtest 'アップデート処理で、設定ファイルにAVIFの画質を足す' => sub {
+	my $write = sub {
+		my ($f, $text) = @_;
+		open(my $fh, '>:utf8', $f) || die "$f: $!";
+		print $fh $text;
+		close($fh);
+	};
+	my $sys  = "$dir/data/system_config.dat";
+	my $file = "$dir/lyndbaum.conf.cgi";
+	my $update = sub {
+		my $t = read_file($sys);
+		$t =~ s/^VERSION=.*$/VERSION=4.24/m;
+		$write->($sys, $t);
+		return $app->post('admin', 'system/update', { action => 'system/update' });
+	};
+
+	# 4.24までの設定ファイル（AVIFの画質の行が無い）にする
+	my $conf = read_file($file);
+	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '見本からAVIFの画質の行を消す');
+	$write->($file, $conf);
+
+	ok(AppTest::is_reload($update->()), 'アップデート処理を行える');
+	my $new = read_file($file);
+	like($new, qr{^<\$v\.album_jpeg_quality = 80>\n\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n}m, 'JPEGの画質の行の後に、AVIFの画質の行が入る');
+	is(scalar(() = $new =~ /album_avif_quality/g), 1, 'AVIFの画質の行は1つ');
+	is(read_file("$dir/data/lyndbaum.conf.cgi.425.bak"), $conf, '書き換える前のファイルを写しておく');
+
+	ok(AppTest::is_reload($update->()), 'もう一度アップデート処理を行える');
+	is(read_file($file), $new, '行があれば、設定ファイルは変わらない');
+
+	# # で止めてある行も、その人が決めたことなので触らない
+	(my $off = $conf) =~ s/^(<\$v\.album_jpeg_quality = 80>\n)/$1#<\$v.album_avif_quality = 50>\n/m;
+	$write->($file, $off);
+	ok(AppTest::is_reload($update->()), '止めてある行があってもアップデート処理を行える');
+	is(read_file($file), $off, '止めてある行があれば、設定ファイルは変わらない');
+	$write->($file, $new);	# 後のテストのために戻す
 };
 
 #-------------------------------------------------------------------------------

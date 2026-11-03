@@ -12,7 +12,7 @@ use strict;
 #   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
-#   --quality=60      サムネイルの画質（既定は lyndbaum.conf.cgi の album_jpeg_quality。無ければ80）
+#   --quality=60      サムネイルの画質（既定は lyndbaum.conf.cgi の album_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
 #   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
 #   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.conf.cgi）
@@ -77,7 +77,7 @@ if ($opt{'remove-old'}) {
 #-------------------------------------------------------------------------------
 my $avif = Satsuki::ImageFormat::can_write_avif();
 my $size = $opt{'thumb-size'} || thumb_size_setting() || 320;
-my $quality = $opt{quality} || album_jpeg_quality_setting() || 80;
+my $quality = $opt{quality} || album_avif_quality_setting() || 65;
 if (!$avif) { print "ImageMagickでAVIFを書けないので、サムネイルは作らない\n"; }
 
 my ($n, $cleaned, $saved, $thumbs, @fail) = (0, 0, 0, 0);
@@ -143,12 +143,12 @@ sub thumb_size_setting {
 }
 
 #-------------------------------------------------------------------------------
-# ○サムネイルの画質（lyndbaum.conf.cgi の album_jpeg_quality。アップロードのときと同じ）
+# ○AVIFのサムネイルの画質（lyndbaum.conf.cgi の album_avif_quality。アップロードのときと同じ）
 #-------------------------------------------------------------------------------
-sub album_jpeg_quality_setting {
+sub album_avif_quality_setting {
 	open(my $fh, '<', $conf) || return;
 	while(<$fh>) {
-		if (/^<\$v\.album_jpeg_quality\s*=\s*(\d+)\s*>/) { return $1; }
+		if (/^<\$v\.album_avif_quality\s*=\s*(\d+)\s*>/) { return $1; }
 	}
 	return;
 }
