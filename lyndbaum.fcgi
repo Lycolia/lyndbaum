@@ -42,7 +42,7 @@ if ($Threads<1) { $Threads=1; }
 	if ($path) {
 		$Socket  = FCGI::OpenSocket($path, $ARGV[2] || 100);
 		if ($path =~ /\.sock$/ && -S $path) {	# UNIX domain socket?
-			chmod(0777, $path);
+			chmod(0660, $path);	# 同じユーザーかグループ（Webサーバー）だけがつなげる
 		}
 	}
 }
@@ -140,12 +140,13 @@ sub fcgi_main_loop {
 		# エラー表示
 		#-----------------------------------------------------
 		if (!$ENV{SatsukiExit} && $@) {
+			# 中身（ファイルのパスなど）は見せず、エラーのログ（STDERR）に書く
+			print STDERR $@;
 			print <<HTML;
 Status: 500 Internal Server Error
-Content-Type: text/plain; charset=UTF8
-X-FCGI-Br: <br>
+Content-Type: text/plain; charset=UTF-8
 
-$@
+500 Internal Server Error
 HTML
 		}
 		if ($shutdown) { last; }

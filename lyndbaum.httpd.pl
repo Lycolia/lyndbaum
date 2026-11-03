@@ -13,8 +13,7 @@ our $VERSION  = '1.24';
 #
 BEGIN {
 	my $path = $0;
-	$path =~ s|/[^/]*||;
-	if ($path) { chdir($path); }
+	if ($path =~ s|/[^/]*$||) { chdir($path eq '' ? '/' : $path); }	# このファイルのあるディレクトリへ
 	unshift(@INC, './lib');
 }
 use Socket qw(:DEFAULT IPPROTO_IPV6 IPV6_V6ONLY IN6ADDR_ANY inet_ntop);
@@ -261,7 +260,7 @@ if ($UNIX_SOCK ne '') {
 	bind($srv, pack_sockaddr_un($UNIX_SOCK))	|| die "bind port failed: $!";
 	listen($srv, SOMAXCONN)				|| die "listen failed: $!";
 
-	chmod(0777, $UNIX_SOCK);
+	chmod(0660, $UNIX_SOCK);	# 同じユーザーかグループだけがつなげる
 	$PORT=0;
 
 	print	"\tUNIX domain socket: $UNIX_SOCK\n"
@@ -357,7 +356,7 @@ $PID = $ITHREADS ? &thread_id() : $$;
 ################################################################################
 if ($GENERATE_CONF) {
 	my $cmd = $0;
-	if ($cmd =~ m|/([^/\.]*)[^/]*$|) {
+	if ($cmd =~ m!(?:^|/)([^/\.]*)[^/]*$!) {	# perl lyndbaum.httpd.pl のように / が無くても
 		my $conf   = $1 . '.conf.cgi';
 		my $sample = $conf . '.sample';
 		if (!-e $conf && -r $sample) {
@@ -690,7 +689,11 @@ sub try_file_read {
 
 	$file =~ s|/+|/|g;
 	$file =~ s|\?.*||;
-	if ($file =~ m|/\.\./|) { return; }
+	# 「.」「..」の段やNULがあれば読まない（/./data/ で拒否するディレクトリを抜けられないように）
+	if ($file =~ m!(?:^|/)\.\.?(?:/|$)! || index($file, "\0") >= 0) {
+		$state->{type} = 'file';
+		return &_403_forbidden($state);
+	}
 	if ($INDEX && $file ne '/' && substr($file, -1) eq '/') {
 		$file .= $INDEX;
 	}

@@ -1,30 +1,17 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 画面がエラーにならずに出るかのテスト
+# 画面がエラーにならずに出るかのテスト（t/screens_*.t）で共通に使うもの
 #-------------------------------------------------------------------------------
-# 実行: prove t/screens.t
+# 何を確かめるかは t/screens_admin.t の頭に書いた。
+# 並べて動かしたときに早く終わるよう、テーマを前と後ろに分けて2つのファイルで開く。
 #
-# 開発モード（Develop）で動かし、次のどれも出ないことを確かめる。
-#	・テンプレートのエラー（画面の下の output-error の欄、出力の後ろの (ERROR)）
-#	・Perlの警告などの標準エラー出力
-#	・500番台のステータス
-# あわせて、画面が参照する配布物のファイル（/pub/assets/ の下）が、すべてあることを確かめる。
-# 管理画面はすべてシステム管理者で開く。公開画面は、すべてのテーマで、
-# ログインしていない人と編集者（管理バーが出る）で開く。
-# あわせて、画面を開いても data/ と pub/ が変わらないことを確かめる（公開画面は最初のテーマでだけ）。
-# ログインのCookieはSameSite=Laxで、ほかのサイトのリンクから開くGETにはCookieが乗るため
-# （docs/仕様/機能一覧.md の「CSRFの対策」）。開くと書き込む画面は %GET_WRITES に理由と書く。
-#
+package ScreensTest;
 use FindBin;
-BEGIN { push(@INC, "$FindBin::Bin/lib", "$FindBin::Bin/../lib"); }
 use Test::More;
-our $TODO;
 use File::Find ();
 use File::Spec ();
 use AppTest;
-
-binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
 
 sub esc { AppTest::_uri_escape(shift) }
 
@@ -32,7 +19,7 @@ sub esc { AppTest::_uri_escape(shift) }
 # 管理画面と補助の画面（すべてシステム管理者で開く）
 #-------------------------------------------------------------------------------
 # 引数が要る画面は、画面の中のリンクと同じ引数を付ける
-my @ADMIN = qw(
+our @ADMIN = qw(
 	menu personal/ edit /01?edit trash artlist comlist media/
 	set/ set/detail set/role set/editor
 	set2/ set2/tag_edit set2/contents_edit set2/usertag set2/header
@@ -49,7 +36,7 @@ my @ADMIN = qw(
 );
 
 # 上の表に入れない画面と、その理由
-my %SKIP = (
+our %SKIP = (
 	'login_auth'        => 'ログインの後の振り分け（転送するだけ）',
 	'login_auto'        => '初期セットアップの自動ログイン（setup() で通す）',
 	'logout'            => 'ログアウト（開くとセッションが消える）',
@@ -61,7 +48,7 @@ my %SKIP = (
 # 開くと書き込む画面
 #-------------------------------------------------------------------------------
 # { 画面（クエリ） => [ 変わってよいファイル（正規表現）, 理由 ] }
-my %GET_WRITES = (
+our %GET_WRITES = (
 	'media/' => [ qr{^pub/images\.json$}, 'アルバムのフォルダの一覧を、今のフォルダから作り直す（init_image_dir）' ],
 );
 
@@ -69,7 +56,7 @@ my %GET_WRITES = (
 # 公開画面（すべてのテーマで開く）
 #-------------------------------------------------------------------------------
 # [ クエリ, 期待するステータス ]
-my @PUBLIC = (
+our @PUBLIC = (
 	[ ''                       , 200 ],	# トップ
 	[ '/01'                    , 200 ],	# 記事（コメントあり）
 	[ '/02'                    , 200 ],	# 記事
@@ -88,7 +75,7 @@ my @PUBLIC = (
 );
 
 # すべてのテーマ（pub/assets/theme/テンプレート/テーマ/）
-my @THEMES = sort map {
+our @THEMES = sort map {
 	my $t = File::Spec->abs2rel($_, "$FindBin::Bin/../pub/assets/theme");
 	$t =~ s|/$||;
 	$t;
@@ -136,7 +123,7 @@ sub check {
 #-------------------------------------------------------------------------------
 # skel/ の画面が、すべて表に入っているか
 #-------------------------------------------------------------------------------
-{
+sub check_listed {
 	my %listed = map { my $q = $_; $q =~ s/&.*//; $q =~ s{^/\w+\??}{}; ($q => 1) } @ADMIN;
 	my @missing;
 	File::Find::find({ no_chdir => 1, wanted => sub {
@@ -151,20 +138,21 @@ sub check {
 }
 
 #-------------------------------------------------------------------------------
-# 開く
+# 組み立てる
 #-------------------------------------------------------------------------------
-my $app = AppTest->new(develop => 1)->setup()->seed();
+sub new_app {
+	my $app = AppTest->new(develop => 1)->setup()->seed();
 
-# NSFWの記事（pkey=4）とコンテンツ（pkey=5）を足す
-{
+	# NSFWの記事（pkey=4）とコンテンツ（pkey=5）を足す
 	my %art = (action => 'edit', parser => 'markdown', enable => 1, body_txt => "本文\n", ymd => '2026-10-05');
 	AppTest::is_reload($app->post('owner', '', { %art, title => 'NSFWの記事', nsfw => 1 })) or die 'nsfw article';
 	AppTest::is_reload($app->post('owner', '', { %art, title => 'ページ', wiki => 1, link_key_txt => 'page1' })) or die 'content';
+	return $app;
 }
 
 # 画面を開いても data/ と pub/ が変わらない（%GET_WRITES のファイルは除く）
 sub get_unchanged {
-	my ($who, $q, $name) = @_;
+	my ($app, $who, $q, $name) = @_;
 	my $before = $app->fingerprint();
 	my $r = $app->get($who, $q);
 	my $allow = $GET_WRITES{$q};
@@ -174,24 +162,40 @@ sub get_unchanged {
 	return $r;
 }
 
-foreach my $q (@ADMIN) {
-	check(get_unchanged('admin', $q, "?$q"), "?$q がエラーにならない");
+#-------------------------------------------------------------------------------
+# 開く
+#-------------------------------------------------------------------------------
+sub open_admin {
+	my $app = shift;
+	foreach my $q (@ADMIN) {
+		check(get_unchanged($app, 'admin', $q, "?$q"), "?$q がエラーにならない");
+	}
 }
 
-my $first_theme = 1;
-foreach my $theme (@THEMES) {
-	my $r = $app->post('admin', '', { action => 'design/theme', theme => $theme });
-	ok(AppTest::is_reload($r) && !errors($r), "テーマを $theme にする")
-		or diag(join("\n", errors($r)));
-	foreach my $p (@PUBLIC) {
-		my ($q, $status) = @$p;
-		foreach my $who (qw(guest editor)) {
-			my $r = $first_theme ? get_unchanged($who, $q, "[$theme] ?$q を $who で") : $app->get($who, $q);
-			check($r, "[$theme] ?$q を $who で開くとエラーにならない", $status);
-			if ($q eq '') { check_jquery($r, $who, "[$theme] トップ"); }
+# テーマの前と後ろ（$part は 'first' か 'rest'）。管理画面も開く t/screens_admin.t のほうを少なくする
+our $FIRST_THEMES = int(@THEMES * 2 / 5);
+sub themes {
+	my $part = shift;
+	return $part eq 'first' ? @THEMES[0 .. $FIRST_THEMES - 1] : @THEMES[$FIRST_THEMES .. $#THEMES];
+}
+
+# 公開画面を、渡したテーマで開く。data/ と pub/ が変わらないかは、全体の最初のテーマでだけ確かめる
+sub open_public {
+	my ($app, @themes) = @_;
+	foreach my $theme (@themes) {
+		my $r = $app->post('admin', '', { action => 'design/theme', theme => $theme });
+		ok(AppTest::is_reload($r) && !errors($r), "テーマを $theme にする")
+			or diag(join("\n", errors($r)));
+		my $first_theme = $theme eq $THEMES[0];
+		foreach my $p (@PUBLIC) {
+			my ($q, $status) = @$p;
+			foreach my $who (qw(guest editor)) {
+				my $r = $first_theme ? get_unchanged($app, $who, $q, "[$theme] ?$q を $who で") : $app->get($who, $q);
+				check($r, "[$theme] ?$q を $who で開くとエラーにならない", $status);
+				if ($q eq '') { check_jquery($r, $who, "[$theme] トップ"); }
+			}
 		}
 	}
-	$first_theme = 0;
 }
 
 #-------------------------------------------------------------------------------
@@ -212,7 +216,12 @@ sub check_jquery {
 	}
 }
 
-is_deeply([ sort keys(%MISSING) ], [], '画面が参照する /pub/assets/ の下のファイルが、すべてある')
-	or diag(join("\n", map { "$_ ($MISSING{$_})" } sort keys(%MISSING)));
+#-------------------------------------------------------------------------------
+# 開いた画面が参照する /pub/assets/ の下のファイル（このファイルで開いた分）
+#-------------------------------------------------------------------------------
+sub check_missing {
+	is_deeply([ sort keys(%MISSING) ], [], '画面が参照する /pub/assets/ の下のファイルが、すべてある')
+		or diag(join("\n", map { "$_ ($MISSING{$_})" } sort keys(%MISSING)));
+}
 
-done_testing();
+1;

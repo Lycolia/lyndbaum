@@ -43,12 +43,13 @@ eval {
 # エラー表示
 #-------------------------------------------------
 if (!$ENV{SatsukiExit} && $@) {
+	# 中身（ファイルのパスなど）は見せず、Webサーバーのエラーログ（STDERR）に書く
+	print STDERR $@;
 	print <<HTML;
 Status: 500 Internal Server Error
 Content-Type: text/plain; charset=UTF-8
-X-Br: <br>
 
-$@
+500 Internal Server Error
 HTML
 }
 

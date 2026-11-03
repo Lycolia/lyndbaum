@@ -1091,12 +1091,18 @@ sub generate_rand_string {
 	my $self = shift;
 	my $len  = shift || 20;
 	my $func = shift || sub { return chr($_[0]) };
-	my $gen  = $ENV{REMOTE_ADDR};
-	my $R    = $ENV{REMOTE_PORT} + rand(0xffffffff);
-	my $str  ='';
-	foreach(1..$len) {
-		my $c = (ord(substr($gen, $_, 1)) + int(rand($R))) & 0xff;
-		$str .= &$func($c);
+
+	# セッションIDなどに使うため、rand()ではなくOSの暗号論的な乱数を使う
+	my $raw;
+	if (open(my $fh, '<:raw', '/dev/urandom')) {
+		read($fh, $raw, $len);
+		close($fh);
+	}
+	if (length($raw) != $len) { die "Can't read /dev/urandom"; }
+
+	my $str = '';
+	foreach(unpack('C*', $raw)) {
+		$str .= &$func($_);
 	}
 	return $str;
 }
@@ -1212,8 +1218,22 @@ sub put_cookie {
 	if ($dom ) { $dom  = " domain=$dom;";  }
 	my $opt = $self->{CookieOpt}      || 'HttpOnly;';
 	my $ss  = $self->{CookieSameSite} || 'Lax';
+	# HTTPSのときは、http:// でCookieが送られないようにする
+	if ($opt !~ /\bSecure\b/i && $self->is_https()) { $opt .= 'Secure;'; }
 
 	$self->set_header('Set-Cookie', "$str$path$dom${opt}SameSite=$ss");
+}
+
+#-------------------------------------------------------------------------------
+# ●HTTPSでアクセスされているか
+#-------------------------------------------------------------------------------
+# リバースプロキシの後ろでは X-Forwarded-Proto を見る。
+# ServerURLは管理者のアクセスで書き換わる（adiary.pm secure_http_host）ので見ない。
+sub is_https {
+	return 1 if (lc($ENV{HTTPS}) eq 'on');
+	return 1 if (lc($ENV{HTTP_X_FORWARDED_PROTO}) eq 'https');
+	return 1 if (int($ENV{SERVER_PORT}) == 443);
+	return 0;
 }
 
 ################################################################################

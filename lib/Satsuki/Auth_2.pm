@@ -38,9 +38,13 @@ sub login {
 	if (!$udata) {
 		$udata = $DB->select_match_limit1($table, 'id', $id);
 	}
+	# 失敗したときのメッセージ。IDが無い・パスワードが違う・ロック中を見分けられないよう同じにする
+	my $fail_msg = $ROBJ->translate('Username or password incorrect, or too many failed. Please retry in %d minutes.', $self->{fail_minute});
+
 	if (!$udata || !%$udata) {	# uid が存在しない
+		$self->dummy_check_pass($pass);		# 応答時間でIDの有無が分からないように
 		$self->log_save_fail($id, 'login');
-		return { ret=>10, msg => $ROBJ->translate('Username or password incorrect.') };
+		return { ret=>10, msg => $fail_msg };
 	}
 	$id = $udata->{id};
 
@@ -48,14 +52,16 @@ sub login {
 	# 一定時間経過したら、失敗カウンタを 0 に初期化
 	my $fails = $udata->{fail_c};
 	if ($udata->{fail_tm} + $self->{fail_minute}*60 < $ROBJ->{TM}) { $fails=0; }
-	if ($fails > $self->{fail_count}) {
-		return { ret=>11, msg => $ROBJ->translate('Too many failed. Please retry in %d minutes.', $self->{fail_minute}) };
+	if (0 < $self->{fail_count} && $fails >= $self->{fail_count}) {
+		$self->dummy_check_pass($pass);
+		$self->log_save_fail($id, 'login');
+		return { ret=>11, msg => $fail_msg };
 	}
 	if (!$self->check_pass($udata->{pass}, $pass)) {
 		$fails++;
 		$DB->update_match($table, {fail_c => $fails, fail_tm => $ROBJ->{TM}}, 'id', $id);
 		$self->log_save_fail($id, 'login');
-		return { ret=>10, msg => $ROBJ->translate('Username or password incorrect.') };
+		return { ret=>10, msg => $fail_msg };
 	}
 	if ($udata->{disable}) {
 		$self->log_save_fail($id, 'login');
@@ -108,7 +114,8 @@ sub login {
 	});
 	# ログイン回数加算
 	my $login_c = ++$self->{ext}->{login_c};
-	$DB->update_match($table, { login_c=>$login_c, login_tm=>$ROBJ->{TM} }, 'id', $id);
+	# 成功したら失敗カウントを戻す
+	$DB->update_match($table, { login_c=>$login_c, login_tm=>$ROBJ->{TM}, fail_c=>0 }, 'id', $id);
 
 	# ログ保存
 	$self->log_save($id, 'login');
@@ -346,6 +353,12 @@ sub log_save {
 sub check_pass {
 	my ($self, $crypted, $plain) = @_;
 	if (crypt($plain, $crypted) eq $crypted) { return 1; }	# auth
+	return 0;
+}
+# パスワードを確かめたときと同じだけ時間をかける（結果は使わない）
+sub dummy_check_pass {
+	my ($self, $plain) = @_;
+	crypt($plain, '$2b$12$' . ('.' x 22));
 	return 0;
 }
 

@@ -18,30 +18,45 @@ if [ -n "$change_files" ]; then
   print_exit "コミットされていない差分があります。" 2 "$change_files"
 fi
 
-# Perlの構文チェック
-errors=""
-while IFS= read -r -d '' f; do
-  opt=()
+jobs=$(nproc 2> /dev/null || echo 4)
+
+# 1ファイルの構文チェック。エラーのときだけ、そのファイルの分を1回で出す（並べて動かしても行が混ざらない）
+check_perl() {
+  local f=$1 opt=() out
   # 分割ファイル（lib/Satsuki/Base_2.pm など）は単体では読めないので、本体を先に読む
   if [[ $f =~ ^lib/(.+)_[0-9]+\.pm$ ]] && [ -f "lib/${BASH_REMATCH[1]}.pm" ]; then
     opt=(-M"${BASH_REMATCH[1]//\//::}")
   fi
-  out=$(perl -Ilib -It/lib "${opt[@]}" -c "$f" 2>&1) || errors+="$out"$'\n'
-done < <(git ls-files -z -- '*.pm' '*.pl' '*.cgi' '*.fcgi' '*.t')
+  out=$(perl -Ilib -It/lib "${opt[@]}" -c "$f" 2>&1) || printf '%s\n' "$out"
+}
+check_js() {
+  local f=$1 out
+  out=$(node --check "$f" 2>&1) || printf '%s\n%s\n' "$f" "$out"
+}
+export -f check_perl check_js
+
+# Perlの構文チェック
+perl_errors=$(git ls-files -z -- '*.pm' '*.pl' '*.cgi' '*.fcgi' '*.t' \
+  | xargs -0 -r -n1 -P"$jobs" bash -c 'check_perl "$1"' _)
 
 # JavaScriptの構文チェック
 if ! command -v node > /dev/null; then
   print_exit "nodeが見つからないため、JavaScriptの構文チェックができません。" 4
 fi
-while IFS= read -r -d '' f; do
-  out=$(node --check "$f" 2>&1) || errors+="$f"$'\n'"$out"$'\n'
-done < <(git ls-files -z -- '*.js')
+js_errors=$(git ls-files -z -- '*.js' \
+  | xargs -0 -r -n1 -P"$jobs" bash -c 'check_js "$1"' _)
 
+errors=$perl_errors
+if [ -n "$perl_errors" ] && [ -n "$js_errors" ]; then
+  errors+=$'\n'
+fi
+errors+=$js_errors
 if [ -n "$errors" ]; then
   print_exit "構文エラーがあります。" 4 "$errors"
 fi
 
-prove -lr t
+# テストはそれぞれ別の一時ディレクトリで動くので、並べて動かす
+prove -lr -j"$jobs" t
 if [ $? != 0 ]; then
   print_exit "自動テストに失敗しています。" 3
 fi

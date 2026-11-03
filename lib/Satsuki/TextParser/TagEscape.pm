@@ -20,6 +20,7 @@ our $VERSION = '1.40';
 #-------------------------------------------------------------------------------
 my %PROTOCOL_CHECK = (
 	href => 1, src => 1, site => 1, cite => 1, background => 1, action => 1,
+	formaction => 1, poster => 1, ping => 1,
 	'data-src' => 1,
 	'data-url' => 1
 );
