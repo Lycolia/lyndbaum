@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.26;
+our $VERSION    = 4.27;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
-our $BRANCH_VERSION = '-a11y-fix';
+our $BRANCH_VERSION = '';
 our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.25;
+our $DATA_VERSION = 4.27;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -162,9 +162,6 @@ sub main {
 	my $action = $ROBJ->{POST} && $ROBJ->{Form}->{action};
 
 	if ($action ne '_ajax_login') {
-		# 表示パスワードチェック
-		if ($self->{view_pass}) { $self->check_view_pass(); }
-
 		# メンテナンスモード
 		if ($sys->{mainte_mode} || $self->{require_update}) { $self->mainte_mode(); }
 	}
@@ -410,7 +407,7 @@ sub load_blogset {
 # ●ブログの権限と初期設定
 #-------------------------------------------------------------------------------
 # ブログを選択し、内部変数に権限を設定する。
-# ブログがみつからないか閲覧できないときは undef が返る
+# ブログがみつからないときは undef が返る
 sub select_blog {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -419,16 +416,11 @@ sub select_blog {
 	my $blog = $self->load_blogset();
 	if (!$blog || !%$blog) { return; }	# ブログが無い
 
-	# 表示権限
-	my $view_ok = $self->set_blog_permission($self, $blog);
-	if (!$view_ok) {	# プライベートモードのブログの閲覧権限がない
-		if ($blog->{view_pass} eq '') { return; }
-		$self->{view_pass} = $blog->{view_pass};
-	}
+	$self->set_blog_permission($self, $blog);
 
 	# ブログ情報設定
 	$self->{blog}        = $blog;
-	$self->{allow_view}  = 1;	# 表示パスワードが合わないときは、check_view_pass で外す
+	$self->{allow_view}  = 1;	# ブログを選べた。ブログが無いときは立たない
 	$self->{blog_dir}    = $self->blog_dir();
 	$self->{blogpub_dir} = $self->blogpub_dir();
 	# ブログ個別スケルトンの登録（プラグイン等で生成される）
@@ -490,28 +482,23 @@ sub set_blog_permission {
 		$h->{blog_admin} = 1;
 		$h->{allow_edit} = 1;
 		$h->{allow_com}  = 1;
-		return 1;
+		return;
 	}
 
-	# 記事の執筆／編集許可／閲覧許可を判別
-	my $allow_view = ! $blog->{private};
+	# 記事の執筆／編集許可を判別
 	if ($authok) {
 		$h->{blog_admin} = $h->users_check($blog->{admin_users}, $authid);
 		$h->{allow_edit} = $h->{blog_admin} || $h->users_check($blog->{editors}, $authid);
-		$allow_view    ||= $h->{allow_edit} || $h->users_check($blog->{viewers}, $authid);
 	}
 
 	# コメントの許可
 	my $allow_com = $blog->{allow_com_users};
-	if ($allow_view) {
-		if ($allow_com eq '*' || ($allow_com eq 'user*' && $authok)) {
-			$self->{allow_com} = 1;
-		} elsif ($allow_com ne '' && $authok) {
-			$allow_com =~ s|\s*,\s*|,|g;
-			$self->{allow_com} = (0 < index(",$allow_com,",$authid)) ? 1 : 0;
-		}
+	if ($allow_com eq '*' || ($allow_com eq 'user*' && $authok)) {
+		$self->{allow_com} = 1;
+	} elsif ($allow_com ne '' && $authok) {
+		$allow_com =~ s|\s*,\s*|,|g;
+		$self->{allow_com} = (0 < index(",$allow_com,",$authid)) ? 1 : 0;
 	}
-	return $allow_view;
 }
 
 #--------------------------------------
@@ -692,7 +679,7 @@ sub load_articles {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 
-	# 閲覧できない人（プライベートモード）には読まない
+	# ブログが無い
 	if (!$self->{allow_view}) { return []; }
 	my $blog = $self->{blog};
 
@@ -1195,7 +1182,7 @@ sub load_comments {
 	my $self = shift;
 	my ($a_pkey, $opt) = @_;
 	my $DB   = $self->{DB};
-	if (!$self->{allow_view}) { return []; }	# 閲覧できない
+	if (!$self->{allow_view}) { return []; }	# ブログが無い
 
 	# コメントのロード
 	my $loads  = $opt->{loads} ne '' ? int($opt->{loads}) : undef;
@@ -1472,7 +1459,7 @@ sub save_sysdat {
 sub load_tag_cache {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{allow_view}) { return [ {} ]; }	# 閲覧できない（0番目は名前からpkeyへの表）
+	if (!$self->{allow_view}) { return [ {} ]; }	# ブログが無い（0番目は名前からpkeyへの表）
 
 	my $file = $self->blog_dir() . "tag_cache.txt";
 	return $ROBJ->fread_lines_cached($file, {
@@ -1626,11 +1613,9 @@ sub blog_dir {
 	my $self = shift;
 	return "$self->{data_dir}blog/";
 }
-# プライベートモードでは、推測できない名前のフォルダ（pub/private.乱数/）の下に置く（save_private_mode）
 sub blogpub_dir {
 	my $self = shift;
-	my $dir  = ($self->{blog} || {})->{pub_private_dir};
-	return $self->{pub_dir} . ($dir ne '' ? "$dir/" : '');
+	return $self->{pub_dir};
 }
 sub blogimg_dir {
 	my $self = shift;

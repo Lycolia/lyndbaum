@@ -36,6 +36,12 @@
 	</table>
 	<$end>
 
+	<@> プライベートモードを削除した版（4.27）からは、閉じていたブログが公開されることを確かめる（system_update）
+	<@ifexec(v.require_update && v.allow_view && v.blog.private, begin)>
+	<p class="warning">プライベートモードは削除しました。アップデート処理を行うと、このブログの記事、コメント、RSS、添付ファイルなどを誰でも見られるようになります。閉じたままにしたい場合は、先にWebサーバーの認証を設定してください。</p>
+	<p<@err.c_publish_private>><label><input type="checkbox" name="publish_private" value="1">このブログが公開されることを確認しました</label></p>
+	<$end>
+
 	<button type="submit" name="action" value="<@v.skel_dir>update" value="1"<@if(!v.require_update, ' disabled')>>アップデート処理を行う</button><span class="help-text">バージョンを上げたときに必要な再構築処理やマイグレーション処理を走らせます。必要な時だけボタンがonになります。</span>
 	</form>
 

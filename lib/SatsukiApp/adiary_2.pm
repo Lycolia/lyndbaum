@@ -247,7 +247,7 @@ sub edit_article {
 
 	# 初公開
 	if ($opt{first_visible}) {
-		if (!$blog->{private} && $form->{ping}) {
+		if ($form->{ping}) {
 			$ROBJ->message("Ping sending");
 			$self->call_event('ARTICLE_FIRST_VISIBLE_PING', $art, $form);
 		}
@@ -2242,28 +2242,6 @@ sub special_system_mode {
 	if ($self->{frame_skeleton}) {
 		$self->{frame_skeleton} = '_frame';
 	}
-}
-
-#-------------------------------------------------------------------------------
-# ●表示パスワード機能
-#-------------------------------------------------------------------------------
-sub check_view_pass {
-	my $self = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $pass = $self->{view_pass};
-	my $ckey = 'view-pass';
-
-	# cookie
-	my $cpass = $ROBJ->get_cookie()->{$ckey};
-	if ($pass eq $cpass) { return; }
-
-	# パスワード要求
-	$self->{allow_view} = 0;
-	$ROBJ->set_status(403);
-	$ROBJ->{POST} = 0;
-	$ROBJ->{Form} = {};
-	$self->{skeleton} = '_sub/input_view_pass';
-	$self->{view_pass_key} = $ckey;
 }
 
 #-------------------------------------------------------------------------------

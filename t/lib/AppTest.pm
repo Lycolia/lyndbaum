@@ -245,8 +245,6 @@ sub setup {
 		action      => 'set/role',
 		admin_users => 'owner',
 		editors     => 'editor',
-		viewers     => '',
-		view_pass   => '',
 	});
 	die "set/role failed: $r->{title}" if (!is_reload($r));
 

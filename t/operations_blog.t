@@ -52,55 +52,133 @@ subtest 'メタディスクリプション' => sub {
 
 subtest 'ブログの権限' => sub {
 	is($app->get('user', 'edit')->{status}, 403, 'userは記事を書けない');
-	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user', viewers => '', view_pass => '' });
+	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user' });
 	ok(AppTest::is_reload($r), 'userを編集者にする');
 	is($app->get('user', 'edit')->{status}, 200, 'userが記事を書ける');
 
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => '', view_pass => '' });
+	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
 	ok(AppTest::is_reload($r), '元に戻す');
 	is($app->get('user', 'edit')->{status}, 403, 'userはまた記事を書けない');
 };
 
-subtest 'プライベートモードと表示パスワード' => sub {
-	# 表示パスワードは、プライベートモードのときだけ効く
+subtest 'プライベートモードの削除' => sub {
+	# 古い画面からPOSTされても、設定に入らず、閉じない
+	my $setting = "$dir/data/blog/setting.dat";
 	my $r = $app->post('owner', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 1 });
-	ok(AppTest::is_reload($r), 'プライベートモードにする');
-	foreach my $q ('', '/02', '&t=' . AppTest::_uri_escape('タグ2'), '&q=owner') {
-		$r = $app->get('guest', $q);
-		my $b = body($r);
-		ok($r->{status} == 403 && $b !~ /ownerの記事|本文2|タグ2/, "ログインしていない人には ?$q で記事が出ない（403）");
+	ok(AppTest::is_reload($r), '基本設定を保存できる');
+	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => 'user', view_pass => 'secret' });
+	ok(AppTest::is_reload($r), '権限設定を保存できる');
+	unlike(read_file($setting), qr/^(?:private=1|viewers=|view_pass=)/m, 'プライベートモード、閲覧者、表示パスワードは設定に入らない');
+	is($app->get('guest', '/02')->{status}, 200, 'ログインしていない人も記事を見られる');
+	is($app->get('guest', '/99999')->{status}, 404, '無い記事は404');
+	foreach my $q ('set/', 'set/role', 'set/editor') {
+		unlike(body($app->get('owner', $q)), qr/プライベートモード|name="(?:private|viewers|view_pass)"/, "?$q に設定の欄が出ない");
 	}
-	like(body($app->get('guest', '')), qr{ブログを見る権限がありません}, 'ログインしていない人には、権限が無いことを出す');
-	is($app->get('guest', '/99999')->{status}, 403, '無い記事でも同じ403（記事があるかは分からない）');
-	is($app->get('guest', 'login')->{status}, 200, 'ログインの画面は開ける');
-	like(body($app->get('editor', '/02')), qr{本文2}, '編集者には記事が出る');
+};
 
-	# 公開フォルダのファイルは、推測できない名前のフォルダへ移る
-	my ($private) = map { m{/(private\.[^/]+)$} } glob("$dir/pub/private.*");
-	ok($private, '公開フォルダのファイルを、推測できない名前のフォルダへ移す');
-	ok(!-e "$dir/pub/rss.xml" && -f "$dir/pub/$private/rss.xml", 'RSSが移る');
-	ok(!-e "$dir/pub/attachments" && -f "$dir/pub/$private/attachments/test/a.png", '画像が移る');
-	ok(-d "$dir/pub/assets", '配布物（pub/assets/）は移さない');
-	like(body($app->get('editor', '')), qr{/pub/$private/rss\.xml}, '編集者の画面のRSSのURLも変わる');
+subtest 'プライベートモードのブログのアップデート（4.27）' => sub {
+	my $snap = $app->snapshot();
+	my $private = 'private.test';
+	my $sys = "$dir/data/system_config.dat";
+	my $setting = "$dir/data/blog/setting.dat";
+	my $write = sub {
+		my ($file, $t) = @_;
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $t;
+		close($fh);
+	};
 
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => '', view_pass => 'secret' });
-	ok(AppTest::is_reload($r), '表示パスワードを設定する');
+	# 画像のある記事を書く
+	ok(AppTest::is_reload($app->post('owner', '', { %ART, title => '画像の記事', body_txt => "[image:S:test/:a.png:画像]\n" })), '画像の記事を書く');
+	my ($pkey) = body($app->get('owner', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>画像の記事<};
+	my $art = "/0$pkey";
+	like(body($app->get('guest', $art)), qr{/pub/attachments/test/}, '記事の画像は pub/attachments/ の下');
 
-	$r = $app->get('guest', '/02');
-	is($r->{status}, 403, 'パスワードが無いと記事を見られない');
-	unlike(body($r), qr{本文2}, '記事の中身は出ない');
+	# 4.26のプライベートモードの状態を作る（公開フォルダのファイル、記事の中のURL、設定の中のパス）
+	mkdir("$dir/pub/$private") || die $!;
+	foreach (qw(attachments custom plugin rss.xml images.json contents.json taglist.json)) {
+		next if (!-e "$dir/pub/$_");
+		rename("$dir/pub/$_", "$dir/pub/$private/$_") || die "$_: $!";
+	}
+	foreach my $file (glob("$dir/data/db/art/*.dat")) {
+		my $t = read_file($file);
+		$write->($file, $t) if ($t =~ s{pub/attachments/}{pub/$private/attachments/}g);
+	}
+	my $conf = read_file($setting);
+	$conf =~ s/^(?:private|pub_private_dir|viewers|view_pass|iconfile)=.*\n//mg;
+	$conf .= "private=1\npub_private_dir=$private\nviewers=user\nview_pass=secret\niconfile=pub/$private/attachments/test/a.png\n";
+	$write->($setting, $conf);
+	my $ver = read_file($sys);
+	$ver =~ s/^VERSION=.*$/VERSION=4.26/m;
+	$write->($sys, $ver);
 
-	$app->set_cookie('reader', 'view-pass', 'wrong');
-	is($app->get('reader', '/02')->{status}, 403, 'パスワードが違うと見られない');
-	$app->set_cookie('reader', 'view-pass', 'secret');
-	is($app->get('reader', '/02')->{status}, 200, 'パスワードが合うと見られる');
+	# アップデートの前は閉じている
+	is($app->get('guest', $art)->{status}, 503, 'アップデートの前は、ログインしていない人に記事を出さない');
+	like(body($app->get('admin', $art)), qr{/pub/$private/attachments/test/}, '作った状態の確認：記事の中のURLは推測できない名前のフォルダの下');
 
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => '', view_pass => '' });
-	ok(AppTest::is_reload($r), '表示パスワードを消す');
-	$r = $app->post('owner', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 0 });
-	ok(AppTest::is_reload($r), 'プライベートモードを外す');
-	is($app->get('guest', '/02')->{status}, 200, 'ログインしていない人も見られる');
-	ok(!glob("$dir/pub/private.*") && -f "$dir/pub/rss.xml" && -f "$dir/pub/attachments/test/a.png", '公開フォルダのファイルが pub/ に戻る');
+	# 確認が無いとアップデートしない
+	like(body($app->get('admin', 'system/update')), qr{name="publish_private"}, 'アップデートの画面に、公開の確認が出る');
+	my $r = $app->post('admin', 'system/update', { action => 'system/update' });
+	ok(!AppTest::is_reload($r), '確認が無いとアップデート処理を行わない');
+	like(body($r), qr{ブログが公開されることの確認にチェックを入れてください}, '確認が要ることを出す');
+	like(read_file($sys), qr/^VERSION=4\.26$/m, '版はそのまま');
+	is($app->get('guest', $art)->{status}, 503, '閉じたまま');
+	ok(-f "$dir/pub/$private/attachments/test/a.png", 'ファイルは移らない');
+
+	# 移す先に同じ名前があれば、何も移さず、やり直せる
+	$write->("$dir/pub/rss.xml", "dup\n");
+	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
+	ok(!AppTest::is_reload($r), '移せないときは、アップデート処理を止める');
+	like(body($r), qr{ファイルを移せませんでした}, '移せなかったことを出す');
+	like(read_file($sys), qr/^VERSION=4\.26$/m, '版はそのまま');
+	like(read_file($setting), qr/^pub_private_dir=\Q$private\E$/m, 'フォルダの名前は設定に残る');
+	ok(-f "$dir/pub/$private/attachments/test/a.png", 'ファイルは移らない');
+	is($app->get('guest', $art)->{status}, 503, '閉じたまま');
+	unlink("$dir/pub/rss.xml");
+
+	# 手で置いたものは公開しない
+	$write->("$dir/pub/$private/hand.txt", "hand\n");
+
+	# 確認があるとアップデートする
+	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
+	ok(AppTest::is_reload($r), '確認があるとアップデート処理を行う');
+	like(body($r), qr{フォルダを消せませんでした}, '手で置いたものが残ったことを出す');
+	like(read_file($sys), qr/^VERSION=4\.27$/m, '版が上がる');
+	ok(-f "$dir/pub/attachments/test/a.png" && -f "$dir/pub/rss.xml", 'ファイルが pub/ に戻る');
+	ok(-f "$dir/pub/$private/hand.txt" && !-e "$dir/pub/hand.txt", '手で置いたものはフォルダに残す');
+	ok(!-e "$dir/pub/$private/attachments", '戻したものはフォルダに残らない');
+
+	$conf = read_file($setting);
+	unlike($conf, qr/^(?:private|pub_private_dir|viewers|view_pass)=/m, '設定からプライベートモードの値が消える');
+	like($conf, qr{^iconfile=pub/attachments/test/a\.png$}m, '設定の中のパスが書き換わる');
+
+	my $b = body($app->get('guest', $art));
+	like($b, qr{/pub/attachments/test/}, '記事の中のURLが作り直される');
+	unlike($b, qr{\Q$private\E}, '公開画面にフォルダの名前が出ない');
+	like(read_file("$dir/pub/rss.xml"), qr{/pub/rss\.xml}, 'RSSのURLが変わる');
+	unlike(read_file("$dir/pub/rss.xml"), qr{\Q$private\E}, 'RSSにフォルダの名前が出ない');
+	unlike(body($app->get('admin', 'system/update')), qr{name="publish_private"}, 'アップデートの後は、確認を出さない');
+
+	$app->restore($snap);
+};
+
+subtest 'ブログが無いとき' => sub {
+	# システム管理者がいないと login_auto へ送られるので、システム管理者だけ作る
+	my $fresh = AppTest->new();
+	$fresh->get('root*', 'login_auto');
+	$fresh->user_add('root*', 'admin', 1);
+	$fresh->login('admin');
+
+	my $r = $fresh->get('guest', '');
+	is($r->{status}, 200, 'トップは「ようこそ」の画面');
+	like(body($r), qr{ようこそ}, 'トップに「ようこそ」を出す');
+	$r = $fresh->get('guest', '/02');
+	is($r->{status}, 404, '記事のURLは404（403にならない）');
+	like(body($r), qr{ブログがまだ作られていません}, '記事のURLにブログが無いことを出す');
+	$r = $fresh->get('guest', '/99');	# _main の分岐を通る
+	is($r->{status}, 404, '数字だけのURLも404（403にならない）');
+	like(body($r), qr{ブログがまだ作られていません}, '数字だけのURLにもブログが無いことを出す');
+	like(body($fresh->get('admin', '')), qr{\?etc/myblog_create}, 'システム管理者には、ブログを作るリンクを出す');
 };
 
 subtest 'タグの削除' => sub {
