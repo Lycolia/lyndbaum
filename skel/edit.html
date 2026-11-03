@@ -191,16 +191,18 @@
 
 <aside class="edit-side">
 	<!--アイキャッチ画像=====================================================-->
-	<@> 選んでいなければ本文の最初の画像、それも無ければブログの画像を使う（edit.js）
+	<@> 選んでいなければ本文の最初の画像、それも無ければブログの画像を使う（edit.js）。
+	<@> 「設定しない」は ?none を保存し、本文の画像を拾わずにブログの画像を使う
 	<section class="edit-box" id="edit-eyecatch">
 	<h3>アイキャッチ画像</h3>
-	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
+	<input type="hidden" name="ogp" id="ogp-input" value="<@if(art.main_image_none, '?none', art.main_image)>">
 	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image, s.blog_image, #'<@v.pubdist_dir>default-icon.png')>"></div>
 	<p id="eyecatch-note"></p>
 	<p class="edit-buttons">
 	<button type="button" id="eyecatch-pick" data-url="<@v.myself>?media/&amp;popup=1&amp;eyecatch=1">アイキャッチ画像を設定</button>
 	<button type="button" id="eyecatch-remove">アイキャッチ画像を削除</button>
 	</p>
+	<p><label><input type="checkbox" id="eyecatch-none">アイキャッチ画像を設定しない</label></p>
 	</section>
 
 	<!--タグ=================================================================-->
@@ -314,8 +316,9 @@
 <span id="new-tag-close">閉じる</span>
 <span id="new-tag-create">「%t」を新規タグとして追加</span>
 <span id="eyecatch-note-chosen">選んだ画像を使います。</span>
-<span id="eyecatch-note-auto">選んでいないので、本文の最初の画像を使います。</span>
-<span id="eyecatch-note-blog">選んでいないので、ブログの画像を使います。</span>
+<span id="eyecatch-note-auto">本文の最初の画像を使います。</span>
+<span id="eyecatch-note-blog">ブログの画像を使います。</span>
+<span id="eyecatch-note-none">ブログの画像を使います。</span>
 <span id="edit-confirm">他にこの記事を編集している人がいますが、編集を継続しますか？%u</span>
 <span id="msg-multiline">複数行を一度に処理できません。</span>
 <span id="msg-upload-error">アップロードに失敗しました。</span>

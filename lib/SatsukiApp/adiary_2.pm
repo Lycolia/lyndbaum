@@ -504,8 +504,11 @@ sub regist_article {
 	$art{text}   = $text;
 	$art{text_s} = ($text eq $short) ? '' : $short;
 
-	# OGP臨時設定用の力業
-	if ($form->{ogp} eq '') {
+	# アイキャッチ画像（OGP）。?none は「設定しない」（本文の画像を拾わず、ブログの画像を使う）
+	if ($form->{ogp} eq '?none') {
+		$self->set_description(\%art, '');
+		$art{main_image} = '?none';
+	} elsif ($form->{ogp} eq '') {
 		my $main_image = $self->get_main_image_from_article($text);
 		$self->set_description(\%art, $main_image);
 	} else {
