@@ -18,13 +18,14 @@ our $VERSION = '1.00';
 #-------------------------------------------------------------------------------
 # $img  : Image::Magickオブジェクト
 # $file : 読み込むファイル（実パス）
+# $opt->{first} : 真なら1枚目だけ読む（アニメーションの全コマを読むと、ImageMagickの上限を超えることがある）
 # ret   : 成功なら空。失敗ならエラーメッセージ（Image::MagickのReadと同じ）
 #
 sub read {
-	my ($img, $file) = @_;
+	my ($img, $file, $opt) = @_;
 	my $format = &detect($file);
 	if (!$format) { return "Unsupported image format: $file"; }
-	return $img->Read("$format:$file");
+	return $img->Read("$format:$file" . ($opt && $opt->{first} ? '[0]' : ''));
 }
 
 #-------------------------------------------------------------------------------
@@ -263,7 +264,7 @@ sub make_thumbnail {
 
 	my ($w, $h);
 	eval {
-		my $err = &read($img, $src);
+		my $err = &read($img, $src, { first => 1 });	# 1枚目だけ読む
 		if ($err && !@$img) { die $err; }
 		$#$img = 0;			# アニメーションは1枚目だけ
 		$img->AutoOrient();
