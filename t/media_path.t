@@ -98,4 +98,29 @@ subtest 'フォルダ名の .. は取り除かれる' => sub {
 	ok(!-e "$img/tmpdir",          'フォルダが消える');
 };
 
+#-------------------------------------------------------------------------------
+# アップロードするファイルの名前
+#-------------------------------------------------------------------------------
+subtest 'アップロードした名前の使えない文字は _ になる' => sub {
+	my $png = do {
+		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
+		local $/; <$fh>;
+	};
+	foreach (['a:b.png', 'a_b.png'], ['q?x.png', 'q_x.png'], ["t\tb.png", 't_b.png'], ['a*b<c>.png', 'a_b_c_.png']) {
+		my ($name, $saved) = @$_;
+		my $label = $name =~ s/\t/\\t/r;
+		my $r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/',
+			file_ary => { filename => $name, content => $png, type => 'image/png' } ]);
+		like($r->{body}, qr/^ret=0$/m, "$label をアップロードできる");
+		ok(!-e "$img/test/$name",  "$label の名前では保存しない");
+		ok(-f "$img/test/$saved",  "$saved で保存する");
+
+		$r = $app->post('editor', '', { action => 'media/rename_file', folder => 'test/', old => $saved, name => 'renamed.png' });
+		is(json_ret($r), '0', "$saved の名前を変えられる");
+		$r = $app->post('editor', '', { action => 'media/delete_files', folder => 'test/', file_ary => 'renamed.png' });
+		is(json_ret($r), '0', '消せる');
+		ok(!-e "$img/test/renamed.png", 'ファイルが消える');
+	}
+};
+
 done_testing();

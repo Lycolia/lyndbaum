@@ -536,6 +536,11 @@ sub do_upload {
 		$file_name = "$base.$ext";
 	}
 
+	# 名前の変更・移動・削除で使えない文字（check_file_name）は _ に置き換える
+	#   a:b.png → a_b.png、.htaccess.png → _htaccess.png
+	$file_name =~ s![\x00-\x1f/:\\\*\?\"<>|]!_!g;
+	$file_name =~ s!^\.!_!;
+
 	# 拡張子チェック
 	if (! $self->album_check_ext($file_name)) {
 		$ROBJ->message("File extension error : %s", $file_h->{name});
