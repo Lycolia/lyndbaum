@@ -967,6 +967,8 @@ sub rename_file {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $old  = $form->{old};
 	my $name = $form->{name};
+	if ( !$self->check_file_name($old ) ) { return -2; }
+	if ( !$self->check_file_name($name) ) { return -1; }
 
 	my $r  = rename("$dir$old", "$dir$name");
 	my $r2;
@@ -1008,6 +1010,10 @@ sub delete_files {
 	my @fail;
 	foreach(@$files) {
 		my $file = $_;
+		if ( !$self->check_file_name($file) ) {
+			push(@fail, $_);
+			next;
+		}
 		my $r = unlink("$dir$file");
 		if (!$r) {
 			push(@fail, $_);
@@ -1034,6 +1040,10 @@ sub delete_folder {
 	}
 
 	my $dir = $self->image_folder_to_dir( $folder );
+	# 「..」などを取り除いた結果、アルバムの根元を指すときは消さない
+	if ($dir eq $self->blogimg_dir()) {
+		return -1;
+	}
 	my $ret = $ROBJ->dir_delete($dir) ? 0 : 1;
 
 	$ROBJ->mkdir($self->blogimg_dir() . '.trashbox/');
@@ -1060,12 +1070,10 @@ sub read_image {
 #-------------------------------------------------------------------------------
 sub image_folder_to_dir {
 	my ($self, $folder) = @_;
-	$folder =~ s!(^|/)\.+/!$1!g;
-	$folder =~ s|/+|/|g;
-	$folder =~ s|/*$|/|;
-	$folder =~ s|^/||;
 	$folder =~ s|[\x00-\x1f]| |g;
-	return $self->blogimg_dir() . $folder;
+	# 空の段と、「.」だけでできた段（.. など。最後に / が無くても）を取り除く
+	my @dirs = grep { $_ ne '' && $_ !~ /^\.+$/ } split(m|/|, $folder);
+	return $self->blogimg_dir() . join('', map { "$_/" } @dirs);
 }
 
 sub image_folder_to_dir_and_create {
