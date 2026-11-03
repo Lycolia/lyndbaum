@@ -58,6 +58,24 @@ subtest 'ファイル名の変更で、フォルダの外を指せない' => sub
 	ok(-f "$img/$file",            'ファイルが元の名前で残る');
 };
 
+subtest 'ファイル名の変更で、同じ名前のファイルを上書きしない' => sub {
+	my $other = "$img/test/c.png";
+	my $thumb = "$img/test/.thumbnail/c.png.jpg";
+	mkdir("$img/test/.thumbnail");
+	touch($other);
+	touch($thumb);
+	my $size = -s "$img/$file";
+	isnt($size, -s $other, '2つのファイルの中身が違う');
+
+	my $r = $app->post('editor', '', { action => 'media/rename_file', folder => 'test/', old => 'a.png', name => 'c.png' });
+	isnt(json_ret($r), '0', '同じ名前のファイルがあると失敗する');
+	is(-s "$img/$file", $size,     '元のファイルは残る');
+	is(-s $other, 1,               '変更先のファイルの中身は変わらない');
+	ok(-e $thumb,                  '変更先のサムネイルは残る');
+
+	unlink($other, $thumb);
+};
+
 #-------------------------------------------------------------------------------
 # ファイルの削除
 #-------------------------------------------------------------------------------

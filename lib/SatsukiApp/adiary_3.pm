@@ -974,6 +974,7 @@ sub rename_file {
 	my $name = $form->{name};
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if (-e "$dir$name") { return 1; }	# 同じ名前のファイルを上書きしない
 
 	my $r  = rename("$dir$old", "$dir$name");
 	my $r2;
