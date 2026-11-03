@@ -9,6 +9,9 @@ package Satsuki::Base::HTTP;
 our $VERSION = '1.40';
 #-------------------------------------------------------------------------------
 use Socket;
+use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+use Errno qw(EINPROGRESS EWOULDBLOCK EINTR);
+use Time::HiRes ();
 ################################################################################
 # ■基本処理
 ################################################################################
@@ -77,16 +80,54 @@ sub connect_host {
 	if (! socket($sh, Socket::PF_INET(), Socket::SOCK_STREAM(), 0)) {
 		return $self->error(undef, "Can't open socket");
 	}
-	{
-		local $SIG{ALRM} = sub { close($sh); };
-		alarm( $self->{timeout} );
-		my $r = connect($sh, $sockaddr);
-		alarm(0);
-		$r || return $self->error($sh, "Can't connect %s", $host);
+	my $flags = fcntl($sh, F_GETFL, 0);
+	if (!defined($flags) || !fcntl($sh, F_SETFL, $flags | O_NONBLOCK)) {
+		return $self->error($sh, "Can't connect %s", $host);
 	}
+	if (!connect($sh, $sockaddr)) {
+		if ($! != EINPROGRESS && $! != EWOULDBLOCK) {
+			return $self->error($sh, "Can't connect %s", $host);
+		}
+		my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $self->{timeout};
+		my $ready = $self->wait_socket($sh, 0, $deadline);
+		my $error = getsockopt($sh, SOL_SOCKET, SO_ERROR);
+		if ($ready != 1 || !defined($error) || unpack('i', $error)) {
+			return $self->error($sh, "Can't connect %s", $host);
+		}
+	}
+	fcntl($sh, F_SETFL, $flags) || return $self->error($sh, "Can't connect %s", $host);
 
 	binmode($sh);
 	return $sh;
+}
+
+# ソケットが読み取り／書き込み可能になるまで待つ。1:準備完了、0:期限切れ、-1:エラー
+# タイマーとシグナルはプロセス全体で共有されるので、スレッドごとの期限で待つ
+sub wait_socket {
+	my ($self, $sock, $read, $deadline) = @_;
+	while (1) {
+		my $left = $deadline - Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+		return 0 if ($left <= 0);
+		my ($rin, $win) = ('', '');
+		if ($read) { vec($rin, fileno($sock), 1) = 1; }
+		else       { vec($win, fileno($sock), 1) = 1; }
+		my $ready = select($rin, $win, undef, $left);
+		next if ($ready < 0 && $! == EINTR);
+		return $ready < 0 ? -1 : $ready ? 1 : 0;
+	}
+}
+
+# TLSが必要とする読み書きの方向で待つ。戻り値は wait_socket と同じ
+sub wait_ssl {
+	my ($self, $ssl, $sock, $ret, $deadline) = @_;
+	my $error = Net::SSLeay::get_error($ssl, $ret);
+	if ($error == Net::SSLeay::ERROR_WANT_READ()) {
+		return $self->wait_socket($sock, 1, $deadline);
+	}
+	if ($error == Net::SSLeay::ERROR_WANT_WRITE()) {
+		return $self->wait_socket($sock, 0, $deadline);
+	}
+	return -1;
 }
 
 #-------------------------------------------------------------------------------
@@ -163,7 +204,7 @@ sub send_https_request {
 		return $self->error($sock, "Net::SSLeay Ver%s is too old (1.92 or later required)", $Net::SSLeay::VERSION);
 	}
 	#-----------------------------------------------------------------------
-	my ($data, $errs, $written, $verify_err, $timeout);
+	my ($data, $errs, $verify_err, $timeout);
 
 	my $ctx = Net::SSLeay::new_x_ctx();
 	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_new') or !$ctx;
@@ -192,30 +233,55 @@ sub send_https_request {
 	Net::SSLeay::set_fd($ssl, fileno($sock));
 	goto cleanup if $errs = Net::SSLeay::print_errs('set_fd');
 
-	# ハンドシェイク、送信、受信の合計に制限時間を掛ける
-	# Net::SSLeayの送受信は割り込まれても再試行するので、ソケットを閉じて抜ける
-	# シグナルはXSから戻るまで処理されず、途中まで書けたwrite()に吸収されると
-	# OpenSSLの中で止まり続けるので、抜けられるまで1秒ごとに送る（alarm(0)で止まる）
-	require Time::HiRes;
-	local $SIG{ALRM} = sub { close($sock); $timeout=1; };
-	Time::HiRes::setitimer(Time::HiRes::ITIMER_REAL(), $self->{timeout}, 1);
-
-	my $connected = Net::SSLeay::connect($ssl);
-	$errs = Net::SSLeay::print_errs('SSL_connect');
-	if ($connected != 1 || $errs) {
+	# ノンブロッキングで読み書きし、ハンドシェイク、送信、受信の合計に期限を設ける
+	my $flags = fcntl($sock, F_GETFL, 0);
+	goto cleanup if (!defined($flags) || !fcntl($sock, F_SETFL, $flags | O_NONBLOCK));
+	my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $self->{timeout};
+	while (1) {
+		if (Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) >= $deadline) { $timeout=1; goto cleanup; }
+		my $connected = Net::SSLeay::connect($ssl);
+		last if ($connected == 1);
+		my $ready = $self->wait_ssl($ssl, $sock, $connected, $deadline);
+		next if ($ready == 1);
+		$timeout = ($ready == 0);
 		my $verify = Net::SSLeay::get_verify_result($ssl);
 		if ($verify) { $verify_err = Net::SSLeay::X509_verify_cert_error_string($verify); }
-		$errs ||= 'SSL_connect failed';
+		$errs = Net::SSLeay::print_errs('SSL_connect');
 		goto cleanup;
 	}
 
-	($written, $errs) = Net::SSLeay::ssl_write_all($ssl, join('', @_));
-	goto cleanup unless $written;
-
-	($data, $errs) = Net::SSLeay::ssl_read_all($ssl);
+	{
+		use bytes;
+		my $request = join('', @_);
+		my $written = 0;
+		while ($written < length($request)) {
+			if (Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) >= $deadline) { $timeout=1; goto cleanup; }
+			my $ret = Net::SSLeay::write_partial($ssl, $written, length($request)-$written, $request);
+			if (defined($ret) && $ret > 0) { $written += $ret; next; }
+			my $ready = $self->wait_ssl($ssl, $sock, $ret, $deadline);
+			next if ($ready == 1);
+			$timeout = ($ready == 0);
+			$errs = Net::SSLeay::print_errs('SSL_write');
+			goto cleanup;
+		}
+	}
+	$data = '';
+	while (1) {
+		if (Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) >= $deadline) { $timeout=1; last; }
+		my ($got, $ret) = Net::SSLeay::read($ssl, 32768);
+		if (defined($got)) {
+			last if ($got eq '');
+			$data .= $got;
+			next;
+		}
+		my $ready = $self->wait_ssl($ssl, $sock, $ret, $deadline);
+		next if ($ready == 1);
+		$timeout = ($ready == 0);
+		$errs = Net::SSLeay::print_errs('SSL_read');
+		last;
+	}
 
 cleanup:
-	alarm(0);
 	Net::SSLeay::free($ssl);
 
 cleanup2:

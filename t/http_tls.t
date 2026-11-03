@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# HTTPSの証明書の検証のテスト
+# HTTPSの証明書の検証と通信のタイムアウトのテスト
 #-------------------------------------------------------------------------------
 # 実行: prove t/http_tls.t
 #
@@ -15,6 +15,7 @@ use File::Temp ();
 use IO::Socket::INET ();
 use Time::HiRes ();
 use POSIX ();
+use Config;
 use Satsuki::Base::HTTP;
 
 binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
@@ -116,6 +117,59 @@ sub start_server {
 	}
 	die "server not started";
 }
+
+# 通信を止める接続先と、要求の本文をそのまま返す接続先。親でlistenしてから返す
+sub start_test_server {
+	my ($cert, $mode) = @_;
+	my $listener = IO::Socket::INET->new(Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0, Proto => 'tcp') || die "listen: $!";
+	my $port = $listener->sockport;
+	setsockopt($listener, Socket::SOL_SOCKET(), Socket::SO_RCVBUF(), pack('i', 4096)) || die "SO_RCVBUF: $!";
+	my $pid = fork();
+	die "fork: $!" if (!defined $pid);
+	if (!$pid) {
+		# 実装が壊れていてもテストを無期限に止めない
+		alarm(10);
+		my $sock = $listener->accept() || POSIX::_exit(1);
+		close($listener);
+		if ($mode ne 'handshake') {
+			my $ctx = Net::SSLeay::new_x_ctx();
+			Net::SSLeay::CTX_use_certificate_file($ctx, "$cert/cert.pem", Net::SSLeay::FILETYPE_PEM()) || POSIX::_exit(2);
+			Net::SSLeay::CTX_use_PrivateKey_file($ctx, "$cert/key.pem", Net::SSLeay::FILETYPE_PEM()) || POSIX::_exit(3);
+			my $ssl = Net::SSLeay::new($ctx);
+			Net::SSLeay::set_fd($ssl, fileno($sock));
+			Net::SSLeay::accept($ssl) == 1 || POSIX::_exit(4);
+			if ($mode eq 'echo') {
+				my $request = '';
+				while ($request !~ /\r\n\r\n/) {
+					my $got = Net::SSLeay::read($ssl);
+					POSIX::_exit(5) if (!defined($got) || $got eq '');
+					$request .= $got;
+				}
+				my ($header, $body) = split(/\r\n\r\n/, $request, 2);
+				my ($length) = $header =~ /Content-Length: (\d+)/i;
+				while (length($body) < $length) {
+					my $got = Net::SSLeay::read($ssl);
+					POSIX::_exit(6) if (!defined($got) || $got eq '');
+					$body .= $got;
+				}
+				Net::SSLeay::ssl_write_all($ssl, "HTTP/1.0 200 OK\r\nContent-Length: $length\r\n\r\n$body");
+				Net::SSLeay::shutdown($ssl);
+				POSIX::_exit(0);
+			}
+			if ($mode eq 'partial') {
+				Net::SSLeay::ssl_write_all($ssl, "HTTP/1.0 200 OK\r\nContent-Length: 20\r\n\r\npart");
+			}
+			# writeでは要求を読まず、readでは応答を返さずに待つ
+			sleep(8);
+			POSIX::_exit(0);
+		}
+		sleep(8);
+		POSIX::_exit(0);
+	}
+	close($listener);
+	push(@servers, $pid);
+	return $port;
+}
 END {
 	local $?;	# waitpidでテストの終了コードを変えない
 	kill('TERM', @servers) if (@servers);
@@ -141,7 +195,8 @@ sub connect_with {
 my $ca    = make_ca('ca');
 my $other = make_ca('other');
 
-my $good_port    = start_server(make_cert($ca, 'good',    'localhost'));
+my $good_cert    = make_cert($ca, 'good', 'localhost');
+my $good_port    = start_server($good_cert);
 my $wrong_port   = start_server(make_cert($ca, 'wrong',   'other.example'));
 my $expired_port = start_server(make_cert($ca, 'expired', 'localhost', '-startdate 20200101000000Z -enddate 20200102000000Z'));
 
@@ -183,6 +238,63 @@ subtest 'Net::SSLeayの版が古い' => sub {
 	my $http = connect_with($ca, "https://localhost:$good_port/");
 	isnt($http->{status}, 200, '接続しない');
 	like($http->{error}, qr/Net::SSLeay Ver1\.91 is too old/, 'エラーに版が出る');
+};
+
+foreach my $mode (qw(handshake write read partial)) {
+	subtest "HTTPSのタイムアウト（$mode）" => sub {
+		my $port = start_test_server($good_cert, $mode);
+		local $ENV{SSL_CERT_FILE} = "$ca/ca.crt";
+		local $ENV{SSL_CERT_DIR} = "$dir/empty";
+		my $http = Satsuki::Base::HTTP->new(undef);
+		$http->set_timeout(0.3);
+		my $start = Time::HiRes::time();
+		my $result = $mode eq 'write'
+			? $http->post("https://localhost:$port/", {}, 'x' x (16*1024*1024))
+			: $http->get("https://localhost:$port/");
+		my $elapsed = Time::HiRes::time() - $start;
+		is($result, undef, '途中まで受信していても成功にしない');
+		like($http->{error}, qr/Connection timeout/, 'タイムアウトとして返る');
+		cmp_ok($elapsed, '>=', 0.25, '期限まで待つ');
+		cmp_ok($elapsed, '<', 3, '応答が止まっても期限で抜ける');
+	};
+}
+
+subtest 'TLSのバッファより大きいデータを欠落なく送受信する' => sub {
+	my $port = start_test_server($good_cert, 'echo');
+	local $ENV{SSL_CERT_FILE} = "$ca/ca.crt";
+	local $ENV{SSL_CERT_DIR} = "$dir/empty";
+	my $http = Satsuki::Base::HTTP->new(undef);
+	$http->set_timeout(5);
+	my $body = "\x00\xff0123456789\r\n" x 8192;
+	my $result = $http->post("https://localhost:$port/", {}, $body);
+	is($http->{status}, 200, '接続できる');
+	is($http->{error}, undef, 'エラーにならない');
+	ok(ref($result) eq 'ARRAY' && join('', @$result) eq $body, 'バイナリの本文が一致する');
+};
+
+subtest 'FastCGIと同じスレッド構成で、接続ごとにタイムアウトする' => sub {
+	plan skip_all => 'スレッド非対応のPerlです' if (!$Config{useithreads});
+	require threads;
+	my @ports = map { start_test_server($good_cert, 'handshake') } (1..2);
+	my @workers;
+	foreach my $i (0..1) {
+		push(@workers, threads->create(sub {
+			my $http = Satsuki::Base::HTTP->new(undef);
+			$http->set_timeout($i ? 1.5 : 0.3);
+			my $start = Time::HiRes::time();
+			my $result = $http->get("https://localhost:$ports[$i]/");
+			return [$result, $http->{error}, Time::HiRes::time() - $start];
+		}));
+	}
+	foreach my $i (0..1) {
+		my $result = $workers[$i]->join();
+		is($result->[0], undef, "スレッド$i: 接続は失敗する");
+		like($result->[1], qr/Connection timeout/, "スレッド$i: プロセスを終了せずにエラーを返す");
+		cmp_ok($result->[2], '>=', $i ? 1.4 : 0.25, "スレッド$i: 自分の期限まで待つ");
+		cmp_ok($result->[2], '<', $i ? 3 : 1.2, "スレッド$i: 別の接続の期限に影響されない");
+	}
+	my $http = connect_with($ca, "https://localhost:$good_port/");
+	is($http->{status}, 200, 'タイムアウトの後も通信できる');
 };
 
 done_testing();
