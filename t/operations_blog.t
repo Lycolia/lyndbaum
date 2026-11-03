@@ -61,6 +61,33 @@ subtest 'ブログの権限' => sub {
 	is($app->get('user', 'edit')->{status}, 403, 'userはまた記事を書けない');
 };
 
+subtest 'ブログの権限は、ユーザーIDの完全一致で判定する' => sub {
+	# ownerやeditorの一部だけのID
+	foreach (qw(own edit)) {
+		$app->user_add('admin', $_, 0);
+		$app->login($_);
+	}
+	is($app->get('owner', 'set/role')->{status}, 200, 'ownerはブログの管理者');
+	is($app->get('own',   'set/role')->{status}, 403, 'ownはブログの管理者ではない');
+	is($app->get('editor', 'edit')->{status}, 200, 'editorは編集者');
+	is($app->get('edit',   'edit')->{status}, 403, 'editは編集者ではない');
+
+	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user' });
+	ok(AppTest::is_reload($r), '編集者を2人にする');
+	is($app->get('editor', 'edit')->{status}, 200, '一覧の先頭のeditorは編集者');
+	is($app->get('user',   'edit')->{status}, 200, '一覧の最後のuserは編集者');
+	is($app->get('edit',   'edit')->{status}, 403, 'editは編集者ではない');
+	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
+	ok(AppTest::is_reload($r), '元に戻す');
+
+	$r = $app->post('owner', 'set/detail', { action => 'set/detail', allow_com_users => 'owner' });
+	ok(AppTest::is_reload($r), 'コメントできる人をownerにする');
+	like(body($app->get('owner', '/01')),   qr/id="comment-form"/, 'ownerにはコメント欄が出る');
+	unlike(body($app->get('own', '/01')),   qr/id="comment-form"/, 'ownにはコメント欄が出ない');
+	$r = $app->post('owner', 'set/detail', { action => 'set/detail', allow_com_users => '*' });
+	ok(AppTest::is_reload($r), '元に戻す');
+};
+
 subtest 'プライベートモードの削除' => sub {
 	# 古い画面からPOSTされても、設定に入らず、閉じない
 	my $setting = "$dir/data/blog/setting.dat";

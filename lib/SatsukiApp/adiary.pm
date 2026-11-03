@@ -496,8 +496,7 @@ sub set_blog_permission {
 	if ($allow_com eq '*' || ($allow_com eq 'user*' && $authok)) {
 		$self->{allow_com} = 1;
 	} elsif ($allow_com ne '' && $authok) {
-		$allow_com =~ s|\s*,\s*|,|g;
-		$self->{allow_com} = (0 < index(",$allow_com,",$authid)) ? 1 : 0;
+		$self->{allow_com} = $self->users_check($allow_com, $authid);
 	}
 }
 
@@ -507,8 +506,9 @@ sub set_blog_permission {
 sub users_check {
 	my ($self,$users,$uid) = @_;
 	if ($users eq '*') { return 1; }
+	if ($uid eq '') { return 0; }
 	$users =~ s|\s*,\s*|,|g;
-	return (0 < index(",$users,",$uid)) ? 1 : 0;
+	return (0 <= index(",$users,",",$uid,")) ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------
