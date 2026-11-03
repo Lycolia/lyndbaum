@@ -251,7 +251,7 @@ sub select_blog_and_pinfo {
 	# ブログは1つだけ。ブログが無いときも選択して内部変数を初期化すること
 	$self->select_blog();
 
-	# テーマの設定（$self->{blog}->{theme} と書くと、閲覧できないときに空のハッシュができる）
+	# テーマの設定（$self->{blog}->{theme} と書くと、ブログが無いときに空のハッシュができる）
 	my $theme = ($self->{blog} || {})->{theme};
 	if (!$theme || $self->load_theme($theme)) {
 		$self->load_theme( $self->{default_theme} );
