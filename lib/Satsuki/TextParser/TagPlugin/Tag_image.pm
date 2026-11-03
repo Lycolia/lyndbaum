@@ -95,6 +95,7 @@ sub image {
 		$url  = $pobj->replace_link($url,   $ary,  $argc);
 		$link = $pobj->replace_link($link, \@ary2, $argc);
 	}
+	$url = &thumbnail_url($ROBJ, $url);
 
 	if ($textlink) {
 		return &text_link($pobj, $tag, $ary, $link, $filename_arg);
@@ -181,6 +182,22 @@ sub text_link {
 }
 
 #-------------------------------------------------------------------------------
+# ●画像アルバムのサムネイルの形式
+#-------------------------------------------------------------------------------
+# 記法の設定（image:S）はJPEGのサムネイル（.thumbnail/元の名前.jpg）を指す。
+# AVIFのサムネイル（.avif）があれば、そちらにする（SatsukiApp::adiary の thumbnail_ext）
+#
+sub thumbnail_url {
+	my ($ROBJ, $url) = @_;
+	if ($url !~ m|/\.thumbnail/[^/]+\.jpg$|) { return $url; }
+	my $file = &local_file($ROBJ, $url);
+	if ($file eq '') { return $url; }
+	$file =~ s/\.jpg$/.avif/;
+	if (-e $file) { $url =~ s/\.jpg$/.avif/; }
+	return $url;
+}
+
+#-------------------------------------------------------------------------------
 # ●画像のファイルの大きさを width、height の属性にする
 #-------------------------------------------------------------------------------
 # このサイトの中の画像だけを読む。読めなければ空
@@ -188,6 +205,16 @@ sub text_link {
 # ※記事を保存、再構築したときのファイルの大きさを書くので、サムネイルを作り直したら記事も作り直す
 #
 sub image_size_attr {
+	my ($ROBJ, $url) = @_;
+	my $file = &local_file($ROBJ, $url);
+	if ($file eq '') { return ''; }
+
+	my ($w, $h) = Satsuki::ImageFormat::get_size($file);
+	return $w ? " width=\"$w\" height=\"$h\"" : '';
+}
+
+# URLを、このサイトの中のファイルのパスにする。外のサイトや、サイトの外を指すなら空
+sub local_file {
 	my ($ROBJ, $url) = @_;
 	if ($url =~ m|^[A-Za-z][\w+.\-]*:| || $url =~ m|^//|) { return ''; }	# 外のサイト
 
@@ -200,9 +227,7 @@ sub image_size_attr {
 	$file =~ s/[?#].*//;
 	$file =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg;
 	if ($file =~ m|^/| || $file =~ m!(?:^|/)\.\.(?:/|$)!) { return ''; }
-
-	my ($w, $h) = Satsuki::ImageFormat::get_size($file);
-	return $w ? " width=\"$w\" height=\"$h\"" : '';
+	return $file;
 }
 
 1;

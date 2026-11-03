@@ -168,64 +168,15 @@ sub tunpack {
 #-------------------------------------------------------------------------------
 # ●Exifの削除
 #-------------------------------------------------------------------------------
-my %strip_markers = map { $_ => 1 } split('',
-  "\xE1\xE2\xE3\xE4\xE5\xE6\xE7\xE8\xE9\xEA\xEB\xEC\xED\xEE\xEF\xFE"
-);	# APP1 - 15と、コメントセグメント(0xFE)は無視
+# Exifと、ほかのメタ情報を消す（Satsuki::ImageMeta）。ICCやAdobeなど、色に要るものは残す
+# ret : 0=成功、負=失敗
+#
 sub strip {
 	my $self = shift;
 	my $file = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	my $fh;
-	my $data;
-	sysopen($fh, $file, O_RDWR) || return -999;
-	binmode($fh);
-	$ROBJ->write_lock($fh);
-	sysread($fh, $data, -s $fh);
-
-	my $r=0;
-	my @segs;
-	my $require_strip;
-	while(1) {
-		if (substr($data, 0, 2) ne "\xFF\xD8") { $r=-1; last; }
-		my $p   = 2;
-		my $len = length($data);
-		while($p < $len) {
-			my %h;
-			if (substr($data, $p, 1) ne "\xFF") { last; }	# err
-
-			my $marker = substr($data, $p+1, 1);
-			if ($strip_markers{$marker}) { $require_strip=1; }
-
-			my %h;
-			$h{marker} = $marker;
-			$h{offset} = $p;
-			$h{size}   = (ord(substr($data, $p+2, 1))<<8) + ord(substr($data, $p+3, 1)) +2;
-			$p += $h{size};
-			push(@segs, \%h);
-
-			if ($marker ne "\xDA") { next; }
-			# SOSマーカー（データの開始）を発見
-			$h{size} = $h{size} + ($len -$p) +2;
-			$p = $len-2;
-			if (substr($data, $p, 2) eq "\xFF\xD9") { $p += 2; }	# EOIセグメント
-			last;
-		}
-		if ($p != $len) { $r=-2; last; }
-		if (!$require_strip) { last; }
-
-		# ファイルの書き出し
-		seek($fh, 2, 0);
-		foreach(@segs) {
-			if ($strip_markers{ $_->{marker} }) { next; }
-			syswrite($fh, $data, $_->{size}, $_->{offset});
-		}
-		# 現在の位置でファイル切り詰め
-		truncate($fh, sysseek($fh, 0, 1));	# tell($fh)では動作しない!!
-		last;
-	}
-	close($fh);
-	return $r;
+	require Satsuki::ImageMeta;
+	my ($r) = Satsuki::ImageMeta::clean_file($file, { exif => 1 });
+	return $r > 0 ? -1 : $r;
 }
 
 1;

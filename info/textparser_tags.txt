@@ -56,6 +56,7 @@ img        = 画像, image
 
 # アルバム管理画像
 image:L      = 画像アルバム, image, 2,  ${image}$1$2
+# サムネイル。AVIFのサムネイル（.avif）があれば、Tag_image.pmがそちらにする
 image:S      = 画像アルバム, image, 2,  ${image}$1.thumbnail/$2.jpg
 image:S#link = 画像アルバム, image, 2,  ${image}$1$2
 # 画像へのテキストリンク（#textlinkがあると、画像を出さずにリンクの文字を出す。Tag_image.pm）

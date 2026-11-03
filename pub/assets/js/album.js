@@ -939,7 +939,7 @@ function update_view(flag, selected) {
 			});
 		}
 		var img  = $('<img>', {
-			src: encode_link( fspath + '.thumbnail/' + file.name + '.jpg') + thumbq ,
+			src: encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq ,
 			'data-title': file.name,
 			'data-isimg': file.isImg ? 1 : 0
 		});
@@ -984,7 +984,7 @@ function update_view(flag, selected) {
 		});
 		// ファイル名
 		var fname = $('<span>').text( file.name );
-		fname.addClass('js-popup-img').data('img-url', encode_link( fspath + '.thumbnail/' + file.name + '.jpg') + thumbq );
+		fname.addClass('js-popup-img').data('img-url', encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq );
 		span.append( $('<span>').addClass('filename').append( fname ) );
 		// 日付
 		var date = new Date( file.date*1000 );
@@ -1207,6 +1207,10 @@ function make_selected_video_thumbnails(){
 	make_video_thumbnails(cur_folder, files);
 }
 
+// サムネイルのファイル名（.thumbnail/ の中）。サーバーがファイル一覧で返す（AVIFかJPEG）
+function thumbnail_name(file) {
+	return file.thumb || (file.name + '.jpg');
+}
 // サムネイルを作れて、画像ビューアーで再生できる動画か（サーバーの is_video と同じ）
 function is_video_file(name) {
 	return /\.(?:mp4|m4v|webm|ogv)$/i.test(name);

@@ -645,7 +645,7 @@ sub get_main_image_from_article {
 
 		# 代表画像
 		$img = substr($img, length($dir));
-		$img =~ s!(^|/).thumbnail/(.+)\.jpg$!$1$2!;
+		$img =~ s!(^|/).thumbnail/(.+)\.(?:jpg|avif)$!$1$2!;
 		return $img;
 	}
 

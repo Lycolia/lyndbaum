@@ -238,7 +238,7 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		let m;
 		while((m = img_re.exec(text))) {
 			let path = (m[3] !== undefined) ? m[3] : m[1] + m[2];
-			path = path.replace(/(^|\/)\.thumbnail\/(.+)\.jpg$/, '$1$2');
+			path = path.replace(/(^|\/)\.thumbnail\/(.+)\.(?:jpg|avif)$/, '$1$2');
 			if (img_ext.test(path) && list.indexOf(path) < 0) list.push(path);
 		}
 		return list;
@@ -254,13 +254,17 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	function enc(path) {
 		return path.split('/').map(encodeURIComponent).join('/');
 	}
-	function thumb_url(path) {
+	// サムネイルはAVIFかJPEG（サーバーの thumbnail_ext）。AVIF、JPEG、元画像の順に試す
+	function thumb_url(path, ext) {
 		const x = path.lastIndexOf('/');
-		return img_url + enc(path.substr(0, x+1) + '.thumbnail/' + path.substr(x+1) + '.jpg');
+		return img_url + enc(path.substr(0, x+1) + '.thumbnail/' + path.substr(x+1) + '.' + ext);
 	}
 	function make_img(path) {
-		const $img = $('<img>').attr({ src: thumb_url(path), alt: '' });
-		$img.one('error', function(){ $img.attr('src', img_url + enc(path)) });
+		const urls = [ thumb_url(path, 'jpg'), img_url + enc(path) ];
+		const $img = $('<img>').attr({ src: thumb_url(path, 'avif'), alt: '' });
+		$img.on('error', function(){
+			if (urls.length) $img.attr('src', urls.shift());
+		});
 		return $img;
 	}
 

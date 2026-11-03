@@ -332,26 +332,73 @@ subtest '画像アルバム' => sub {
 		local $/; <$fh>;
 	};
 	my $img = "$dir/pub/attachments/test";
+	require Satsuki::ImageFormat;
+	my $ext = Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';	# 画像のサムネイルの形式
 
 	my $r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
 		file_ary => { filename => 'up.png', content => $png, type => 'image/png' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
 	ok(-f "$img/up.png", 'ファイルが置かれる');
-	ok(-f "$img/.thumbnail/up.png.jpg", 'サムネイルが作られる');
+	ok(-f "$img/.thumbnail/up.png.$ext", "サムネイルが作られる（$ext）");
+	ok($ext eq 'jpg' || !-e "$img/.thumbnail/up.png.jpg", 'JPEGのサムネイルは作らない');
+
+	$r = $app->post('editor', '', { action => 'media/load_image_files', folder => 'test/' });
+	my ($up) = grep { $_->{name} eq 'up.png' } @{ ref($r->{json}) eq 'ARRAY' ? $r->{json} : [] };
+	is($up && $up->{thumb}, "up.png.$ext", 'ファイルの一覧にサムネイルの名前が入る');
+
+	# 記事のサムネイルは、あるほうの形式を指す
+	$r = $app->post('editor', '', { %ART, title => 'サムネイルの記事', body_txt => "[image:S:test/:up.png]\n" });
+	ok(AppTest::is_reload($r), 'サムネイルを貼った記事を保存できる');
+	like(body($app->get('guest', '')), qr{src="[^"]*/test/\.thumbnail/up\.png\.$ext"}, "記事のサムネイルが .$ext を指す");
 
 	$r = $app->post('editor', '', { action => 'media/rename_file', folder => 'test/', old => 'up.png', name => 'renamed.png' });
 	ok(json_ok($r), '名前を変えられる');
 	ok(!-e "$img/up.png" && -f "$img/renamed.png", 'ファイルの名前が変わる');
+	ok(!-e "$img/.thumbnail/up.png.$ext" && -f "$img/.thumbnail/renamed.png.$ext", 'サムネイルの名前も変わる');
 
 	$r = $app->post('editor', '', { action => 'media/create_folder', folder => '/', name => 'other' });
 	ok(json_ok($r), 'フォルダを作れる');
 	$r = $app->post('editor', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '移せる');
 	ok(!-e "$img/renamed.png" && -f "$dir/pub/attachments/other/renamed.png", 'ファイルが移る');
+	ok(-f "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
 
 	$r = $app->post('editor', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '削除できる');
 	ok(!-e "$dir/pub/attachments/other/renamed.png", 'フォルダから消える');
+	ok(!-e "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
+};
+
+subtest 'アップロードした画像のメタ情報' => sub {
+	require Image::Magick;
+	my $im = Image::Magick->new(size => '40x30');
+	$im->Read('xc:green');
+	my ($jpeg) = $im->ImageToBlob(magick => 'JPEG');
+	# Exif（中身が空のIFD）とXMPを足す
+	my $exif = "Exif\0\0II*\0" . pack('V', 8) . pack('v', 0) . pack('V', 0);
+	my $xmp  = "http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x='adobe:ns:meta/'/>";
+	my $seg  = sub { "\xFF" . chr($_[0]) . pack('n', length($_[1]) + 2) . $_[1] };
+	$jpeg = "\xFF\xD8" . $seg->(0xE1, $exif) . $seg->(0xE1, $xmp) . $seg->(0xE5, 'x' x 100) . substr($jpeg, 2);
+	my $img = "$dir/pub/attachments/test";
+	my $read = sub { open(my $fh, '<:raw', shift) || return ''; local $/; <$fh> };
+
+	my $r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/',
+		file_ary => { filename => 'meta.jpg', content => $jpeg, type => 'image/jpeg' } ]);
+	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
+	my $saved = $read->("$img/meta.jpg");
+	ok(index($saved, 'ns.adobe.com/xap') < 0, 'XMPは消える');
+	ok(index($saved, "\xFF\xE5") < 0, 'APP5（機種独自の情報）は消える');
+	ok(index($saved, "Exif\0\0") >= 0, 'Exifは残る');
+
+	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/',
+		file_ary => { filename => 'meta.jpg', content => $jpeg, type => 'image/jpeg' } ]);
+	like($r->{body}, qr/^ret=0$/m, '同じ画像をもう一度アップロードできる');
+	ok(!grep({ /meta_\d/ } map { s|.*/||r } glob("$img/meta*")), 'メタ情報を消した後の中身で比べるので、別名で保存しない');
+
+	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', del_exif => 1,
+		file_ary => { filename => 'noexif.jpg', content => $jpeg, type => 'image/jpeg' } ]);
+	like($r->{body}, qr/^ret=0$/m, 'Exifの削除を選んでアップロードできる');
+	ok(index($read->("$img/noexif.jpg"), "Exif\0\0") < 0, 'Exifも消える');
 };
 
 subtest '動画のサムネイルの大きさの上限' => sub {
@@ -847,8 +894,8 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
 		local $/; <$fh>;
 	};
-	my $thumb = "$dir/pub/attachments/test/.thumbnail/size.png.jpg";
 	require Satsuki::ImageFormat;
+	my $thumb = "$dir/pub/attachments/test/.thumbnail/size.png." . (Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg');
 	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', size => 640,
 		file_ary => { filename => 'size.png', content => $png, type => 'image/png' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
