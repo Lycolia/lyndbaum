@@ -146,6 +146,7 @@ sub request {
 		REMOTE_ADDR     => '127.0.0.1',
 		HTTP_USER_AGENT => 'AppTest',
 		HTTP_ACCEPT_LANGUAGE => 'ja',
+		%{ $self->{env} || {} },	# テストで足す環境変数（HTTPS => 'on' など）
 		($method eq 'POST' ? (
 			CONTENT_TYPE   => $content_type,
 			CONTENT_LENGTH => length($body),

@@ -1218,8 +1218,22 @@ sub put_cookie {
 	if ($dom ) { $dom  = " domain=$dom;";  }
 	my $opt = $self->{CookieOpt}      || 'HttpOnly;';
 	my $ss  = $self->{CookieSameSite} || 'Lax';
+	# HTTPSのときは、http:// でCookieが送られないようにする
+	if ($opt !~ /\bSecure\b/i && $self->is_https()) { $opt .= 'Secure;'; }
 
 	$self->set_header('Set-Cookie', "$str$path$dom${opt}SameSite=$ss");
+}
+
+#-------------------------------------------------------------------------------
+# ●HTTPSでアクセスされているか
+#-------------------------------------------------------------------------------
+# リバースプロキシの後ろでは X-Forwarded-Proto を見る。
+# ServerURLは管理者のアクセスで書き換わる（adiary.pm secure_http_host）ので見ない。
+sub is_https {
+	return 1 if (lc($ENV{HTTPS}) eq 'on');
+	return 1 if (lc($ENV{HTTP_X_FORWARDED_PROTO}) eq 'https');
+	return 1 if (int($ENV{SERVER_PORT}) == 443);
+	return 0;
 }
 
 ################################################################################
