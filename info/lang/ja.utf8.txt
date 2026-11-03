@@ -100,6 +100,8 @@ Connection closed by '%s'=通信が切断されました（%s）
 Connection timeout '%s' (timeout %d sec)=%s が応答しませんでした（Timeout %d秒）
 Error response from '%s' (status %d)=%s がエラーを返しました (Status : %d)
 URL format error '%s'=URLの書式が正しくありません : %s
+Certificate verification failed '%s' (%s)=%s の証明書を検証できませんでした（%s）
+Net::SSLeay Ver%s is too old (1.92 or later required)=Net::SSLeay Ver%s は古いため使えません（Ver1.92以降が必要です）
 
 ###############################################################################
 # Auth_2.pm

@@ -159,8 +159,11 @@ sub send_https_request {
 	if ($@) {
 		return $self->error(undef, "Net::SSLeay module not found (please install this server)");
 	}
+	if ($Net::SSLeay::VERSION < 1.92) {
+		return $self->error($sock, "Net::SSLeay Ver%s is too old (1.92 or later required)", $Net::SSLeay::VERSION);
+	}
 	#-----------------------------------------------------------------------
-	my ($data, $errs, $written);
+	my ($data, $errs, $written, $verify_err);
 
 	my $ctx = Net::SSLeay::new_x_ctx();
 	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_new') or !$ctx;
@@ -168,21 +171,35 @@ sub send_https_request {
 	Net::SSLeay::CTX_set_options($ctx, &Net::SSLeay::OP_ALL);
 	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_set_options');
 
+	# 証明書の信頼チェーンを検証する（サーバーのCA証明書を使う）
+	Net::SSLeay::CTX_set_verify($ctx, &Net::SSLeay::VERIFY_PEER);
+	Net::SSLeay::CTX_set_default_verify_paths($ctx);
+	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_set_default_verify_paths');
+
 	my $ssl = Net::SSLeay::new($ctx);
 	goto cleanup if $errs = Net::SSLeay::print_errs('SSL_new') or !$ssl;
 
-	if ($self->{use_sni} && 1.45<$Net::SSLeay::VERSION) {
+	if ($self->{use_sni}) {
 		Net::SSLeay::set_tlsext_host_name($ssl, $host);
+	}
+
+	# 証明書のホスト名を検証する
+	if (!Net::SSLeay::X509_VERIFY_PARAM_set1_host(Net::SSLeay::get0_param($ssl), $host)) {
+		$errs = Net::SSLeay::print_errs('X509_VERIFY_PARAM_set1_host') || 'X509_VERIFY_PARAM_set1_host failed';
+		goto cleanup;
 	}
 
 	Net::SSLeay::set_fd($ssl, fileno($sock));
 	goto cleanup if $errs = Net::SSLeay::print_errs('set_fd');
 
-	Net::SSLeay::connect($ssl);
-	goto cleanup if $errs = Net::SSLeay::print_errs('SSL_connect');
-
-	my $server_cert = Net::SSLeay::get_peer_certificate($ssl);
-	Net::SSLeay::print_errs('get_peer_certificate');
+	my $connected = Net::SSLeay::connect($ssl);
+	$errs = Net::SSLeay::print_errs('SSL_connect');
+	if ($connected != 1 || $errs) {
+		my $verify = Net::SSLeay::get_verify_result($ssl);
+		if ($verify) { $verify_err = Net::SSLeay::X509_verify_cert_error_string($verify); }
+		$errs ||= 'SSL_connect failed';
+		goto cleanup;
+	}
 
 	($written, $errs) = Net::SSLeay::ssl_write_all($ssl, join('', @_));
 	goto cleanup unless $written;
@@ -211,8 +228,8 @@ cleanup2:
 	#-----------------------------------------------------------------------
 	$self->save_log(\@response);
 	if (! @response) {
-		if ($self->{use_sni} && $errs =~ /sslv3 alert handshake failure/) {
-			return $self->error(undef, "Net::SSLeay Ver$Net::SSLeay::VERSION not support SNI connection");
+		if ($verify_err ne '') {
+			return $self->error(undef, "Certificate verification failed '%s' (%s)", $host, $verify_err);
 		}
 		return $self->error(undef, "Net::SSLeay Ver$Net::SSLeay::VERSION fail connection: '%s'", $host);
 	}

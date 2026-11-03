@@ -21,9 +21,9 @@
 	</ul>
 
 <$x = check_lib('Net::SSLeay')>
-<@ifexec(!x, begin, begin)>
+<@ifexec(!x || x < 1.92, begin, begin)>
 
-	<p class="error">※この機能を使用するには「Net::SSLeay」ライブラリが必要です（サーバ管理者にご確認ください）。</p>
+	<p class="error">※この機能を使用するには「Net::SSLeay」ライブラリのVer1.92以降が必要です（サーバ管理者にご確認ください）。</p>
 
 <$else>
 
@@ -45,10 +45,6 @@
 		<li><label><input type="checkbox" name="media" value="1">動画等もコピーする（&lt;video&gt;/&lt;audio&gt;タグ）</label></li>
 	</ul>
 	</div>
-
-<@ifexec(x <= 1.45, begin)>
-	<p class="warning">※Net::SSLeayライブラリ Ver<@x> が古いため、mixi等、一部サイトへの接続に失敗する可能性があります。</p>
-<$end>
 
 	<button type="button" id="start">処理開始</button>
 	<button type="button" id="stop" style="display: none">処理中止</button>
