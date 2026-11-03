@@ -306,6 +306,9 @@ sub do_request {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
 
+	# 失敗したときに前回のリダイレクト先を辿り直さないよう、先に消す
+	delete $self->{location};
+
 	my ($method, $url, $_header, $post_data) = @_;
 	my $cookie = $self->{cookie};
 	my $https = ($url =~ m|^https://|i);
@@ -397,7 +400,6 @@ sub do_request {
 	#-----------------------------------------------------------------------
 	# ヘッダの解析
 	#-----------------------------------------------------------------------
-	delete $self->{location};
 	my $header= $self->{header} = [];
 	while(@$res) {
 		my $line = shift(@$res);
