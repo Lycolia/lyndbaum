@@ -217,11 +217,14 @@ const contents_loaded = adiary.load_contents_list($upsel);
 //##############################################################################
 // name="ogp" の欄が実体（main_image）。空なら記事の最初の画像（サーバー側で自動選択）、
 // それも無ければブログの画像を使う。画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
+// 「設定しない」にすると欄を ?none にし、本文の画像を拾わずにブログの画像を使う
 {
 	const $preview = $('#eyecatch-preview');
 	const $note    = $('#eyecatch-note');
 	const $pick    = $('#eyecatch-pick');
 	const $remove  = $('#eyecatch-remove');
+	const $none    = $('#eyecatch-none');
+	const NONE     = '?none';
 	const $ogp     = $('#ogp-input');
 	const imgdir   = $('#image-dir').text();		// 画像ディレクトリ（相対）
 	const img_url  = adiary.Basepath + imgdir;
@@ -246,6 +249,7 @@ const contents_loaded = adiary.load_contents_list($upsel);
 
 	// 欄の値を画像パスにする。保存した値の末尾の「?幅,高さ」と、記法で書いた古い値に対応する
 	function current_value() {
+		if ($ogp.val() === NONE) return '';
 		const val = $ogp.val().trim().replace(/\?\d+,\d+$/, '');
 		if (val.indexOf(':') < 0) return val;
 		return find_images(val)[0] || val;
@@ -270,9 +274,13 @@ const contents_loaded = adiary.load_contents_list($upsel);
 
 	let first_image = '';
 	function render() {
-		const cur = current_value();
+		const cur  = current_value();
+		const none = $none.prop('checked');
 		$preview.empty();
-		if (cur != '') {
+		if (none) {
+			$preview.append( $('<img>').attr({ src: $preview.data('blog-image'), alt: '' }) );
+			$note.text( $('#eyecatch-note-none').text() );
+		} else if (cur != '') {
 			// 選んだ画像は、押すと選び直せる
 			const $btn = $('<button>').attr({ type: 'button', title: '画像を変更' }).addClass('eyecatch-change');
 			$btn.append( make_img(cur) );
@@ -285,8 +293,8 @@ const contents_loaded = adiary.load_contents_list($upsel);
 			$preview.append( $('<img>').attr({ src: $preview.data('blog-image'), alt: '' }) );
 			$note.text( $('#eyecatch-note-blog').text() );
 		}
-		$pick  .toggle(cur == '');
-		$remove.toggle(cur != '');
+		$pick  .toggle(!none && cur == '');
+		$remove.toggle(!none && cur != '');
 	}
 
 	// 画像アルバムを開く。選んである画像があれば、そのフォルダを開く
@@ -305,8 +313,21 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		render();
 	});
 
+	// 「設定しない」。外したら、入れる前の値に戻す
+	let before_none = '';
+	$none.on('change', function(){
+		if ($none.prop('checked')) {
+			before_none = $ogp.val();
+			$ogp.val(NONE);
+		} else {
+			$ogp.val(before_none);
+		}
+		render();
+	});
+
 	// 画像アルバムから呼ばれる。path は画像ディレクトリからの相対パス
 	window.set_eyecatch = function(path) {
+		$none.prop('checked', false);
 		$ogp.val(path);
 		render();
 	};
@@ -325,7 +346,8 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	rescan();
 
 	// 保存した値が記事の最初の画像と同じなら、選んでいない（自動）扱いにする
-	if (first_image && current_value() == first_image) $ogp.val('');
+	if ($ogp.val() === NONE) $none.prop('checked', true);
+	else if (first_image && current_value() == first_image) $ogp.val('');
 	render();
 	setInterval(rescan, 1500);
 }

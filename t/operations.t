@@ -250,6 +250,33 @@ subtest 'NSFWの記事' => sub {
 	unlike($rss, qr{成人向けの本文}, 'RSSに本文は出ない');
 };
 
+subtest 'アイキャッチ画像を設定しない' => sub {
+	my $img  = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
+	my %EYE  = (%ART, title => 'アイキャッチの記事', body_txt => "[image:S:$AppTest::IMAGE_FOLDER:$AppTest::IMAGE_FILE]\n本文\n");
+	my $og   = sub { (body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '' };
+	my $rss  = sub { my ($item) = read_file("$dir/pub/rss.xml") =~ m{(<item>(?:(?!</item>).)*?アイキャッチの記事.*?</item>)}s; $item // '' };
+	my $ogp  = sub { (body($app->get('editor', '/07?edit')) =~ m{<input type="hidden" name="ogp" id="ogp-input" value="([^"]*)">})[0] // '' };
+
+	my $r = $app->post('editor', '', \%EYE);
+	ok(AppTest::is_reload($r), '保存できる');
+	like($og->(), qr{/\Q$img\E$}, '選んでいなければ、本文の最初の画像を使う');
+	like($rss->(), qr{<media:content url="[^"]*/\Q$img\E"}, 'RSSにも出る');
+
+	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => '?none' });
+	ok(AppTest::is_reload($r), '「設定しない」で保存できる');
+	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、ブログの画像（設定していないので既定の画像）になる');
+	unlike($rss->(), qr{<media:content}, 'RSSにアイキャッチを出さない');
+	is($ogp->(), '?none', '編集画面を開き直しても「設定しない」のまま');
+
+	$r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
+	ok(AppTest::is_reload($r), 'ブログを再構築できる');
+	is($ogp->(), '?none', '再構築しても「設定しない」のまま');
+
+	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => '' });
+	ok(AppTest::is_reload($r), '「設定しない」を外して保存できる');
+	like($og->(), qr{/\Q$img\E$}, '本文の最初の画像に戻る');
+};
+
 #-------------------------------------------------------------------------------
 # ブログの設定
 #-------------------------------------------------------------------------------

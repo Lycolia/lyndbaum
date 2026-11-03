@@ -191,16 +191,18 @@
 
 <aside class="edit-side">
 	<!--アイキャッチ画像=====================================================-->
-	<@> 選んでいなければ本文の最初の画像、それも無ければブログの画像を使う（edit.js）
+	<@> 選んでいなければ本文の最初の画像、それも無ければブログの画像を使う（edit.js）。
+	<@> 「設定しない」は ?none を保存し、本文の画像を拾わずにブログの画像を使う
 	<section class="edit-box" id="edit-eyecatch">
 	<h3>アイキャッチ画像</h3>
-	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
+	<input type="hidden" name="ogp" id="ogp-input" value="<@if(art.main_image_none, '?none', art.main_image)>">
 	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image, s.blog_image, #'<@v.pubdist_dir>default-icon.png')>"></div>
 	<p id="eyecatch-note"></p>
 	<p class="edit-buttons">
 	<button type="button" id="eyecatch-pick" data-url="<@v.myself>?media/&amp;popup=1&amp;eyecatch=1">アイキャッチ画像を設定</button>
 	<button type="button" id="eyecatch-remove">アイキャッチ画像を削除</button>
 	</p>
+	<p><label><input type="checkbox" id="eyecatch-none">アイキャッチ画像を設定しない</label></p>
 	</section>
 
 	<!--タグ=================================================================-->
