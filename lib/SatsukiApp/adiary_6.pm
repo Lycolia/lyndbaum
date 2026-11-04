@@ -43,7 +43,8 @@ my @update_versions = (
 	{ ver => 4.23, func => 'sys_update_423', system=>1 },	# パスワードをbcryptで保存するようにした。アップデートを行う管理者は、ここで新しいパスワードを決める（system_update）
 	{ ver => 4.24, info=>1, func => 'sys_update_424' },	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
 	{ ver => 4.25, func => 'sys_update_425', system=>1 },	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
-	{ ver => 4.27, plugin=>1, func => 'sys_update_427' }	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
+	{ ver => 4.27, plugin=>1, func => 'sys_update_427' },	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
+	{ ver => 4.28, func => 'sys_update_428', system=>1 }	# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -763,11 +764,7 @@ sub sys_update_411 {
 
 	# システムの設定と、新しいブログの初期設定のファイル（1つのadiaryで複数のブログを持つ機能。4.10）
 	$self->update_sysdat('create_blog_only_admin', undef);
-	my $file = $self->{data_dir} . 'default_setting.dat';
-	if (-e $file) {
-		my $ok = $self->{ROBJ}->file_delete($file);
-		$self->{ROBJ}->message($ok ? "Delete '%s'" : "Delete '%s' failed", $file);
-	}
+	$self->delete_default_setting_file();
 
 	my $blog = $self->{blog};
 	if (!$blog) { return; }
@@ -784,6 +781,205 @@ sub sys_update_411 {
 	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
 		$self->update_blogset($blog, 'parser', 'markdown');
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ○新しいブログの初期設定のファイル（4.10まで）を消す
+#-------------------------------------------------------------------------------
+sub delete_default_setting_file {
+	my $self = shift;
+	my $file = $self->{data_dir} . 'default_setting.dat';
+	if (-e $file) {
+		my $ok = $self->{ROBJ}->file_delete($file);
+		$self->{ROBJ}->message($ok ? "Delete '%s'" : "Delete '%s' failed", $file);
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.28
+#-------------------------------------------------------------------------------
+# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
+sub sys_update_428 {
+	my $self = shift;
+	$self->delete_default_setting_file();
+	$self->migrate_conf_428();
+}
+
+#-------------------------------------------------------------------------------
+# ○4.27までの設定ファイルを、ユーザー設定に移す
+#-------------------------------------------------------------------------------
+# 有効な行のうち、4.27の見本（lyndbaum_conf_427.txt）と違うものを写す。
+# ユーザー設定が書けないときは、今までの設定ファイルのまま動き続ける
+#
+# 組み立てる行と、コードに移して変えないことにした項目は写さない
+my $Conf_sample_428 = 'lib/SatsukiApp/lyndbaum_conf_427.txt';
+# 画面で変えられるようにした項目：システム設定のキー、値を割る数、画面の入力の範囲
+my %Conf_to_sys_428 = (
+	'v.uplaod_files_max'	=> [ 'upload_max_mb',      1048576, 1, 2048 ],
+	'v.album_jpeg_quality'	=> [ 'album_jpeg_quality', 1,       1, 100  ],
+	'v.album_avif_quality'	=> [ 'album_avif_quality', 1,       1, 100  ],
+	'Auth.pass_min'		=> [ 'pass_min',           1,       8, 64   ],
+	'Auth.expires'		=> [ 'session_days',       86400,   1, 365  ],
+	'Auth.all_logout'	=> [ 'all_logout',         1,       0, 1    ],
+	'Auth.fail_count'	=> [ 'fail_count',         1,       3, 100  ],
+	'Auth.fail_minute'	=> [ 'fail_minute',        1,       1, 1440 ]
+);
+my %Conf_unit_428 = (K=>1024, M=>1048576, G=>1073741824, sec=>1, min=>60, hour=>3600, day=>86400, week=>604800);
+my $Conf_not_movable_428 = qr/^\s*<\$(?:constant\(|const\(|regist_skeleton\(|load_language_file\(|ifumask\(|If_post_exec_pre\s*=|v\s*=|DB\s*=|Auth\s*=|v\.(?:\w+_dir|system_config_file|default_\w+_file|allow_tags_head|default_theme|parsers|rss_skeleton|words_separator|album_icons|album_font|album_font_size)\s*=)/;
+sub migrate_conf_428 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $conf = $ROBJ->{Conf_file};
+	if ($conf eq '' || !-r $conf) { return; }	# 移行の必要がない
+	my $env  = $ROBJ->{Env_file};
+	my $user = $ROBJ->{User_file};
+
+	my $sample = $self->conf_statements_428($Conf_sample_428);
+	my %sample = map { $_->{key} => 1 } @$sample;
+
+	# 定数はファイルごとなので、ユーザー設定からは使えない
+	my @const = map { $_->{key} =~ /^<\$const(?:ant)?\((\w+)\)/ ? $1 : () } @$sample;
+	my $use_const = '(?<![\.\w])(?:' . join('|', @const) . ')\b';
+
+	my @move;
+	my @not_moved;
+	my @out_of_range;
+	my $admin_trust;
+	my $start_up;
+	foreach my $file ($env, $conf) {
+		if (!-r $file) { next; }
+		foreach my $st (@{ $self->conf_statements_428($file) }) {
+			if ($st->{key} =~ /^<\$v\.admin_trust_mode\s*=/) { $admin_trust = 1; }
+			if ($st->{key} =~ /^<\$Auth\.start_up\s*=/)      { $start_up    = 1; }
+			if ($sample{ $st->{key} }) { next; }
+			if ($st->{key} =~ $Conf_not_movable_428 || $st->{key} =~ /$use_const/) {
+				push(@not_moved, @{ $st->{lines} });
+			} elsif (my $to_sys = $self->conf_to_sys_428($st->{key})) {
+				$self->update_sysdat(@$to_sys);
+			} else {
+				# 画面で変える項目でも、画面で扱えない値はユーザー設定で動かし続ける
+				if ($st->{key} =~ /^<\$(v\.\w+|Auth\.\w+)\s*=/ && $Conf_to_sys_428{$1}) {
+					push(@out_of_range, @{ $st->{lines} });
+				}
+				push(@move, @{ $st->{lines} });
+			}
+		}
+	}
+	# どちらも既定はONなので、止めていた人の設定が変わらないようにする
+	if (!$admin_trust) {
+		push(@move, "<\$v.admin_trust_mode = 0>\n");
+	}
+	if (!$start_up) {
+		push(@move, "<\$Auth.start_up = 0>\n");
+	}
+
+	my @out = (
+		"<\@20> pragma : 最適化on（コマンド以外を無視）\n",
+		"<\@#>\n",
+		"# ユーザー設定。書ける項目は lyndbaum.user.cgi.sample を見てください\n",
+		"# 4.27までの設定ファイル（$conf）から移しました\n",
+		"\n",
+		@move
+	);
+	if ($ROBJ->fwrite_lines($user, \@out)) {
+		$ROBJ->clear_error();
+		$ROBJ->message("Can't write '%s'. Please create it with these lines, and delete '%s'.", $user, $conf);
+		foreach(@out) {
+			my $x = $_;
+			$x =~ s/\s+$//;
+			if ($x ne '') { $ROBJ->message("  %s", $x); }
+		}
+		return;
+	}
+	$ROBJ->message("Create '%s'", $user);
+
+	if (@out_of_range) {
+		$ROBJ->message("These values can't be set on the setting screen, so they stay in '%s'.", $user);
+		foreach(@out_of_range) {
+			my $x = $_;
+			$x =~ s/\s+$//;
+			$ROBJ->message("  %s", $x);
+		}
+	}
+
+	# 写せなかった行を知らせる。控えから確かめられる
+	if (@not_moved) {
+		$ROBJ->message("These lines were not moved to '%s'. Please check them.", $user);
+		foreach(@not_moved) {
+			my $x = $_;
+			$x =~ s/\s+$//;
+			$ROBJ->message("  %s", $x);
+		}
+	}
+
+	# 今までのファイルは控えを残して消す。消せなくても、ユーザー設定があれば読まない
+	foreach my $file ($env, $conf) {
+		if (!-e $file) { next; }
+		my $base   = $file =~ m|([^/]+)$| ? $1 : $file;
+		my $backup = $self->{data_dir} . "$base.428.bak";
+		if ($ROBJ->file_copy($file, $backup)) {
+			$ROBJ->clear_error();
+			$ROBJ->message("Can't copy '%s' to '%s'. Please delete '%s' after checking it.", $file, $backup, $file);
+			next;
+		}
+		my $ok = $ROBJ->file_delete($file);
+		$ROBJ->message($ok ? "Move '%s' to '%s'" : "Can't delete '%s'. It is not used now (backup: '%s').", $file, $backup);
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ○画面で変える項目の行を、システム設定のキーと値にする
+#-------------------------------------------------------------------------------
+# 画面で変える項目でないか、画面で扱えない値（範囲の外、割り切れない、式）なら undef
+sub conf_to_sys_428 {
+	my ($self, $key) = @_;
+	if ($key !~ /^<\$(v\.\w+|Auth\.\w+)\s*=\s*(\d+|true)\s*(\w*)\s*>$/) { return; }
+	my ($name, $val, $unit) = ($1, $2, $3);
+	my $h = $Conf_to_sys_428{$name};
+	if (!$h) { return; }
+	if ($unit ne '' && !$Conf_unit_428{$unit}) { return; }
+	$val = ($val eq 'true' ? 1 : $val) * ($unit ne '' ? $Conf_unit_428{$unit} : 1);
+
+	my ($sys_key, $div, $min, $max) = @$h;
+	if ($val % $div) { return; }
+	$val = $val / $div;
+	if ($val < $min || $max < $val) { return; }
+	return [ $sys_key, $val ];
+}
+
+#-------------------------------------------------------------------------------
+# ○設定ファイルを文に分ける
+#-------------------------------------------------------------------------------
+# 空行、コメント、コマンドでない行は捨てる。begin から <$end> までは1つの文にする
+# key：比べるための文字列。空白を詰め、中のコメントを除く
+# lines：ファイルの行（中のコメントは除く）
+sub conf_statements_428 {
+	my ($self, $file) = @_;
+	my @st;
+	my $cur;
+	foreach my $line (@{ $self->{ROBJ}->fread_lines($file) }) {
+		my $x = $line;
+		$x =~ s/^\s+|\s+$//g;
+		$x =~ s/\s+/ /g;
+		if ($cur) {
+			if ($x eq '' || substr($x, 0, 1) eq '#') { next; }
+			push(@{ $cur->{lines} }, $line);
+			$cur->{key} .= "\n$x";
+			if ($x =~ /^<\$end>/) {
+				push(@st, $cur);
+				$cur = undef;
+			}
+			next;
+		}
+		if (substr($x, 0, 2) ne '<$') { next; }
+		my $h = { key => $x, lines => [ $line ] };
+		if ($x =~ /=\s*begin\w*>$/) {
+			$cur = $h;
+			next;
+		}
+		push(@st, $h);
+	}
+	return \@st;
 }
 
 #-------------------------------------------------------------------------------

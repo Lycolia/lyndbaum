@@ -1,5 +1,5 @@
 <@7>
-<@local(s,err,t)>
+<@local(s,err,t,pm,sd,fc,fm,mb)>
 <$err=FormError>
 
 <!--=========================================================================-->
@@ -12,8 +12,15 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
 <$end>
+
+<@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
+<$pm = if(s.pass_min     ne '', s.pass_min,     Auth.pass_min)>
+<$sd = if(s.session_days ne '', s.session_days, Auth.expires / 86400)>
+<$fc = if(s.fail_count   ne '', s.fail_count,   Auth.fail_count)>
+<$fm = if(s.fail_minute  ne '', s.fail_minute,  Auth.fail_minute)>
+<$mb = if(s.upload_max_mb ne '', s.upload_max_mb, v.uplaod_files_max / 1048576)>
 
 <!--=========================================================================-->
 <article class="system setting">
@@ -96,6 +103,81 @@
 	<p>CGI動作時は設定できません。まず、<a href="https://adiary.org/v3man/install2/cgi-cache">CGI動作の高速化</a>を導入してください。</p>
 <$end>
 
+
+	<h3>ログイン</h3>
+
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>パスワードの最低文字数</th>
+		<td<@err.c_pass_min>>
+<@ifexec(!POST && (pm < 8 || pm > 64), begin, begin)>
+			<input type="number" class="w50" value="<@pm>" disabled>文字（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="pass_min" min="8" max="64" class="w50" value="<@pm>">文字（8-64）
+<$end>
+			<span class="help-text">新しく決めるパスワードに効きます。今のパスワードはそのまま使えます。</span>
+		</td>
+	</tr>
+	<tr>
+		<th>ログインの保持日数</th>
+		<td<@err.c_session_days>>
+<@ifexec(!POST && (sd != int(sd) || sd < 1 || sd > 365), begin, begin)>
+			<input type="number" class="w50" value="<@sd>" disabled>日（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="session_days" min="1" max="365" class="w50" value="<@sd>">日（1-365）
+<$end>
+		</td>
+	</tr>
+	<tr>
+		<th>多重ログイン</th>
+		<td>
+			<label><input type="checkbox" name="all_logout" value="1"<@if(if(s.all_logout ne '', s.all_logout, Auth.all_logout), ' checked')>>ログアウトするとき、ほかの端末のログインもすべて切る</label>
+		</td>
+	</tr>
+	<tr>
+		<th>ログインの失敗</th>
+		<td<@err.c_fail_count><@err.c_fail_minute>>
+<@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
+			<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）、
+<$else>
+			<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）失敗したら、
+<$end>
+<@ifexec(!POST && (fm < 1 || fm > 1440), begin, begin)>
+			<input type="number" class="w60" value="<@fm>" disabled>分（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）ログインできなくする
+<$end>
+		</td>
+	</tr>
+	</tbody>
+	</table>
+
+	<h3>アップロードと画像</h3>
+
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>アップロードの上限</th>
+		<td<@err.c_upload_max_mb>>
+<@ifexec(!POST && (mb != int(mb) || mb < 1 || mb > 2048), begin, begin)>
+			<input type="number" class="w60" value="<@mb>" disabled>MB（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="upload_max_mb" min="1" max="2048" class="w60" value="<@mb>">MB（1-2048）
+<$end>
+			<span class="help-text">1回に送る合計の上限です。Webサーバーの設定（nginxのclient_max_body_sizeなど）にも上限があり、低いほうが効きます。</span>
+		</td>
+	</tr>
+	<tr>
+		<th>サムネイルの品質</th>
+		<td<@err.c_album_jpeg_quality><@err.c_album_avif_quality>>
+			JPEG <input type="number" name="album_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.album_jpeg_quality ne '', s.album_jpeg_quality, v.album_jpeg_quality)>">
+			AVIF <input type="number" name="album_avif_quality" min="1" max="100" class="w50" value="<@if(s.album_avif_quality ne '', s.album_avif_quality, v.album_avif_quality)>">（1-100）
+			<span class="help-text">これから作るサムネイルに効きます。今あるサムネイルは変わりません。</span>
+		</td>
+	</tr>
+	</tbody>
+	</table>
 
 	<h3>詳細動作設定</h3>
 

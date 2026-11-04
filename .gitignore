@@ -14,8 +14,7 @@
 #--------------------------------------
 !/lyndbaum.cgi
 !/lyndbaum.fcgi
-!/lyndbaum.env.cgi.sample
-!/lyndbaum.conf.cgi.sample
+!/lyndbaum.user.cgi.sample
 !/CHANGES.txt
 !/index.html
 !/.git-hook/

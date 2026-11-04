@@ -12,10 +12,11 @@ use strict;
 #   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
-#   --quality=60      サムネイルの画質（既定は lyndbaum.conf.cgi の album_avif_quality。無ければ65）
+#   --quality=60      サムネイルの画質（既定はシステム設定の album_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
 #   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
-#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.conf.cgi）
+#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi。
+#                     それが無く 4.27までの lyndbaum.conf.cgi があれば、それを使う）
 #
 # 手順:
 #   1. --run で、原本を片付けてAVIFのサムネイルを作る。前のJPEGのサムネイルは残すので、記事はそのまま見られる
@@ -43,9 +44,11 @@ $dir =~ s|/?$|/|;
 if (!-d $dir) { die "フォルダが無い: $dir\n"; }
 my $data = $opt{data} || "$dir../../data/";
 $data =~ s|/?$|/|;
-my $conf = $opt{conf} || "$dir../../lyndbaum.conf.cgi";
+my $root = "$dir../../";
+my $conf = $opt{conf}
+	|| (!-r "${root}lyndbaum.user.cgi" && -r "${root}lyndbaum.conf.cgi" ? "${root}lyndbaum.conf.cgi" : "${root}lyndbaum.user.cgi");
 
-my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（lyndbaum.conf.cgi の album_image_ext）
+my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（設定の album_image_ext）
 my %CLEAN = map { $_ => 1 } qw(jpg jpeg png apng webp);		# メタ情報を消す形式
 my %VIDEO = map { $_ => 1 } qw(mp4 m4v webm ogv);		# 動画（SatsukiApp::adiary の is_video）
 
@@ -143,9 +146,15 @@ sub thumb_size_setting {
 }
 
 #-------------------------------------------------------------------------------
-# ○AVIFのサムネイルの画質（lyndbaum.conf.cgi の album_avif_quality。アップロードのときと同じ）
+# ○AVIFのサムネイルの画質（album_avif_quality。アップロードのときと同じ）
 #-------------------------------------------------------------------------------
+# 画面で保存した値（システム設定）を先に見る
 sub album_avif_quality_setting {
+	if (open(my $sys, '<', "${data}system_config.dat")) {
+		while(<$sys>) {
+			if (/^album_avif_quality=(\d+)\s*$/) { return $1; }
+		}
+	}
 	open(my $fh, '<', $conf) || return;
 	while(<$fh>) {
 		if (/^<\$v\.album_avif_quality\s*=\s*(\d+)\s*>/) { return $1; }

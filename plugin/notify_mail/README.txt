@@ -11,7 +11,7 @@ Fromアドレスはブログごとに設定できますが、
 サーバによって適切なアドレスでないとメールが送信されないことがあります。
 
 Fromアドレスをブログごとに設定させたくないときは（固定させたいときは）
-lyndbaum.conf.cgiに
+lyndbaum.user.cgiに
 
 <$v.system_email = "your-email@example.com">
 

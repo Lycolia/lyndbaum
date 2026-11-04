@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.27;
+our $VERSION    = 4.28;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.27;
+our $DATA_VERSION = 4.28;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -59,9 +59,6 @@ sub new {
 	$self->{_loaded_bset} = {};
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
 
-	# 現在の日時設定（日付変更時間対策）
-	$self->{now} = $ROBJ->{Now};
-
 	# Cache環境向け Timer のロード
 	if ($ROBJ->{CGI_cache} && $ENV{SatsukiTimer} ne '0' && !$Satsuki::Timer::VERSION) {
 		require Satsuki::Timer;
@@ -78,6 +75,43 @@ sub SetDefaultValue {
 	my $ROBJ = $self->{ROBJ};
 
 	my %h = (
+# フォルダ。Webサーバーの設定もこの場所を前提にしているので、変えない
+pub_dir		=> 'pub/',
+pubdist_dir	=> 'pub/assets/dist/',
+theme_dir	=> 'pub/assets/theme/',
+script_dir	=> 'pub/assets/js/',
+data_dir	=> 'data/',
+info_dir	=> 'info/',
+plugin_dir	=> 'plugin/',
+# 関連ファイル
+system_config_file   => 'data/system_config.dat',
+default_config_file  => 'info/default_config.dat',
+default_usercss_file => 'info/default_usercss.css',
+default_usertag_file => 'info/default_usertag.txt',
+default_setting_file => 'info/default_setting.dat',
+default_design_file  => 'info/default_design.dat',
+allow_tags_head      => 'info/allow_tags_',
+# テーマが読めないときに使うテーマ
+default_theme	=> 'lyndbaum/lyndbaum',
+# パーサー
+parsers		=> {
+	_order	  => [ qw(markdown simple simple_br) ],
+	markdown  => 'Markdown',
+	simple	  => 'HTML（そのまま）',
+	simple_br => 'HTML（改行処理）'
+},
+rss_skeleton	=> '_format/rss20',		# RSS 2.0（コメント含む）
+words_separator	=> '\s　',			# 検索時のスペース類文字（正規表現）
+# アップロードと画像アルバム。ユーザー設定で変えられる
+uplaod_files_max   => 64 * 1048576,		# 1回あたりの合計の上限
+album_jpeg_quality => 80,			# JPEGサムネイルの品質
+album_avif_quality => 65,			# AVIFサムネイルの品質
+album_image_ext    => { map { $_ => 1 } qw(jpg jpeg gif png apng webp avif) },	# 許可する画像の拡張子
+# 画像以外をアップロードしたときのアイコンと、サムネイルに埋め込むファイル情報のフォント
+album_icons	=> 'pub/assets/dist/album-icon/',
+album_font	=> 'pub/assets/dist/VL-PGothic-Regular.ttf',
+album_font_size	=> 11,
+# 内部の設定
 blog_cache_unit  => 100,	# ブログ記事キャッシュ保存時の分割単位
 theme_skeleton_level => 10,
 user_skeleton_level  => 20,
@@ -91,7 +125,7 @@ frame_skeleton	=> '_frame',
 admin_frame_skeleton => '_frame_admin'
 	);
 	foreach(keys(%h)) {
-		$self->{$_} = $h{$_};
+		if (!exists($self->{$_})) { $self->{$_} = $h{$_}; }	# 4.27までの設定ファイルでは、newの前に値を入れてある
 	}
 }
 
@@ -111,13 +145,14 @@ sub main {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
 
+	# 現在の日時設定（日付変更時間対策）。設定ファイルの後に初期化されるので、newでは取れない
+	$self->{now} = $ROBJ->{Now};
+
 	# システム情報のロード
 	my $sys = $self->load_sysdat();
 
-	# 同時ログイン数（システム設定）。無ければ設定ファイルの値のまま
-	if ($sys->{max_sessions}) {
-		$ROBJ->{Auth}->{max_sessions} = $sys->{max_sessions};
-	}
+	# 画面で変えた設定（システム設定）。無ければ既定値かユーザー設定の値のまま
+	$self->apply_sys_settings($sys);
 
 	# Cookieログイン処理
 	$self->authorization();
@@ -1429,6 +1464,26 @@ sub load_sysdat {
 	}
 
 	return $sys;
+}
+
+#-------------------------------------------------------------------------------
+# ●画面で変えた設定を反映する
+#-------------------------------------------------------------------------------
+# 認証とフォームの読み込みより先に呼ぶ。空は「設定していない」、0は値として扱う
+sub apply_sys_settings {
+	my ($self, $sys) = @_;
+	my $auth = $self->{ROBJ}->{Auth};
+
+	if ($sys->{max_sessions}) { $auth->{max_sessions} = $sys->{max_sessions}; }
+	foreach(qw(pass_min all_logout fail_count fail_minute)) {
+		if ($sys->{$_} ne '') { $auth->{$_} = $sys->{$_}; }
+	}
+	if ($sys->{session_days} ne '') { $auth->{expires} = $sys->{session_days} * 86400; }
+
+	foreach(qw(album_jpeg_quality album_avif_quality)) {
+		if ($sys->{$_} ne '') { $self->{$_} = $sys->{$_}; }
+	}
+	if ($sys->{upload_max_mb} ne '') { $self->{uplaod_files_max} = $sys->{upload_max_mb} * 1048576; }
 }
 
 #-------------------------------------------------------------------------------

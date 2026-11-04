@@ -38,6 +38,43 @@
 	max_sessions:min = 1
 	max_sessions:max = 10
 
+	pass_min = パスワードの最低文字数
+	pass_min:type = int
+	pass_min:min = 8
+	pass_min:max = 64
+
+	session_days = ログインの保持日数
+	session_days:type = int
+	session_days:min = 1
+	session_days:max = 365
+
+	all_logout = flag
+
+	fail_count = ログインを止める失敗の回数
+	fail_count:type = int
+	fail_count:min = 3
+	fail_count:max = 100
+
+	fail_minute = ログインを止める時間
+	fail_minute:type = int
+	fail_minute:min = 1
+	fail_minute:max = 1440
+
+	upload_max_mb = アップロードの上限
+	upload_max_mb:type = int
+	upload_max_mb:min = 1
+	upload_max_mb:max = 2048
+
+	album_jpeg_quality = JPEGサムネイルの品質
+	album_jpeg_quality:type = int
+	album_jpeg_quality:min = 1
+	album_jpeg_quality:max = 100
+
+	album_avif_quality = AVIFサムネイルの品質
+	album_avif_quality:type = int
+	album_avif_quality:min = 1
+	album_avif_quality:max = 100
+
 	edit_lock_interval = 同時編集の確認間隔
 	edit_lock_interval:type = int
 	edit_lock_interval:default = 60

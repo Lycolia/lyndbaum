@@ -158,7 +158,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.27$/m, 'バージョンが今のデータのバージョン（4.27）になる');
+	like(read_file($sys), qr/^VERSION=4\.28$/m, 'バージョンが今のデータのバージョン（4.28）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -212,6 +212,89 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 };
 
 #-------------------------------------------------------------------------------
+# 画面で変える設定（ログイン、アップロード、画像）
+#-------------------------------------------------------------------------------
+subtest 'システム設定：ログイン、アップロード、画像' => sub {
+	my $sys = "$dir/data/system_config.dat";
+	my $form = sub {
+		my $b = body($app->get('admin', 'system/setting'));
+		my %f = map { $_ => '' } qw(mainte_txt);
+		while ($b =~ /<input[^>]*type="number"[^>]*>/g) {
+			my $t = $&;
+			my ($n) = $t =~ /name="(\w+)"/;
+			my ($v) = $t =~ /value="([^"]*)"/;
+			if (defined $n) { $f{$n} = $v; }
+		}
+		return %f;
+	};
+	my $save = sub {
+		my %set = @_;
+		return $app->post('admin', 'system/setting', { $form->(), %set, action => 'system/setting' });
+	};
+	my $field = sub {
+		my ($name, $val, $msg) = @_;
+		like(body($app->get('admin', 'system/setting')), qr{name="$name"[^>]*value="$val"}, $msg);
+	};
+
+	$field->('pass_min', 8, 'パスワードの最低文字数は、何も保存していなければ既定値');
+	$field->('session_days', 14, 'ログインの保持日数は、何も保存していなければ既定値');
+	$field->('fail_count', 15, 'ログインの失敗の回数は、何も保存していなければ既定値');
+	$field->('upload_max_mb', 64, 'アップロードの上限は、何も保存していなければ既定値');
+	$field->('album_avif_quality', 65, 'AVIFの品質は、何も保存していなければ既定値');
+
+	# 範囲の外は保存できない（ほかの欄は今の値のまま送る。前のテストの保存で、今の値が入っていることがある）
+	$app->user_add('admin', 'syslock', 0);	# パスワードの最低文字数を上げる前に作っておく
+	# 書き戻すと行の順番が変わるので、この項目の行だけを比べる
+	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count|fail_minute|upload_max_mb|album_jpeg_quality|album_avif_quality)=/ } split(/\n/, read_file($sys))) };
+	my $before = $saved->();
+	foreach my $bad ([pass_min => 7], [pass_min => 65], [session_days => 0], [session_days => 366],
+		[fail_count => 0], [fail_count => 2], [fail_count => 101], [fail_minute => 0], [fail_minute => 1441],
+		[upload_max_mb => 0], [upload_max_mb => 2049], [album_jpeg_quality => 0], [album_avif_quality => 101]) {
+		ok(!AppTest::is_reload($save->(@$bad)), "$bad->[0]=$bad->[1] は保存できない");
+	}
+	$field->('pass_min', 8, '保存できなかったときは前の値のまま');
+	is($saved->(), $before, '保存できなかったときは、ファイルを変えない');
+
+	# 管理者以外は保存できない
+	$app->post('owner', 'system/setting', { action => 'system/setting', pass_min => 20 });
+	is($saved->(), $before, 'ブログの管理者は保存できない');
+
+	# 値が効く
+	ok(AppTest::is_reload($save->(pass_min => 20, fail_count => 3, fail_minute => 5, upload_max_mb => 1, album_avif_quality => 40, session_days => 30, all_logout => 1)), '保存できる');
+	$field->('pass_min', 20, '保存した値が欄に出る');
+	like(read_file($sys), qr/^session_days=30$/m, '保存した値がファイルに入る');
+	like(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'ONにした項目が欄に出る');
+
+	# パスワードの最低文字数は、新しいパスワードに効く
+	mkdir("$dir/__cache");	# 書き込みの確認で、フォームが出るように
+	like(body($app->get('admin', 'user/add')), qr{>20文字<}, 'パスワードの最低文字数が画面に出る');
+	unlink(glob("$dir/__cache/*"));
+	rmdir("$dir/__cache");
+	my $add = sub {
+		my ($id, $pass) = @_;
+		return ($app->post('admin', '', { action => '_ajax_user_add', adiary_id => $id, name => $id, pass => $pass, pass2 => $pass, email => '', isadmin => 0 })->{json} || {})->{ret};
+	};
+	isnt($add->('shortpass', 'abcdefgh1'), '0', '最低文字数より短いパスワードでは、ユーザーを作れない');
+	is($add->('longpass', 'abcdefgh1abcdefgh1ab'), '0', '最低文字数を満たせば、ユーザーを作れる');
+
+	# ログインの失敗の回数
+	my $try = sub { ($app->post('guest', '', { action => '_ajax_login', adiary_id => 'syslock', pass => shift })->{json} || {})->{ret} };
+	$try->('wrong-pass') foreach (1..3);
+	isnt($try->($AppTest::PASS), '0', '保存した回数（3回）で、正しいパスワードでも止まる');
+
+	# アップロードの上限
+	my $r = $app->post('owner', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
+		file_ary => { filename => 'sysmax.txt', content => 'x' x (1048576 + 1024), type => 'text/plain' } ]);
+	ok(!-e "$dir/pub/attachments/test/sysmax.txt", '保存した上限（1MB）を超えると受け付けない');
+
+	# 空にすると既定値に戻す
+	ok(AppTest::is_reload($save->(pass_min => '', fail_count => '', fail_minute => '', upload_max_mb => '', album_avif_quality => '', session_days => '', all_logout => 0)), '空で保存できる');
+	$field->('pass_min', 8, '空にすると既定値に戻る');
+	$field->('upload_max_mb', 64, '空にすると既定値に戻る（上限）');
+	unlike(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'OFFにできる');
+};
+
+#-------------------------------------------------------------------------------
 # パスワードのbcrypt化（4.23）
 #-------------------------------------------------------------------------------
 subtest 'アップデート処理でのパスワードの再設定' => sub {
@@ -250,7 +333,7 @@ subtest 'アップデート処理でのパスワードの再設定' => sub {
 	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
 	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
 	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
-	like(read_file($sys), qr/^VERSION=4\.27$/m, '版が今のデータのバージョン（4.27）になる');
+	like(read_file($sys), qr/^VERSION=4\.28$/m, '版が今のデータのバージョン（4.28）になる');
 	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
 	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
 	$app->login('admin');
@@ -270,6 +353,12 @@ subtest 'アップデート処理で、設定ファイルにAVIFの画質を足�
 	};
 	my $sys  = "$dir/data/system_config.dat";
 	my $file = "$dir/lyndbaum.conf.cgi";
+	my $bak  = "$dir/data/lyndbaum.conf.cgi.428.bak";	# 4.28の処理で、設定ファイルはここへ移る
+	# 4.27までの形（ユーザー設定が無く、lyndbaum.conf.cgiがある）にする
+	my $old_conf = sub {
+		$write->($file, shift);
+		unlink("$dir/lyndbaum.user.cgi");
+	};
 	my $update = sub {
 		my $t = read_file($sys);
 		$t =~ s/^VERSION=.*$/VERSION=4.24/m;
@@ -278,25 +367,25 @@ subtest 'アップデート処理で、設定ファイルにAVIFの画質を足�
 	};
 
 	# 4.24までの設定ファイル（AVIFの画質の行が無い）にする
-	my $conf = read_file($file);
-	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '見本からAVIFの画質の行を消す');
-	$write->($file, $conf);
+	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
+	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '4.27の見本からAVIFの画質の行を消す');
+	$old_conf->($conf);
 
 	ok(AppTest::is_reload($update->()), 'アップデート処理を行える');
-	my $new = read_file($file);
+	my $new = read_file($bak);
 	like($new, qr{^<\$v\.album_jpeg_quality = 80>\n\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n}m, 'JPEGの画質の行の後に、AVIFの画質の行が入る');
 	is(scalar(() = $new =~ /album_avif_quality/g), 1, 'AVIFの画質の行は1つ');
 	is(read_file("$dir/data/lyndbaum.conf.cgi.425.bak"), $conf, '書き換える前のファイルを写しておく');
 
+	$old_conf->($new);
 	ok(AppTest::is_reload($update->()), 'もう一度アップデート処理を行える');
-	is(read_file($file), $new, '行があれば、設定ファイルは変わらない');
+	is(read_file($bak), $new, '行があれば、設定ファイルは変わらない');
 
 	# # で止めてある行も、その人が決めたことなので触らない
 	(my $off = $conf) =~ s/^(<\$v\.album_jpeg_quality = 80>\n)/$1#<\$v.album_avif_quality = 50>\n/m;
-	$write->($file, $off);
+	$old_conf->($off);
 	ok(AppTest::is_reload($update->()), '止めてある行があってもアップデート処理を行える');
-	is(read_file($file), $off, '止めてある行があれば、設定ファイルは変わらない');
-	$write->($file, $new);	# 後のテストのために戻す
+	is(read_file($bak), $off, '止めてある行があれば、設定ファイルは変わらない');
 };
 
 #-------------------------------------------------------------------------------
@@ -312,9 +401,10 @@ subtest '標準記法の削除' => sub {
 
 	# 4.21までの設定ファイルと、標準記法を既定にしたブログ
 	my $cf = "$dir/lyndbaum.conf.cgi";
-	my $conf = read_file($cf);
+	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
 	$conf =~ s/^(\tmarkdown\s*=.*\n)/$1\tdefault       = 標準（改行処理）\n\tdefault_p1    = １行＝１段落\n\tdefault_p2    = 空行で段落処理\n/m;
 	$write->($cf, $conf);
+	unlink("$dir/lyndbaum.user.cgi");
 	my $bs = "$dir/data/blog/setting.dat";
 	my $set = read_file($bs);
 	$set =~ s/^parser=.*$/parser=default/m;
@@ -325,8 +415,9 @@ subtest '標準記法の削除' => sub {
 	$write->($sys, $sc);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	unlike(read_file($cf), qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
-	like(read_file($cf), qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
+	my $moved = read_file("$dir/data/lyndbaum.conf.cgi.428.bak");	# 4.28の処理で、設定ファイルはここへ移る
+	unlike($moved, qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
+	like($moved, qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
 	ok(-e "$dir/data/lyndbaum.conf.cgi.422.bak", '書き換える前の設定ファイルの控えを残す');
 	like(read_file($bs), qr/^parser=markdown$/m, 'ブログの既定のパーサーがMarkdownになる');
 
