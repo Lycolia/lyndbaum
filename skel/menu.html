@@ -1,5 +1,5 @@
 <@7>
-<@local(glance_arts,glance_coms,trash)>
+<@local(glance_arts,glance_coms,trash,need_info)>
 <$ifjump_clear(! Auth.ok, '_sub/error_message_403', 'ログインしていません')>
 
 <@> システムモード
@@ -16,16 +16,18 @@
 <@parse_special_block>
 
 <!--=========================================================================-->
+<@> 知らせがあるときだけ出す。アップデートが必要なときの知らせは、管理画面の枠（_sub/require_update_notice）で出す
+<$need_info = Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2)>
+<@ifexec(Auth.auto || need_info || v.blog.newcom_flag, begin)>
 <article class="system">
-<h2><@v.title></h2>
+<h2>お知らせ</h2>
 <div class="body">
 	<@ifexec(Auth.auto, begin)>
 		<p><a href="<@myself>?user/add">最初に管理者を作ってください</a></p>
 	<$end>
 
 <@ifexec(!Auth.auto, begin)>
-	<@> アップデートが必要なときの知らせは、管理画面の枠（_sub/require_update_notice）で出す
-	<@ifexec(Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2), begin)>
+	<@ifexec(need_info, begin)>
 		<p><a href="<@v.myself>?system/update">付加情報の再生成</a>が必要です。</p>
 	<$end>
 
@@ -34,10 +36,9 @@
 	<$end>
 
 	<$end>
-
-	<p>ユーザー <@Auth.id></p>
 </div>
 </article>
+<$end>
 
 <@>
 <@> 概要の1行。argv : 種類（art/page）, 公開（1/0/draft）, 見出し

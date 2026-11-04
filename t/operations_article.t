@@ -337,6 +337,8 @@ subtest 'ダッシュボード' => sub {
 	ok(AppTest::is_reload($r), 'ページの下書きを保存できる');
 
 	my $b = body($app->get('admin', 'menu'));
+	unlike($b, qr{<p>ユーザー }, 'ユーザーのカードを出さない');
+	unlike($b, qr{<h2>ダッシュボード</h2>}, 'ダッシュボードの見出しの箱を出さない');
 	my ($glance) = $b =~ m{<ul class="dashboard-glance">(.*?)</ul>}s;
 	my @rows;
 	while (($glance // '') =~ m{<li><a href="[^"]*\?([^"]*)">([^<]+)</a><span class="dashboard-count">(\d+)件</span></li>}g) {
