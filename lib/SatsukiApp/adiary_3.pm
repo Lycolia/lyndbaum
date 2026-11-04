@@ -854,6 +854,7 @@ sub create_folder {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 
 	my $r = $ROBJ->mkdir("$dir$name") ? 0 : 1;
 	$ROBJ->mkdir("$dir$name/.thumbnail");
@@ -874,6 +875,7 @@ sub rename_folder {
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 
 	return rename("$dir$old", "$dir$name") ? 0 : 1;
 }
@@ -924,6 +926,13 @@ sub move_files {
 			$self->remove_trash_timestamp($des);
 		}
 		#---------------------------------
+		# 許可していない拡張子
+		#---------------------------------
+		if (!$self->album_check_ext($des)) {
+			push(@fail, $_);
+			next;
+		}
+		#---------------------------------
 		# 同じファイル名が存在する
 		#---------------------------------
 		if (-e "$to$des") {
@@ -972,6 +981,7 @@ sub rename_file {
 	my $name = $form->{name};
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 	if (-e "$dir$name") { return 1; }	# 同じ名前のファイルを上書きしない
 
 	my $r  = rename("$dir$old", "$dir$name");
@@ -1138,7 +1148,8 @@ sub album_check_ext {
 	# if ($self->{trust_mode}) { return 1; }	## 危険すぎるので無効に
 	$self->load_album_allow_ext();
 
-	while($f =~ /^(.*)\.([^\.]+)$/) {
+	# 空の拡張子も確かめる（x.php. や x.php..png で確認が止まらないように）
+	while($f =~ /^(.*)\.([^\.]*)$/) {
 		$f = $1;
 		if (!$self->album_check_ext_one($2)) { return 0; }
 	}

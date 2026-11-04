@@ -36,7 +36,7 @@ HTML
   <$end>
 <$end>
 <$ifset(ps.all eq '', ps.all, 1)>
-<input type="hidden" name="all" value="<@if(exists(Query.all), Query.all, ps.all)>">
+<input type="hidden" name="all" value="<@esc(if(exists(Query.all), Query.all, ps.all))>">
 </form>
 </div>
 HTML

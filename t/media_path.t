@@ -155,4 +155,93 @@ subtest 'アップロードした名前の使えない文字は _ になる' => 
 	}
 };
 
+#-------------------------------------------------------------------------------
+# 許可していない拡張子
+#-------------------------------------------------------------------------------
+subtest 'ファイル名の変更で、許可していない拡張子にできない' => sub {
+	touch("$img/test/ext.txt");
+	foreach my $name ('x.html', 'x.php', 'X.HTML', 'x.html.', 'x.php.', 'x.php..png', 'x.html.png', 'x..#20260101-000000php') {
+		my $r = $app->post('admin', '', { action => 'media/rename_file', folder => 'test/', old => 'ext.txt', name => $name });
+		is(json_ret($r), '-1',       "$name には変えられない");
+		ok(-f "$img/test/ext.txt",   "$name: 元のファイルは残る");
+		ok(!-e "$img/test/$name",    "$name: ファイルができない");
+	}
+	foreach my $name ('y.txt', 'a.tar.gz', 'noext', 'ext.txt') {
+		my $old = (grep { -e "$img/test/$_" } qw(ext.txt y.txt a.tar.gz noext))[0];
+		my $r = $app->post('admin', '', { action => 'media/rename_file', folder => 'test/', old => $old, name => $name });
+		is(json_ret($r), '0',        "$name には変えられる");
+		ok(-f "$img/test/$name",     "$name: 名前が変わる");
+	}
+	unlink("$img/test/ext.txt");
+};
+
+subtest 'フォルダ名を、許可していない拡張子にできない' => sub {
+	my $r;
+	foreach my $name ('x.php', 'x.php/', 'x.html.') {
+		$r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => $name });
+		is(json_ret($r), '-1',       "$name は作れない");
+		ok(!-e "$img/$name",         "$name: フォルダができない");
+	}
+	$r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => '2025.06' });
+	is(json_ret($r), '0',            '数字の部分はフォルダ名に使える');
+
+	foreach my $name ('x.php', 'x.php/') {
+		$r = $app->post('admin', '', { action => 'media/rename_folder', folder => '/', old => '2025.06', name => $name });
+		is(json_ret($r), '-1',       "$name には変えられない");
+		ok(-d "$img/2025.06",        "$name: 元のフォルダは残る");
+	}
+	$r = $app->post('admin', '', { action => 'media/rename_folder', folder => '/', old => '2025.06', name => 'renamed/' });
+	is(json_ret($r), '0',            '普通の名前には変えられる');
+	$r = $app->post('admin', '', { action => 'media/delete_folder', folder => 'renamed/' });
+	is(json_ret($r), '0',            '消せる');
+};
+
+subtest 'ゴミ箱から戻して、許可していない拡張子にできない' => sub {
+	my $trash = "$img/.trashbox";
+	mkdir($trash);
+	foreach (['x..#20260101-000000php', 'x.php'], ['y.p.#20260101-000000hp', 'y.php'], ['z.html.#20260101-000000', 'z.html']) {
+		my ($name, $des) = @$_;
+		touch("$trash/$name");
+		my $r = $app->post('admin', '', { action => 'media/move_files', from => '.trashbox/', to => 'test/', file_ary => $name });
+		is(json_ret($r), '1',        "$name は戻せない");
+		ok(-f "$trash/$name",        "$name: ゴミ箱に残る");
+		ok(!-e "$img/test/$des",     "$des ができない");
+		unlink("$trash/$name");
+	}
+
+	# ゴミ箱の中どうしで動かしても、日付は外れない
+	mkdir("$trash/sub");
+	touch("$trash/inner.txt.#20260101-000000");
+	my $r = $app->post('admin', '', { action => 'media/move_files', from => '.trashbox/', to => '.trashbox/sub/', file_ary => 'inner.txt.#20260101-000000' });
+	is(json_ret($r), '0',            'ゴミ箱の中で動かせる');
+	ok(-f "$trash/sub/inner.txt.#20260101-000000", '名前は変わらない');
+
+	# 普通のファイルは行き来できる
+	touch("$img/test/normal.txt");
+	$r = $app->post('admin', '', { action => 'media/move_files', from => 'test/', to => '.trashbox/', file_ary => 'normal.txt' });
+	is(json_ret($r), '0',            '普通のファイルをゴミ箱へ入れられる');
+	my ($stamped) = map { s!.*/!!r } glob("$trash/normal.*");
+	$r = $app->post('admin', '', { action => 'media/move_files', from => '.trashbox/', to => 'test/', file_ary => $stamped });
+	is(json_ret($r), '0',            'ゴミ箱から戻せる');
+	ok(-f "$img/test/normal.txt",    '元の名前に戻る');
+	unlink("$img/test/normal.txt");
+};
+
+subtest 'アップロードで、空の拡張子を使った名前を通さない' => sub {
+	my $png = do {
+		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
+		local $/; <$fh>;
+	};
+	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
+		file_ary => { filename => 'x.php..png', content => $png, type => 'image/png' } ]);
+	like($r->{body}, qr/^ret=0$/m,   'x.php..png は名前を直してアップロードする');
+	ok(!-e "$img/test/x.php..png",   'その名前では保存しない');
+	ok(-f "$img/test/x_php_.png",    '. を _ にして保存する');
+	unlink("$img/test/x_php_.png");
+
+	$r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
+		file_ary => { filename => 'x.html.', content => 'x', type => 'text/plain' } ]);
+	ok(!-e "$img/test/x.html.",      'x.html. は保存しない');
+};
+
 done_testing();
