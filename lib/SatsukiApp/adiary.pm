@@ -56,7 +56,6 @@ sub new {
 
 	# ディフォルト値の設定
 	$self->SetDefaultValue();
-	$self->{_loaded_bset} = {};
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
 
 	# Cache環境向け Timer のロード
@@ -410,21 +409,20 @@ sub exists_blog {
 #-------------------------------------------------------------------------------
 # ※書き換えは瞬時に反映され、$blog->{_update}=1 ならばプログラム終了時に保存される。
 sub load_blogset {
-	my ($self, $default) = @_;	# '*' = 新しいブログの既定値
+	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $key  = $default eq '*' ? '*' : '';
-	if ($self->{_loaded_bset}->{$key}) { return $self->{_loaded_bset}->{$key}; }
-	if ($key eq '' && !$self->exists_blog()) { return undef; }
+	if ($self->{_loaded_bset}) { return $self->{_loaded_bset}; }
+	if (!$self->exists_blog()) { return undef; }
 
 	my $file = $self->blog_dir() . 'setting.dat';
-	if ($key eq '*' || !-e $file) {
+	if (!-e $file) {
 		$file = $self->{default_setting_file};
 	}
 
 	# 設定のロード
 	my $blog = $ROBJ->fread_hash_cached($file);
 	if (%$blog) {
-		$self->{_loaded_bset}->{$key} = $blog;
+		$self->{_loaded_bset} = $blog;
 	}
 	return $blog;
 }
@@ -543,14 +541,11 @@ sub users_check {
 sub save_blogset_sys {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $x = $self->{'_loaded_bset'};
+	my $h = $self->{_loaded_bset};
 
-	foreach(keys(%$x)) {
-		my $h = $x->{$_};
-		if ($_ eq '*' || ref($h) ne 'HASH' || !$h->{_update}) { next; }
-		delete $h->{_update};
-		$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
-	}
+	if (!$h || !$h->{_update}) { return; }
+	delete $h->{_update};
+	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
 }
 
 ################################################################################
