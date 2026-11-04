@@ -81,7 +81,7 @@ sub import_arts {
 		#---------------------------------------------------------------
 		# XML デコード
 		#---------------------------------------------------------------
-		$self->tag_dencode_for_xml($art{title}, $art{category}, $art{tags}, $art{name}, $art{agent}, $art{text});
+		$self->tag_dencode_for_xml($art{title}, $art{category}, $art{tags}, $art{text});
 
 		#---------------------------------------------------------------
 		# コメントの解析

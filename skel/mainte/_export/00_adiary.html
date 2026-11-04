@@ -11,7 +11,7 @@
 	<p>標準形式です。すべての記事情報をバックアップできます。</p>
 	<ul class="none">
 		<li><label><input type="checkbox" name="adiary:key2tm" value="1" checked>記事番号指定によるブログ内リンクを時刻指定リンクに書き換え</label><span class="help-text">インポート先で記事番号（pkey）が変わってもlink/key記法によるブログ内のリンクを保持できます。</span></li>
-		<li><label><input type="checkbox" name="adiary:no_writer" value="1">投稿者情報を出力しない（ID, 名前, IP/USER_AGENT等）</label></li>
+		<li><label><input type="checkbox" name="adiary:no_writer" value="1">コメントの投稿者情報を出力しない（IP/HOST/USER_AGENT）</label></li>
 	</ul>
 
 	<button class="export" name="file" value="00_adiary">adiary形式で保存</button>
@@ -55,13 +55,6 @@
 	priority="<@t.priority>"
 	upnode="<@tag_escape_amp(t.upnode)>"
 <@>
-<@ifexec(!opt.no_writer, begin)>
-	name="<@tag_escape_amp(t.name)>"
-	id="<@t.id>"
-	ip="<@t.ip>"
-	host="<@tag_escape_amp(t.host)>"
-	agent="<@tag_escape_amp(t.agent)>"
-<$end>
 />
 <body><@tag_escape_amp(t._text)></body>
 <@>

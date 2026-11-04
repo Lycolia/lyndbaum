@@ -223,7 +223,7 @@ sub setup {
 	my $r = $self->get('root*', 'login_auto');
 	die "login_auto failed: $r->{status}" if (!$self->{cookie}->{'root*'}->{session});
 
-	$self->user_add('root*', 'admin', 1);
+	$self->user_add('root*', 'admin');
 	$self->login('admin');
 	delete $self->{cookie}->{'root*'};
 
@@ -275,7 +275,7 @@ sub is_reload {
 }
 
 sub user_add {
-	my ($self, $by, $id, $isadmin) = @_;
+	my ($self, $by, $id) = @_;
 	my $r = $self->post($by, '', {
 		action    => '_ajax_user_add',
 		adiary_id => $id,
@@ -283,7 +283,6 @@ sub user_add {
 		pass      => $PASS,
 		pass2     => $PASS,
 		email     => '',
-		isadmin   => $isadmin ? 1 : 0,
 	});
 	if (!$r->{json} || $r->{json}->{ret} ne '0') {
 		die "user_add $id failed: $r->{body}";
@@ -291,9 +290,9 @@ sub user_add {
 }
 
 #-------------------------------------------------------------------------------
-# ●管理者でないユーザーをDBに直接入れる（パスワードは管理者と同じ）
+# ●ユーザーをDBに直接入れる（パスワードは管理者と同じ）
 #-------------------------------------------------------------------------------
-# 画面からは作れない。4.31より前のデータと、ログインの試験に使う
+# 画面からは作れない。ログインの試験に使う
 sub insert_user {
 	my ($self, $id) = @_;
 	require Satsuki::Base;
@@ -301,7 +300,7 @@ sub insert_user {
 	my $DB   = $ROBJ->loadpm('DB_text', "$self->{dir}/data/db/");
 	my $admin = $DB->select_match_limit1('_users', 'id', 'admin');
 	$DB->begin();
-	$DB->insert('_users', { id => $id, name => $id, email => '', pass => $admin->{pass}, isadmin => 0 });
+	$DB->insert('_users', { id => $id, name => $id, email => '', pass => $admin->{pass} });
 	if ($DB->commit()) { die "insert_user $id failed"; }
 }
 

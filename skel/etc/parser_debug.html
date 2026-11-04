@@ -26,7 +26,6 @@
 	<div class="body-header">
 		<@ifexec(t.priority && t.tm, begin)><span class="write-date"><@print_tmf('%Y/%m/%d %H:%M ', t.tm)></span><$end>
 		<@ifexec(t.tags, begin)><span class="tags"><@v.make_taglinks(t.tags)></span><$end>
-		<span class="author"><@t.name></span>
 		<@ifexec(v.check_editor(t), begin)><a href="<@v.myself2>0<@t.pkey>?edit" class="edit-article">（編集）</a><$end>
 	</div>
 <div class="body-main">

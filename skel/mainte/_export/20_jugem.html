@@ -97,7 +97,7 @@ $(function(){
 <$t = argv#0>
 <entry>
 <title><@esc_xml(t.title)></title>
-<author><@esc_xml(t.name)></author>
+<author><@esc_xml(v.admin_name())></author>
 <category><@esc_xml(t.tags_ary#0)></category>
 <date><@print_tmf("%Y/%m/%d %H:%M:%S", t.tm, 0)></date>
 <$exporter.cdata_escape(t.body, t.ex_body)>

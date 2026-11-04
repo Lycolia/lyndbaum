@@ -31,7 +31,6 @@
 		<th>種類</th>
 		<th>タイトル</th>
 		<th>タグ</th>
-		<th>投稿者</th>
 		<th>コメント</th>
 	</tr></thead>
 	<tbody class="small">
@@ -43,7 +42,6 @@
 		<td class="c"><label for="trash-<@t.pkey>"><@t.ctype></label></td>
 		<td class="list-wide"><label for="trash-<@t.pkey>" title="<@t.pkey>"><@t.title></label></td>
 		<td class="c list-wrap"><label for="trash-<@t.pkey>"><@forexec(x, split(',', t.tags), begin)><span><@x></span> <$end></label></td>
-		<td><@t.name></td>
 		<td class="r"><@t.coms_all></td>
 	</tr>
 	<$end>

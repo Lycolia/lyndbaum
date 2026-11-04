@@ -274,6 +274,7 @@ sub drop_column {
 	delete $self->{"$table.unique"}->{$column};
 	delete $self->{"$table.notnull"}->{$column};
 	delete $self->{"$table.idx"}->{$column};
+	delete $self->{"$table.default"}->{$column};
 
 	# 削除カラムのデータ消去
 	$self->load_allrow($table);

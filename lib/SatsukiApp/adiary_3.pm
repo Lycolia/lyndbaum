@@ -1337,7 +1337,7 @@ sub edit_articles {
 ################################################################################
 # ■ゴミ箱
 ################################################################################
-# _trash    : 記事テーブルと同じカラム + deleted_tm, deleted_id
+# _trash    : 記事テーブルと同じカラム + deleted_tm
 # _trashcom : コメントテーブルと同じカラム
 # pkeyは元の記事/コメントのpkeyをそのまま使う（pkeyは再利用されないので戻せる）
 #-------------------------------------------------------------------------------
@@ -1360,7 +1360,6 @@ sub move_articles_to_trash {
 		$DB->delete_match("trash",    'pkey',   $pkey);
 
 		$art->{deleted_tm} = $ROBJ->{TM};
-		$art->{deleted_id} = $ROBJ->{Auth}->{id};
 		if (!$DB->insert("trash", $art)) {
 			$ROBJ->message("Can't move to trash: %s", $art->{title});
 			next;
@@ -1390,7 +1389,7 @@ sub load_trash_list {
 	if (!$self->{blog_admin}) { return []; }
 
 	return $DB->select_match("trash", '*sort', '-deleted_tm',
-		'*cols', [qw(pkey title tags ctype link_key name id yyyymmdd coms_all enable deleted_tm deleted_id)]);
+		'*cols', [qw(pkey title tags ctype link_key yyyymmdd coms_all enable deleted_tm)]);
 }
 
 # 操作できるゴミ箱の記事に絞る

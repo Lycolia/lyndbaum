@@ -95,37 +95,19 @@ sub start_up {
 	my $cgi = $0;
 
 	my $user;	# ユーザー設定（無くてもよい）
-	my $env;	# 4.27までの設定
-	my $conf;	# 4.27までの設定
 	if ($cgi =~ m!(?:^|/)([^/\.]*)[^/]*$!) {
 		$user  = $1 . '.user.cgi';
-		$env   = $1 .  '.env.cgi';
-		$conf  = $1 . '.conf.cgi';
 	} else {
-		$user = $env = $conf = '__(internal_error)__';
+		$user = '__(internal_error)__';
 	}
 
-	if (!-r $user && -r $conf) {
-		# 4.27までの設定ファイル。アップデート処理（sys_update_428）で移すまでは、今までどおり動かす
-		if (-r $env) {
-			$self->_call($env);
-		}
-		$self->init_tm();
-		$self->init_path();
-
-		$self->{User_file}   = $user;	# 以下はアップデート処理で使う
-		$self->{Env_file}    = $env;
-		$self->{Conf_file}   = $conf;
-		$self->{Conf_result} = $self->_call($conf);
-	} else {
-		# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
-		$self->setup_main();
-		if (-r $user) {
-			$self->_call($user);
-		}
-		$self->init_tm();
-		$self->init_path();
+	# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
+	$self->setup_main();
+	if (-r $user) {
+		$self->_call($user);
 	}
+	$self->init_tm();
+	$self->init_path();
 
 	# 致命的エラーがあった場合、表示して終了
 	if ($self->{Error_flag}) {
@@ -137,14 +119,7 @@ sub start_up {
 	# メインルーチンの実行
 	# ※Perlの側からredirect()などを呼ぶとdie("Break")で抜けてくるので、ここで受け止める。
 	#   受け止めないとfinish()が動かず、出力の後ろに500のエラーが付く
-	my $main = $self->{Main};
-	eval {
-		if (defined $main && $main->can('main')) {
-			$main->main();
-		} else {
-			$self->main();	# すぐ下のルーチン
-		}
-	};
+	eval { $self->{Main}->main(); };
 	if ($@ && $@ !~ /^Break\b/) { die $@; }
 }
 
@@ -152,8 +127,6 @@ sub start_up {
 # ●DB、ログイン、本体を作る
 #-------------------------------------------------------------------------------
 # 既定値は、できるだけそれぞれのnewに持つ。
-# admin_trust_modeとAuthのstart_upは、4.27までの設定ファイルで止めている環境の動きを変えないように、
-# それぞれのnewではなくここで設定する（4.27までの設定ファイルで動くときは、ここを通らない）
 sub setup_main {
 	my $self = shift;
 
@@ -174,14 +147,6 @@ sub setup_main {
 	$auth->{start_up} = 1;		# ユーザー未登録時に無条件に承認し管理権限を与える
 
 	$self->{v} = $self->{Main} = $self->loadapp('adiary', $db, { admin_trust_mode => 1 });
-}
-
-#-------------------------------------------------------------------------------
-# ●conf.cgi の中身をそのまま出力するだけのメインルーチン
-#-------------------------------------------------------------------------------
-sub main {
-	my $self = shift;
-	$self->output($self->{Conf_result});
 }
 
 #-------------------------------------------------------------------------------

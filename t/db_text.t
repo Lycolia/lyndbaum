@@ -83,6 +83,36 @@ is($DB->select_match_limit1('art', 'title', 'abc')->{title}, 'abc', '先にあ�
 }
 
 #-------------------------------------------------------------------------------
+# drop_column
+#-------------------------------------------------------------------------------
+{
+	$DB->create_table('drop', [
+		{ name => 'title', type => 'text' },
+		{ name => 'who',   type => 'text', index => 1, not_null => 1 },
+		{ name => 'num',   type => 'int' },
+	]);
+	$DB->insert('drop', { title => 'abc', who => 'me', num => 1 });
+	$DB->add_column('drop', { name => 'def', type => 'text', default => 'x' });
+
+	is($DB->drop_column('drop', 'who'), 0, 'indexとNOT NULLのカラムを消す');
+	is($DB->drop_column('drop', 'def'), 0, '既定値のカラムを消す');
+	foreach my $f ('drop/#index.dat', 'drop/#index.backup.dat') {
+		my $lines = &read_index($f);
+		is($lines->[3], "num\tpkey\ttitle", "$f のカラムの一覧から消える");
+		is($lines->[11], 'pkey', "$f のindexから消える");
+		is($lines->[10], "\t\t", "$f の既定値から消える");
+	}
+	is($DB->drop_column('drop', 'none'), 9, '無いカラムは消せない');
+
+	my $row = $DB->select_match_limit1('drop', 'title', 'abc');
+	ok(!exists($row->{who}), '行の値が消える');
+	is($row->{num}, 1, 'ほかのカラムは残る');
+	my $pkey = $DB->insert('drop', { title => 'new' });
+	ok($pkey, 'NOT NULLのカラムを消した後は、無くても入れられる');
+	is($DB->update_match('drop', { num => 2 }, 'pkey', $pkey), 1, '消した後も更新できる');
+}
+
+#-------------------------------------------------------------------------------
 # NOT NULL
 #-------------------------------------------------------------------------------
 {

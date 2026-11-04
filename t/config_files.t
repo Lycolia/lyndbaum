@@ -7,7 +7,6 @@ use utf8;
 #
 # ・ユーザー設定が無くても動く
 # ・ユーザー設定で、コードの既定値と、初期化より前に要る値を変えられる
-# ・4.27までの設定ファイルは、アップデート処理の前は今までどおり動き、処理でユーザー設定へ移る
 #
 use FindBin;
 BEGIN { push(@INC, "$FindBin::Bin/lib", "$FindBin::Bin/../lib"); }
@@ -20,8 +19,6 @@ binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo
 my $app  = AppTest->new()->setup();
 my $dir  = $app->dir;
 my $user = "$dir/lyndbaum.user.cgi";
-my $conf = "$dir/lyndbaum.conf.cgi";
-my $env  = "$dir/lyndbaum.env.cgi";
 my $sys  = "$dir/data/system_config.dat";
 my $PRAGMA = "<\@20>\n<\@#>\n";
 
@@ -61,7 +58,6 @@ sub today_ymd {
 #-------------------------------------------------------------------------------
 subtest 'ユーザー設定が無くても動く' => sub {
 	ok(!-e $user, 'ユーザー設定が無い');
-	ok(!-e $conf, '4.27までの設定ファイルも無い');
 	is($app->get('guest', '')->{status}, 200, '公開画面が出る');
 	is($app->get('admin', 'menu')->{status}, 200, '管理画面が出る（最初の管理者は作ってある）');
 	ok(!locked_after_2_fails(), 'コードの既定値（2回の失敗では止めない）で動く');
@@ -137,103 +133,6 @@ subtest 'アップロード' => sub {
 	ok(!$upload->('admin', 'over.txt', 2048), 'ユーザー設定の上限を超えると受け付けない');
 	unlink($user);
 	ok($upload->('admin', 'again.txt', 2048), 'ユーザー設定を消すと、既定の上限に戻る');
-};
-
-#-------------------------------------------------------------------------------
-# 4.27までの設定ファイル。4.27の見本を元に、手で変えた形にする
-#-------------------------------------------------------------------------------
-my $sample = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
-my $old = $sample;
-$old =~ s/^<\$v\.uplaod_files_max = 64M>$/<\$v.uplaod_files_max = 256M>/m || die;
-$old =~ s/^<\$Auth\.table = '_users'>$/$&\n<\$Auth.fail_count = 2>\n<\$Auth.fail_minute = 30>\n<\$Auth.expires = 90day>\n<\$Auth.allow_ip = begin_array>\n\t# ローカル\n\t127.0.0.1\n<\$end>/m || die;
-$old =~ s/^<\$v\.admin_trust_mode = 1>$/#$&/m || die;
-$old =~ s/^<\$Auth\.start_up = true>$/#$&/m || die;
-$old =~ s/^<\$v\.default_theme = .*$/<\$v.default_theme = 'other\/other'>/m || die;
-$old =~ s/^<\$regist_skeleton\('skel\.local\/', 2\)>$/$&\n<\$regist_skeleton('skel.other\/', 3)>/m || die;
-
-subtest 'アップデート処理の前は、今までの設定ファイルで動く' => sub {
-	write_file($conf, $old);
-	write_file($env, "$PRAGMA<\$Basepath = '/old/'>\n");
-	like(body($app->get('guest', '')), qr{"/old/pub/assets/}, 'lyndbaum.env.cgiが効く');
-	unlink($env);
-
-	ok(locked_after_2_fails(), 'lyndbaum.conf.cgiが効く');
-};
-
-subtest 'ユーザー設定が書けないときは、今までの設定ファイルのまま動く' => sub {
-	plan skip_all => 'rootではフォルダの権限で止められない' if ($> == 0);
-	set_version('4.27');
-	chmod(0555, $dir) || die;
-	my $r = $app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 });
-	chmod(0755, $dir) || die;
-	ok(AppTest::is_reload($r), 'アップデート処理を行える');
-	ok(!-e $user, 'ユーザー設定はできない');
-	is(read_file($conf), $old, '今までの設定ファイルは変わらない');
-	ok(locked_after_2_fails(), '今までの設定で動き続ける');
-};
-
-subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
-	write_file("$dir/data/default_setting.dat", "enable=1\n");
-	write_file($env, "$PRAGMA# 開発用\n<\$ENV_print = 0>\n");
-	set_version('4.27');
-	my $done = $app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 });
-	ok(AppTest::is_reload($done), 'アップデート処理を行える');
-	like(body($done), qr{Auth\.fail_count = 2}, '画面の範囲の外の値を知らせる');
-	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
-
-	my $u = read_file($user);
-	my $s = read_file($sys);
-	like($s, qr/^upload_max_mb=256$/m, '画面で変える項目は、システム設定へ写す（単位を変える）');
-	like($s, qr/^fail_minute=30$/m, '画面で変える項目は、システム設定へ写す');
-	like($s, qr/^session_days=90$/m, '画面で変える項目は、システム設定へ写す（秒を日にする）');
-	unlike($u, qr/uplaod_files_max|fail_minute|Auth\.expires/, 'システム設定へ写した項目は、ユーザー設定に書かない');
-	like($u, qr/^<\$Auth\.fail_count = 2>$/m, '画面の範囲の外の値は、ユーザー設定で動かし続ける');
-	unlike($s, qr/^fail_count=/m, '画面の範囲の外の値は、システム設定へ写さない');
-	like($u, qr/^<\$Auth\.allow_ip = begin_array>\n\t127\.0\.0\.1\n<\$end>$/m, '複数行の設定を写す。中のコメントは写さない');
-	like($u, qr/^<\$ENV_print = 0>$/m, 'lyndbaum.env.cgiの設定を写す');
-	like($u, qr/^<\$v\.admin_trust_mode = 0>$/m, '止めていたadmin_trust_modeは、止めたままにする');
-	like($u, qr/^<\$Auth\.start_up = 0>$/m, '止めていたAuth.start_upは、止めたままにする');
-	unlike($u, qr/skel\.other/, '組み立ての行は写さない');
-	unlike($u, qr/default_theme/, 'コードに移して変えないことにした項目は写さない');
-	unlike($u, qr/loadpm|loadapp|album_jpeg_quality|v\.parsers/, '4.27の見本と同じ行は写さない');
-
-	ok(!-e $conf, '今までの設定ファイルは無くなる');
-	ok(!-e $env, '今までのlyndbaum.env.cgiは無くなる');
-	is(read_file("$dir/data/lyndbaum.conf.cgi.428.bak"), $old, 'lyndbaum.conf.cgiの控えが残る');
-	ok(-e "$dir/data/lyndbaum.env.cgi.428.bak", 'lyndbaum.env.cgiの控えが残る');
-	ok(!-e "$dir/data/default_setting.dat", '使っていないdata/default_setting.datが消える');
-
-	# 移したあとも画面が動き、値が効いている
-	is($app->get('guest', '')->{status}, 200, '公開画面が出る');
-	is($app->get('admin', 'menu')->{status}, 200, '管理画面が出る');
-	ok(locked_after_2_fails(), '移した値が効いている');
-	my $screen = body($app->get('admin', 'system/setting'));
-	like($screen, qr{name="upload_max_mb"[^>]*value="256"}, '写した値が画面に出る');
-	like($screen, qr{name="session_days"[^>]*value="90"}, '写した日数が画面に出る');
-	unlike($screen, qr{name="fail_count"}, '画面の範囲の外の値は、欄を止めて送らない');
-	like($screen, qr{value="2" disabled}, '止めた欄に今の値が出る');
-	ok(AppTest::is_reload($app->post('admin', 'system/setting', { action => 'system/setting', mainte_mode => 0, upload_max_mb => 128, fail_minute => 30 })), '欄を止めていても、ほかの項目を保存できる');
-	like(read_file($sys), qr/^upload_max_mb=128$/m, 'ほかの項目は保存される');
-	unlike(read_file($sys), qr/^fail_count=/m, '止めた欄の値は保存されない');
-	ok(locked_after_2_fails(), '止めた欄の項目は、ユーザー設定の値のまま');
-};
-
-subtest 'admin_trust_modeとAuth.start_upの行があれば、足さない' => sub {
-	unlink($user);
-	write_file($conf, $sample);
-	set_version('4.27');
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
-	ok(-e $user, 'ユーザー設定ができる');
-	unlike(read_file($user), qr/^<\$/m, '4.27の見本と同じなら、中身は無い');
-	ok(!-e $conf, '今までの設定ファイルは無くなる');
-};
-
-subtest 'ユーザー設定があれば、移行の処理をしない' => sub {
-	my $text = "$PRAGMA<\$v.uplaod_files_max = 128M>\n";
-	write_file($user, $text);
-	set_version('4.27');
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
-	is(read_file($user), $text, 'ユーザー設定は変わらない');
 };
 
 done_testing();

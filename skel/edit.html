@@ -286,14 +286,10 @@
 	投稿情報の表示</label>
 		<ul id="post-detail"<@if(!s.post_detail, ' style="display: none"')>>
 			<li>記事番号 <@edit_pkey></li>
-			<li>投稿者 <@art.name> (id=<@art.id>)</li>
 			<@ifexec(art.tm,begin)>
 			<li>投稿日時 <span title="<@art.tm>"><@print_tmf("%Y/%m/%d %H:%M:%S", art.tm)></span></li>
 			<$end>
 			<li>更新日時 <@print_tmf("%Y/%m/%d %H:%M:%S", art.update_tm)></li>
-			<li>IP <@art.ip></li>
-			<li>HOST <@art.host></li>
-			<li>AGENT <@art.agent></li>
 		</ul></li>
 	</ul>
 <form method="POST" action="<@v.myself2>" class="delete js-check-form" data-confirm="この記事をゴミ箱へ移動しますか？<br>ゴミ箱から戻せます。" data-focus="cancel">

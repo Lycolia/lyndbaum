@@ -123,10 +123,6 @@ subtest '同時ログイン数' => sub {
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
-	# システム管理者でないログイン中の人は、前のテストの multi（multi-4 でログインしている）を使う
-	# （メンテナンスの画面はCookieを消すので、ほかのテストのユーザーは使わない）
-	ok($app->get('multi-4', 'menu')->{status} == 200, 'システム管理者でない人がログインしている');
-
 	# 公開している記事（アップデートが必要なときも、記事のページが404にならないことを確かめる）
 	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => 'アップデート待ちの記事', body_txt => "本文\n" })), '記事を書く');
 	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>アップデート待ちの記事<};
@@ -135,7 +131,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 
 	my $sys = "$dir/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.29/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
 	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
 	print $fh $conf;
 	close($fh);
@@ -157,7 +153,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	}
 	is($app->get('admin', 'menu')->{headers}->{'cache-control'}, 'private, no-store', 'ログイン中の管理画面は保存させない');
 
-	foreach my $who ('multi-4', 'guest') {
+	foreach my $who ('guest') {
 		foreach my $p ('', $art, 'menu') {
 			my $r = $app->get($who, $p);
 			is($r->{status}, 503, "$who には、?$p はメンテナンスの画面");
@@ -166,13 +162,13 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	}
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の画面は今までどおり');
 
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、管理画面に知らせが出ない');
 	unlike(body($app->get('admin', $art)), qr{admin-bar-update}, 'アップデート処理の後は、管理バーにリンクが出ない');
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
 };
 
-subtest '4.25より古いデータからのアップデート' => sub {
+subtest '4.31より古いデータからのアップデート' => sub {
 	my $sys = "$dir/data/system_config.dat";
 	my $set_version = sub {
 		my $conf = read_file($sys);
@@ -183,18 +179,18 @@ subtest '4.25より古いデータからのアップデート' => sub {
 	};
 	my $update = sub { return $app->post('admin', 'system/update', { action => 'system/update' }); };
 
-	$set_version->('4.24');
+	$set_version->('4.30');
 	my $b = body($app->get('admin', 'system/update'));
-	like($b, qr{このデータの版（4\.24）からは、直接アップデートできません}, '画面で知らせる');
+	like($b, qr{このデータの版（4\.30）からは、直接アップデートできません}, '画面で知らせる');
 	like($b, qr{value="system/update"[^>]*disabled}, 'ボタンを押せない');
 
 	ok(!AppTest::is_reload($update->()), '直接送っても断る');
-	like(read_file($sys), qr/^VERSION=4\.24$/m, '版はそのまま');
+	like(read_file($sys), qr/^VERSION=4\.30$/m, '版はそのまま');
 
-	$set_version->('4.25');
-	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.25なら知らせない');
-	ok(AppTest::is_reload($update->()), '4.25からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
+	$set_version->('4.31');
+	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
+	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
+	like(read_file($sys), qr/^VERSION=4\.33$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -244,7 +240,7 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	is($saved->(), $before, '保存できなかったときは、ファイルを変えない');
 
 	# 管理者以外は保存できない
-	$app->post('passmin', 'system/setting', { action => 'system/setting', pass_min => 20 });
+	$app->post('guest', 'system/setting', { action => 'system/setting', pass_min => 20 });
 	is($saved->(), $before, '管理者でなければ保存できない');
 
 	# 値が効く
@@ -303,51 +299,100 @@ subtest '標準記法の記事' => sub {
 	like(body($app->get('admin', "/0$pkey?edit")), qr{この記事の記法（default）は選べません。}, '標準記法の記事の編集画面に、知らせを出す');
 };
 
-subtest 'ユーザーを管理者1人にするアップデート（4.31）' => sub {
-	$app->insert_user('other');
-	$app->login('other');
-	is($app->get('other', 'menu')->{status}, 200, 'ほかのユーザーがログインしている');
-
-	# 古い権限の設定と、ほかの人が書いた記事
+subtest 'マルチサイトと複数ユーザーの列を消すアップデート（4.33）' => sub {
+	my $snap = $app->snapshot();
 	my $write = sub {
 		my ($file, $text) = @_;
 		open(my $fh, '>:utf8', $file) || die "$file: $!";
 		print $fh $text;
 		close($fh);
 	};
-	my $bs  = "$dir/data/blog/setting.dat";
-	my $set = read_file($bs);
-	$set =~ s/^allow_com_users=.*\n//m;
-	$write->($bs, "admin_users=other\neditors=other\nedit_by_author_only=1\nallow_com_users=user*\n$set");
-	my $art = "$dir/data/db/art/00001.dat";
-	my $org = read_file($art);
-	my $t   = $org;
-	$t =~ s/^id=.*$/id=other/m or die;
-	$write->($art, $t);
+	require Satsuki::Base;
+	my $ROBJ = Satsuki::Base->new();
+	my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+	my $header = sub { (split(/\n/, read_file("$dir/data/db/$_[0]/#index.dat")))[3] };
+
+	# 4.32のデータの形にする。列を足し、記事、ゴミ箱の記事、ユーザーに値を入れる
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.32の記事', body_txt => "本文\n" })), '記事を書く');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.32のゴミ箱の記事', body_txt => "本文\n" })), 'ゴミ箱に入れる記事を書く');
+	my %pkey;
+	my $list = body($app->get('admin', 'artlist'));
+	foreach my $t ('4.32の記事', '4.32のゴミ箱の記事') {
+		($pkey{$t}) = $list =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>\Q$t\E<};
+	}
+	ok(AppTest::is_reload($app->post('admin', '', { action => 'delete', delete_pkey_ary => $pkey{'4.32のゴミ箱の記事'}, title => '' })), 'ゴミ箱に入れる');
+	foreach(qw(name id ip host agent)) {
+		$DB->add_column('art',   { name => $_, type => 'text', index => ($_ eq 'name' || $_ eq 'id') });
+		$DB->add_column('trash', { name => $_, type => 'text' });
+	}
+	$DB->add_column('trash', { name => 'deleted_id', type => 'text' });
+	$DB->add_column('_users', { name => 'isadmin', type => 'flag', index => 1 });
+	$DB->add_column('_users', { name => 'disable', type => 'flag' });
+	my %old = (name => 'old name', id => 'admin', ip => '192.0.2.1', host => 'old.example', agent => 'OldAgent');
+	$DB->begin();
+	$DB->update_match('art',   { %old }, 'pkey', $pkey{'4.32の記事'});
+	$DB->update_match('trash', { %old, deleted_id => 'admin' }, 'pkey', $pkey{'4.32のゴミ箱の記事'});
+	$DB->update_match('_users', { isadmin => 1, disable => 0 }, 'id', 'admin');
+	is($DB->commit(), 0, '古い値を入れる');
+	like($header->('art'), qr/\bagent\b/, '作った状態の確認：列がある');
+
 	my $sys = "$dir/data/system_config.dat";
 	my $sc  = read_file($sys);
-	$sc =~ s/^VERSION=.*$/VERSION=4.30/m;
+	$sc =~ s/^VERSION=.*$/VERSION=4.32/m;
 	$write->($sys, $sc);
+	my $bs  = "$dir/data/blog/setting.dat";
+	$write->($bs, "p:dea_art-info:author=1\n" . read_file($bs));
 
-	like(body($app->get('admin', 'system/update')), qr{次のユーザーを消し.*<li>other</li>.*name="remove_other_users"}s, '消すユーザーを画面に出す');
-	ok(!AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), '確認が無いと行わない');
-	like(read_file($sys), qr/^VERSION=4\.30$/m, '版はそのまま');
-	is($app->get('other', 'menu')->{status}, 503, '処理を行うまでは、ほかのユーザーにはメンテナンスの画面');
+	# アップデート処理の前も、新しいコードで動く
+	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
 
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), '確認すると行う');
-	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
-	is($app->get('other', 'menu')->{status}, 403, 'ほかのユーザーはセッションが切れる');
-	ok(!json_ok($app->post('other', '', { action => '_ajax_login', adiary_id => 'other', pass => $AppTest::PASS })), 'ログインできない');
-	is($app->get('admin', 'menu')->{status}, 200, '実行した管理者は残る');
-	like(read_file($art), qr/^id=other$/m, '記事の書いた人は残る');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.33$/m, '版が上がる');
 
-	my $after = read_file($bs);
-	unlike($after, qr/^(?:admin_users|editors|edit_by_author_only)=/m, '権限の設定は消える');
-	unlike($after, qr/^allow_com_users=./m, 'コメントできる人は「管理者のみ」になる');
-	unlike(body($app->get('guest', '/02')), qr/id="comment-form"/, 'ログインしていない人にはコメント欄が出ない');
+	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
+	foreach my $t (qw(art trash)) {
+		my $h = "\t" . $header->($t) . "\t";
+		unlike($h, qr/\t(?:name|id|ip|host|agent|deleted_id)\t/, "$t の列が消える");
+		my $file = sprintf("$dir/data/db/$t/%05d.dat", $pkey{ $t eq 'art' ? '4.32の記事' : '4.32のゴミ箱の記事' });
+		my $row = read_file($file);
+		unlike($row, qr/^(?:name|id|ip|host|agent|deleted_id)=/m, "$t の行から値が消える");
+		like($row, qr/^title=4\.32の/m, "$t の行の題名は残る");
+	}
+	unlike("\t" . $header->('_users') . "\t", qr/\t(?:isadmin|disable)\t/, '_users の列が消える');
+	like(read_file("$dir/data/db/_users/00001.dat"), qr/^id=admin$/m, '管理者の行は残る');
 
-	$write->($art, $org);
-	ok(AppTest::is_reload($app->post('admin', 'set/detail', { action => 'set/detail', allow_com_users => '*' })), '元に戻す');
+	# 処理の後も動く
+	is($app->get('admin', 'menu')->{status}, 200, '管理者として動く');
+	my $edit = body($app->get('admin', "/0$pkey{'4.32の記事'}?edit"));
+	unlike($edit, qr/OldAgent|192\.0\.2\.1/, '編集画面に古い値が出ない');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.33の記事', body_txt => "本文\n" })), '記事を書ける');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, edit_pkey_int => $pkey{'4.32の記事'}, title => '4.32の記事を直した', body_txt => "本文2\n" })), '記事を直せる');
+	like(body($app->get('admin', 'trash')), qr{4\.32のゴミ箱の記事}, 'ゴミ箱に出る');
+	ok(AppTest::is_reload($app->post('admin', '', { action => 'trash', mode => 'restore', pkey_ary => $pkey{'4.32のゴミ箱の記事'} })), 'ゴミ箱から戻せる');
+	is($app->get('guest', "/0$pkey{'4.32のゴミ箱の記事'}")->{status}, 200, '戻した記事が見られる');
+	like(read_file("$dir/pub/rss.xml"), qr{<dc:creator>[^<]+</dc:creator>}, 'RSSに管理者の名前が出る');
+
+	ok(!json_ok($app->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => 'wrong-pass' })), '違うパスワードではログインできない');
+	$app->restore($snap);
+};
+
+subtest 'RSSと書き出しの投稿者は管理者の表示名' => sub {
+	my $snap = $app->snapshot();
+	ok(json_ok($app->post('admin', '', { action => '_ajax_self_change_name', name => 'A&B 管理者' })), '管理者の名前を変える');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '名前の確かめ', body_txt => "本文\n" })), '記事を書く');
+	like(read_file("$dir/pub/rss.xml"), qr{<dc:creator>A&amp;B 管理者</dc:creator>}, 'RSSはエスケープして出す');
+
+	my $mt = $app->post('admin', '', { action => 'mainte/export', file => '10_movable_type' })->{body};
+	utf8::decode($mt);
+	like($mt, qr/^AUTHOR: A&B /m, 'Movable Typeの形式のAUTHORに出る');
+	foreach my $f (qw(20_jugem 25_sb)) {
+		my $x = $app->post('admin', '', { action => 'mainte/export', file => $f })->{body};
+		utf8::decode($x);
+		like($x, qr{<author>A&amp;B }, "$f の<author>に出る");
+	}
+	my $ad = $app->post('admin', '', { action => 'mainte/export', file => '00_adiary' })->{body};
+	unlike($ad, qr/^\s*(?:name|id|ip|host|agent)="/m, 'adiary形式の記事に投稿者の項目が出ない');
+	$app->restore($snap);
 };
 
 subtest 'パスワードを忘れたときの復旧' => sub {

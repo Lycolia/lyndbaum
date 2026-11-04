@@ -89,8 +89,6 @@ sub import_arts {
 		$art{year} = $h->{year};
 		$art{mon}  = $h->{mon};
 		$art{day}  = $h->{day};
-		# 執筆者
-		$art{name} = $art{author};
 		# フラグ系の解析
 		if ($art{status} =~ /publish/i) { $art{enable}=1; } # 表示
 		if ($art{status} =~ /draft/i)   { $art{enable}=0; } # 非表示

@@ -625,11 +625,7 @@ sub _read_form {
 	if (ref $self->{Form} eq 'HASH') { return $self->{Form}; }
 
 	### POST 事前スクリプトの exec
-	if ($self->{If_post_exec_pre}) {
-		$self->execute( $self->{If_post_exec_pre} );	# 4.27までの設定ファイル
-	} else {
-		$self->set_form_options();
-	}
+	$self->set_form_options();
 	### オプションロード
 	my $options = $self->{Form_options} || {};
 	### マルチパート form か

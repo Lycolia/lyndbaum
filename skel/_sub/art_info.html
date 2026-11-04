@@ -30,7 +30,6 @@
 		</div>
 		<div>
 			<@ifexec(t.tags, begin)><span class="tags"><@v.make_taglinks(t.tags)></span><$end>
-			<@ifexec(ps.author, begin)><span class="author"><@t.name></span><$end>
 			<@ifexec(v.check_editor(t), begin)><a href="<@v.myself2>0<@t.pkey>?edit" class="edit-article">（編集）</a><$end>
 		</div>
 		<@ifexec(v.view_event eq '_article' && (t.com_ok || coms || t.backlinks), begin)>

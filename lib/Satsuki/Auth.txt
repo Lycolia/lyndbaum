@@ -48,14 +48,14 @@ Auth.pkey		ユーザーpkey
 Auth.id			ユーザーID（認証時のみ定義）
 Auth.name		ユーザー名
 Auth.email		メールアドレス（内部では使用せず）
-Auth.isadmin		管理権限ユーザーのみ 1
+Auth.isadmin		ログインしていれば 1（admin_* のセキュリティで無効化されたときは 0）
 Auth.isroot		強権限管理者（Auth.pmではrootを区別しない）
 Auth.auto		スタートアップ認証の場合のみ 1
 Auth.exists_admin	Auth.start_upが無効か、有効な管理者が存在するとき 1
 Auth.disabled_admin	管理者権限が admin_* のセキュリティで無効化されたとき 1
 
 Auth.ext.*		ユーザーテーブル内の下記カラム以外のすべて
-			pass pkey id name email disable isadmin
+			pass pkey id name email
 
 Auth.DB			内部で使用しているDBモジュール。
 
@@ -104,8 +104,6 @@ login_c		int	loginした回数
 login_tm	int	最後にloginした日時(UTC)
 fail_c		int	login失敗した回数（成功時にクリア）
 fail_tm		int	最後にloginに失敗した時間
-disable		flag	アカウントが無効
-isadmin		flag	管理者
 
 ●${table}_sid
 　セッション情報テーブル。
@@ -209,9 +207,7 @@ $r = $self->user_add ($h, $ext);
 	$h->{pass2}		パスワード（確認用）。未定義ならばチェックしない
 	$h->{name}		ユーザー名
 	$h->{email}		メールアドレス
-	$h->{isadmin}		管理者のとき 1 を定義
 
-	$h->{disable}		ユーザーをログイン不可にする
 	$h->{disable_pass}	1を設定するとパスワードを初期化（ログイン不可に）する
 	$h->{crypted_pass}	crypt済のパスワード文字列
 

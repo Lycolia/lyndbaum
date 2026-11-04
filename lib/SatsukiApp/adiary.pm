@@ -15,7 +15,7 @@ our $VERSION    = 4.33;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.32;
+our $DATA_VERSION = 4.33;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -124,7 +124,7 @@ frame_skeleton	=> '_frame',
 admin_frame_skeleton => '_frame_admin'
 	);
 	foreach(keys(%h)) {
-		if (!exists($self->{$_})) { $self->{$_} = $h{$_}; }	# 4.27までの設定ファイルでは、newの前に値を入れてある
+		if (!exists($self->{$_})) { $self->{$_} = $h{$_}; }
 	}
 }
 
@@ -1214,8 +1214,8 @@ sub set_comment_by_admin {
 	my $auth = $self->{ROBJ}->{Auth};
 
 	if (!$self->{_admin_ids}) {
-		my $admins = $auth->{DB}->select_match($auth->{table}, 'isadmin', 1, '*cols', ['id']);
-		$self->{_admin_ids} = { map { $_->{id} => 1 } @$admins };
+		my $users = $auth->{DB}->select_match($auth->{table}, '*cols', ['id']);
+		$self->{_admin_ids} = { map { $_->{id} => 1 } @$users };
 	}
 	my $ids = $self->{_admin_ids};
 	foreach(@$comments) {
@@ -1224,6 +1224,17 @@ sub set_comment_by_admin {
 		$_->{by_admin} = $ids->{$id} ? 1 : 0;
 	}
 	return $comments;
+}
+
+#-------------------------------------------------------------------------------
+# ●管理者の表示名
+#-------------------------------------------------------------------------------
+# 読者のコメントでRSSを作り直すときなど、管理者がログインしていなくても使う
+sub admin_name {
+	my $self = shift;
+	my $auth = $self->{ROBJ}->{Auth};
+	my $user = $auth->{DB}->select_match_limit1($auth->{table}, '*cols', ['name']);
+	return $user ? $user->{name} : '';
 }
 
 ################################################################################
