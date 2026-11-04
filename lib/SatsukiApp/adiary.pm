@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.30;
+our $VERSION    = 4.31;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.30;
+our $DATA_VERSION = 4.31;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -440,7 +440,7 @@ sub select_blog {
 	my $blog = $self->load_blogset();
 	if (!$blog || !%$blog) { return; }	# ブログが無い
 
-	$self->set_blog_permission($self, $blog);
+	$self->set_blog_permission($blog);
 
 	# ブログ情報設定
 	$self->{blog}        = $blog;
@@ -493,46 +493,15 @@ sub unselect_blog {
 # ●ブログの権限設定
 #-------------------------------------------------------------------------------
 sub set_blog_permission {
-	my $self = shift;
-	my $h    = shift;
-	my $blog = shift;
-	my $ROBJ = $self->{ROBJ};
+	my ($self, $blog) = @_;
+	my $isadmin = $self->{ROBJ}->{Auth}->{isadmin};
 
-	# 設定を解釈
-	my $auth   = $ROBJ->{Auth};
-	my $authok = $auth->{ok};
-	my $authid = $auth->{id};
-	if ($auth->{isadmin}) {	# 管理者は許可
-		$h->{blog_admin} = 1;
-		$h->{allow_edit} = 1;
-		$h->{allow_com}  = 1;
-		return;
-	}
+	# ユーザーは管理者1人だけ
+	$self->{blog_admin} = $isadmin;
+	$self->{allow_edit} = $isadmin;
 
-	# 記事の執筆／編集許可を判別
-	if ($authok) {
-		$h->{blog_admin} = $h->users_check($blog->{admin_users}, $authid);
-		$h->{allow_edit} = $h->{blog_admin} || $h->users_check($blog->{editors}, $authid);
-	}
-
-	# コメントの許可
-	my $allow_com = $blog->{allow_com_users};
-	if ($allow_com eq '*' || ($allow_com eq 'user*' && $authok)) {
-		$self->{allow_com} = 1;
-	} elsif ($allow_com ne '' && $authok) {
-		$self->{allow_com} = $self->users_check($allow_com, $authid);
-	}
-}
-
-#--------------------------------------
-# 許可ユーザー判別
-#--------------------------------------
-sub users_check {
-	my ($self,$users,$uid) = @_;
-	if ($users eq '*') { return 1; }
-	if ($uid eq '') { return 0; }
-	$users =~ s|\s*,\s*|,|g;
-	return (0 <= index(",$users,",",$uid,")) ? 1 : 0;
+	# コメントできるのは、誰でもか管理者だけ
+	$self->{allow_com} = ($isadmin || $blog->{allow_com_users} eq '*') ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------
@@ -1228,7 +1197,7 @@ sub load_comments {
 #-------------------------------------------------------------------------------
 # ●管理者が書いたコメントに印を付ける
 #-------------------------------------------------------------------------------
-# ブログの管理者かシステムの管理者が書いたコメントに by_admin=1 を付ける
+# 管理者が書いたコメントに by_admin=1 を付ける
 #
 sub set_comment_by_admin {
 	my $self = shift;
@@ -1243,7 +1212,7 @@ sub set_comment_by_admin {
 	foreach(@$comments) {
 		my $id = $_->{id};
 		if ($id eq '') { next; }
-		$_->{by_admin} = ($ids->{$id} || $self->users_check($self->{blog}->{admin_users}, $id)) ? 1 : 0;
+		$_->{by_admin} = $ids->{$id} ? 1 : 0;
 	}
 	return $comments;
 }
@@ -1860,22 +1829,8 @@ sub regist_post_html {
 # ●記事編集権限チェック
 #-------------------------------------------------------------------------------
 sub check_editor {
-	my $self  = shift;
-	if (!$self->{allow_edit}) { return 0; }
-	# 管理者か制限かかってなければ許可
-	if ($self->{blog_admin} || !$self->{blog}->{edit_by_author_only}) {
-		return 1;
-	}
-	# id確認
-	my $artid = shift;
-	my $auth = $self->{ROBJ}->{Auth};
-	$artid = ref($artid) ? $artid->{id} : $artid;
-	if ($artid =~ /^\d+$/) {
-		my $h = $self->{DB}->select_match_limit1("art", 'pkey', $artid, '*cols', ['id']);
-		if (!$h) { return ; }
-		$artid = $h->{id};
-	}
-	return ($auth->{id} eq $artid);
+	my $self = shift;
+	return $self->{allow_edit} ? 1 : 0;
 }
 
 #---------------------------------------------------------------------

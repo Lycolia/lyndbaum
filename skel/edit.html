@@ -48,7 +48,7 @@
 <$ifjump_clear(@Message, '_sub/error_message', undef, 'ブラウザの戻るボタンで戻ってください')>
 
 <@> 他人の記事は編集できない？
-<$ifjump_clear(edit_pkey && !v.check_editor(art), '_sub/error_message', '他人の記事は編集できません。')>
+<$ifjump_clear(edit_pkey && !v.check_editor(art), '_sub/error_message', '権限がありません')>
 
 <@> スクリプトをロード
 <$v.regist_js("<@v.script_dir>edit.js")>

@@ -1205,21 +1205,6 @@ sub edit_articles {
 	$keylist = [ map { int($_) } @$keylist ];
 
 	# 初期状態設定
-	if ($self->{blog}->{edit_by_author_only} && !$self->{blog_admin}) {
-		# 他人の記事は編集できないので、IDが一致するかチェックする
-		my $id = $auth->{id};
-		my $ary = $DB->select_match("art", 'pkey', $keylist, '*cols', ['pkey','id']);
-		my @pkeys;
-		foreach(@$ary) {
-			if ($_->{id} ne $id) { next; }
-			push(@pkeys, $_->{pkey});
-		}
-		if (!@pkeys) {
-			# 該当記事なし
-			return wantarray ? (0,0) : 0;
-		}
-		$keylist = \@pkeys;
-	}
 
 	my $cnt = 0;
 	my $com;
@@ -1406,11 +1391,7 @@ sub load_trash_list {
 	my $DB   = $self->{DB};
 	if (!$self->{allow_edit}) { return []; }
 
-	my @opt;
-	if ($self->{blog}->{edit_by_author_only} && !$self->{blog_admin}) {
-		@opt = ('id', $self->{ROBJ}->{Auth}->{id});	# 自分の記事のみ
-	}
-	return $DB->select_match("trash", @opt, '*sort', '-deleted_tm',
+	return $DB->select_match("trash", '*sort', '-deleted_tm',
 		'*cols', [qw(pkey title tags ctype link_key name id yyyymmdd coms_all enable deleted_tm deleted_id)]);
 }
 
@@ -1421,11 +1402,7 @@ sub filter_trash_keys {
 	$keylist = [ grep { $_ > 0 } map { int($_) } @$keylist ];
 	if (!@$keylist) { return []; }
 
-	my @opt;
-	if ($self->{blog}->{edit_by_author_only} && !$self->{blog_admin}) {
-		@opt = ('id', $self->{ROBJ}->{Auth}->{id});
-	}
-	my $ary = $self->{DB}->select_match("trash", 'pkey', $keylist, @opt, '*cols', ['pkey']);
+	my $ary = $self->{DB}->select_match("trash", 'pkey', $keylist, '*cols', ['pkey']);
 	return [ map { $_->{pkey} } @$ary ];
 }
 

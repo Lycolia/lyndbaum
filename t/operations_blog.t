@@ -26,7 +26,7 @@ my $dir = $app->dir;
 # ブログの設定
 #-------------------------------------------------------------------------------
 subtest 'ブログの基本設定' => sub {
-	my $r = $app->post('owner', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明' });
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明' });
 	ok(AppTest::is_reload($r), '保存できる');
 	$r = $app->get('guest', '');
 	is($r->{title}, 'テストのブログ', 'トップの題名が変わる');
@@ -80,56 +80,26 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	$write->($org);
 };
 
-subtest 'ブログの権限' => sub {
-	is($app->get('user', 'edit')->{status}, 403, 'userは記事を書けない');
-	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user' });
-	ok(AppTest::is_reload($r), 'userを編集者にする');
-	is($app->get('user', 'edit')->{status}, 200, 'userが記事を書ける');
-
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
-	ok(AppTest::is_reload($r), '元に戻す');
-	is($app->get('user', 'edit')->{status}, 403, 'userはまた記事を書けない');
-};
-
-subtest 'ブログの権限は、ユーザーIDの完全一致で判定する' => sub {
-	# ownerやeditorの一部だけのID
-	foreach (qw(own edit)) {
-		$app->user_add('admin', $_, 0);
-		$app->login($_);
-	}
-	is($app->get('owner', 'set/role')->{status}, 200, 'ownerはブログの管理者');
-	is($app->get('own',   'set/role')->{status}, 403, 'ownはブログの管理者ではない');
-	is($app->get('editor', 'edit')->{status}, 200, 'editorは編集者');
-	is($app->get('edit',   'edit')->{status}, 403, 'editは編集者ではない');
-
-	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user' });
-	ok(AppTest::is_reload($r), '編集者を2人にする');
-	is($app->get('editor', 'edit')->{status}, 200, '一覧の先頭のeditorは編集者');
-	is($app->get('user',   'edit')->{status}, 200, '一覧の最後のuserは編集者');
-	is($app->get('edit',   'edit')->{status}, 403, 'editは編集者ではない');
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
-	ok(AppTest::is_reload($r), '元に戻す');
-
-	$r = $app->post('owner', 'set/detail', { action => 'set/detail', allow_com_users => 'owner' });
-	ok(AppTest::is_reload($r), 'コメントできる人をownerにする');
-	like(body($app->get('owner', '/01')),   qr/id="comment-form"/, 'ownerにはコメント欄が出る');
-	unlike(body($app->get('own', '/01')),   qr/id="comment-form"/, 'ownにはコメント欄が出ない');
-	$r = $app->post('owner', 'set/detail', { action => 'set/detail', allow_com_users => '*' });
-	ok(AppTest::is_reload($r), '元に戻す');
+subtest 'コメントできる人' => sub {
+	my $r = $app->post('admin', 'set/detail', { action => 'set/detail', allow_com_users => '' });
+	ok(AppTest::is_reload($r), '管理者のみにする');
+	like(body($app->get('admin', '/01')), qr/id="comment-form"/, '管理者にはコメント欄が出る');
+	unlike(body($app->get('guest', '/01')), qr/id="comment-form"/, 'ログインしていない人には出ない');
+	$r = $app->post('admin', 'set/detail', { action => 'set/detail', allow_com_users => '*' });
+	ok(AppTest::is_reload($r), '誰でもにする');
+	like(body($app->get('guest', '/01')), qr/id="comment-form"/, 'ログインしていない人にも出る');
 };
 
 subtest 'プライベートモードの削除' => sub {
 	# 古い画面からPOSTされても、設定に入らず、閉じない
 	my $setting = "$dir/data/blog/setting.dat";
-	my $r = $app->post('owner', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 1 });
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 1 });
 	ok(AppTest::is_reload($r), '基本設定を保存できる');
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => 'user', view_pass => 'secret' });
-	ok(AppTest::is_reload($r), '権限設定を保存できる');
 	unlike(read_file($setting), qr/^(?:private=1|viewers=|view_pass=)/m, 'プライベートモード、閲覧者、表示パスワードは設定に入らない');
 	is($app->get('guest', '/02')->{status}, 200, 'ログインしていない人も記事を見られる');
 	is($app->get('guest', '/99999')->{status}, 404, '無い記事は404');
-	foreach my $q ('set/', 'set/role', 'set/editor') {
-		unlike(body($app->get('owner', $q)), qr/プライベートモード|name="(?:private|viewers|view_pass)"/, "?$q に設定の欄が出ない");
+	foreach my $q ('set/', 'set/editor') {
+		unlike(body($app->get('admin', $q)), qr/プライベートモード|name="(?:private|viewers|view_pass)"/, "?$q に設定の欄が出ない");
 	}
 };
 
@@ -146,8 +116,8 @@ subtest 'プライベートモードのブログのアップデート（4.27）'
 	};
 
 	# 画像のある記事を書く
-	ok(AppTest::is_reload($app->post('owner', '', { %ART, title => '画像の記事', body_txt => "[image:S:test/:a.png:画像]\n" })), '画像の記事を書く');
-	my ($pkey) = body($app->get('owner', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>画像の記事<};
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '画像の記事', body_txt => "[image:S:test/:a.png:画像]\n" })), '画像の記事を書く');
+	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>画像の記事<};
 	my $art = "/0$pkey";
 	like(body($app->get('guest', $art)), qr{/pub/attachments/test/}, '記事の画像は pub/attachments/ の下');
 
@@ -200,7 +170,7 @@ subtest 'プライベートモードのブログのアップデート（4.27）'
 	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
 	ok(AppTest::is_reload($r), '確認があるとアップデート処理を行う');
 	like(body($r), qr{フォルダを消せませんでした}, '手で置いたものが残ったことを出す');
-	like(read_file($sys), qr/^VERSION=4\.3$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
 	ok(-f "$dir/pub/attachments/test/a.png" && -f "$dir/pub/rss.xml", 'ファイルが pub/ に戻る');
 	ok(-f "$dir/pub/$private/hand.txt" && !-e "$dir/pub/hand.txt", '手で置いたものはフォルダに残す');
 	ok(!-e "$dir/pub/$private/attachments", '戻したものはフォルダに残らない');
@@ -240,7 +210,7 @@ subtest 'ブログが無いとき' => sub {
 
 subtest 'タグの削除' => sub {
 	# seed() のタグ1（pkey=1）は記事1に付いている
-	my $r = $app->post('editor', 'set2/tag_edit', { action => 'set2/tag_edit', del_ary => 1 });
+	my $r = $app->post('admin', 'set2/tag_edit', { action => 'set2/tag_edit', del_ary => 1 });
 	ok(AppTest::is_reload($r), '削除できる');
 	is($app->get('guest', '&t=' . AppTest::_uri_escape('タグ1'))->{status}, 404, 'タグの一覧に記事が出ない');
 	like(body($app->get('guest', '&t=' . AppTest::_uri_escape('タグ2'))), qr{ownerの記事}, 'ほかのタグはそのまま');
@@ -258,35 +228,35 @@ subtest '画像アルバム' => sub {
 	require Satsuki::ImageFormat;
 	my $ext = Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';	# 画像のサムネイルの形式
 
-	my $r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
+	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
 		file_ary => { filename => 'up.png', content => $png, type => 'image/png' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
 	ok(-f "$img/up.png", 'ファイルが置かれる');
 	ok(-f "$img/.thumbnail/up.png.$ext", "サムネイルが作られる（$ext）");
 	ok($ext eq 'jpg' || !-e "$img/.thumbnail/up.png.jpg", 'JPEGのサムネイルは作らない');
 
-	$r = $app->post('editor', '', { action => 'media/load_image_files', folder => 'test/' });
+	$r = $app->post('admin', '', { action => 'media/load_image_files', folder => 'test/' });
 	my ($up) = grep { $_->{name} eq 'up.png' } @{ ref($r->{json}) eq 'ARRAY' ? $r->{json} : [] };
 	is($up && $up->{thumb}, "up.png.$ext", 'ファイルの一覧にサムネイルの名前が入る');
 
 	# 記事のサムネイルは、あるほうの形式を指す
-	$r = $app->post('editor', '', { %ART, title => 'サムネイルの記事', body_txt => "[image:S:test/:up.png]\n" });
+	$r = $app->post('admin', '', { %ART, title => 'サムネイルの記事', body_txt => "[image:S:test/:up.png]\n" });
 	ok(AppTest::is_reload($r), 'サムネイルを貼った記事を保存できる');
 	like(body($app->get('guest', '')), qr{src="[^"]*/test/\.thumbnail/up\.png\.$ext"}, "記事のサムネイルが .$ext を指す");
 
-	$r = $app->post('editor', '', { action => 'media/rename_file', folder => 'test/', old => 'up.png', name => 'renamed.png' });
+	$r = $app->post('admin', '', { action => 'media/rename_file', folder => 'test/', old => 'up.png', name => 'renamed.png' });
 	ok(json_ok($r), '名前を変えられる');
 	ok(!-e "$img/up.png" && -f "$img/renamed.png", 'ファイルの名前が変わる');
 	ok(!-e "$img/.thumbnail/up.png.$ext" && -f "$img/.thumbnail/renamed.png.$ext", 'サムネイルの名前も変わる');
 
-	$r = $app->post('editor', '', { action => 'media/create_folder', folder => '/', name => 'other' });
+	$r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'other' });
 	ok(json_ok($r), 'フォルダを作れる');
-	$r = $app->post('editor', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
+	$r = $app->post('admin', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '移せる');
 	ok(!-e "$img/renamed.png" && -f "$dir/pub/attachments/other/renamed.png", 'ファイルが移る');
 	ok(-f "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
 
-	$r = $app->post('editor', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
+	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '削除できる');
 	ok(!-e "$dir/pub/attachments/other/renamed.png", 'フォルダから消える');
 	ok(!-e "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
@@ -305,7 +275,7 @@ subtest 'アップロードした画像のメタ情報' => sub {
 	my $img = "$dir/pub/attachments/test";
 	my $read = sub { open(my $fh, '<:raw', shift) || return ''; local $/; <$fh> };
 
-	my $r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/',
+	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
 		file_ary => { filename => 'meta.jpg', content => $jpeg, type => 'image/jpeg' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
 	my $saved = $read->("$img/meta.jpg");
@@ -313,12 +283,12 @@ subtest 'アップロードした画像のメタ情報' => sub {
 	ok(index($saved, "\xFF\xE5") < 0, 'APP5（機種独自の情報）は消える');
 	ok(index($saved, "Exif\0\0") >= 0, 'Exifは残る');
 
-	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/',
+	$r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
 		file_ary => { filename => 'meta.jpg', content => $jpeg, type => 'image/jpeg' } ]);
 	like($r->{body}, qr/^ret=0$/m, '同じ画像をもう一度アップロードできる');
 	ok(!grep({ /meta_\d/ } map { s|.*/||r } glob("$img/meta*")), 'メタ情報を消した後の中身で比べるので、別名で保存しない');
 
-	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', del_exif => 1,
+	$r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', del_exif => 1,
 		file_ary => { filename => 'noexif.jpg', content => $jpeg, type => 'image/jpeg' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'Exifの削除を選んでアップロードできる');
 	ok(index($read->("$img/noexif.jpg"), "Exif\0\0") < 0, 'Exifも消える');
@@ -335,7 +305,7 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 		return $img->ImageToBlob(magick => $format || 'png');
 	};
 	my $post_data = sub {
-		return $app->post('editor', '', [ action => 'media/upload_video_thumbnail', folder => $AppTest::IMAGE_FOLDER, file => $AppTest::VIDEO_FILE,
+		return $app->post('admin', '', [ action => 'media/upload_video_thumbnail', folder => $AppTest::IMAGE_FOLDER, file => $AppTest::VIDEO_FILE,
 			poster => { filename => 'poster.png', content => shift, type => 'image/png' } ]);
 	};
 	my $post = sub { return $post_data->( $image->(@_) ) };
@@ -356,7 +326,7 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	ok($ext eq 'jpg' || (!-e "$th.poster.jpg" && !-e "$th.jpg"), 'JPEGのサムネイルは残らない');
 
 	# 記事には、記事用のサムネイルを出す
-	my $r = $app->post('editor', '', { %ART, title => '動画の記事', body_txt => "[file:mp4:$AppTest::IMAGE_FOLDER:$AppTest::VIDEO_FILE]\n" });
+	my $r = $app->post('admin', '', { %ART, title => '動画の記事', body_txt => "[file:mp4:$AppTest::IMAGE_FOLDER:$AppTest::VIDEO_FILE]\n" });
 	ok(AppTest::is_reload($r), '動画を貼った記事を保存できる');
 	like(body($app->get('guest', '')), qr{class="video-thumb"[^>]*><img [^>]*src="[^"]*\.thumbnail/\Q$AppTest::VIDEO_FILE\E\.poster\.$ext"}, "記事のサムネイルが .poster.$ext を指す");
 	ok(!json_ok($post->(540, 961)), '縦長でも、長い辺が961pxなら受け付けない');
@@ -402,13 +372,13 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 
 	# 名前の変更、移動、削除で、記事用のサムネイルもついて行く
 	my $tdir = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail";
-	$r = $app->post('editor', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
+	$r = $app->post('admin', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
 	ok(json_ok($r), '動画の名前を変えられる');
 	ok(-e "$tdir/v2.mp4.poster.$ext" && -e "$tdir/v2.mp4.$ext" && !-e $poster, 'サムネイルの名前も変わる');
-	$r = $app->post('editor', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
+	$r = $app->post('admin', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を移せる');
 	ok(-e "$dir/pub/attachments/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
-	$r = $app->post('editor', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
+	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を削除できる');
 	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };

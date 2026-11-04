@@ -275,4 +275,5 @@ Not exists article=該当する記事がみつかりません
 ###############################################################################
 Restart of %s is required!=%sの再起動が必要です！
 Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.25〜4.30の版でアップデート処理を行ってください
+Confirm that other users will be deleted=アップデート処理を行うには、ほかのユーザーが消えることの確認にチェックを入れてください
 Blog database error(%s)=ブログのデータベースのエラーです（%s）

@@ -26,6 +26,9 @@ my $dir = $app->dir;
 # ユーザー
 #-------------------------------------------------------------------------------
 subtest 'ユーザー' => sub {
+	$app->insert_user('user');
+	$app->login('user');
+
 	my $r = $app->post('user', '', { action => '_ajax_self_change_name', name => '新しい名前' });
 	ok(json_ok($r), '自分の名前を変えられる');
 	like(body($app->get('user', 'menu')), qr{新しい名前}, '変えた名前が出る');
@@ -41,15 +44,10 @@ subtest 'ユーザー' => sub {
 	$r = $app->post('user', '', { action => '_ajax_login', adiary_id => 'user', pass => 'new-pass-5678' });
 	ok(json_ok($r), '新しいパスワードでログインできる');
 
-	$r = $app->post('admin', '', { action => '_ajax_user_edit', id => 'user', disable => 1 });
-	ok(json_ok($r), 'システム管理者がユーザーを無効にできる');
-	is($app->get('user', 'menu')->{status}, 403, '無効にすると、セッションが切れる');
-	$r = $app->post('user', '', { action => '_ajax_login', adiary_id => 'user', pass => 'new-pass-5678' });
-	ok(!json_ok($r), '無効にしたユーザーはログインできない');
-
-	$r = $app->post('admin', '', { action => '_ajax_user_delete', id => 'user' });
-	ok(json_ok($r), 'ユーザーを削除できる');
-	unlike(body($app->get('admin', 'user/')), qr{>user<}, 'ユーザーの一覧から消える');
+	# 管理者がいるときは、ユーザーを作れない
+	$r = $app->post('admin', '', { action => '_ajax_user_add', adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS, email => '', isadmin => 1 });
+	ok(!json_ok($r), '管理者はユーザーを作れない');
+	is($app->get('admin', 'user/add')->{status}, 302, '作成の画面は開けない');
 };
 
 subtest 'パスワード' => sub {
@@ -63,18 +61,18 @@ subtest 'パスワード' => sub {
 	};
 	like($pass_of->('admin'), qr/^\$2b\$12\$[.\/A-Za-z0-9]{53}$/, 'bcryptで保存する');
 
-	my $add = sub {
-		my ($id, $pass, $pass2) = @_;
-		return $app->post('admin', '', { action => '_ajax_user_add', adiary_id => $id, name => $id, pass => $pass, pass2 => $pass2 // $pass, email => '', isadmin => 0 });
+	$app->insert_user('reset');
+	$app->login('reset');
+	my $change = sub {
+		my ($pass, $pass2) = @_;
+		return $app->post('reset', '', { action => '_ajax_self_change_pass', now_pass => $AppTest::PASS, pass => $pass, pass2 => $pass2 // $pass });
 	};
-	ok(!json_ok($add->('short', 'abcdefg')), '7文字では追加できない');
-	ok(!json_ok($add->('longpass', 'a' x 73)), '72バイトを超えると追加できない');
-	ok(!json_ok($add->('mismatch', 'abcdefgh', 'abcdefgx')), '確認用と違うと追加できない');
-	ok(json_ok($add->('reset', 'abcdefgh')), '8文字なら追加できる');
-	like($pass_of->('reset'), qr/^\$2b\$/, '追加したユーザーもbcrypt');
+	ok(!json_ok($change->('abcdefg')), '7文字では変えられない');
+	ok(!json_ok($change->('a' x 73)), '72バイトを超えると変えられない');
+	ok(!json_ok($change->('abcdefgh', 'abcdefgx')), '確認用と違うと変えられない');
+	ok(json_ok($change->('abcdefgh')), '8文字なら変えられる');
+	like($pass_of->('reset'), qr/^\$2b\$/, '変えたパスワードもbcrypt');
 	isnt($pass_of->('reset'), $pass_of->('admin'), 'saltは毎回違う');
-
-	ok(json_ok($app->post('admin', '', { action => '_ajax_user_delete', id => 'reset' })), '後片付け');
 };
 
 subtest '同時ログイン数' => sub {
@@ -95,7 +93,7 @@ subtest '同時ログイン数' => sub {
 		return $app->post('admin', 'system/setting', { %form, %set, action => 'system/setting' });
 	};
 	# 同じユーザーで、別の端末（Cookie）からログインする
-	$app->user_add('admin', 'multi', 0);
+	$app->insert_user('multi');
 	# ログインの時刻（login_tm）は秒単位なので、どれが古いか分かるよう1秒あける
 	my $login = sub {
 		my $who = shift;
@@ -130,8 +128,8 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	ok($app->get('multi-4', 'menu')->{status} == 200, 'システム管理者でない人がログインしている');
 
 	# 公開している記事（アップデートが必要なときも、記事のページが404にならないことを確かめる）
-	ok(AppTest::is_reload($app->post('owner', '', { %ART, title => 'アップデート待ちの記事', body_txt => "本文\n" })), '記事を書く');
-	my ($pkey) = body($app->get('owner', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>アップデート待ちの記事<};
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => 'アップデート待ちの記事', body_txt => "本文\n" })), '記事を書く');
+	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>アップデート待ちの記事<};
 	my $art = "/0$pkey";
 	is($app->get('admin', $art)->{status}, 200, '書いた記事は見られる');
 
@@ -168,7 +166,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	}
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の画面は今までどおり');
 
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、管理画面に知らせが出ない');
 	unlike(body($app->get('admin', $art)), qr{admin-bar-update}, 'アップデート処理の後は、管理バーにリンクが出ない');
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
@@ -196,7 +194,7 @@ subtest '4.25より古いデータからのアップデート' => sub {
 	$set_version->('4.25');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.25なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.25からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.3$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -231,7 +229,9 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	$field->('album_avif_quality', 65, 'AVIFの品質は、何も保存していなければ既定値');
 
 	# 範囲の外は保存できない（ほかの欄は今の値のまま送る。前のテストの保存で、今の値が入っていることがある）
-	$app->user_add('admin', 'syslock', 0);	# パスワードの最低文字数を上げる前に作っておく
+	$app->insert_user('syslock');
+	$app->insert_user('passmin');
+	$app->login('passmin');
 	# 書き戻すと行の順番が変わるので、この項目の行だけを比べる
 	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count|fail_minute|upload_max_mb|album_jpeg_quality|album_avif_quality)=/ } split(/\n/, read_file($sys))) };
 	my $before = $saved->();
@@ -244,8 +244,8 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	is($saved->(), $before, '保存できなかったときは、ファイルを変えない');
 
 	# 管理者以外は保存できない
-	$app->post('owner', 'system/setting', { action => 'system/setting', pass_min => 20 });
-	is($saved->(), $before, 'ブログの管理者は保存できない');
+	$app->post('passmin', 'system/setting', { action => 'system/setting', pass_min => 20 });
+	is($saved->(), $before, '管理者でなければ保存できない');
 
 	# 値が効く
 	ok(AppTest::is_reload($save->(pass_min => 20, fail_count => 3, fail_minute => 5, upload_max_mb => 1, album_avif_quality => 40, session_days => 30, all_logout => 1)), '保存できる');
@@ -254,16 +254,12 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	like(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'ONにした項目が欄に出る');
 
 	# パスワードの最低文字数は、新しいパスワードに効く
-	mkdir("$dir/__cache");	# 書き込みの確認で、フォームが出るように
-	like(body($app->get('admin', 'user/add')), qr{>20文字<}, 'パスワードの最低文字数が画面に出る');
-	unlink(glob("$dir/__cache/*"));
-	rmdir("$dir/__cache");
-	my $add = sub {
-		my ($id, $pass) = @_;
-		return ($app->post('admin', '', { action => '_ajax_user_add', adiary_id => $id, name => $id, pass => $pass, pass2 => $pass, email => '', isadmin => 0 })->{json} || {})->{ret};
+	my $change = sub {
+		my $pass = shift;
+		return ($app->post('passmin', '', { action => '_ajax_self_change_pass', now_pass => $AppTest::PASS, pass => $pass, pass2 => $pass })->{json} || {})->{ret};
 	};
-	isnt($add->('shortpass', 'abcdefgh1'), '0', '最低文字数より短いパスワードでは、ユーザーを作れない');
-	is($add->('longpass', 'abcdefgh1abcdefgh1ab'), '0', '最低文字数を満たせば、ユーザーを作れる');
+	isnt($change->('abcdefgh1'), '0', '最低文字数より短いパスワードには変えられない');
+	is($change->('abcdefgh1abcdefgh1ab'), '0', '最低文字数を満たせば、変えられる');
 
 	# ログインの失敗の回数
 	my $try = sub { ($app->post('guest', '', { action => '_ajax_login', adiary_id => 'syslock', pass => shift })->{json} || {})->{ret} };
@@ -271,7 +267,7 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	isnt($try->($AppTest::PASS), '0', '保存した回数（3回）で、正しいパスワードでも止まる');
 
 	# アップロードの上限
-	my $r = $app->post('owner', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
+	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
 		file_ary => { filename => 'sysmax.txt', content => 'x' x (1048576 + 1024), type => 'text/plain' } ]);
 	ok(!-e "$dir/pub/attachments/test/sysmax.txt", '保存した上限（1MB）を超えると受け付けない');
 
@@ -293,23 +289,82 @@ subtest '標準記法の記事' => sub {
 		close($fh);
 	};
 
-	my $b = body($app->get('owner', 'edit'));
+	my $b = body($app->get('admin', 'edit'));
 	unlike($b, qr{<option value="default}, '記事の作成画面で、標準記法を選べない');
 	unlike($b, qr{この記事の記法（}, '新しい記事では、選べない記法の知らせを出さない');
 
 	# 標準記法で書いた古い記事は、黙ってMarkdownに変わらないように知らせる
-	ok(AppTest::is_reload($app->post('owner', '', { %ART, title => '標準記法の記事', body_txt => "本文\n" })), '記事を書く');
-	my ($pkey) = body($app->get('owner', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>標準記法の記事<};
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '標準記法の記事', body_txt => "本文\n" })), '記事を書く');
+	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>標準記法の記事<};
 	my $af = sprintf("$dir/data/db/art/%05d.dat", $pkey);
 	my $a = read_file($af);
 	ok($a =~ s/^parser=.*$/parser=default/m, '記事の記法を標準記法にする');
 	$write->($af, $a);
-	like(body($app->get('owner', "/0$pkey?edit")), qr{この記事の記法（default）は選べません。}, '標準記法の記事の編集画面に、知らせを出す');
+	like(body($app->get('admin', "/0$pkey?edit")), qr{この記事の記法（default）は選べません。}, '標準記法の記事の編集画面に、知らせを出す');
+};
+
+subtest 'ユーザーを管理者1人にするアップデート（4.31）' => sub {
+	$app->insert_user('other');
+	$app->login('other');
+	is($app->get('other', 'menu')->{status}, 200, 'ほかのユーザーがログインしている');
+
+	# 古い権限の設定と、ほかの人が書いた記事
+	my $write = sub {
+		my ($file, $text) = @_;
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $text;
+		close($fh);
+	};
+	my $bs  = "$dir/data/blog/setting.dat";
+	my $set = read_file($bs);
+	$set =~ s/^allow_com_users=.*\n//m;
+	$write->($bs, "admin_users=other\neditors=other\nedit_by_author_only=1\nallow_com_users=user*\n$set");
+	my $art = "$dir/data/db/art/00001.dat";
+	my $org = read_file($art);
+	my $t   = $org;
+	$t =~ s/^id=.*$/id=other/m or die;
+	$write->($art, $t);
+	my $sys = "$dir/data/system_config.dat";
+	my $sc  = read_file($sys);
+	$sc =~ s/^VERSION=.*$/VERSION=4.30/m;
+	$write->($sys, $sc);
+
+	like(body($app->get('admin', 'system/update')), qr{次のユーザーを消し.*<li>other</li>.*name="remove_other_users"}s, '消すユーザーを画面に出す');
+	ok(!AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), '確認が無いと行わない');
+	like(read_file($sys), qr/^VERSION=4\.30$/m, '版はそのまま');
+	is($app->get('other', 'menu')->{status}, 503, '処理を行うまでは、ほかのユーザーにはメンテナンスの画面');
+
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), '確認すると行う');
+	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	is($app->get('other', 'menu')->{status}, 403, 'ほかのユーザーはセッションが切れる');
+	ok(!json_ok($app->post('other', '', { action => '_ajax_login', adiary_id => 'other', pass => $AppTest::PASS })), 'ログインできない');
+	is($app->get('admin', 'menu')->{status}, 200, '実行した管理者は残る');
+	like(read_file($art), qr/^id=other$/m, '記事の書いた人は残る');
+
+	my $after = read_file($bs);
+	unlike($after, qr/^(?:admin_users|editors|edit_by_author_only)=/m, '権限の設定は消える');
+	unlike($after, qr/^allow_com_users=./m, 'コメントできる人は「管理者のみ」になる');
+	unlike(body($app->get('guest', '/02')), qr/id="comment-form"/, 'ログインしていない人にはコメント欄が出ない');
+
+	$write->($art, $org);
+	ok(AppTest::is_reload($app->post('admin', 'set/detail', { action => 'set/detail', allow_com_users => '*' })), '元に戻す');
+};
+
+subtest 'パスワードを忘れたときの復旧' => sub {
+	my $fresh = AppTest->new()->setup();
+	system('rm', '-rf', map { "$fresh->{dir}/data/db/$_" } qw(_users _users_sid _users_log)) == 0 || die;
+	$fresh->{cookie} = {};
+	$fresh->get('root*', 'login_auto');
+	ok($fresh->{cookie}->{'root*'}->{session}, 'ユーザーのフォルダを消すと、root*で入れる');
+	$fresh->user_add('root*', 'again', 1);
+	$fresh->login('again');
+	is($fresh->get('again', 'menu')->{status}, 200, '管理者を作り直せる');
+	is($fresh->get('again', 'set/')->{status}, 200, 'ブログの設定はそのまま使える');
 };
 
 subtest '操作の記録' => sub {
 	# 無いIDでの失敗を12件。タグになる文字を混ぜて、エスケープとURLのエンコードも確かめる
-	$app->post('editor', '', { action => '_ajax_login', adiary_id => 'nobody<x>', pass => 'wrong' }) foreach (1..12);
+	$app->post('admin', '', { action => '_ajax_login', adiary_id => 'nobody<x>', pass => 'wrong' }) foreach (1..12);
 	my $rows = sub { my @r = (shift =~ m{<td>nobody&lt;x&gt;</td>\s*<td>ログイン</td>\s*<td><strong class="warning">失敗</strong></td>}g); scalar(@r) };
 
 	my $b = body($app->get('admin', 'user/log&loads=10&result=fail&id=' . AppTest::_uri_escape('nobody<x>')));
@@ -333,7 +388,7 @@ subtest '操作の記録' => sub {
 subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub {
 	# 編集画面のUploadボタン（貼り付けが使う値）と、アップロードのダイアログ
 	my $edit = sub {
-		my $b = body($app->get('editor', 'edit'));
+		my $b = body($app->get('admin', 'edit'));
 		my ($btn)  = $b =~ m{(<button type="button" id="edit-file-upload"[^>]*>)};
 		my ($form) = $b =~ m{(<form id="upload-form">.*?</form>)}s;
 		return ($btn, $form);
@@ -348,25 +403,25 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 
 	# 選択肢に無い大きさも保存できる
 	my %SET = (action => 'set/editor', edit_thumb_size => 200, edit_paste => 'large', edit_paste_exif => 1, edit_paste_class => 'float-r');
-	my $r = $app->post('owner', 'set/editor', \%SET);
+	my $r = $app->post('admin', 'set/editor', \%SET);
 	ok(AppTest::is_reload($r), '保存できる');
 	($btn, $form) = $edit->();
 	like($btn, qr{data-paste="large" data-exif="1" data-class="float-r"}, '貼り付けの値が設定になる');
 	like($form, qr{<option value="0" selected>大きい画像を貼付</option>}, 'ダイアログが大きい画像になる');
 	like($form, qr{id="paste-to-exif" checked}, 'ダイアログのExifが付く');
 	like($form, qr{<option value="float-r" selected>}, 'ダイアログの表示が右寄せになる');
-	like(body($app->get('owner', 'set/editor')), qr{<option value="200" selected>200px</option>}, '設定の画面にも出る');
+	like(body($app->get('admin', 'set/editor')), qr{<option value="200" selected>200px</option>}, '設定の画面にも出る');
 
 	# 範囲外や、選択肢に無い値は拒む
 	foreach my $bad ([ edit_thumb_size => 50 ], [ edit_thumb_size => 900 ], [ edit_paste => 'xx' ], [ edit_paste_class => 'xx' ]) {
-		$r = $app->post('owner', 'set/editor', { %SET, @$bad });
+		$r = $app->post('admin', 'set/editor', { %SET, @$bad });
 		ok(!AppTest::is_reload($r), "$bad->[0]=$bad->[1] は保存できない");
 	}
 	($btn) = $edit->();
 	like($btn, qr{data-paste="large"}, '拒んだ後も前の設定のまま');
 
 	# サムネイルは、送られた大きさではなく設定の大きさで作る（元の画像は192px）
-	$r = $app->post('owner', 'set/editor', { %SET, edit_thumb_size => 100 });
+	$r = $app->post('admin', 'set/editor', { %SET, edit_thumb_size => 100 });
 	ok(AppTest::is_reload($r), '大きさを100にする');
 	my $png = do {
 		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
@@ -374,16 +429,16 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 	};
 	require Satsuki::ImageFormat;
 	my $thumb = "$dir/pub/attachments/test/.thumbnail/size.png." . (Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg');
-	$r = $app->post('editor', '', [ action => 'media/upload_form', folder => 'test/', size => 640,
+	$r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', size => 640,
 		file_ary => { filename => 'size.png', content => $png, type => 'image/png' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
 	is(join('x', Satsuki::ImageFormat::get_size($thumb)), '100x100', 'アップロードでは設定の大きさで作る');
 
-	$r = $app->post('owner', 'set/editor', { %SET, edit_thumb_size => 150 });
-	$r = $app->post('editor', '', { action => 'media/remake_thumbnail', folder => 'test/', file_ary => 'size.png', size => 640 });
+	$r = $app->post('admin', 'set/editor', { %SET, edit_thumb_size => 150 });
+	$r = $app->post('admin', '', { action => 'media/remake_thumbnail', folder => 'test/', file_ary => 'size.png', size => 640 });
 	ok(json_ok($r), '再生成できる');
 	is(join('x', Satsuki::ImageFormat::get_size($thumb)), '150x150', '再生成でも設定の大きさで作る');
-	unlike(body($app->get('editor', 'media/')), qr{name="size"|thumbnail-size}, 'メディアでサムネイルの大きさを選ばせない');
+	unlike(body($app->get('admin', 'media/')), qr{name="size"|thumbnail-size}, 'メディアでサムネイルの大きさを選ばせない');
 };
 
 #-------------------------------------------------------------------------------
@@ -391,7 +446,7 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 #-------------------------------------------------------------------------------
 # 保存すると、送らなかったflagが0になるので最後に置く
 subtest 'ページ送りの行けない方向はリンクにしない' => sub {
-	my $r = $app->post('owner', 'set/detail', { action => 'set/detail', load_items => 1 });
+	my $r = $app->post('admin', 'set/detail', { action => 'set/detail', load_items => 1 });
 	ok(AppTest::is_reload($r), '1ページ1件にする');
 
 	# 前後だけの形（トップ）と、番号付きの形（検索）。最後のページまで「次のページ」を辿る

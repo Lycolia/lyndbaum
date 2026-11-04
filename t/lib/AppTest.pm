@@ -10,7 +10,7 @@ use utf8;
 #	my $app = AppTest->new(develop => 1);	# 開発モード（テンプレートのエラーを画面に出す）
 #	$app->setup();				# ユーザーとブログを作る
 #	my $r = $app->get('admin', 'menu');	# adminでログインして?menuを開く
-#	my $r = $app->post('admin', 'set/role', { action => 'set/role', ... });
+#	my $r = $app->post('admin', 'set/detail', { action => 'set/detail', ... });
 #
 package AppTest;
 use File::Basename ();
@@ -26,11 +26,8 @@ my $ROOT = File::Spec->rel2abs( File::Basename::dirname(__FILE__) . '/../..' );
 
 # setup()で作るユーザー
 #	admin  : システム管理者
-#	owner  : ブログ管理者（ブログの権限設定のadmin_users）
-#	editor : 編集者（ブログの権限設定のeditors）
-#	user   : ログインできるだけのユーザー
 #	guest  : ログインしていない人（Cookieなし）
-our @USERS = qw(admin owner editor user);
+our @USERS = qw(admin);
 our $PASS  = 'test-pass-1234';
 
 #-------------------------------------------------------------------------------
@@ -230,22 +227,9 @@ sub setup {
 	$self->login('admin');
 	delete $self->{cookie}->{'root*'};
 
-	foreach (grep { $_ ne 'admin' } @USERS) {
-		$self->user_add('admin', $_, 0);
-		$self->login($_);
-	}
-
 	# ブログを作る
 	$r = $self->post('admin', '', { action => 'etc/myblog_create', load_design => 1 });
 	die "blog create failed: $r->{title}" if (!is_reload($r));
-
-	# ブログの権限
-	$r = $self->post('admin', 'set/role', {
-		action      => 'set/role',
-		admin_users => 'owner',
-		editors     => 'editor',
-	});
-	die "set/role failed: $r->{title}" if (!is_reload($r));
 
 	# 最初に管理画面を開いたときに書くもの（システムの情報のmyselfなど）を、先に書かせておく
 	$self->get($_, 'menu') foreach (@USERS);
@@ -255,7 +239,7 @@ sub setup {
 #-------------------------------------------------------------------------------
 # ●記事、コメント、画像を置く
 #-------------------------------------------------------------------------------
-# editorの記事（pkey=1）、ownerの記事（pkey=2）、ゴミ箱の記事（pkey=3）、
+# 記事（pkey=1、2）、ゴミ箱の記事（pkey=3）、
 # 記事1へのコメント（pkey=1）、アルバムのフォルダtest/と画像test/a.png、
 # 動画test/v.mp4（中身は動画ではない。名前で動画として扱われる）を作る
 our $IMAGE_FOLDER = 'test/';
@@ -265,26 +249,26 @@ sub seed {
 	my $self = shift;
 	my %art = (parser => 'markdown', enable => 1, com_ok => 1, ymd => '2026-10-01');
 	my $r;
-	$r = $self->post('editor', '', { %art, action => 'edit', title => 'editorの記事', body_txt => "本文1\n", tag_ary => 'タグ1' });
+	$r = $self->post('admin', '', { %art, action => 'edit', title => 'editorの記事', body_txt => "本文1\n", tag_ary => 'タグ1' });
 	die "edit 1 failed: $r->{title}" if (!is_reload($r));
-	$r = $self->post('owner',  '', { %art, action => 'edit', title => 'ownerの記事',  body_txt => "本文2\n", tag_ary => 'タグ2' });
+	$r = $self->post('admin',  '', { %art, action => 'edit', title => 'ownerの記事',  body_txt => "本文2\n", tag_ary => 'タグ2' });
 	die "edit 2 failed: $r->{title}" if (!is_reload($r));
-	$r = $self->post('owner',  '', { %art, action => 'edit', title => '消す記事',     body_txt => "本文3\n" });
+	$r = $self->post('admin',  '', { %art, action => 'edit', title => '消す記事',     body_txt => "本文3\n" });
 	die "edit 3 failed: $r->{title}" if (!is_reload($r));
-	$r = $self->post('owner',  '', { action => 'delete', delete_pkey_ary => 3, title => '消す記事' });
+	$r = $self->post('admin',  '', { action => 'delete', delete_pkey_ary => 3, title => '消す記事' });
 	die "delete 3 failed: $r->{title}" if (!is_reload($r));
 
-	# 編集者のコメントは、スパム対策の判定の対象外
-	$r = $self->post('editor', '', { action => 'comment_post', a_pkey => 1, comment_txt => 'seedのコメント', name => 'editor' });
+	# 管理者のコメントは、スパム対策の判定の対象外
+	$r = $self->post('admin', '', { action => 'comment_post', a_pkey => 1, comment_txt => 'seedのコメント', name => 'admin' });
 	die "comment failed: $r->{title}" if (($r->{title} // '') !~ /^処理結果/);	# 公開画面の処理結果（_sub/reload_message_public）
 
 	# アルバムの根元は、画像を初めて置くときに作られる。ここでは先に作っておく
 	mkdir("$self->{dir}/pub/attachments");
-	$r = $self->post('editor', '', { action => 'media/create_folder', folder => '/', name => 'test' });
+	$r = $self->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'test' });
 	die "create_folder failed: $r->{body}" if (!$r->{json} || $r->{json}->{ret} ne '0');
 	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attachments/$IMAGE_FOLDER$IMAGE_FILE");
 	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attachments/$IMAGE_FOLDER$VIDEO_FILE");
-	$r = $self->post('editor', '', { action => 'media/refresh' });
+	$r = $self->post('admin', '', { action => 'media/refresh' });
 	return $self;
 }
 
@@ -308,6 +292,21 @@ sub user_add {
 	if (!$r->{json} || $r->{json}->{ret} ne '0') {
 		die "user_add $id failed: $r->{body}";
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●管理者でないユーザーをDBに直接入れる（パスワードは管理者と同じ）
+#-------------------------------------------------------------------------------
+# 画面からは作れない。4.31より前のデータと、ログインの試験に使う
+sub insert_user {
+	my ($self, $id) = @_;
+	require Satsuki::Base;
+	my $ROBJ = Satsuki::Base->new();
+	my $DB   = $ROBJ->loadpm('DB_text', "$self->{dir}/data/db/");
+	my $admin = $DB->select_match_limit1('_users', 'id', 'admin');
+	$DB->begin();
+	$DB->insert('_users', { id => $id, name => $id, email => '', pass => $admin->{pass}, isadmin => 0 });
+	if ($DB->commit()) { die "insert_user $id failed"; }
 }
 
 sub login {

@@ -4,10 +4,10 @@
 
 <!--=========================================================================-->
 <@>権限確認
-<$ifredirect(! Auth.isadmin, myself)>
+<$ifredirect(! Auth.auto, myself)>
 
 <@> システムモード
-<$v.system_mode("ユーザーの追加")>
+<$v.system_mode("管理者の作成")>
 
 <@> 階層ツリー、権限チェック、エラー表示
 <@call("_sub/menu_tree")>
@@ -20,9 +20,7 @@
 <@ifexec(!ret, begin)>
 	<form class="js-ajax" id="add-user-form">
 	<input type="hidden" name="action" value="_ajax_user_add">
-	<@ifexec(Auth.auto, begin)>
-	<p><strong class="warning">最初に管理者ユーザを追加します。</strong></p>
-	<$end>
+	<p><strong class="warning">最初に管理者を作ります。ユーザーは管理者1人だけです。</strong></p>
 
 	<table>
 	<tr>
@@ -49,24 +47,9 @@
 		<td><input type="email" name="email" class="w300 _reset" value="<@t.email>"></td>
 	</tr>
 -->
-	<tr>
-		<th>管理者</th>
-		<@ifexec(! Auth.exists_admin, begin, begin)><@>ユーザーなし自動承認モードなら無条件に管理者
-		<td><input type="hidden" name="isadmin" value="1">最初のユーザーは自動的に管理者になります</td>
-		<$else>
-		<td>
-			<input type="hidden" name="isadmin" value="0">
-			<label><input type="checkbox" id="isadmin" name="isadmin" value="1"<@if(Form.isadmin, ' checked')>>管理者にする</label>
-		</td>
-		<$end>
-	</tr>
 	</table>
 
-	<@ifexec(!Auth.auto, begin)>
-	<p><label><input type="checkbox" id="continue">連続で追加する</label></p>
-	<$end>
-
-	<button type="submit">ユーザーを追加する</button>
+	<button type="submit">管理者を作る</button>
 	</form>
 <$end>
 </div> <!-- end of body -->
@@ -76,27 +59,10 @@
 <script-defer><!--
 	const $form = $('#add-user-form');
 
-<@ifexec(!Auth.auto, begin)>
-	$form.data('success', function(h){
-		if (!$('#continue').prop('checked')) {
-			window.location = '<@v.myself>?<@v.skel_dir>';
-			return;
-		}
-
-		adiary.show_dialog("<p>アカウントを追加しました。</p>");
-		const f1 = $('#isadmin') .prop('checked');
-		const f2 = $('#continue').prop('checked');
-		$form[0].reset();
-		$('#isadmin') .prop('checked', f1);
-		$('#continue').prop('checked', f2);
-	});
-<$end>
-<@ifexec(Auth.auto, begin)>
 	$form.data('success', function(h){
 		adiary.show_dialog('<p>今追加したアカウントでログインしてください。</p>', function() {
 			window.location = '<@v.myself>?login&id=' + encodeURIComponent($('#adiary-id').val());
 		});
 	});
-<$end>
 --></script-defer>
 

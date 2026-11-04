@@ -18,7 +18,8 @@ my @update_versions = (
 	{ ver => 4.27, plugin=>1, func => 'sys_update_427' },	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
 	{ ver => 4.28, func => 'sys_update_428', system=>1 },	# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
 	{ ver => 4.29, func => 'sys_update_429' },	# アイキャッチを選んだ画像だけにし、「設定しない」（main_image の ?none）を廃止した
-	{ ver => 4.30, plugin=>1, info=>1 }	# 記事一覧の雛形（_main）で、OGPをUser-Agentによらず出すようにした。デザインのスケルトンを作り直す。RSSの版の表示を直したので書き出し直す
+	{ ver => 4.30, plugin=>1, info=>1 },	# 記事一覧の雛形（_main）で、OGPをUser-Agentによらず出すようにした。デザインのスケルトンを作り直す。RSSの版の表示を直したので書き出し直す
+	{ ver => 4.31, func => 'sys_update_431', system=>1 }	# ユーザーを管理者1人にした。ほかのユーザーと、権限の設定を消す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -41,6 +42,12 @@ sub system_update {
 	# プライベートモードの削除（Ver4.27）。閉じていたブログが公開されるので、確認が無いとアップデートしない
 	if ($cur < 4.27 && ($self->{blog} || {})->{private} && !$ROBJ->{Form}->{publish_private}) {
 		$ROBJ->form_error('publish_private', 'Confirm that this blog will be published');
+		return 10;
+	}
+
+	# ユーザーを管理者1人にした（Ver4.31）。ほかのユーザーを消すので、確認が無いとアップデートしない
+	if (@{ $self->load_update_other_users() } && !$ROBJ->{Form}->{remove_other_users}) {
+		$ROBJ->form_error('remove_other_users', 'Confirm that other users will be deleted');
 		return 10;
 	}
 
@@ -126,6 +133,40 @@ sub system_update {
 sub update_unsupported {
 	my $self = shift;
 	return $self->{sys}->{VERSION} < $UPDATE_MIN_VERSION ? 1 : 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●アップデートで消すユーザー（実行している管理者のほかの全員）
+#-------------------------------------------------------------------------------
+sub load_update_other_users {
+	my $self = shift;
+	if ($self->{sys}->{VERSION} >= 4.31) { return []; }
+	my $auth = $self->{ROBJ}->{Auth};
+	return [ grep { $_->{id} ne $auth->{id} } @{ $auth->load_users() } ];
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.31
+#-------------------------------------------------------------------------------
+sub sys_update_431 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $auth = $ROBJ->{Auth};
+
+	my @ids = map { $_->{id} } @{ $self->load_update_other_users() };
+	if (@ids) {
+		my $r = $auth->user_delete(\@ids);
+		if ($r->{ret}) { $ROBJ->message($r->{msg}); }
+	}
+
+	my $blog = $self->{blog};
+	if (!$blog) { return; }
+	foreach(qw(admin_users editors edit_by_author_only)) {
+		$self->update_blogset($blog, $_, undef);
+	}
+	if ($blog->{allow_com_users} ne '*') {
+		$self->update_blogset($blog, 'allow_com_users', '');
+	}
 }
 
 #-------------------------------------------------------------------------------

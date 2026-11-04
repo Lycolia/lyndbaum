@@ -20,7 +20,7 @@
 <h2><@v.title></h2>
 <div class="body">
 	<@ifexec(Auth.auto, begin)>
-		<p><a href="<@myself>?user/add">最初のユーザーを追加してください</a></p>
+		<p><a href="<@myself>?user/add">最初に管理者を作ってください</a></p>
 	<$end>
 
 <@ifexec(!Auth.auto, begin)>
@@ -40,7 +40,7 @@
 	<$end>
 <$end>
 
-	<p>ユーザー <@Auth.id><@if(Auth.isadmin, '（システム管理者）')></p>
+	<p>ユーザー <@Auth.id></p>
 </div>
 </article>
 

@@ -166,7 +166,6 @@
 	<button type="button" data-target="#tag-form" class="js-switch">タグ設定</button>
 	<button type="submit" name="mode" value="delete"  class="js-check-form" id="del-submit" data-confirm="%c件の記事をゴミ箱へ移動しますか？" data-focus="cancel">削除</button>
 	<a href="<@v.myself>?trash">ゴミ箱</a>
-	<@if(s.edit_by_author_only && !v.blog_admin, '<span class="help-text">他人の記事の状態は変更できません。</span>')>
 	</div>
 	</form>
 <$end>

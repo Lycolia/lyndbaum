@@ -23,44 +23,16 @@ sub _ajax_user_add {
 	my $ROBJ = $self->{ROBJ};
 	my $auth = $ROBJ->{Auth};
 
-	if (!$auth->{isadmin}) {
+	# ユーザーは管理者1人だけ。管理者がいないとき（root*）に作る
+	if (!$auth->{auto}) {
 		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
 	}
 
 	$form->{id} = $form->{adiary_id};
 	delete $form->{adiary_id};
+	$form->{isadmin} = 1;
 
 	return $auth->user_add($form);
-}
-
-#-------------------------------------------------------------------------------
-# ●ユーザー編集
-#-------------------------------------------------------------------------------
-sub _ajax_user_edit {
-	my $self = shift;
-	my $form = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
-
-	if (!$auth->{isadmin}) {
-		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
-	}
-	return $auth->user_edit($form);
-}
-
-#-------------------------------------------------------------------------------
-# ●ユーザー削除
-#-------------------------------------------------------------------------------
-sub _ajax_user_delete {
-	my $self = shift;
-	my $form = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
-
-	if (!$auth->{isadmin}) {
-		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
-	}
-	return $auth->user_delete($form->{id} || $form->{id_ary});
 }
 
 #-------------------------------------------------------------------------------

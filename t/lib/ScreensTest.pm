@@ -21,14 +21,14 @@ sub esc { AppTest::_uri_escape(shift) }
 # 引数が要る画面は、画面の中のリンクと同じ引数を付ける
 our @ADMIN = qw(
 	menu personal/ edit /01?edit trash artlist comlist media/
-	set/ set/detail set/role set/editor
+	set/ set/detail set/editor
 	set2/ set2/tag_edit set2/contents_edit set2/usertag set2/header
 	design/ design/theme design/edit design/reset design/usercss design/art_sample
 	design/theme_colors&name=satsuki2/chie design/theme_readme&name=satsuki2/chie
 	plugin/ plugin/modules plugin/mainte
 	plugin/plugin_setting&name=des_clock plugin/plugin_readme&name=des_clock
 	mainte/ mainte/blog_clear mainte/import mainte/import_img mainte/export
-	user/ user/add user/edit&id=user user/log user/log&id=user&type=login&result=fail&year=2026&mon=10&page=2
+	user/log user/log&id=admin&type=login&result=fail&year=2026&mon=10&page=2
 	system/setting system/update system/check system/copyright
 	etc/allow_tags&n=article etc/allow_tags&n=header etc/allow_tags&n=description
 	etc/satsuki_tags etc/parser_debug etc/load_session etc/ajax_dummy
@@ -39,6 +39,7 @@ our @ADMIN = qw(
 our %SKIP = (
 	'login_auth'        => 'ログインの後の振り分け（転送するだけ）',
 	'login_auto'        => '初期セットアップの自動ログイン（setup() で通す）',
+	'user/add'         => '初回の管理者の作成。管理者がいるときは開けない（setup() で通す）',
 	'logout'            => 'ログアウト（開くとセッションが消える）',
 	'system/'           => 'system/setting へ転送するだけ',
 	'etc/myblog_create' => 'ブログはもうあるので、画面はエラーを出す',
@@ -145,8 +146,8 @@ sub new_app {
 
 	# NSFWの記事（pkey=4）とコンテンツ（pkey=5）を足す
 	my %art = (action => 'edit', parser => 'markdown', enable => 1, body_txt => "本文\n", ymd => '2026-10-05');
-	AppTest::is_reload($app->post('owner', '', { %art, title => 'NSFWの記事', nsfw => 1 })) or die 'nsfw article';
-	AppTest::is_reload($app->post('owner', '', { %art, title => 'ページ', wiki => 1, link_key_txt => 'page1' })) or die 'content';
+	AppTest::is_reload($app->post('admin', '', { %art, title => 'NSFWの記事', nsfw => 1 })) or die 'nsfw article';
+	AppTest::is_reload($app->post('admin', '', { %art, title => 'ページ', wiki => 1, link_key_txt => 'page1' })) or die 'content';
 	return $app;
 }
 
@@ -189,7 +190,7 @@ sub open_public {
 		my $first_theme = $theme eq $THEMES[0];
 		foreach my $p (@PUBLIC) {
 			my ($q, $status) = @$p;
-			foreach my $who (qw(guest editor)) {
+			foreach my $who (qw(guest admin)) {
 				my $r = $first_theme ? get_unchanged($app, $who, $q, "[$theme] ?$q を $who で") : $app->get($who, $q);
 				check($r, "[$theme] ?$q を $who で開くとエラーにならない", $status);
 				if ($q eq '') { check_jquery($r, $who, "[$theme] トップ"); }

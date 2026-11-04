@@ -18,7 +18,7 @@ use AppTest;
 binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
 
 # 権限の低い順
-my @ROLES = qw(guest user editor owner admin);
+my @ROLES = qw(guest admin);
 my %LEVEL = map { $ROLES[$_] => $_ } 0..$#ROLES;
 
 #-------------------------------------------------------------------------------
@@ -36,58 +36,54 @@ my @SCREENS = (
 	[ '/01'                 , 'guest' , 'editorの記事' ],
 
 	# ログインと共通
-	[ 'menu'                , 'user'  , 'ダッシュボード' ],
-	[ 'personal/'           , 'user'  , '名前・パスワードの変更' ],
-	[ 'edit'                , 'editor', '記事の作成' ],
-	[ '/01?edit'            , 'editor', sub { $_[0]->{status} == 200 && ($_[0]->{title} // '') =~ /editorの記事 - 記事の編集/ } ],
-	[ 'trash'               , 'editor', 'ゴミ箱' ],
-	[ 'artlist'             , 'editor', '記事一覧' ],
-	[ 'artlist&enable=draft', 'editor', '記事一覧' ],	# 下書きの絞り込み
-	[ 'comlist'             , 'editor', 'コメント一覧' ],
-	[ 'media/'              , 'editor', 'メディア' ],
+	[ 'menu'                , 'admin'  , 'ダッシュボード' ],
+	[ 'personal/'           , 'admin'  , '名前・パスワードの変更' ],
+	[ 'edit'                , 'admin', '記事の作成' ],
+	[ '/01?edit'            , 'admin', sub { $_[0]->{status} == 200 && ($_[0]->{title} // '') =~ /editorの記事 - 記事の編集/ } ],
+	[ 'trash'               , 'admin', 'ゴミ箱' ],
+	[ 'artlist'             , 'admin', '記事一覧' ],
+	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
+	[ 'comlist'             , 'admin', 'コメント一覧' ],
+	[ 'media/'              , 'admin', 'メディア' ],
 	[ 'etc/myblog_create'   , 'admin' , sub { $_[0]->{status} == 200 } ],	# ブログはもうあるので、画面はエラーを出す
 
 	# ブログの設定
-	[ 'set/'                , 'owner' , 'ブログの基本設定' ],
-	[ 'set/detail'          , 'owner' , '詳細/コメント設定' ],
-	[ 'set/role'            , 'owner' , 'ブログの権限設定' ],
-	[ 'set/editor'          , 'owner' , '編集画面の設定' ],
+	[ 'set/'                , 'admin' , 'ブログの基本設定' ],
+	[ 'set/detail'          , 'admin' , '詳細/コメント設定' ],
+	[ 'set/editor'          , 'admin' , '編集画面の設定' ],
 
 	# その他の設定
-	[ 'set2/'               , 'editor', 'その他の設定' ],
-	[ 'set2/tag_edit'       , 'editor', 'タグの編集' ],
-	[ 'set2/contents_edit'  , 'editor', 'コンテンツの表示順設定' ],
-	[ 'set2/usertag'        , 'editor', '記法タグのカスタマイズ' ],
-	[ 'set2/header'         , 'owner' , 'ヘッダ設定' ],
+	[ 'set2/'               , 'admin', 'その他の設定' ],
+	[ 'set2/tag_edit'       , 'admin', 'タグの編集' ],
+	[ 'set2/contents_edit'  , 'admin', 'コンテンツの表示順設定' ],
+	[ 'set2/usertag'        , 'admin', '記法タグのカスタマイズ' ],
+	[ 'set2/header'         , 'admin' , 'ヘッダ設定' ],
 
 	# デザイン
-	[ 'design/'             , 'owner' , 'デザイン編集' ],
-	[ 'design/theme'        , 'owner' , 'テーマ選択' ],
-	[ 'design/edit'         , 'owner' , 'デザイン編集' ],
-	[ 'design/reset'        , 'owner' , 'デザインの初期化' ],
-	[ 'design/usercss'      , 'owner' , 'ユーザーCSSの設定' ],
-	[ 'design/art_sample'   , 'owner' , sub { $_[0]->{status} == 200 } ],	# 題名は最新の記事のもの
-	[ 'design/theme_colors&name=satsuki2/chie', 'owner', $json ],
-	[ 'design/theme_readme&name=satsuki2/chie', 'user', $text ],
+	[ 'design/'             , 'admin' , 'デザイン編集' ],
+	[ 'design/theme'        , 'admin' , 'テーマ選択' ],
+	[ 'design/edit'         , 'admin' , 'デザイン編集' ],
+	[ 'design/reset'        , 'admin' , 'デザインの初期化' ],
+	[ 'design/usercss'      , 'admin' , 'ユーザーCSSの設定' ],
+	[ 'design/art_sample'   , 'admin' , sub { $_[0]->{status} == 200 } ],	# 題名は最新の記事のもの
+	[ 'design/theme_colors&name=satsuki2/chie', 'admin', $json ],
+	[ 'design/theme_readme&name=satsuki2/chie', 'admin', $text ],
 
 	# プラグイン
-	[ 'plugin/'             , 'owner' , 'プラグインの設定' ],
-	[ 'plugin/modules'      , 'owner' , 'テザインモジュール一覧' ],
-	[ 'plugin/mainte'       , 'owner' , 'プラグインのメンテナンス' ],
-	[ 'plugin/plugin_setting&name=des_clock', 'owner', sub { $_[0]->{status} == 200 && $_[0]->{body} =~ /\S/ } ],
-	[ 'plugin/plugin_readme&name=des_clock' , 'user' , $text ],
+	[ 'plugin/'             , 'admin' , 'プラグインの設定' ],
+	[ 'plugin/modules'      , 'admin' , 'テザインモジュール一覧' ],
+	[ 'plugin/mainte'       , 'admin' , 'プラグインのメンテナンス' ],
+	[ 'plugin/plugin_setting&name=des_clock', 'admin', sub { $_[0]->{status} == 200 && $_[0]->{body} =~ /\S/ } ],
+	[ 'plugin/plugin_readme&name=des_clock' , 'admin' , $text ],
 
 	# ブログのメンテナンス
-	[ 'mainte/'             , 'owner' , 'ブログの再構築' ],
-	[ 'mainte/blog_clear'   , 'owner' , '全記事の削除' ],
-	[ 'mainte/import'       , 'owner' , '記事のインポート' ],
-	[ 'mainte/import_img'   , 'owner' , '外部画像の取り込み' ],
-	[ 'mainte/export'       , 'owner' , '記事のエクスポート' ],
+	[ 'mainte/'             , 'admin' , 'ブログの再構築' ],
+	[ 'mainte/blog_clear'   , 'admin' , '全記事の削除' ],
+	[ 'mainte/import'       , 'admin' , '記事のインポート' ],
+	[ 'mainte/import_img'   , 'admin' , '外部画像の取り込み' ],
+	[ 'mainte/export'       , 'admin' , '記事のエクスポート' ],
 
 	# ユーザーとシステム
-	[ 'user/'               , 'admin' , 'ユーザーの一覧' ],
-	[ 'user/add'            , 'admin' , 'ユーザーの追加' ],
-	[ 'user/edit'           , 'admin' , 'ユーザーの編集' ],
 	[ 'user/log'            , 'admin' , '操作の記録' ],
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
@@ -95,10 +91,10 @@ my @SCREENS = (
 	[ 'system/copyright'    , 'admin' , '著作権表示' ],
 
 	# 補助の画面
-	[ 'etc/allow_tags'      , 'editor', '使用可能なHTMLタグ一覧' ],
-	[ 'etc/satsuki_tags'    , 'editor', '記法タグの一覧' ],
-	[ 'etc/load_session'    , 'user'  , $text ],
-	[ 'etc/ajax_dummy'      , 'user'  , $text ],
+	[ 'etc/allow_tags'      , 'admin', '使用可能なHTMLタグ一覧' ],
+	[ 'etc/satsuki_tags'    , 'admin', '記法タグの一覧' ],
+	[ 'etc/load_session'    , 'admin'  , $text ],
+	[ 'etc/ajax_dummy'      , 'admin'  , $text ],
 );
 
 # 上の表に入れない画面と、その理由
@@ -106,6 +102,7 @@ my %SKIP = (
 	'login'            => '誰でも開くログインの画面',
 	'login_auth'       => 'ログインの後の振り分け（転送するだけ）',
 	'login_auto'       => '初期セットアップの自動ログイン（setup() で通す）',
+	'user/add'         => '初回の管理者の作成。管理者がいるときは開けない（setup() で通す）',
 	'logout'           => 'ログアウト（開くとセッションが消える）',
 	'system/'          => 'system/setting へ転送するだけ',
 	'etc/parser_debug' => '開発モード（Develop）のときだけ',
