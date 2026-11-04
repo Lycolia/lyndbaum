@@ -1,11 +1,10 @@
 <@7>
 <@local(logs,t,x,opt,ret,s,loads,url,base,sort_th,page_offset)>
-<$ifredirect(!v.allow_view, v.myself)>
 
 <@> ログインしていない
 <$ifjump(!Auth.ok, 'login')>
 <@> 権限がない
-<$ifjump_clear(! v.allow_edit, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
+<$ifjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
 
 <@> システムモード
 <$v.system_mode("記事一覧")>
@@ -106,7 +105,7 @@
 	<$end>
 
 
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 	<form action="<@url>page=<@page>" method="POST" class="js-check-form" data-target="#artlist-table .pkey-ary">
 	<input type="hidden" name="action" value="articles_edit">
 <$end>
@@ -146,12 +145,12 @@
 		<@if(page<pages, #'<a class="next-page pnavi" rel="next" href="<@url>page=' . (page+1) . '">次のページ</a>')>
 	</nav>
 
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 	<div id="tag-form" style="margin-bottom: 1em;">
 	<h3>タグ設定</h3>
 	
 		<input type="text" id="tag-input" name="tags" value="" class="w80p"><br>
-		<select name="taglist" id="tag-select" data-url="<@Basepath><@v.blogpub_dir>taglist.json?<@v.blog.json_tm>">
+		<select name="taglist" id="tag-select" data-url="<@Basepath><@v.pub_dir>taglist.json?<@v.blog.json_tm>">
 			<option value="" class="special">【タグを選択】</option>
 		</select>
 		<select name="tag_append">
@@ -181,7 +180,7 @@
 		form.submit();
 	});
 
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 	var taginp = $('#tag-input');
 	var tagsel = $('#tag-select');
 	adiary.load_tags_list(tagsel);

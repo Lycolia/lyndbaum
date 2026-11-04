@@ -198,7 +198,6 @@ my %SKIP = (
 	'_ajax_user_add'    => '管理者がいないとき（root*）だけ（t/operations_user.t）',
 	'comment_post'      => '誰でも（ブログの設定で、コメントできる人を決める）',
 	'etc/dummy'         => '誰でも（何もしない）',
-	'etc/myblog_create' => 'ブログが1つしか作れず、作った後では下限の人でも通らない',
 );
 
 # 上の表に入れない操作を、GETで送るときの中身
@@ -207,7 +206,6 @@ my %SKIP_FORM = (
 	'_ajax_user_add'    => { adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS },
 	'comment_post'      => { a_pkey => 1, comment_txt => 'GETのコメント', name => 'admin' },
 	'etc/dummy'         => {},
-	'etc/myblog_create' => { load_design => 1 },
 );
 
 #-------------------------------------------------------------------------------

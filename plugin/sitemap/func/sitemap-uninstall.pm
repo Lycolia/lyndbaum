@@ -4,7 +4,7 @@ sub {
 	my $name = shift;
 	my $ROBJ = $self->{ROBJ};
 
-	my $file = $self->{blogpub_dir} . 'sitemap.xml';
+	my $file = $self->{pub_dir} . 'sitemap.xml';
 	$ROBJ->file_delete($file);
 
 	return 0;

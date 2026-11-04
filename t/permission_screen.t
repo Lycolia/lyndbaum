@@ -45,7 +45,6 @@ my @SCREENS = (
 	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
 	[ 'media/'              , 'admin', 'メディア' ],
-	[ 'etc/myblog_create'   , 'admin' , sub { $_[0]->{status} == 200 } ],	# ブログはもうあるので、画面はエラーを出す
 
 	# ブログの設定
 	[ 'set/'                , 'admin' , 'ブログの基本設定' ],

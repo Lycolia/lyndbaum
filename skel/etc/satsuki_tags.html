@@ -2,7 +2,7 @@
 <@local(t,tags,name,parser)>
 
 <@>権限チェック
-<$ifredirect( !v.allow_edit, v.myself )>
+<$ifredirect( !v.blog_admin, v.myself )>
 
 <@> システムモード
 <$v.system_mode("記法タグの一覧")>

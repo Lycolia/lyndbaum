@@ -16,7 +16,7 @@
 <tr>
 <td>UserID</td><td<@if(Auth.isadmin, ' title="あなたは管理者です"')>><@Auth.id><@if(Auth.isadmin, '(*)')></td>	
 </tr>
-<@ifexec(v.allow_view, begin)>
+
 <tr>
 <td>公開記事&ensp;</td><td><@v.blog.arts || 0>件</td>
 </tr>
@@ -30,7 +30,7 @@
 </tr><tr>
 <td colspan="2">『<a href="<@v.myself>"><@s.blog_name></a>』</td>
 </tr>
-<$end>
+
 </tbody></table>
 </div> <!-- hatena-modulebody -->
 </div> <!-- hatena-module -->
@@ -38,7 +38,7 @@
 <@>$HEADER:END$----------------------------------------------------------------
 <@v.sidebar_html> <@> from _top.html
 
-<@ifexec(v.allow_view, begin)>
+
 <!--Information==========================================-->
 <div class="hatena-module" id="side-information" data-module-name="des_information-ja">
 <div class="hatena-moduletitle">Information</div>
@@ -48,7 +48,7 @@
 </ul>
 </div> <!-- hatena-modulebody -->
 </div> <!-- hatena-module -->
-<$end>
+
 <@>$SEPARATOR$----------------------------------------------------------------
 </div> <!-- End of side-a -->
 
@@ -56,7 +56,7 @@
 <@>$SEPARATOR:END$------------------------------------------------------------
 
 <@> デザインを保存していないときの既定の中身（保存すると、置いたモジュールに置き換わる）
-<@ifexec(v.allow_view, begin)><@call('_sub/side_search', 'des_searchbox', 'side-search')><$end>
+<@call('_sub/side_search', 'des_searchbox', 'side-search')>
 <@call('_sub/side_system_info', 'des_system-info')>
 <@>$FOOTER$--------------------------------------------------------------------
 </div> <!-- End of side-b -->

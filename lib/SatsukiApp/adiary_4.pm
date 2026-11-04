@@ -32,7 +32,7 @@ sub save_usertag {
 	my ($self, $tag_txt) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my $auth = $ROBJ->{Auth};
-	if (! $self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (! $self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	my $r = $ROBJ->fwrite_lines( $self->{blog_dir} . 'usertag.txt', $tag_txt );
 	if ($r) {
@@ -178,7 +178,7 @@ sub dynamic_css_dir {
 sub custom_css_dir {
 	my $self  = shift;
 	my $mkdir = shift;
-	my $dir   = $self->{blogpub_dir} . 'custom/';
+	my $dir   = $self->{pub_dir} . 'custom/';
 	$mkdir && $self->{ROBJ}->mkdir($dir);
 	return $dir;
 }
@@ -623,7 +623,7 @@ sub get_plugin_install_dir() {
 # プラグインの公開するファイル（js/、css/）の写しの置き場所。plugin/名前/ の公開する部分
 sub plugin_pub_dir {
 	my $self = shift;
-	return $self->{blogpub_dir} . 'plugin/';
+	return $self->{pub_dir} . 'plugin/';
 }
 
 #-------------------------------------------------------------------------------
@@ -1381,7 +1381,6 @@ sub reset_design {
 sub load_default_design {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{blog}) { return -1; }
 
 	my $h = $self->parse_design_dat( $ROBJ->fread_hash( $self->{default_design_file} ) );
 	return $self->save_design( $h );
@@ -1631,7 +1630,7 @@ sub load_theme_info {
 sub load_theme_custom_values {
 	my ($self, $theme) = @_;
 	my (%col, %opt);
-	foreach(split(/\n/, ($self->{blog} || {})->{"theme_custom:$theme"})) {
+	foreach(split(/\n/, $self->{blog}->{"theme_custom:$theme"})) {
 		if ($_ !~ /^(\w+)=(.*)$/) { next; }
 		my ($k, $v) = ($1, $2);
 		if ($k =~ /^option\d*$/) {
@@ -1664,7 +1663,7 @@ sub write_theme_custom_css {
 
 	my $file = $self->get_theme_custom_css();
 	my ($col, $opt, $css) = $self->load_theme_info($theme, '');
-	if (!$css || ($self->{blog} || {})->{"theme_custom:$theme"} eq '') {
+	if (!$css || $self->{blog}->{"theme_custom:$theme"} eq '') {
 		$ROBJ->file_delete($file);
 		$self->update_cur_blogset('theme_custom', '');
 		return 0;

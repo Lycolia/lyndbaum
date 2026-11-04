@@ -1,6 +1,6 @@
 <@20>
 <@local(h,h2,icon_ok)>
-<$ifbreak(! v.blog_admin && ! Auth.isadmin)>
+<$ifbreak(! v.blog_admin)>
 
 <$h = validator(begin_hash, Form)>
 	blog_name = ブログ名

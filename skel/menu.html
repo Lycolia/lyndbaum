@@ -33,12 +33,7 @@
 	<span class="admin-new-badge">新着</span> コメントがあります &gt;<a href="<@v.myself>?comlist">コメント一覧から確認</a><br>
 	<$end>
 
-	<@ifexec(Auth.isadmin && !v.exists_blog(), begin)>
-	<ul class="menu">
-		<li><a href="<@myself>?etc/myblog_create">ブログを作成</a></li>
-	</ul>
 	<$end>
-<$end>
 
 	<p>ユーザー <@Auth.id></p>
 </div>
@@ -66,9 +61,9 @@
 	<li><a href="<@v.myself>?comlist&amp;hold=<@argv#0>"><@argv#1></a><span class="dashboard-count"><@int(r.hits)>件</span></li>
 <$end>
 
-<@ifexec(!Auth.auto && v.allow_view, begin)>
+<@ifexec(!Auth.auto, begin)>
 <div class="dashboard-cards">
-	<@ifexec(v.allow_edit, begin)>
+	<@ifexec(v.blog_admin, begin)>
 	<$trash = v.load_trash_list()>
 	<article class="system">
 	<h2>概要</h2>

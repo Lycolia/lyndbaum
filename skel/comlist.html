@@ -1,11 +1,10 @@
 <@7>
 <@local(logs,t,c,x,opt,ret,s,loads,url,base,sort_th,page_offset)>
-<$ifredirect(!v.allow_view, v.myself)>
 
 <@> ログインしていない
 <$ifjump(!Auth.ok, 'login')>
 <@> 権限がない
-<$ifjump_clear(! v.allow_edit, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
+<$ifjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
 
 <@> システムモード
 <$v.system_mode("コメント一覧")>
@@ -52,7 +51,7 @@
 <@>-----------------------------------------------
 <@> 新着コメントを消す
 <@>-----------------------------------------------
-<$ifexec(v.allow_edit && v.blog.newcom_flag, begin)>
+<$ifexec(v.blog_admin && v.blog.newcom_flag, begin)>
 	<$v.update_blogset(v.blog, 'newcom_flag', undef)>
 <$end>
 
@@ -98,7 +97,7 @@
 	</nav>
 	<$end>
 
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 	<form action="<@url>page=<@page>" method="POST" class="js-check-form" data-target="#comlist-table .pkey-ary">
 	<input type="hidden" name="action" value="comments_edit">
 	<input type="hidden" name="from_comlist" value="1">
@@ -106,7 +105,7 @@
 
 	<table id="comlist-table" class="list-table">
 	<thead><tr>
-		<@ifexec(v.allow_edit, begin)>
+		<@ifexec(v.blog_admin, begin)>
 		<th><input type="checkbox" name="all_check" class="js-checked" data-target="#comlist-table .pkey-ary"></th>
 		<th class="sort"><@exec(sort_th, 'hold',       '状態',   1)></th>
 		<$end>
@@ -118,12 +117,12 @@
 	<tbody class="small">
 	<@forexec(t, logs, begin)>
 	<tr>
-		<@ifexec(v.allow_edit, begin)>
+		<@ifexec(v.blog_admin, begin)>
 		<td class="c"><input type="checkbox" name="pkey_ary" value="<@t.pkey>" class="pkey-ary" id="com-<@t.pkey>"></td>
 		<td class="c"><label for="com-<@t.pkey>"><@if(t.hold, '承認待ち', '承認済み')></label></td>
 		<$end>
 		<td><a href="<@v.myself2><@t.a_elink_key>" title="<@v.format_ymd(t.a_yyyymmdd)> <@t.a_title>"><@v.string_clip(t.a_title,10)></a></td>
-		<td><a href="<@v.myself2><@t.a_elink_key>#c<@t.num>"<@if(v.allow_edit, #' class="js-popup-com" data-target="<@t.pkey>"')>><@t.name></a></td>
+		<td><a href="<@v.myself2><@t.a_elink_key>#c<@t.num>"<@if(v.blog_admin, #' class="js-popup-com" data-target="<@t.pkey>"')>><@t.name></a></td>
 		<td class="c"><label for="com-<@t.pkey>"><@print_tmf('%Y/%m/%d %H:%M', t.tm)></label></td>
 		<td class="list-wide"><label for="com-<@t.pkey>"><@v.string_clip(t.text_nobr,20)></label></td>
 	</tr>
@@ -138,7 +137,7 @@
 		<@if(page<pages, #'<a class="next-page pnavi" rel="next" href="<@url>page=' . (page+1) . '">次のページ</a>')>
 	</nav>
 
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 	<button type="submit" name="enable"  class="js-check-form" data-confirm="">承認</button>
 	<button type="submit" name="disable" class="js-check-form" data-confirm="">承認を取り消す</button>
 	<button type="submit" name="delete"  class="js-check-form" id="del-submit" data-confirm="%c件のコメントを削除しますか？" data-focus="cancel">削除</button>
@@ -149,14 +148,14 @@
 </div>
 </article>
 
-<@ifexec(v.allow_edit, begin.block)>
+<@ifexec(v.blog_admin, begin.block)>
 <!-- ポップアップ表示用のデータ -->
 <div style="display: none">
 <@forexec(c, logs, begin)>
 	<div class="comment-one<@if(c.by_admin, ' comment-admin')><@if(!c.enable, ' hidden')>" id="c<@c.pkey>">
 		<div class="commentator">
 			<span class="canchor"><a href="#c<@c.num>"><@c.num></a>:</span>	<@\>
-			<span class="commentator author<@if(c.id, " login-user")>"><@ifexec(c.email && v.allow_edit, begin, begin)><a href="mailto:<@c.email>"><@c.name></a><$else><@c.name><$end></span><@if(c.by_admin, ' <span class="comment-badge">管理者</span>')>
+			<span class="commentator author<@if(c.id, " login-user")>"><@ifexec(c.email && v.blog_admin, begin, begin)><a href="mailto:<@c.email>"><@c.name></a><$else><@c.name><$end></span><@if(c.by_admin, ' <span class="comment-badge">管理者</span>')>
 			<@ifexec(c.url, begin)><span class="comment-url"><a href="<@c.url>" rel="nofollow">URL</a></span><$end>
 			<span class="comment-date"><@print_tm(c.tm)></span>
 			<@ifexec(c.hold, begin)>
@@ -165,7 +164,7 @@
 		</div>
 
 		<div class="comment-text<@if(!c.enable, ' comment-disable')>"><@c.text></div>
-		<@ifexec(v.allow_edit, begin)>
+		<@ifexec(v.blog_admin, begin)>
 		<div class="ip-host-agent"><@c.host> (<@c.ip>)<br><@c.agent></div>
 		<$end>
 	</div> <!-- comment-one -->

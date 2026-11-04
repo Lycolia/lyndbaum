@@ -7,9 +7,9 @@
 	comlist = コメント一覧
 <$end>
 <$order = array()>
-<$ifpush(v.allow_edit, order, 'media/index')>
-<$ifpush(v.allow_view && v.allow_edit, order, 'artlist')>
-<$ifpush(v.allow_view && v.allow_edit, order, 'trash')>
-<$ifpush(v.allow_view && v.allow_edit, order, 'comlist')>
+<$ifpush(v.blog_admin, order, 'media/index')>
+<$ifpush(v.blog_admin, order, 'artlist')>
+<$ifpush(v.blog_admin, order, 'trash')>
+<$ifpush(v.blog_admin, order, 'comlist')>
 <$h._order = order>
 <$return(h)>

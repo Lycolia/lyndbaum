@@ -17,11 +17,11 @@
 	<@ifexec(Auth.ok, begin)><span class="welcome"><a href="<@myself>" class="welcome-prefix">ようこそ</a><a href="<@myself>" class="welcome-name"><@Auth.name></a><span class="welcome-postfix">さん</span></span><$end>
 
 	<span class="admin-links">
-	<@ifexec(v.allow_edit, begin)>
+	<@ifexec(v.blog_admin, begin)>
 		<a class="adminmenu edit" href="<@v.myself>?edit">書く</a>
 	<$end>
 	<@ifexec(Auth.ok, begin, begin)>
-		<a class="adminmenu admin<@if(v.allow_edit && v.blog.newcom_flag,' newcom')>" href="<@v.myself>?menu">管理</a>
+		<a class="adminmenu admin<@if(v.blog_admin && v.blog.newcom_flag,' newcom')>" href="<@v.myself>?menu">管理</a>
 		<a class="adminmenu logout" href="<@v.thisurl>?logout">ログアウト</a>
 	<$else>
 		<@ifexec(v.load_plgset(name, 'erase_login'), begin, begin)>

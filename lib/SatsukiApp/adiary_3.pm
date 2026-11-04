@@ -18,7 +18,6 @@ package SatsukiApp::adiary;
 sub init_image_dir {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{blog}) { return -1; }
 
 	my $dir = $self->blogimg_dir();
 	$ROBJ->mkdir($dir);
@@ -34,7 +33,6 @@ sub init_image_dir {
 sub genarete_imgae_dirtree {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{blog}) { return -1; }
 
 	my $dir   = $self->blogimg_dir();
 	my $tree  = $self->get_dir_tree($dir);
@@ -45,7 +43,7 @@ sub genarete_imgae_dirtree {
 	$trash->{name} = '.trashbox/';
 	$trash->{key}  = '.trashbox/';
 	my $json = $self->generate_json([$tree, $trash], ['name', 'key', 'date', 'count', 'children']);
-	$ROBJ->fwrite_lines( $self->{blogpub_dir} . 'images.json', $json);
+	$ROBJ->fwrite_lines( $self->{pub_dir} . 'images.json', $json);
 
 	return $tree->{count};
 }
@@ -153,7 +151,7 @@ sub load_exif_files {
 # 編集画面の設定（edit_thumb_size）だけで決める。アップロードや再生成のときに選ばせない
 sub thumbnail_size {
 	my $self = shift;
-	my $size = $self->{blog} && int($self->{blog}->{edit_thumb_size}) || 320;
+	my $size = int($self->{blog}->{edit_thumb_size}) || 320;
 	if ($size <  60) { $size= 60; }
 	if (800 < $size) { $size=800; }
 	return $size;
@@ -1197,7 +1195,7 @@ sub edit_articles {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 	my $auth = $ROBJ->{Auth};
-	if (! $self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (! $self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	if (ref($keylist) ne 'ARRAY' || !@$keylist) {
 		return (0,0);
@@ -1389,7 +1387,7 @@ sub move_articles_to_trash {
 sub load_trash_list {
 	my $self = shift;
 	my $DB   = $self->{DB};
-	if (!$self->{allow_edit}) { return []; }
+	if (!$self->{blog_admin}) { return []; }
 
 	return $DB->select_match("trash", '*sort', '-deleted_tm',
 		'*cols', [qw(pkey title tags ctype link_key name id yyyymmdd coms_all enable deleted_tm deleted_id)]);
@@ -1413,7 +1411,7 @@ sub restore_articles {
 	my ($self, $keylist) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
-	if (!$self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (!$self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	$keylist = $self->filter_trash_keys($keylist);
 	if (!@$keylist) { return wantarray ? (0,0) : 0; }
@@ -1486,7 +1484,7 @@ sub purge_trash {
 	my ($self, $keylist, $all) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
-	if (!$self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (!$self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	if ($all) {
 		if (!$self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
@@ -1510,7 +1508,7 @@ sub edit_comment {
 	my ($self, $mode, $keylist) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
-	if (! $self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (! $self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	if (ref($keylist) ne 'ARRAY' || !@$keylist) {
 		return (0,0);

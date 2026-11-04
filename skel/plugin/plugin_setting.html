@@ -5,10 +5,6 @@
 <$mode = Query.mode>
 <$replace_dest(name, '[^\w\-,]', '')>
 
-<@ifexec(!v.allow_view, begin)>
-	<@"blog not found!">
-	<$break()>
-<$end>
 
 <$set = v.load_plgset(name)>
 <$n = v.plugin_name_check(name)>

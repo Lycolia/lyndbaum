@@ -179,7 +179,7 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	my $done = $app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 });
 	ok(AppTest::is_reload($done), 'アップデート処理を行える');
 	like(body($done), qr{Auth\.fail_count = 2}, '画面の範囲の外の値を知らせる');
-	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 
 	my $u = read_file($user);
 	my $s = read_file($sys);

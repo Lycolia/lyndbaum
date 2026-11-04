@@ -164,7 +164,7 @@ $mop->{load_artdays_in_month} = sub {
 	$h{max}  = {yyyymmdd => "${yyyymm}31"};
 	$h{cols} = ['yyyymmdd'];
 	$h{not_null} = ['tm'];
-	if (!$self->{allow_edit}) {
+	if (!$self->{blog_admin}) {
 		$h{flag}->{enable} = 1;
 	}
 

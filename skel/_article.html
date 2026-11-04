@@ -18,10 +18,7 @@
 <$end>
 <$v.title = s.blog_name>
 
-<@ifexec(!v.allow_view, begin)>
-	<$message("ブログがまだ作られていません")>
-<$end>
-<$ifexec(v.allow_view && !t, begin)>
+<$ifexec(!t, begin)>
 	<$message("該当する記事がありません")>
 <$end>
 <@> 記事が無いときは404
@@ -81,7 +78,7 @@
 <@>$ARTICLE_BOTTOM:END$--------------------------------------------------------
 
 <@>$COMMENT_TOP$---------------------------------------------------------------
-<$coms = if(v.allow_edit, t.coms_all, t.coms)>
+<$coms = if(v.blog_admin, t.coms_all, t.coms)>
 <@ifexec(t.com_ok || coms, begin)>
 <$view = if(Query.c ne 'all', s.view_coms || 20)>
 <$secure_id  = v.make_comment_token( t.pkey )>
@@ -94,7 +91,7 @@
 	</div>
 	<div class="commentbody" id="c<@t.pkey>n-block">
 	<div class="commentview">
-	<@ifexec(coms && v.allow_edit, begin)>
+	<@ifexec(coms && v.blog_admin, begin)>
 	<form method="POST" action="<@permalink>" class="js-check-form" data-target="#com .pkey-ary">
 	<input type="hidden" name="action" value="comments_edit">
 	<div class="swiches">
@@ -108,25 +105,25 @@
 	<div class="comment-one<@if(c.by_admin, ' comment-admin')><@if(!c.enable, ' comment-disable')>" id="c<@c.num>">
 		<div class="commentator">
 			<span class="canchor"><a href="#c<@c.num>"><@c.num></a>:</span>	<@\>
-			<@ifexec(v.allow_edit, begin)>	<@\>
+			<@ifexec(v.blog_admin, begin)>	<@\>
 			<label><input class="pkey-ary" type="checkbox" name="pkey_ary" value="<@c.pkey>">	<@\>
 			<$end>
-			<span class="commentator author<@if(c.id, " login-user")>"><@ifexec(c.email && v.allow_edit, begin, begin)><a href="mailto:<@c.email>"><@c.name></a><$else><@c.name><$end></span><@if(c.by_admin, ' <span class="comment-badge">管理者</span>')>
+			<span class="commentator author<@if(c.id, " login-user")>"><@ifexec(c.email && v.blog_admin, begin, begin)><a href="mailto:<@c.email>"><@c.name></a><$else><@c.name><$end></span><@if(c.by_admin, ' <span class="comment-badge">管理者</span>')>
 			<@ifexec(c.url, begin)><span class="comment-url"><a href="<@c.url>" rel="nofollow ugc noopener noreferrer">URL</a></span><$end>
 			<span class="comment-date"><@print_tmf('%Y/%m/%d %H:%M:%S',c.tm)></span>
 			<@ifexec(!c.enable, begin)>
 			<strong class="comment-disable">（非表示）</strong>
 			<$end>
-			<@if(v.allow_edit, '</label>')>
+			<@if(v.blog_admin, '</label>')>
 		</div>
 
 		<div class="comment-text"><@c.text></div>
-		<@ifexec(v.allow_edit, begin)>
+		<@ifexec(v.blog_admin, begin)>
 		<div class="ip-host-agent"><@c.host> (<@c.ip>)<br><@c.agent></div>
 		<$end>
 	</div> <!-- comment-one -->
 	<$end>
-	<@ifexec(coms && v.allow_edit, begin)>
+	<@ifexec(coms && v.blog_admin, begin)>
 	<div class="com-buttons">
 	<@ifexec(t.enable, begin)>
 	<button type="submit" name="enable"  class="js-check-form" data-confirm="">表示に設定</button>

@@ -25,12 +25,12 @@
 <$setting = cur.set || cur.set2 || cur.plugin || cur.design || cur.mainte || cur.personal || cur.user || cur.system>
 <@>
 <@> 設定の子の項目は常に開いておく（open は設定の画面にいるときの強調）。「設定」は出せる最初の項目へのリンクにする
-<$first = if(s && v.blog_admin, 'set/', if(s && v.allow_edit, 'set2/', if(!Auth.auto, 'personal/', 'user/add')))>
+<$first = if(s && v.blog_admin, 'set/', 'user/add')>
 <@>
 <nav id="admin-nav" aria-label="管理画面のナビ">
 <ul>
 	<li<@if(cur.menu, ' class="current"')>><a href="<@v.myself>?menu">ダッシュボード</a></li>
-<@ifexec(s && v.allow_edit, begin)>
+<@ifexec(s && v.blog_admin, begin)>
 	<li<@if(cur.artlist, ' class="current"')>><a href="<@v.myself>?artlist">記事一覧</a></li>
 	<li<@if(cur.trash,   ' class="current"')>><a href="<@v.myself>?trash">ゴミ箱</a></li>
 	<li<@if(cur.album,   ' class="current"')>><a href="<@v.myself>?media/">メディア</a></li>
@@ -42,11 +42,7 @@
 	<ul>
 	<@ifexec(s && v.blog_admin, begin)>
 		<li<@if(cur.set,      ' class="current"')>><a href="<@v.myself>?set/">基本設定</a></li>
-	<$end>
-	<@ifexec(s && v.allow_edit, begin)>
 		<li<@if(cur.set2,     ' class="current"')>><a href="<@v.myself>?set2/">その他の設定</a></li>
-	<$end>
-	<@ifexec(s && v.blog_admin, begin)>
 		<li<@if(cur.plugin,   ' class="current"')>><a href="<@v.myself>?plugin/">プラグイン設定</a></li>
 		<li<@if(cur.design,   ' class="current"')>><a href="<@v.myself>?design/">デザイン設定</a></li>
 		<li<@if(cur.mainte,   ' class="current"')>><a href="<@v.myself>?mainte/">ブログの管理</a></li>
@@ -56,7 +52,7 @@
 	<$end>
 	<@ifexec(Auth.isadmin, begin)>
 		<li<@if(cur.user,     ' class="current"')>><a href="<@v.myself>?user/log">操作の記録</a></li>
-		<li<@if(cur.system,   ' class="current"')>><a href="<@v.myself>?system/">【管理者】システム管理</a></li>
+		<li<@if(cur.system,   ' class="current"')>><a href="<@v.myself>?system/">システム管理</a></li>
 	<$end>
 	</ul>
 	</li>

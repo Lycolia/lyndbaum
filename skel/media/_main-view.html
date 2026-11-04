@@ -4,7 +4,7 @@
 <@>	スマホ画面からも呼ばれる
 <@>
 <@> 操作（ファイルが増えても押せるように、一覧の上に置く）
-<@ifexec(v.allow_edit, begin)>
+<@ifexec(v.blog_admin, begin)>
 <div id="album-toolbar">
 	<form action="<@v.myself>?edit" method="POST" id="paste-form">
 	<input type="hidden" name="action" value="etc/dummy">
@@ -40,8 +40,8 @@
 </div>
 <$end>
 
-	<div id="album-folder-view" data-edit="<@v.allow_edit>"></div>
-	<$ifbreak(!v.allow_edit)>
+	<div id="album-folder-view" data-edit="<@v.blog_admin>"></div>
+	<$ifbreak(!v.blog_admin)>
 
 <div id="album-footer">
 	<h4 id="selected-files-title"><label><input type="checkbox" class="js-switch" data-target="#selected-files">選択中のファイル名を表示</label></h4>

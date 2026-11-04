@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.31;
+our $VERSION    = 4.32;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.31;
+our $DATA_VERSION = 4.32;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -414,7 +414,7 @@ sub output_html {
 # ■ブログの存在確認と設定ロード
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログが作られているか	※キュッシュ仕様を変更したら blog_create も変更すること!!
+# ●ブログが作られているか
 #-------------------------------------------------------------------------------
 sub exists_blog {
 	my $self = shift;
@@ -459,11 +459,10 @@ sub select_blog {
 	$self->{myself2} = $ROBJ->{myself2};
 	$self->{blog}       = undef;
 	$self->{allow_view} = undef;
-	$self->{allow_edit} = undef;
 	$self->{allow_com}  = undef;
 	$self->{blog_admin} = undef;
-	$self->{blog_dir}    = $self->blog_dir();
-	$self->{blogpub_dir} = $self->blogpub_dir();
+	$self->{blog_dir} = $self->blog_dir();
+	$self->{blogpub_dir} = $self->{pub_dir};	# 4.31までの生成物（アップデート処理で作り直すまで使う）
 	$ROBJ->{Change_hour} = 0;
 	$self->{now} = $ROBJ->{Now};
 	$self->delete_blog_skeleton();
@@ -510,7 +509,7 @@ sub set_blog_permission {
 
 	# ユーザーは管理者1人だけ
 	$self->{blog_admin} = $isadmin;
-	$self->{allow_edit} = $isadmin;
+	$self->{allow_edit} = $isadmin;	# 4.31までの生成物（アップデート処理で作り直すまで使う）
 
 	# コメントできるのは、誰でもか管理者だけ
 	$self->{allow_com} = ($isadmin || $blog->{allow_com_users} eq '*') ? 1 : 0;
@@ -632,7 +631,7 @@ sub load_articles_current_blog {
 	$opt->{loads}     = $opt->{load_items} || $blog->{load_items};
 	$opt->{blog_only} = $blog->{separate_blog};
 
-	if ($self->{allow_edit}) {
+	if ($self->{blog_admin}) {
 		$opt->{load_hidden} = 1;
 	}
 	return $self->load_articles($mode, $query, $opt);
@@ -644,7 +643,7 @@ sub load_articles_current_blog {
 sub load_article_current_blog {
 	my ($self, $mode, $query, $opt) = @_;
 
-	if ($self->{allow_edit}) {
+	if ($self->{blog_admin}) {
 		$opt->{load_hidden} = 1;
 		$opt->{load_draft}  = 1;
 	}
@@ -682,7 +681,6 @@ sub load_articles {
 	my $DB   = $self->{DB};
 
 	# ブログが無い
-	if (!$self->{allow_view}) { return []; }
 	my $blog = $self->{blog};
 
 	#-------------------------------------------------------------
@@ -1157,13 +1155,13 @@ sub load_comments_current_blog {
 	if (ref($a_pkey)) {
 		my $art = $a_pkey;
 		$a_pkey = $art->{pkey};
-		if (!$art->{coms_all} || !$self->{allow_edit} && !$art->{coms}) {
+		if (!$art->{coms_all} || !$self->{blog_admin} && !$art->{coms}) {
 			return [];
 		}
 	}
 
 	if (!exists($opt->{enable_only})) {
-		$opt->{enable_only} = $self->{allow_edit} ? 0 : 1;
+		$opt->{enable_only} = $self->{blog_admin} ? 0 : 1;
 	}
 	$opt->{loads} = $num ? $num : undef;
 
@@ -1181,7 +1179,6 @@ sub load_comments {
 	my $self = shift;
 	my ($a_pkey, $opt) = @_;
 	my $DB   = $self->{DB};
-	if (!$self->{allow_view}) { return []; }	# ブログが無い
 
 	# コメントのロード
 	my $loads  = $opt->{loads} ne '' ? int($opt->{loads}) : undef;
@@ -1369,7 +1366,7 @@ sub load_jscss_events {
 
 	$name =~ tr/a-z/A-Z/;
 	my $evt = $self->{blog}->{"event:$name"};
-	my $dir = $self->{blogpub_dir} . 'plugin/';	# plugin_pub_dir（adiary_4.pm）。公開画面で毎回通るので、ここでは読み込まない
+	my $dir = $self->{pub_dir} . 'plugin/';	# plugin_pub_dir（adiary_4.pm）。公開画面で毎回通るので、ここでは読み込まない
 
 	my @ary;
 	foreach(split("\n", $evt)) {
@@ -1478,7 +1475,6 @@ sub save_sysdat {
 sub load_tag_cache {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{allow_view}) { return [ {} ]; }	# ブログが無い（0番目は名前からpkeyへの表）
 
 	my $file = $self->blog_dir() . "tag_cache.txt";
 	return $ROBJ->fread_lines_cached($file, {
@@ -1632,13 +1628,9 @@ sub blog_dir {
 	my $self = shift;
 	return "$self->{data_dir}blog/";
 }
-sub blogpub_dir {
-	my $self = shift;
-	return $self->{pub_dir};
-}
 sub blogimg_dir {
 	my $self = shift;
-	return $self->blogpub_dir() . 'attachments/';
+	return $self->{pub_dir} . 'attachments/';
 }
 
 #-------------------------------------------------------------------------------
@@ -1784,7 +1776,7 @@ sub link_key_encode {
 #-------------------------------------------------------------------------------
 sub load_rss_files {
 	my $self = shift;
-	return [ split(',', ($self->{blog} || {})->{rss_files}) ];
+	return [ split(',', $self->{blog}->{rss_files}) ];
 }
 
 #-------------------------------------------------------------------------------
@@ -1842,7 +1834,7 @@ sub regist_post_html {
 #-------------------------------------------------------------------------------
 sub check_editor {
 	my $self = shift;
-	return $self->{allow_edit} ? 1 : 0;
+	return $self->{blog_admin} ? 1 : 0;
 }
 
 #---------------------------------------------------------------------

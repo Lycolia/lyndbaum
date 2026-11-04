@@ -69,7 +69,7 @@ sub load_arts_list {
 	if ($enable ne '1' && $enable ne '0' && $enable ne 'draft') { $enable = ''; }
 
 	# ロード対象記事オプション
-	if (! $self->{allow_edit}) {
+	if (! $self->{blog_admin}) {
 		$h{flag} = {enable => 1};
 	} elsif ($opt->{draft_only} || $enable eq 'draft') {
 		$h{is_null} = ['tm'];
@@ -77,7 +77,7 @@ sub load_arts_list {
 		# 公開・非公開で絞るときは下書きを除く（下書きは非公開として保存されている）
 		$h{not_null} = ['tm'];
 	}
-	if ($self->{allow_edit} && ($enable eq '1' || $enable eq '0')) {
+	if ($self->{blog_admin} && ($enable eq '1' || $enable eq '0')) {
 		$h{flag} = {enable => int($enable)};
 	}
 
@@ -135,7 +135,7 @@ sub load_coms_list {
 	if ($hold ne '1' && $hold ne '0') { $hold = ''; }
 
 	# ロード対象記事オプション
-	if (! $self->{allow_edit}) {
+	if (! $self->{blog_admin}) {
 		$h{flag} = {enable => 1};
 	} elsif ($hold eq '1') {
 		$h{flag} = {hold => 1};
@@ -172,7 +172,7 @@ sub edit_article {
 
 	# 書き込み権限確認
 	my $blog = $self->{blog};
-	if (! $self->{allow_edit}) { $ROBJ->message('Operation not permitted'); return 5; }
+	if (! $self->{blog_admin}) { $ROBJ->message('Operation not permitted'); return 5; }
 
 	#-----------------------------------------------------------------------
 	# データチェックなど
@@ -852,7 +852,7 @@ sub send_update_ping {
 	my %ping;
 	$ping{blog_name} = $blog->{blog_name};	# blogタイトル
 	$ping{url}       = $ROBJ->{ServerURL} . $self->{myself};
-	$ping{rssurl}    = $ROBJ->{ServerURL} . $ROBJ->{Basepath} . $self->{blogpub_dir} . $self->load_rss_files()->[0];
+	$ping{rssurl}    = $ROBJ->{ServerURL} . $ROBJ->{Basepath} . $self->{pub_dir} . $self->load_rss_files()->[0];
 	$ping{art_title} = $art->{title};
 
 	# see http://www.xmlrpc.com/weblogsCom
@@ -1062,7 +1062,7 @@ sub update_taglist {
 
 	# JSONの生成
 	my $json = $self->generate_json($tree->{children}, ['sname', 'pkey', 'qt', 'children'], {sname=>'title', pkey=>'key'});
-	$ROBJ->fwrite_lines( $self->{blogpub_dir} . 'taglist.json', $json);
+	$ROBJ->fwrite_lines( $self->{pub_dir} . 'taglist.json', $json);
 	$self->update_cur_blogset('json_tm', $ROBJ->{TM});
 
 	# イベント処理
@@ -1160,7 +1160,7 @@ sub update_contents_list {
 	{
 		my $all = $tree->{_all};
 		my $json= $self->generate_json($tree->{children}, ['title', 'pkey', 'upnode', 'link_key', 'children'], {pkey=>'key'});
-		$ROBJ->fwrite_lines( $self->{blogpub_dir} . 'contents.json', $json);
+		$ROBJ->fwrite_lines( $self->{pub_dir} . 'contents.json', $json);
 		$self->update_cur_blogset('json_tm', $ROBJ->{TM});
 
 		# upnode, children, titleのキャッシュ
@@ -1468,7 +1468,7 @@ sub generate_rss {
 	#---------------------------------------------------
 	my $ret;
 	my @files;
-	my $file = $self->{blogpub_dir} . "rss.xml";
+	my $file = $self->{pub_dir} . "rss.xml";
 	if ($blog->{rss_items_int}) {
 		my $rss = $ROBJ->call( $self->{rss_skeleton}, {
 			file  => 'rss.xml',
@@ -1591,7 +1591,7 @@ sub post_comment {
 
 	# スパム対策（編集権限者は対象外）
 	my $hold;
-	if (! $self->{allow_edit}) {
+	if (! $self->{blog_admin}) {
 		my $reason;
 		($reason, $hold) = $self->check_comment_spam($form, $a_pkey);
 		if ($reason) {
@@ -1613,8 +1613,8 @@ sub post_comment {
 	# コメント保留
 	$form->{enable} = 1;
 	my $defer = int($blog->{defer_com});	# 0=off, 1=保留, 2=ユーザー以外保留
-	if ($self->{allow_edit}) { $defer=0; }	# 編集権限者のコメントは保留しない
-	if (!$self->{allow_edit} && $defer) {
+	if ($self->{blog_admin}) { $defer=0; }	# 編集権限者のコメントは保留しない
+	if (!$self->{blog_admin} && $defer) {
 		if ($defer==2 && $auth->{ok}) { $defer=0; }	# ユーザーのみ許可
 	}
 	if ($defer || $hold) { $form->{enable}=0; }	# コメント保留
@@ -1637,7 +1637,7 @@ sub post_comment {
 	$self->call_event('COMMENT_AFTER', $form, $art);
 
 	# 新着記録
-	if (! $self->{allow_edit}) {
+	if (! $self->{blog_admin}) {
 		my $ncom = $blog->{newcom_flag};
 		$ncom = $ncom . ($ncom ? ',' : '') . $pkey;
 		$self->update_blogset($blog, 'newcom_flag', $ncom);
@@ -2020,7 +2020,7 @@ sub remove_newcom_flag {
 
 	# 権限がないか、新着コメントがないなら無視
 	my $nc = $blog->{newcom_flag};
-	if (!$self->{allow_edit} || !@$coms || !$nc) { return; }
+	if (!$self->{blog_admin} || !@$coms || !$nc) { return; }
 
 	my %h = map {$_ => 1} split(',', $nc);
 	foreach(@$coms) {
@@ -2123,7 +2123,7 @@ sub edit_lock {
 	my $id   = $ROBJ->{Auth}->{id};
 	$sid  =~ s/[\x00-\x1f]//g;
 
-	if (!$self->{allow_edit}) { return -1; }
+	if (!$self->{blog_admin}) { return -1; }
 	if ($pkey eq ''){ return -2; }
 	if ($self->{sys}->{edit_lock_interval} < 1) { return 1; }
 
@@ -2256,7 +2256,7 @@ sub mainte_mode {
 	} else {
 			# 動かないプラグインがあってもログインできるよう、プラグインが作ったものを使わない
 		$self->{blog_admin} = undef;
-		$self->{allow_edit} = undef;
+		$self->{blog_admin} = undef;
 		$self->{allow_com}  = undef;
 		$self->{stop_all_plugins} = 1;
 		$self->delete_blog_skeleton();

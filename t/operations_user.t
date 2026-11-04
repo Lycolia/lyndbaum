@@ -194,7 +194,7 @@ subtest '4.25より古いデータからのアップデート' => sub {
 	$set_version->('4.25');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.25なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.25からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -335,7 +335,7 @@ subtest 'ユーザーを管理者1人にするアップデート（4.31）' => s
 	is($app->get('other', 'menu')->{status}, 503, '処理を行うまでは、ほかのユーザーにはメンテナンスの画面');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), '確認すると行う');
-	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 	is($app->get('other', 'menu')->{status}, 403, 'ほかのユーザーはセッションが切れる');
 	ok(!json_ok($app->post('other', '', { action => '_ajax_login', adiary_id => 'other', pass => $AppTest::PASS })), 'ログインできない');
 	is($app->get('admin', 'menu')->{status}, 200, '実行した管理者は残る');

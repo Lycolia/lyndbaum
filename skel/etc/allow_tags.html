@@ -2,7 +2,7 @@
 <@local(h,t,tags,name)>
 
 <@>権限チェック
-<$ifredirect( !v.allow_edit, v.myself )>
+<$ifredirect( !v.blog_admin, v.myself )>
 
 <@> システムモード
 <$v.system_mode("使用可能なHTMLタグ一覧")>

@@ -53,42 +53,6 @@ sub _ajax_self_change_pass {
 # ■ブログの作成と削除
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログを作る
-#-------------------------------------------------------------------------------
-# ブログは1つだけ。まだ無いときに、システム管理者だけが作れる
-sub blog_create {
-	my $self = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
-
-	if (! $auth->{ok}) { $ROBJ->message('Not login'); return 1; }
-	if (! $auth->{isadmin}) {
-		$ROBJ->message('Operation not permitted');
-		return 5;
-	}
-	if ($self->exists_blog()) {
-		$ROBJ->message('Blog already existed');
-		return 10;
-	}
-
-	# データベーステーブル生成
-	my $r = $self->create_tables();
-	if ($r) {
-		$ROBJ->message('Blog create failed');
-		$self->drop_tables();
-		return $r;
-	}
-	# ディレクトリの作成
-	$ROBJ->mkdir( $self->blog_dir() );
-	$ROBJ->mkdir( $self->blogpub_dir() );
-	# キャッシュ除去して選択
-	delete $self->{_cache_exists_blog};
-	$self->select_blog();
-
-	return 0;
-}
-
-#-------------------------------------------------------------------------------
 # ●ブログが無ければ作る
 #-------------------------------------------------------------------------------
 # リクエストの最初に、権限によらず呼ばれる。失敗してもブログが無いまま返り、呼び出し元が503にする。
@@ -127,7 +91,7 @@ sub do_blog_auto_create {
 	my $r = $self->create_tables();
 	if ($r) { return "create tables: $r"; }
 	$ROBJ->mkdir( $self->blog_dir() );
-	$ROBJ->mkdir( $self->blogpub_dir() );
+	$ROBJ->mkdir( $self->{pub_dir} );
 	if (!-d $self->blog_dir()) { return 'mkdir ' . $self->blog_dir(); }
 
 	delete $self->{_cache_exists_blog};
@@ -671,27 +635,6 @@ sub create_link_table {
 	$info{notnull} = [ qw(a_pkey link_key) ];
 	$info{ref}     = { };
 	return $self->{DB}->create_table_wrapper("link", \%info);
-}
-
-#-------------------------------------------------------------------------------
-# ●ブログテーブルの削除
-#-------------------------------------------------------------------------------
-sub drop_tables {
-	my $self = shift;
-	my $DB = $self->{DB};
-
-	my $r = 0;
-	$r += $DB->drop_table("link");
-	$r += $DB->drop_table("trashcom");
-	$r += $DB->drop_table("trash");
-	$r += $DB->drop_table("rev");
-	$r += $DB->drop_table("com");
-	$r += $DB->drop_table("tagart");
-	$r += $DB->drop_table("tag");
-	$r += $DB->drop_table("art");
-
-
-	return $r;
 }
 
 ################################################################################

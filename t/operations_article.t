@@ -282,7 +282,7 @@ subtest 'アップデート処理で、アイキャッチの?noneを空にする
 	print $fh $conf;
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 
 	unlike($data->('art', 7), qr/^main_image=.*\S/m, '記事の?noneが空になる');
 	unlike($data->('trash', 8), qr/^main_image=.*\S/m, 'ゴミ箱の?noneが空になる');

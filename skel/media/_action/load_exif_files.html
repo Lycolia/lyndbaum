@@ -1,5 +1,5 @@
 <@20>
-<$ifbreak(!v.allow_edit)>
+<$ifbreak(!v.blog_admin)>
 <$(action_return, data) = v.load_exif_files( Form.folder )>
 
 <$ifset_status(action_return ne '0', 404)>

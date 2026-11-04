@@ -40,7 +40,7 @@ HTML
 	$modules{rssicon} = <<'HTML';
 	<li class="rss-icon icons">
 	<@ifexec(s.rss_files, begin)>
-	<a href="<@Basepath><@v.blogpub_dir><@v.load_rss_files()#0>">
+	<a href="<@Basepath><@v.pub_dir><@v.load_rss_files()#0>">
 	<$end>
 	<img alt="RSS" src="<@Basepath><@v.pubdist_dir>rss-icon.png" width="80" height="15">
 	<@if(s.rss_files, '</a>')></li>

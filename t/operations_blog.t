@@ -170,7 +170,7 @@ subtest 'プライベートモードのブログのアップデート（4.27）'
 	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
 	ok(AppTest::is_reload($r), '確認があるとアップデート処理を行う');
 	like(body($r), qr{フォルダを消せませんでした}, '手で置いたものが残ったことを出す');
-	like(read_file($sys), qr/^VERSION=4\.31$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 	ok(-f "$dir/pub/attachments/test/a.png" && -f "$dir/pub/rss.xml", 'ファイルが pub/ に戻る');
 	ok(-f "$dir/pub/$private/hand.txt" && !-e "$dir/pub/hand.txt", '手で置いたものはフォルダに残す');
 	ok(!-e "$dir/pub/$private/attachments", '戻したものはフォルダに残らない');
