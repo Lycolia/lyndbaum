@@ -17,8 +17,8 @@ RewriteRule	^(?:__cache|data|docs|info|lib|plugin|skel|skel\.local|t)(?:/|$)	-	[
 # ・.well-known/は除く。SSL証明書の発行や更新で読まれることがある
 RewriteRule	^(?!pub/|\.well-known/)(?:.*/)?\.	-	[F]
 
-# 設定ファイル（lyndbaum.conf.cgiなど）
-RewriteRule	^lyndbaum\.(?:conf|env)\.cgi	-	[F]
+# 設定ファイル（lyndbaum.user.cgiなど。confとenvは4.27までのファイル）
+RewriteRule	^lyndbaum\.(?:user|conf|env)\.cgi	-	[F]
 
 # ファイルが無いURLは、lyndbaum.cgiに渡す
 RewriteCond	%{REQUEST_FILENAME}	!-f

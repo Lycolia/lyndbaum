@@ -94,27 +94,41 @@ sub start_up {
 
 	my $cgi = $0;
 
-	my $env;
-	my $conf;
+	my $fixed;	# 固定の設定（配布物）
+	my $user;	# ユーザー設定（無くてもよい）
+	my $env;	# 4.27までの設定
+	my $conf;	# 4.27までの設定
 	if ($cgi =~ m!(?:^|/)([^/\.]*)[^/]*$!) {
-		$env  = $1 .  '.env.cgi';
-		$conf = $1 . '.conf.cgi';
+		$fixed = 'info/' . $1 . '.conf.cgi';
+		$user  = $1 . '.user.cgi';
+		$env   = $1 .  '.env.cgi';
+		$conf  = $1 . '.conf.cgi';
 	} else {
-		$env = $conf = '__(internal_error)__';
+		$fixed = $user = $env = $conf = '__(internal_error)__';
 	}
 
-	# .env があれば先に処理
-	if (-r $env) {
-		$self->_call($env);
+	if (!-r $user && -r $conf) {
+		# 4.27までの設定ファイル。アップデート処理（sys_update_428）で移すまでは、今までどおり動かす
+		if (-r $env) {
+			$self->_call($env);
+		}
+		$self->init_tm();
+		$self->init_path();
+
+		$self->{Fixed_file}  = $fixed;	# 以下はアップデート処理で使う
+		$self->{User_file}   = $user;
+		$self->{Env_file}    = $env;
+		$self->{Conf_file}   = $conf;
+		$self->{Conf_result} = $self->_call($conf);
+	} else {
+		# ユーザー設定で、固定の設定の値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
+		$self->{Conf_result} = $self->_call($fixed);
+		if (-r $user) {
+			$self->_call($user);
+		}
+		$self->init_tm();
+		$self->init_path();
 	}
-
-	# 初期化処理
-	$self->init_tm();
-	$self->init_path();
-
-	# conf解析
-	$self->{Conf_file}   = $conf;	# アップデート処理で書き換えるため
-	$self->{Conf_result} = $self->_call($conf);
 
 	# 致命的エラーがあった場合、表示して終了
 	if ($self->{Error_flag}) {

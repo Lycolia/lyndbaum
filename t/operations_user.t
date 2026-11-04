@@ -158,7 +158,7 @@ subtest '同時ログイン数' => sub {
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.27$/m, 'バージョンが今のデータのバージョン（4.27）になる');
+	like(read_file($sys), qr/^VERSION=4\.28$/m, 'バージョンが今のデータのバージョン（4.28）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -250,7 +250,7 @@ subtest 'アップデート処理でのパスワードの再設定' => sub {
 	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
 	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
 	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
-	like(read_file($sys), qr/^VERSION=4\.27$/m, '版が今のデータのバージョン（4.27）になる');
+	like(read_file($sys), qr/^VERSION=4\.28$/m, '版が今のデータのバージョン（4.28）になる');
 	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
 	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
 	$app->login('admin');
@@ -270,6 +270,12 @@ subtest 'アップデート処理で、設定ファイルにAVIFの画質を足�
 	};
 	my $sys  = "$dir/data/system_config.dat";
 	my $file = "$dir/lyndbaum.conf.cgi";
+	my $bak  = "$dir/data/lyndbaum.conf.cgi.428.bak";	# 4.28の処理で、設定ファイルはここへ移る
+	# 4.27までの形（ユーザー設定が無く、lyndbaum.conf.cgiがある）にする
+	my $old_conf = sub {
+		$write->($file, shift);
+		unlink("$dir/lyndbaum.user.cgi");
+	};
 	my $update = sub {
 		my $t = read_file($sys);
 		$t =~ s/^VERSION=.*$/VERSION=4.24/m;
@@ -278,25 +284,25 @@ subtest 'アップデート処理で、設定ファイルにAVIFの画質を足�
 	};
 
 	# 4.24までの設定ファイル（AVIFの画質の行が無い）にする
-	my $conf = read_file($file);
-	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '見本からAVIFの画質の行を消す');
-	$write->($file, $conf);
+	my $conf = read_file("$dir/info/lyndbaum.conf.cgi");
+	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '固定の設定からAVIFの画質の行を消す');
+	$old_conf->($conf);
 
 	ok(AppTest::is_reload($update->()), 'アップデート処理を行える');
-	my $new = read_file($file);
+	my $new = read_file($bak);
 	like($new, qr{^<\$v\.album_jpeg_quality = 80>\n\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n}m, 'JPEGの画質の行の後に、AVIFの画質の行が入る');
 	is(scalar(() = $new =~ /album_avif_quality/g), 1, 'AVIFの画質の行は1つ');
 	is(read_file("$dir/data/lyndbaum.conf.cgi.425.bak"), $conf, '書き換える前のファイルを写しておく');
 
+	$old_conf->($new);
 	ok(AppTest::is_reload($update->()), 'もう一度アップデート処理を行える');
-	is(read_file($file), $new, '行があれば、設定ファイルは変わらない');
+	is(read_file($bak), $new, '行があれば、設定ファイルは変わらない');
 
 	# # で止めてある行も、その人が決めたことなので触らない
 	(my $off = $conf) =~ s/^(<\$v\.album_jpeg_quality = 80>\n)/$1#<\$v.album_avif_quality = 50>\n/m;
-	$write->($file, $off);
+	$old_conf->($off);
 	ok(AppTest::is_reload($update->()), '止めてある行があってもアップデート処理を行える');
-	is(read_file($file), $off, '止めてある行があれば、設定ファイルは変わらない');
-	$write->($file, $new);	# 後のテストのために戻す
+	is(read_file($bak), $off, '止めてある行があれば、設定ファイルは変わらない');
 };
 
 #-------------------------------------------------------------------------------
@@ -312,9 +318,10 @@ subtest '標準記法の削除' => sub {
 
 	# 4.21までの設定ファイルと、標準記法を既定にしたブログ
 	my $cf = "$dir/lyndbaum.conf.cgi";
-	my $conf = read_file($cf);
+	my $conf = read_file("$dir/info/lyndbaum.conf.cgi");
 	$conf =~ s/^(\tmarkdown\s*=.*\n)/$1\tdefault       = 標準（改行処理）\n\tdefault_p1    = １行＝１段落\n\tdefault_p2    = 空行で段落処理\n/m;
 	$write->($cf, $conf);
+	unlink("$dir/lyndbaum.user.cgi");
 	my $bs = "$dir/data/blog/setting.dat";
 	my $set = read_file($bs);
 	$set =~ s/^parser=.*$/parser=default/m;
@@ -325,8 +332,9 @@ subtest '標準記法の削除' => sub {
 	$write->($sys, $sc);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	unlike(read_file($cf), qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
-	like(read_file($cf), qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
+	my $moved = read_file("$dir/data/lyndbaum.conf.cgi.428.bak");	# 4.28の処理で、設定ファイルはここへ移る
+	unlike($moved, qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
+	like($moved, qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
 	ok(-e "$dir/data/lyndbaum.conf.cgi.422.bak", '書き換える前の設定ファイルの控えを残す');
 	like(read_file($bs), qr/^parser=markdown$/m, 'ブログの既定のパーサーがMarkdownになる');
 

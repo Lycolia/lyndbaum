@@ -49,11 +49,10 @@ sub new {
 	mkdir("$dir/pub");
 	symlink("$ROOT/pub/assets", "$dir/pub/assets") || die "symlink pub/assets: $!";
 
-	# 設定は配布物の見本を使う（手元のlyndbaum.conf.cgiに左右されないように）
+	# 設定は固定の設定（info/lyndbaum.conf.cgi）だけで動かす（手元のlyndbaum.user.cgiに左右されないように）
 	_copy("$ROOT/lyndbaum.cgi", "$dir/lyndbaum.cgi");
-	_copy("$ROOT/lyndbaum.conf.cgi.sample", "$dir/lyndbaum.conf.cgi");
 	if ($opt{develop}) {
-		open(my $fh, '>', "$dir/lyndbaum.env.cgi") || die "lyndbaum.env.cgi: $!";
+		open(my $fh, '>', "$dir/lyndbaum.user.cgi") || die "lyndbaum.user.cgi: $!";
 		print $fh "<\$Develop=1>\n";
 		close($fh);
 	}

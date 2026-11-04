@@ -18,7 +18,7 @@ use AppTest;
 binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
 
 my $app = AppTest->new()->setup();
-my $FAIL_COUNT = 15;	# lyndbaum.conf.cgi.sample では変えていない（Auth.pmの標準）
+my $FAIL_COUNT = 15;	# info/lyndbaum.conf.cgi では変えていない（Auth.pmの標準）
 
 sub try_login {
 	my ($id, $pass) = @_;

@@ -4,7 +4,7 @@
 
 ## 概要
 
-- `lyndbaum.conf.cgi`の`<$DB = loadpm('DB_text', "<@data_dir>db/")>`で使う。`lib/Satsuki/DB_text.pm`は、`Satsuki::DB::text`を作って返すだけ。
+- `info/lyndbaum.conf.cgi`の`<$DB = loadpm('DB_text', "<@data_dir>db/")>`で使う。`lib/Satsuki/DB_text.pm`は、`Satsuki::DB::text`を作って返すだけ。
 - 3つのファイルは同じパッケージ（`Satsuki::DB::text`）で、`Satsuki::AutoLoader`で必要になったときに読む。
 
 | ファイル    | 中身                                                                   |

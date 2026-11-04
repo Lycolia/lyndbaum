@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.27;
+our $VERSION    = 4.28;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.27;
+our $DATA_VERSION = 4.28;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -58,9 +58,6 @@ sub new {
 	$self->SetDefaultValue();
 	$self->{_loaded_bset} = {};
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
-
-	# 現在の日時設定（日付変更時間対策）
-	$self->{now} = $ROBJ->{Now};
 
 	# Cache環境向け Timer のロード
 	if ($ROBJ->{CGI_cache} && $ENV{SatsukiTimer} ne '0' && !$Satsuki::Timer::VERSION) {
@@ -110,6 +107,9 @@ sub FINISH {
 sub main {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
+
+	# 現在の日時設定（日付変更時間対策）。設定ファイルの後に初期化されるので、newでは取れない
+	$self->{now} = $ROBJ->{Now};
 
 	# システム情報のロード
 	my $sys = $self->load_sysdat();
