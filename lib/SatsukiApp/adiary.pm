@@ -188,6 +188,13 @@ sub main {
 		$self->{skeleton} = '_sub/blog_error';
 	}
 
+	# ほかのOriginから送られたPOSTは、何も処理せず断る
+	if ($ROBJ->{POST} && !$self->is_same_origin_post()) {
+		$ROBJ->form_clear();
+		$ROBJ->set_status(403);
+		$self->{skeleton} = '_sub/post_denied';
+	}
+
 	#-------------------------------------------------------------
 	# POST action判定
 	#-------------------------------------------------------------
@@ -270,6 +277,21 @@ sub secure_http_host {
 		# 管理者ログイン時の ServerURL を保存しておく
 		$self->update_sysdat('ServerURL', $srv);
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●POSTの送信元が同じOriginか
+#-------------------------------------------------------------------------------
+# SameSite=Laxでは、隣のサブドメインのような同じサイトからのPOSTを防げないので確かめる。
+# Sec-Fetch-Siteは平文のHTTPでは送られないので、そのときはOriginとHostを比べる。
+# どちらも無ければ、ブラウザー以外か古いブラウザーなので通す（SameSite=Laxが受け持つ）。
+sub is_same_origin_post {
+	my $site = lc($ENV{HTTP_SEC_FETCH_SITE});
+	if ($site ne '') { return $site eq 'same-origin' || $site eq 'none'; }
+
+	my $origin = $ENV{HTTP_ORIGIN};
+	if ($origin eq '') { return 1; }
+	return $origin =~ m!^https?://([^/]+)$!i && lc($1) eq lc($ENV{HTTP_HOST});
 }
 
 #-------------------------------------------------------------------------------
