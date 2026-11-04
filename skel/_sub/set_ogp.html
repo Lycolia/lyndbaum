@@ -17,9 +17,10 @@
 <meta property="og:description" content="<@argv#3 || s.description_notag>">
 <meta property="og:image" content="<@img>">
 <meta property="og:site_name" content="<@s.blog_name>">
-<meta property="og:locale" content="<@Locale2>">
+<meta property="og:locale" content="ja_JP">
 <!-- Twitter Card -->
-<meta name="twitter:card" content="<@if(argv#4 || s.site_image, 'summary_large_image', 'summary')>">
+<@> 大きいカードは記事の画像があるときだけ。ブログの画像は正方形を推奨しているので、小さいカードにする（set/detail）
+<meta name="twitter:card" content="<@if(argv#4, 'summary_large_image', 'summary')>">
 <meta name="twitter:url" content="<@ServerURL><@argv#1>">
 <meta name="twitter:title" content="<@argv#2 || s.fp_title || s.blog_name>">
 <meta name="twitter:description" content="<@argv#3 || s.description_notag>">

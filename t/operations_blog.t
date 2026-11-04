@@ -59,6 +59,27 @@ subtest 'メタディスクリプション' => sub {
 	}
 };
 
+subtest 'OGPの言語、カードの種類、版の表示' => sub {
+	my $b = body($app->get('guest', ''));
+	like($b, qr{<meta property="og:locale" content="ja_JP">}, 'og:localeを出す');
+	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d{2}">}, 'generatorの版は小数2桁（4.30が4.3にならない）');
+	like($b, qr{</a> Version \d+\.\d{2} }, 'フッターの版は小数2桁');
+
+	# ブログの画像しかないページは、小さいカードのまま
+	my $setting = "$dir/data/blog/setting.dat";
+	my $org = read_file($setting);
+	my $write = sub {
+		open(my $fh, '>:utf8', $setting) || die "$setting: $!";
+		print $fh shift;
+		close($fh);
+	};
+	$write->($org . "blog_image=pub/attachments/\@system/sys-blog_image.png\n");
+	$b = body($app->get('guest', ''));
+	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはブログの画像');
+	like($b, qr{<meta name="twitter:card" content="summary">}, 'twitter:cardはsummary');
+	$write->($org);
+};
+
 subtest 'ブログの権限' => sub {
 	is($app->get('user', 'edit')->{status}, 403, 'userは記事を書けない');
 	my $r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor, user' });

@@ -247,6 +247,8 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	my $r = $app->post('editor', '', \%EYE);
 	ok(AppTest::is_reload($r), '選ばずに保存できる');
 	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、ブログの画像（設定していないので既定の画像）になる');
+	like(body($app->get('guest', '/07')), qr{<meta name="twitter:card" content="summary">}, '記事の画像が無ければtwitter:cardはsummary');
+	like(read_file("$dir/pub/rss.xml"), qr{<generator>[^<]*#\d+\.\d{2}</generator>}, 'RSSのgeneratorの版は小数2桁');
 	unlike($rss->(), qr{<media:content}, 'RSSにアイキャッチを出さない');
 	is($ogp->(), '', '編集画面の欄は空');
 
@@ -257,6 +259,7 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => $img });
 	ok(AppTest::is_reload($r), '選んで保存できる');
 	like($og->(), qr{/\Q$img\E$}, 'og:imageに選んだ画像を使う');
+	like(body($app->get('guest', '/07')), qr{<meta name="twitter:card" content="summary_large_image">}, '記事の画像があればtwitter:cardはsummary_large_image');
 	like($rss->(), qr{<media:content url="[^"]*/\Q$img\E"}, 'RSSにも出る');
 	is($ogp->(), $img, '編集画面の欄に選んだ画像が入る');
 

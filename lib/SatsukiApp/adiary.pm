@@ -14,7 +14,7 @@ our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 our $VERSION    = 4.30;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
-our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
+our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
 our $DATA_VERSION = 4.30;
 ################################################################################
 # ■システム内部イベント
@@ -166,7 +166,7 @@ sub main {
 	$self->secure_http_host();
 
 	# 外部HTTPリクエストのUser-Agent
-	$ROBJ->{HttpAgent} = "$SYSTEM_NAME v$VERSION" . ($sys->{ServerURL} ? " ($sys->{ServerURL})" : '');
+	$ROBJ->{HttpAgent} = "$SYSTEM_NAME v$OUTVERSION" . ($sys->{ServerURL} ? " ($sys->{ServerURL})" : '');
 
 	# pinfoとブログの選択。テーマ選択
 	$self->select_blog_and_pinfo();
