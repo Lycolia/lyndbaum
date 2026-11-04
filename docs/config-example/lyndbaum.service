@@ -7,7 +7,9 @@ Type=simple
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/lyndbaum
-ExecStart=/usr/bin/perl /var/www/lyndbaum/lyndbaum.fcgi /var/www/lyndbaum/lyndbaum.sock 10 100
+# /run/lyndbaum/を作る。ソケットをドキュメントルートの外に置くため
+RuntimeDirectory=lyndbaum
+ExecStart=/usr/bin/perl /var/www/lyndbaum/lyndbaum.fcgi /run/lyndbaum/lyndbaum.sock 10 100
 Restart=always
 
 [Install]

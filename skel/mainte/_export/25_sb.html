@@ -45,7 +45,7 @@
 <$t = argv#0>
 <entry>
 <title><@esc_xml(t.title)></title>
-<author><@esc_xml(t.name)></author>
+<author><@esc_xml(v.admin_name())></author>
 <category><@esc_xml(t.tags_ary#0)></category>
 <status><@t.status></status>
 <allowcomments><@t.com_ok></allowcomments>

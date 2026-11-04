@@ -15,8 +15,7 @@ use strict;
 #   --quality=60      サムネイルの画質（既定はシステム設定の album_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
 #   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
-#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi。
-#                     それが無く 4.27までの lyndbaum.conf.cgi があれば、それを使う）
+#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi）
 #
 # 手順:
 #   1. --run で、原本を片付けてAVIFのサムネイルを作る。前のJPEGのサムネイルは残すので、記事はそのまま見られる
@@ -45,8 +44,7 @@ if (!-d $dir) { die "フォルダが無い: $dir\n"; }
 my $data = $opt{data} || "$dir../../data/";
 $data =~ s|/?$|/|;
 my $root = "$dir../../";
-my $conf = $opt{conf}
-	|| (!-r "${root}lyndbaum.user.cgi" && -r "${root}lyndbaum.conf.cgi" ? "${root}lyndbaum.conf.cgi" : "${root}lyndbaum.user.cgi");
+my $conf = $opt{conf} || "${root}lyndbaum.user.cgi";
 
 my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（設定の album_image_ext）
 my %CLEAN = map { $_ => 1 } qw(jpg jpeg png apng webp);		# メタ情報を消す形式

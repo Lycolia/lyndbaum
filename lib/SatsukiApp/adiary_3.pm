@@ -854,6 +854,7 @@ sub create_folder {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 
 	my $r = $ROBJ->mkdir("$dir$name") ? 0 : 1;
 	$ROBJ->mkdir("$dir$name/.thumbnail");
@@ -874,6 +875,7 @@ sub rename_folder {
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 
 	return rename("$dir$old", "$dir$name") ? 0 : 1;
 }
@@ -924,6 +926,13 @@ sub move_files {
 			$self->remove_trash_timestamp($des);
 		}
 		#---------------------------------
+		# 許可していない拡張子
+		#---------------------------------
+		if (!$self->album_check_ext($des)) {
+			push(@fail, $_);
+			next;
+		}
+		#---------------------------------
 		# 同じファイル名が存在する
 		#---------------------------------
 		if (-e "$to$des") {
@@ -972,6 +981,7 @@ sub rename_file {
 	my $name = $form->{name};
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
+	if ( !$self->album_check_ext($name) ) { return -1; }
 	if (-e "$dir$name") { return 1; }	# 同じ名前のファイルを上書きしない
 
 	my $r  = rename("$dir$old", "$dir$name");
@@ -1138,7 +1148,8 @@ sub album_check_ext {
 	# if ($self->{trust_mode}) { return 1; }	## 危険すぎるので無効に
 	$self->load_album_allow_ext();
 
-	while($f =~ /^(.*)\.([^\.]+)$/) {
+	# 空の拡張子も確かめる（x.php. や x.php..png で確認が止まらないように）
+	while($f =~ /^(.*)\.([^\.]*)$/) {
 		$f = $1;
 		if (!$self->album_check_ext_one($2)) { return 0; }
 	}
@@ -1337,7 +1348,7 @@ sub edit_articles {
 ################################################################################
 # ■ゴミ箱
 ################################################################################
-# _trash    : 記事テーブルと同じカラム + deleted_tm, deleted_id
+# _trash    : 記事テーブルと同じカラム + deleted_tm
 # _trashcom : コメントテーブルと同じカラム
 # pkeyは元の記事/コメントのpkeyをそのまま使う（pkeyは再利用されないので戻せる）
 #-------------------------------------------------------------------------------
@@ -1360,7 +1371,6 @@ sub move_articles_to_trash {
 		$DB->delete_match("trash",    'pkey',   $pkey);
 
 		$art->{deleted_tm} = $ROBJ->{TM};
-		$art->{deleted_id} = $ROBJ->{Auth}->{id};
 		if (!$DB->insert("trash", $art)) {
 			$ROBJ->message("Can't move to trash: %s", $art->{title});
 			next;
@@ -1390,7 +1400,7 @@ sub load_trash_list {
 	if (!$self->{blog_admin}) { return []; }
 
 	return $DB->select_match("trash", '*sort', '-deleted_tm',
-		'*cols', [qw(pkey title tags ctype link_key name id yyyymmdd coms_all enable deleted_tm deleted_id)]);
+		'*cols', [qw(pkey title tags ctype link_key yyyymmdd coms_all enable deleted_tm)]);
 }
 
 # 操作できるゴミ箱の記事に絞る

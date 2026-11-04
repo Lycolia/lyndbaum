@@ -262,38 +262,6 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	is($ogp->(), '', '編集画面の欄が空に戻る');
 };
 
-subtest 'アップデート処理で、アイキャッチの?noneを空にする' => sub {
-	my $img  = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
-	my %EYE  = (%ART, body_txt => "本文\n");
-	my $data = sub { read_file("$dir/data/db/$_[0]/" . sprintf('%05d.dat', $_[1])) };
-
-	# 今までに「設定しない」で保存した記事、ゴミ箱の中の記事、選んだ画像がある記事
-	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => '?noneの記事', edit_pkey_int => 7, ogp => '?none' })), '?noneの記事を作る');
-	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => 'ゴミ箱の?noneの記事', ogp => '?none' })), 'ゴミ箱に入れる記事を作る');
-	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => '画像を選んだ記事', ogp => $img })), '画像を選んだ記事を作る');
-	ok(AppTest::is_reload($app->post('admin', '', { action => 'delete', delete_pkey_ary => 8, title => '' })), 'ゴミ箱に入れる');
-	like($data->('art', 7), qr/^main_image=\?none$/m, '作った状態の確認：記事に?noneがある');
-	like($data->('trash', 8), qr/^main_image=\?none$/m, '作った状態の確認：ゴミ箱に?noneがある');
-
-	my $sys  = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.28/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
-	close($fh);
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
-
-	unlike($data->('art', 7), qr/^main_image=.*\S/m, '記事の?noneが空になる');
-	unlike($data->('trash', 8), qr/^main_image=.*\S/m, 'ゴミ箱の?noneが空になる');
-	like($data->('art', 9), qr/^main_image=\Q$img\E/m, '選んだ画像は変わらない');
-	like((body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '', qr{/default-icon\.png$}, 'og:imageは既定の画像');
-	like(body($app->get('admin', '/07?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '編集画面の欄は空');
-
-	ok(AppTest::is_reload($app->post('admin', '', { action => 'trash', mode => 'restore', pkey_ary => 8 })), 'ゴミ箱から戻せる');
-	like(body($app->get('admin', '/08?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '戻した記事の欄も空');
-};
-
 #-------------------------------------------------------------------------------
 # エクスポートとインポート
 #-------------------------------------------------------------------------------

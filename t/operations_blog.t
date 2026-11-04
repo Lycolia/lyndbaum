@@ -103,92 +103,6 @@ subtest 'プライベートモードの削除' => sub {
 	}
 };
 
-subtest 'プライベートモードのブログのアップデート（4.27）' => sub {
-	my $snap = $app->snapshot();
-	my $private = 'private.test';
-	my $sys = "$dir/data/system_config.dat";
-	my $setting = "$dir/data/blog/setting.dat";
-	my $write = sub {
-		my ($file, $t) = @_;
-		open(my $fh, '>:utf8', $file) || die "$file: $!";
-		print $fh $t;
-		close($fh);
-	};
-
-	# 画像のある記事を書く
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '画像の記事', body_txt => "[image:S:test/:a.png:画像]\n" })), '画像の記事を書く');
-	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>画像の記事<};
-	my $art = "/0$pkey";
-	like(body($app->get('guest', $art)), qr{/pub/attachments/test/}, '記事の画像は pub/attachments/ の下');
-
-	# 4.26のプライベートモードの状態を作る（公開フォルダのファイル、記事の中のURL、設定の中のパス）
-	mkdir("$dir/pub/$private") || die $!;
-	foreach (qw(attachments custom plugin rss.xml images.json contents.json taglist.json)) {
-		next if (!-e "$dir/pub/$_");
-		rename("$dir/pub/$_", "$dir/pub/$private/$_") || die "$_: $!";
-	}
-	foreach my $file (glob("$dir/data/db/art/*.dat")) {
-		my $t = read_file($file);
-		$write->($file, $t) if ($t =~ s{pub/attachments/}{pub/$private/attachments/}g);
-	}
-	my $conf = read_file($setting);
-	$conf =~ s/^(?:private|pub_private_dir|viewers|view_pass|iconfile)=.*\n//mg;
-	$conf .= "private=1\npub_private_dir=$private\nviewers=user\nview_pass=secret\niconfile=pub/$private/attachments/test/a.png\n";
-	$write->($setting, $conf);
-	my $ver = read_file($sys);
-	$ver =~ s/^VERSION=.*$/VERSION=4.26/m;
-	$write->($sys, $ver);
-
-	# アップデートの前は閉じている
-	is($app->get('guest', $art)->{status}, 503, 'アップデートの前は、ログインしていない人に記事を出さない');
-	like(body($app->get('admin', $art)), qr{/pub/$private/attachments/test/}, '作った状態の確認：記事の中のURLは推測できない名前のフォルダの下');
-
-	# 確認が無いとアップデートしない
-	like(body($app->get('admin', 'system/update')), qr{name="publish_private"}, 'アップデートの画面に、公開の確認が出る');
-	my $r = $app->post('admin', 'system/update', { action => 'system/update' });
-	ok(!AppTest::is_reload($r), '確認が無いとアップデート処理を行わない');
-	like(body($r), qr{ブログが公開されることの確認にチェックを入れてください}, '確認が要ることを出す');
-	like(read_file($sys), qr/^VERSION=4\.26$/m, '版はそのまま');
-	is($app->get('guest', $art)->{status}, 503, '閉じたまま');
-	ok(-f "$dir/pub/$private/attachments/test/a.png", 'ファイルは移らない');
-
-	# 移す先に同じ名前があれば、何も移さず、やり直せる
-	$write->("$dir/pub/rss.xml", "dup\n");
-	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
-	ok(!AppTest::is_reload($r), '移せないときは、アップデート処理を止める');
-	like(body($r), qr{ファイルを移せませんでした}, '移せなかったことを出す');
-	like(read_file($sys), qr/^VERSION=4\.26$/m, '版はそのまま');
-	like(read_file($setting), qr/^pub_private_dir=\Q$private\E$/m, 'フォルダの名前は設定に残る');
-	ok(-f "$dir/pub/$private/attachments/test/a.png", 'ファイルは移らない');
-	is($app->get('guest', $art)->{status}, 503, '閉じたまま');
-	unlink("$dir/pub/rss.xml");
-
-	# 手で置いたものは公開しない
-	$write->("$dir/pub/$private/hand.txt", "hand\n");
-
-	# 確認があるとアップデートする
-	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
-	ok(AppTest::is_reload($r), '確認があるとアップデート処理を行う');
-	like(body($r), qr{フォルダを消せませんでした}, '手で置いたものが残ったことを出す');
-	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
-	ok(-f "$dir/pub/attachments/test/a.png" && -f "$dir/pub/rss.xml", 'ファイルが pub/ に戻る');
-	ok(-f "$dir/pub/$private/hand.txt" && !-e "$dir/pub/hand.txt", '手で置いたものはフォルダに残す');
-	ok(!-e "$dir/pub/$private/attachments", '戻したものはフォルダに残らない');
-
-	$conf = read_file($setting);
-	unlike($conf, qr/^(?:private|pub_private_dir|viewers|view_pass)=/m, '設定からプライベートモードの値が消える');
-	like($conf, qr{^iconfile=pub/attachments/test/a\.png$}m, '設定の中のパスが書き換わる');
-
-	my $b = body($app->get('guest', $art));
-	like($b, qr{/pub/attachments/test/}, '記事の中のURLが作り直される');
-	unlike($b, qr{\Q$private\E}, '公開画面にフォルダの名前が出ない');
-	like(read_file("$dir/pub/rss.xml"), qr{/pub/rss\.xml}, 'RSSのURLが変わる');
-	unlike(read_file("$dir/pub/rss.xml"), qr{\Q$private\E}, 'RSSにフォルダの名前が出ない');
-	unlike(body($app->get('admin', 'system/update')), qr{name="publish_private"}, 'アップデートの後は、確認を出さない');
-
-	$app->restore($snap);
-};
-
 subtest 'ブログの自動作成' => sub {
 	# 空のデータを初めて開く
 	my $fresh = AppTest->new();
@@ -247,7 +161,7 @@ subtest 'ブログの自動作成' => sub {
 	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.27/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
 	open(my $fh, '>:utf8', $sys) || die;
 	print $fh $conf;
 	close($fh);

@@ -156,7 +156,6 @@ sub import_arts {
 		# タイトル、タグ、投稿者
 		$art{title} = $day->{title};
 		$art{tags}  = join(',', @tags);
-		$art{name}  = $day->{'dc:creator'};
 
 		# 日付情報
 		my $gmt = &date2utc($day->{'wp:post_date_gmt'});

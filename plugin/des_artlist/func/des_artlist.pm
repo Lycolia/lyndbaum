@@ -12,7 +12,7 @@ sub {
 
 	my $h = {
 		flag     => { enable => 1 },
-		cols     => [ 'title', 'name', 'id', 'tm', 'yyyymmdd', 'link_key', 'ctype' ],
+		cols     => [ 'title', 'tm', 'yyyymmdd', 'link_key', 'ctype' ],
 		sort     => [ 'yyyymmdd', 'tm'],
 		sort_rev => [ 1, 1 ],
 		limit    => $num

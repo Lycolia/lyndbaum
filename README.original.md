@@ -2,36 +2,37 @@ The "adiary" is high performance CMS.
 This software licensed under AGPL version 3 or later.
 Current Version is Japanese message only.
 
-Require permission setting which '__cache' and 'data/' and 'pub/' is writable.
-And, '__cache' and 'data/' directories not permit to access from web.
+Require permission setting which '**cache' and 'data/' and 'pub/' is writable.
+And, '**cache' and 'data/' directories not permit to access from web.
 (by '.htaccess' or other way)
 
-----------------------------------------------------------------------
+---
+
 [Japanese]
 
 # 動作環境
 
-  * Apache またはそれと互換性のあるWebサーバ
-  * Perl 5.8.1以降（pure Perl可）
+- Apache またはそれと互換性のあるWebサーバ
+- Perl 5.8.1以降（pure Perl可）
 
 # インストール方法
 
-  1. 解凍してでてきたファイルをサーバ上の任意の位置に置く
-  2. adiary.cgi に実行属性を付ける
-  3. __cache/, data/, pub/ を www 権限で書き込めるようにする。（suEXEC の場合は不要）
-  4. adiary.conf.cgi.sample を adiary.conf.cgi としてコピーし適当にいじる
-  5. adiary.cgi にアクセスし、ID、パスワードを適当に入力してログイン。
-  6. その後、自分自身をユーザーとして追加する。
+1. 解凍してでてきたファイルをサーバ上の任意の位置に置く
+2. adiary.cgi に実行属性を付ける
+3. \_\_cache/, data/, pub/ を www 権限で書き込めるようにする。（suEXEC の場合は不要）
+4. adiary.conf.cgi.sample を adiary.conf.cgi としてコピーし適当にいじる
+5. adiary.cgi にアクセスし、ID、パスワードを適当に入力してログイン。
+6. その後、自分自身をユーザーとして追加する。
 
 詳細は[オンラインマニュアル](http://adiary.org/v3man/)を参照してください。
 
 # 著作権表示(Copyright)
 
- Copyright (C)2013-2023 nabe@abk.
+Copyright (C)2013-2023 nabe@abk.
 
 本プログラム（システム）はフリーソフトウェアです。
 
-AGPL(AFFERO GENERAL PUBLIC LICENSE) Vesrion 3 または
+AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3 または
 それ以降のバージョンの下で本プログラム（システム）を再配布
 することが可能です。
 
@@ -59,24 +60,24 @@ MITライセンスやPerlライセンスだと大変助かります。
 
 ## JavaScript
 
-  * jQuery (MIT)
-    * jQuery UI (MIT / GPLv2)
-    * dynatree  (MIT)
-    * Color Picker (MIT / GPL)
-  * Lightbox2 (MIT)
-  * highlight.js (BSD)
+- jQuery (MIT)
+  - jQuery UI (MIT / GPLv2)
+  - dynatree (MIT)
+  - Color Picker (MIT / GPL)
+- Lightbox2 (MIT)
+- highlight.js (BSD)
 
 ## Perl
 
-  * Image::Magick (Apache 2.0)
-  * Net::SSLeay (Perl)
-  * CryptX (Perl)
-  * [Crypt::glibc](https://github.com/nabe-abk/Crypt-glibc) (LGPL / use Windows only)
+- Image::Magick (Apache 2.0)
+- Net::SSLeay (Perl)
+- CryptX (Perl)
+- [Crypt::glibc](https://github.com/nabe-abk/Crypt-glibc) (LGPL / use Windows only)
 
 ## プラグインとテーマ
 
-  * plugin/ 以下に存在するプラグインはそれぞれ個別の著作物です。
-  * theme/ 以下に存在するテーマファイルはそれぞれ個別の著作物です。
+- plugin/ 以下に存在するプラグインはそれぞれ個別の著作物です。
+- theme/ 以下に存在するテーマファイルはそれぞれ個別の著作物です。
 
 ライセンスについては、各ディレクトリ内の README 等を参照してください。
 
@@ -88,10 +89,10 @@ VLゴシックフォント（pub-dist/VL-PGothic-Regular.ttf）を
 
 ## 画像アイコン
 
-  * pub-dist/album-icon 以下のアイコンの多くはせりか氏の著作物です。
-  * pub-dist/album-icon/pdf.png は http://iconhoihoi.oops.jp/ の著作物です。
-  * pub-dist/album-icon 以下の g-*.png と trashbox.png はGNOME Desktopアイコンです。
-  * pub-dist/mahjong/ 以下のファイルは「[麻雀豆腐](http://majandofu.com/mahjong-images)」の画像を利用しています。
-  * theme/_img/social-buttons.png は「Simplicity (GPL)」に含まれるアイコンを元にしました。
+- pub-dist/album-icon 以下のアイコンの多くはせりか氏の著作物です。
+- pub-dist/album-icon/pdf.png は http://iconhoihoi.oops.jp/ の著作物です。
+- pub-dist/album-icon 以下の g-\*.png と trashbox.png はGNOME Desktopアイコンです。
+- pub-dist/mahjong/ 以下のファイルは「[麻雀豆腐](http://majandofu.com/mahjong-images)」の画像を利用しています。
+- theme/\_img/social-buttons.png は「Simplicity (GPL)」に含まれるアイコンを元にしました。
 
 せりか氏著作物のライセンスは、adiaryのライセンスに準じます。

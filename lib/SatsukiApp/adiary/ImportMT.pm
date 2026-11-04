@@ -91,7 +91,6 @@ sub import_arts {
 			# その他フィールド
 			if ($key eq 'STATUS' && $val =~ /draft/i)   { $art{enable} = 0; next; }
 			if ($key eq 'STATUS' && $val =~ /publish/i) { $art{enable} = 1; next; }
-			if ($key eq 'AUTHOR') { $art{name}  = $val; next; }
 			if ($key eq 'TITLE')  { $art{title} = $val; next; }
 			# 数値フィールド処理
 			if ($val ne '0' && $val ne '1') { next; }

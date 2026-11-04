@@ -94,6 +94,9 @@ Don't use ordering hash (contaion variable key) in '%s'=変数keyが含まれる
 # error
 #-----------------------------------------------------------
 Can't find host '%s'=%s が見つかりません
+Can't connect to port %d=ポート %d には接続できません（80番と443番だけ）
+Can't connect to internal address '%s'=%s は内部のアドレスなので接続できません
+Response too large '%s'=%s の応答が大きすぎます
 Can't open socket=socket が開けません
 Can't connect %s=%s に接続できません
 Connection closed by '%s'=通信が切断されました（%s）
@@ -110,7 +113,6 @@ Net::SSLeay Ver%s is too old (1.92 or later required)=Net::SSLeay Ver%s は古�
 # message
 #-----------------------------------------------------------
 Username or password incorrect.=ユーザー名またはパスワードが正しくありません。
-This account is disable.=このアカウントは現在使用できません
 No exists user data. You should add new user before use this=ユーザーが登録されていません。ユーザーを追加してから使用してください
 Username or password incorrect, or too many failed. Please retry in %d minutes.=ユーザー名またはパスワードが正しくないか、失敗が続いたためログインを止めています。止めている場合は%d分以上経ってから再度試してください。
 #-----------------------------------------------------------
@@ -131,9 +133,6 @@ No assignment delete user=削除するユーザーが指定されていません
 No login=ログインしていません
 Can't execute with 'root*'=無条件承認(root*)では実行できません
 New password is empty=パスワードを指定してください
-Confirm that this blog will be published=アップデート処理を行うには、ブログが公開されることの確認にチェックを入れてください
-Move failed (%s)=ファイルを移せませんでした（%s）。同じ名前のファイルが無いか、書き込めるかを確かめてから、もう一度アップデート処理を行ってください
-Remove folder failed (%s)=フォルダを消せませんでした（%s）。手で置いたファイルが残っています。残っているファイルを確かめて、手で消してください
 Incorrect password=パスワードが違います
 Can't find ID=指定のIDが見つかりません
 ID is empty=IDが指定されていません
@@ -272,6 +271,5 @@ Not exists article=該当する記事がみつかりません
 # adiary_6
 ###############################################################################
 Restart of %s is required!=%sの再起動が必要です！
-Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.25〜4.30の版でアップデート処理を行ってください
-Confirm that other users will be deleted=アップデート処理を行うには、ほかのユーザーが消えることの確認にチェックを入れてください
+Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.32の版でアップデート処理を行ってください
 Blog database error(%s)=ブログのデータベースのエラーです（%s）

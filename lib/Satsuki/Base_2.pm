@@ -69,8 +69,8 @@ TEXT
 		push(@lines, "$_\0");	# routines
 	}
 
-	# ファイルに書き出し
-	$self->fwrite_lines($cache_file, \@lines);
+	# ファイルに書き出し。途中で落ちても、切れたキャッシュを残さない
+	$self->fwrite_atomic($cache_file, \@lines);
 }
 
 ################################################################################
@@ -183,14 +183,64 @@ sub fwrite_lines {
 		seek($fh, 0, 0);	# ファイルポインタを先頭へ
 	}
 	foreach(@$lines) {
-		print $fh $_;
+		if (!print $fh $_) { $fail_flag=1; }
 	}
 	$self->delete_file_cache($file);
-	close($fh);
+	if (!close($fh)) { $fail_flag=1; }	# バッファの書き出しの失敗はここで分かる
+	if ($fail_flag) {
+		$self->error("File can't write '%s'", $file);
+		return 1;
+	}
 
 	# モード変更
 	if (defined $flags->{FileMode}) { chmod($flags->{FileMode}, $file); }
 	return 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●ファイルを置き換える
+#-------------------------------------------------------------------------------
+# 一時ファイルに書き終えてからrenameする。書き込みに失敗したり途中で落ちたりしても、元のファイルは残る。
+# 置き換えるとファイルの実体が変わるので、ファイルをロックして編集するところでは file_replaced で確かめる。
+# Ret:	0	成功
+# 	1	失敗
+sub fwrite_atomic {
+	my ($self, $file, $lines) = @_;
+	if (ref $lines ne 'ARRAY') { $lines = [$lines]; }
+
+	my $tmp = "$file." . $$ . int(rand(1000000)) . '.tmp';
+	my $fh;
+	my $fail = !sysopen($fh, $tmp, O_CREAT | O_EXCL | O_WRONLY);
+	if (!$fail) {
+		binmode($fh);
+		foreach(@$lines) {
+			if (!print $fh $_) { $fail=1; }
+		}
+		if (!close($fh)) { $fail=1; }
+
+		my @st = stat($file);
+		if (@st) { chmod($st[2] & 07777, $tmp); }
+		if (!$fail && !rename($tmp, $file)) { $fail=1; }
+		if ($fail) { unlink($tmp); }
+	}
+	if ($fail) {
+		$self->error("File can't write '%s'", $file);
+		return 1;
+	}
+	$self->delete_file_cache($file);
+	return 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●ロックを待っている間に、ファイルが置き換えられたか
+#-------------------------------------------------------------------------------
+# 置き換えられていたら、ロックしたのは古い実体なので、開き直す必要がある
+sub file_replaced {
+	my ($self, $fh, $file) = @_;
+	my @st = stat($file);
+	if (!@st) { return 0; }		# 消されたときは、開いているものをそのまま使う
+	my @fh = stat($fh);
+	return ($fh[0] != $st[0] || $fh[1] != $st[1]) ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------
@@ -242,20 +292,24 @@ sub fedit_readlines {
 	my ($self, $file, $flags) = @_;
 
 	my $fh;
-	if ( !sysopen($fh, $file, O_CREAT | O_RDWR | ($flags->{append} ? O_APPEND : 0)) ) {
-		if ($flags->{NoError}) {
-			$self->warning("File can't open (for %s) '%s'", 'edit', $file);
-		} else {
-			$self->error("File can't open (for %s) '%s'", 'edit', $file);
+	while (1) {
+		if ( !sysopen($fh, $file, O_CREAT | O_RDWR | ($flags->{append} ? O_APPEND : 0)) ) {
+			if ($flags->{NoError}) {
+				$self->warning("File can't open (for %s) '%s'", 'edit', $file);
+			} else {
+				$self->error("File can't open (for %s) '%s'", 'edit', $file);
+			}
 		}
-	}
-	binmode($fh);
-	if ($flags->{NB}) {
-		my $r = $self->write_lock_nb($fh);
-		if (!$r) { close($fh); return; }
-	} else {
-		my $method = $flags->{ReadLock} ? 'read_lock' : 'write_lock';
-		$self->$method($fh);
+		binmode($fh);
+		if ($flags->{NB}) {
+			my $r = $self->write_lock_nb($fh);
+			if (!$r) { close($fh); return; }
+		} else {
+			my $method = $flags->{ReadLock} ? 'read_lock' : 'write_lock';
+			$self->$method($fh);
+		}
+		if (!$self->file_replaced($fh, $file)) { last; }
+		close($fh);
 	}
 
 	my @lines;
@@ -273,13 +327,26 @@ sub fedit_writelines {
 	my ($self, $fh, $lines, $flags) = @_;
 	if (ref $lines ne 'ARRAY') { $lines = [$lines]; }
 
+	my $fail;
 	seek($fh, 0, 0);	# ファイルポインタを先頭へ
 	foreach(@$lines) {
-		print $fh $_;
+		if (!print $fh $_) { $fail=1; }
 	}
 	truncate($fh, tell($fh));
-	close($fh);
+	if (!close($fh)) { $fail=1; }
+	if ($fail) {
+		$self->error("File can't write '%s'", 'fedit_writelines');
+		return 1;
+	}
 	return 0;
+}
+
+# 編集用に開いたファイルを置き換える。置き換えてからロックを放す
+sub fedit_replace {
+	my ($self, $fh, $file, $lines) = @_;
+	my $r = $self->fwrite_atomic($file, $lines);
+	close($fh);
+	return $r;
 }
 
 sub fedit_exit {
@@ -625,11 +692,7 @@ sub _read_form {
 	if (ref $self->{Form} eq 'HASH') { return $self->{Form}; }
 
 	### POST 事前スクリプトの exec
-	if ($self->{If_post_exec_pre}) {
-		$self->execute( $self->{If_post_exec_pre} );	# 4.27までの設定ファイル
-	} else {
-		$self->set_form_options();
-	}
+	$self->set_form_options();
 	### オプションロード
 	my $options = $self->{Form_options} || {};
 	### マルチパート form か
@@ -1468,14 +1531,20 @@ sub json_encode {
 	my $v = shift;
 	if ($v ne '-0' && $v =~ /^-?(?:[1-9]\d*|0)(?:\.\d+)?$/) { return $v; }
 	if (ref($v) eq 'SCALAR') { return $$v; }	# true/false/null
-	# 文字列
-	$v =~ s/\\/&#92;/g;
+	return $self->json_string($v);
+}
+
+# 数字だけの値も文字列にする
+sub json_string {
+	my $self = shift;
+	my $v = shift;
+	$v =~ s/([\\"])/\\$1/g;
 	$v =~ s/\n/\\n/g;
 	$v =~ s/\t/\\t/g;
 	$v =~ s/\r/\\r/g;
 	$v =~ s/\x08/\\b/g;	# Backspace
-	$v =~ s/\x09/\\f/g;	# HT
-	$v =~ s/"/\\"/g;
+	$v =~ s/\x0c/\\f/g;	# Form Feed
+	$v =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg;
 	return '"' . $v . '"';
 }
 

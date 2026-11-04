@@ -30,7 +30,6 @@ sub _ajax_user_add {
 
 	$form->{id} = $form->{adiary_id};
 	delete $form->{adiary_id};
-	$form->{isadmin} = 1;
 
 	return $auth->user_add($form);
 }
@@ -541,11 +540,11 @@ sub create_tables {
 sub art_table_info {
 	my $self = shift;
 	my %info;
-	$info{text}    = [ qw(title parser tags name id ip host agent link_key ctype main_image description backlinks) ];
+	$info{text}    = [ qw(title parser tags link_key ctype main_image description backlinks) ];
 	$info{ltext}   = [ qw(text text_s _text) ];
 	$info{int}     = [ qw(yyyymmdd tm update_tm coms coms_all upnode priority) ];
 	$info{flag}    = [ qw(enable com_ok nsfw) ];
-	$info{idx}     = [ qw(name id link_key ctype upnode yyyymmdd tm update_tm coms coms_all enable priority) ];
+	$info{idx}     = [ qw(link_key ctype upnode yyyymmdd tm update_tm coms coms_all enable priority) ];
 	$info{idx_tdb} = [ qw(title tags) ];
 	$info{unique}  = [ qw(link_key) ];
 	$info{notnull} = [ qw(enable com_ok coms coms_all yyyymmdd link_key) ];
@@ -582,8 +581,7 @@ sub create_trash_tables {
 
 	my $art = $self->art_table_info();
 	push(@{ $art->{int}  }, 'deleted_tm');	# 削除日時
-	push(@{ $art->{text} }, 'deleted_id');	# 削除したユーザー
-	$art->{idx}     = [ qw(id deleted_tm) ];
+	$art->{idx}     = [ qw(deleted_tm) ];
 	$art->{idx_tdb} = [ ];
 	$art->{unique}  = [ ];
 	$art->{notnull} = [ ];
@@ -802,7 +800,6 @@ sub import_events {
 # $art->{tm}		書き込み日時（UTC）
 # $art->{tags}		タグ(「,」区切り）
 # $art->{title}		タイトル
-# $art->{name}		執筆者（$art->{author} ではないので注意）
 # $art->{text}		記事本文（※必須）
 # $art->{parser}	パーサー指定
 #
@@ -813,10 +810,6 @@ sub import_events {
 # $art->{priority}	優先度, 重要度（整数値）
 # $art->{upnode}	親記事
 # $art->{link_key}	コンテンツキー
-#
-# $art->{ip}		IPアドレス
-# $art->{host}		HOST名
-# $art->{agent}		USER AGENT
 #
 #
 # $c = $coms->[$n]	$n 番目の書き込み
@@ -850,7 +843,6 @@ sub save_article {
 	my ($self, $art, $coms, $tbs, $opt, $session) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
-	my $auth = $ROBJ->{Auth};
 
 	my $blog   = $self->{blog};
 	if (! $self->{blog_admin} ) { $ROBJ->message('Operation not permitted'); return 5; }
@@ -873,13 +865,6 @@ sub save_article {
 		$art->{parser} = 'simple_br';
 	}
 	$art->{tm}     ||= $now_tm;
-	$art->{name}   ||= $auth->{name};
-	$art->{id}       = $auth->{id};
-
-	# 投稿者を強制的に自分にする
-	if ($opt->{force_author}) {
-		$art->{name} = $auth->{name};
-	}
 
 	# タグを設定する
 	if ($opt->{force_tag} || $art->{tags} eq '') {
@@ -948,11 +933,6 @@ sub save_article {
 	{
 		my %op;
 		$op{save_pkey} = $pkey;
-		$op{iha_default} = {
-			ip    => $art->{ip},
-			host  => $art->{host},
-			agent => $art->{agent}
-		};
 		$op{tm} = $art->{tm};
 		my $ret = $self->regist_article( $art, \%op );
 		if (!ref($ret)) {

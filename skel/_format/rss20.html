@@ -53,7 +53,7 @@
 		<category><@t2></category>
 <$end>
 		<pubDate><@t.rfc_date></pubDate>
-		<dc:creator><@t.name></dc:creator>
+		<dc:creator><@esc_xml(v.admin_name())></dc:creator>
 <@>		アイキャッチ。本文に無い画像のこともある。NSFWの記事は出さない
 <@ifexec(t.main_image_url && !t.nsfw, begin)>
 		<media:content url="<@t.main_image_url>" medium="image"<@if(t.main_image_type, #' type="<@t.main_image_type>"')><@if(t.main_image_w && t.main_image_h, #' width="<@t.main_image_w>" height="<@t.main_image_h>"')> />

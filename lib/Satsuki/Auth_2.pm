@@ -63,10 +63,6 @@ sub login {
 		$self->log_save_fail($id, 'login');
 		return { ret=>10, msg => $fail_msg };
 	}
-	if ($udata->{disable}) {
-		$self->log_save_fail($id, 'login');
-		return { ret=>20, msg => $ROBJ->translate('This account is disable.') };
-	}
 
 	# 既にログイン済の場合、ログアウト
 	if ($self->{id}) {
@@ -170,9 +166,6 @@ sub do_session_auth {
 	# user data load
 	my $auth = $DB->select_match_limit1($self->{table}, 'id', $id);
 
-	# 無効アカウント
-	if ($auth->{disable}) { return; }
-
 	# ログイン成功
 	$self->set_logininfo($auth, $secret);
 	$self->{_sid} = $session_id;		# ログアウトで使用
@@ -247,18 +240,16 @@ sub set_logininfo {
 	$self->{id}    = $id;
 	$self->{name}  = $user->{name};
 	$self->{email} = $user->{email};
-	$self->{isadmin} = $user->{isadmin};	# 管理者権限
+	$self->{isadmin} = 1;	# ユーザーは管理者だけ。下のセキュリティ拡張で0になることがある
 	$self->{isroot}  = 0;
 	$self->{disabled_admin} = 0;
 
 	# 拡張カラム
 	my %h = %$user;
-	foreach(qw(pass pkey id name email disable isadmin)) {
+	foreach(qw(pass pkey id name email)) {
 		delete $h{$_};
 	}
 	$self->{ext} = \%h;
-
-	if (!$self->{isadmin}) { return; }
 
 	# セキュリティ拡張
 	if ($self->{root_list} && $self->{root_list}->{$id}) {
@@ -296,7 +287,7 @@ sub userdb_init {
 	$self->{exists_admin} = 1;
 	if ($self->{start_up}) {
 		my $bak  = $DB->set_noerror(1);
-		my $pkey = $DB->select_match_pkey1( $self->{table}, 'isadmin', 1, 'disable', 0, '*NoError', 1, '*cols', 'pkey' );
+		my $pkey = $DB->select_match_pkey1( $self->{table}, '*NoError', 1, '*cols', 'pkey' );
 		$DB->set_noerror($bak);
 		if (!$pkey) {
 			$self->{exists_admin} = 0;

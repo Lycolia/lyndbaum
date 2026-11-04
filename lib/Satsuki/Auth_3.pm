@@ -325,11 +325,7 @@ sub check_user_data {
 	# ユーザーデータ生成
 	if ($user->{new_user}) {
 		$update{id}    = $id;
-		$update{isadmin} = 0;
-		$update{disable} = 0;
 	}
-	if (exists $user->{isadmin}) { $update{isadmin} = $user->{isadmin} ? 1 : 0; }
-	if (exists $user->{disable}) { $update{disable} = $user->{disable} ? 1 : 0; }
 
 	return \%update;
 }
@@ -356,8 +352,8 @@ sub update_user_data {
 	if ($r != 1) {
 		return { ret=>-1, msg => 'DB update error' };
 	}
-	# 無効化、パスワード変更時は全セッションを削除（盗まれたセッションを使えなくするため）
-	if ($update->{disable} || exists($update->{pass})) {
+	# パスワード変更時は全セッションを削除（盗まれたセッションを使えなくするため）
+	if (exists($update->{pass})) {
 		$DB->delete_match($self->{table} . '_sid', 'id', $id);
 	}
 
@@ -449,7 +445,7 @@ sub sudo {
 ################################################################################
 sub load_main_table_columns {
 	my $self = shift;
-	return [ qw(pkey  id name pass email  login_c login_tm fail_c fail_tm  disable isadmin) ];
+	return [ qw(pkey  id name pass email  login_c login_tm fail_c fail_tm) ];
 }
 sub allow_user_change_columns {
 	my $self = shift;
@@ -465,8 +461,8 @@ sub create_user_table {
 	my %cols;
 	$cols{text}    = [ qw(id name pass email) ];
 	$cols{int}     = [ qw(login_c login_tm fail_c fail_tm) ];
-	$cols{flag}    = [ qw(disable isadmin) ];
-	$cols{idx}     = [ qw(id email isadmin) ];
+	$cols{flag}    = [ qw() ];
+	$cols{idx}     = [ qw(id email) ];
 	$cols{unique}  = [ qw(id email) ];
 	$cols{notnull} = [ qw(id name) ];
 	$DB->create_table_wrapper($table, \%cols, $self->{extcol});

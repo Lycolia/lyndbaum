@@ -28,6 +28,8 @@ sub new {
 	$self->{timeout}    = 30;
 	$self->{redirect}   = 5;	# リダイレクト処理を行う回数
 	$self->{use_sni}    = 1;	# use SNI
+	$self->{max_size}   = 100*1024*1024;	# 受信する大きさの上限（ヘッダを含む）
+	# $self->{allow_internal} = 1;	# 内部のアドレスとほかのポートへの接続を許す（テスト用）
 
 	$self->{http_agent} = $ROBJ->{HttpAgent} || "Simple HTTP agent $VERSION";
 	# $self->{log_file} = 'http.log';	# (DEBUG) connection log
@@ -71,9 +73,16 @@ sub do_get_data {
 sub connect_host {
 	my ($self, $host, $port) = @_;
 
+	# リダイレクト先もここを通る。名前解決の結果へそのまま接続するので、解決し直して内部へ向けることもできない
+	if (!$self->{allow_internal} && $port != 80 && $port != 443) {
+		return $self->error(undef, "Can't connect to port %d", $port);
+	}
 	my $ip_bin = inet_aton($host);		# IP 情報に変換
 	if ($ip_bin eq '') {
 		return $self->error(undef, "Can't find host '%s'", $host);
+	}
+	if (!$self->{allow_internal} && $self->is_internal_ip($ip_bin)) {
+		return $self->error(undef, "Can't connect to internal address '%s'", $host);
 	}
 	my $sockaddr = pack_sockaddr_in($port, $ip_bin);
 	my $sh;
@@ -99,6 +108,24 @@ sub connect_host {
 
 	binmode($sh);
 	return $sh;
+}
+
+# インターネットの宛先ではないアドレスか（RFC 6890）。connect_hostはIPv4だけを扱う
+my @INTERNAL_NET = map {
+	my ($ip, $bits) = split('/', $_);
+	[ unpack('N', inet_aton($ip)), (0xffffffff << (32-$bits)) & 0xffffffff ];
+} qw(	0.0.0.0/8	10.0.0.0/8	100.64.0.0/10	127.0.0.0/8
+	169.254.0.0/16	172.16.0.0/12	192.0.0.0/24	192.0.2.0/24
+	192.168.0.0/16	198.18.0.0/15	198.51.100.0/24	203.0.113.0/24
+	224.0.0.0/4	240.0.0.0/4 );
+
+sub is_internal_ip {
+	my ($self, $ip_bin) = @_;
+	my $ip = unpack('N', $ip_bin);
+	foreach(@INTERNAL_NET) {
+		if (($ip & $_->[1]) == $_->[0]) { return 1; }
+	}
+	return 0;
 }
 
 # ソケットが読み取り／書き込み可能になるまで待つ。1:準備完了、0:期限切れ、-1:エラー
@@ -158,6 +185,10 @@ sub send_http_request {
 		my $got = sysread($sock, $data, 32768, length($data));
 		next if (!defined($got) && $! == EINTR);
 		last if (!$got);
+		if (length($data) > $self->{max_size}) {
+			close($sock);
+			return $self->error(undef, "Response too large '%s'", $host);
+		}
 	}
 	close($sock);
 
@@ -209,7 +240,7 @@ sub send_https_request {
 		return $self->error($sock, "Net::SSLeay Ver%s is too old (1.92 or later required)", $Net::SSLeay::VERSION);
 	}
 	#-----------------------------------------------------------------------
-	my ($data, $errs, $verify_err, $timeout);
+	my ($data, $errs, $verify_err, $timeout, $too_large);
 
 	my $ctx = Net::SSLeay::new_x_ctx();
 	goto cleanup2 if $errs = Net::SSLeay::print_errs('CTX_new') or !$ctx;
@@ -281,6 +312,7 @@ sub send_https_request {
 		if (defined($got)) {
 			last if ($got eq '');
 			$data .= $got;
+			if (length($data) > $self->{max_size}) { $too_large=1; last; }
 			next;
 		}
 		my $ready = $self->wait_ssl($ssl, $sock, $ret, $deadline);
@@ -300,6 +332,9 @@ cleanup2:
 	# 途中まで受信していても、切れたデータは成功として扱わない
 	if ($timeout) {
 		return $self->error(undef, "Connection timeout '%s' (timeout %d sec)", $host, $self->{timeout});
+	}
+	if ($too_large) {
+		return $self->error(undef, "Response too large '%s'", $host);
 	}
 
 	#-----------------------------------------------------------------------

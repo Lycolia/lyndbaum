@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.32;
+our $VERSION    = 4.33;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.32;
+our $DATA_VERSION = 4.33;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -124,7 +124,7 @@ frame_skeleton	=> '_frame',
 admin_frame_skeleton => '_frame_admin'
 	);
 	foreach(keys(%h)) {
-		if (!exists($self->{$_})) { $self->{$_} = $h{$_}; }	# 4.27までの設定ファイルでは、newの前に値を入れてある
+		if (!exists($self->{$_})) { $self->{$_} = $h{$_}; }
 	}
 }
 
@@ -186,6 +186,13 @@ sub main {
 		$ROBJ->{POST} = 0;
 		$ROBJ->set_status(503);
 		$self->{skeleton} = '_sub/blog_error';
+	}
+
+	# ほかのOriginから送られたPOSTは、何も処理せず断る
+	if ($ROBJ->{POST} && !$self->is_same_origin_post()) {
+		$ROBJ->form_clear();
+		$ROBJ->set_status(403);
+		$self->{skeleton} = '_sub/post_denied';
 	}
 
 	#-------------------------------------------------------------
@@ -270,6 +277,21 @@ sub secure_http_host {
 		# 管理者ログイン時の ServerURL を保存しておく
 		$self->update_sysdat('ServerURL', $srv);
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●POSTの送信元が同じOriginか
+#-------------------------------------------------------------------------------
+# SameSite=Laxでは、隣のサブドメインのような同じサイトからのPOSTを防げないので確かめる。
+# Sec-Fetch-Siteは平文のHTTPでは送られないので、そのときはOriginとHostを比べる。
+# どちらも無ければ、ブラウザー以外か古いブラウザーなので通す（SameSite=Laxが受け持つ）。
+sub is_same_origin_post {
+	my $site = lc($ENV{HTTP_SEC_FETCH_SITE});
+	if ($site ne '') { return $site eq 'same-origin' || $site eq 'none'; }
+
+	my $origin = $ENV{HTTP_ORIGIN};
+	if ($origin eq '') { return 1; }
+	return $origin =~ m!^https?://([^/]+)$!i && lc($1) eq lc($ENV{HTTP_HOST});
 }
 
 #-------------------------------------------------------------------------------
@@ -589,10 +611,11 @@ sub do_ajax_function {
 	if (!$@) { return $r; }
 
 	# eval error
-	if ($self->can($func)) {
-		return [ -99.9, $@ ];
+	# can()は、AutoLoaderがまだ読み込んでいない関数では偽になるので使わない
+	if ($@ =~ /^\[AutoLoader\] Can't find method '\Q$func\E'/) {
+		return [ -99.2, "function not found: $func()" ];
 	}
-	return [ -99.2, "function not found: $func()" ];
+	return [ -99.9, $@ ];
 }
 
 #-------------------------------------------------------------------------------
@@ -1214,8 +1237,8 @@ sub set_comment_by_admin {
 	my $auth = $self->{ROBJ}->{Auth};
 
 	if (!$self->{_admin_ids}) {
-		my $admins = $auth->{DB}->select_match($auth->{table}, 'isadmin', 1, '*cols', ['id']);
-		$self->{_admin_ids} = { map { $_->{id} => 1 } @$admins };
+		my $users = $auth->{DB}->select_match($auth->{table}, '*cols', ['id']);
+		$self->{_admin_ids} = { map { $_->{id} => 1 } @$users };
 	}
 	my $ids = $self->{_admin_ids};
 	foreach(@$comments) {
@@ -1224,6 +1247,17 @@ sub set_comment_by_admin {
 		$_->{by_admin} = $ids->{$id} ? 1 : 0;
 	}
 	return $comments;
+}
+
+#-------------------------------------------------------------------------------
+# ●管理者の表示名
+#-------------------------------------------------------------------------------
+# 読者のコメントでRSSを作り直すときなど、管理者がログインしていなくても使う
+sub admin_name {
+	my $self = shift;
+	my $auth = $self->{ROBJ}->{Auth};
+	my $user = $auth->{DB}->select_match_limit1($auth->{table}, '*cols', ['name']);
+	return $user ? $user->{name} : '';
 }
 
 ################################################################################

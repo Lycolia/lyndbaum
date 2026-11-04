@@ -12,6 +12,7 @@ my %StatCache;
 use Satsuki::AutoLoader;
 use Fcntl;		# for sysopen/flock
 use Scalar::Util();
+use Time::HiRes ();	# for fread_lines_cached
 ################################################################################
 # ■コンストラクタ
 ################################################################################
@@ -95,37 +96,19 @@ sub start_up {
 	my $cgi = $0;
 
 	my $user;	# ユーザー設定（無くてもよい）
-	my $env;	# 4.27までの設定
-	my $conf;	# 4.27までの設定
 	if ($cgi =~ m!(?:^|/)([^/\.]*)[^/]*$!) {
 		$user  = $1 . '.user.cgi';
-		$env   = $1 .  '.env.cgi';
-		$conf  = $1 . '.conf.cgi';
 	} else {
-		$user = $env = $conf = '__(internal_error)__';
+		$user = '__(internal_error)__';
 	}
 
-	if (!-r $user && -r $conf) {
-		# 4.27までの設定ファイル。アップデート処理（sys_update_428）で移すまでは、今までどおり動かす
-		if (-r $env) {
-			$self->_call($env);
-		}
-		$self->init_tm();
-		$self->init_path();
-
-		$self->{User_file}   = $user;	# 以下はアップデート処理で使う
-		$self->{Env_file}    = $env;
-		$self->{Conf_file}   = $conf;
-		$self->{Conf_result} = $self->_call($conf);
-	} else {
-		# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
-		$self->setup_main();
-		if (-r $user) {
-			$self->_call($user);
-		}
-		$self->init_tm();
-		$self->init_path();
+	# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
+	$self->setup_main();
+	if (-r $user) {
+		$self->_call($user);
 	}
+	$self->init_tm();
+	$self->init_path();
 
 	# 致命的エラーがあった場合、表示して終了
 	if ($self->{Error_flag}) {
@@ -137,14 +120,7 @@ sub start_up {
 	# メインルーチンの実行
 	# ※Perlの側からredirect()などを呼ぶとdie("Break")で抜けてくるので、ここで受け止める。
 	#   受け止めないとfinish()が動かず、出力の後ろに500のエラーが付く
-	my $main = $self->{Main};
-	eval {
-		if (defined $main && $main->can('main')) {
-			$main->main();
-		} else {
-			$self->main();	# すぐ下のルーチン
-		}
-	};
+	eval { $self->{Main}->main(); };
 	if ($@ && $@ !~ /^Break\b/) { die $@; }
 }
 
@@ -152,8 +128,6 @@ sub start_up {
 # ●DB、ログイン、本体を作る
 #-------------------------------------------------------------------------------
 # 既定値は、できるだけそれぞれのnewに持つ。
-# admin_trust_modeとAuthのstart_upは、4.27までの設定ファイルで止めている環境の動きを変えないように、
-# それぞれのnewではなくここで設定する（4.27までの設定ファイルで動くときは、ここを通らない）
 sub setup_main {
 	my $self = shift;
 
@@ -161,8 +135,9 @@ sub setup_main {
 	$self->{WDAY_name} = ['日', '月', '火', '水', '木', '金', '土'];
 	$self->{AMPM_name} = ['午前', '午後', '深夜'];
 
-	# wwwプロセスで実行されてるようならば0777,0666になるようにする
-	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(0); }
+	# wwwプロセスで実行されてるようならば0775,0664になるようにする
+	# ほかの人が書けるようにしない（__cache/のPerlはevalするので、書き換えられるとコードを実行される）
+	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(002); }
 
 	$self->regist_skeleton('skel/');
 	$self->regist_skeleton('skel.local/', 2);
@@ -174,14 +149,6 @@ sub setup_main {
 	$auth->{start_up} = 1;		# ユーザー未登録時に無条件に承認し管理権限を与える
 
 	$self->{v} = $self->{Main} = $self->loadapp('adiary', $db, { admin_trust_mode => 1 });
-}
-
-#-------------------------------------------------------------------------------
-# ●conf.cgi の中身をそのまま出力するだけのメインルーチン
-#-------------------------------------------------------------------------------
-sub main {
-	my $self = shift;
-	$self->output($self->{Conf_result});
 }
 
 #-------------------------------------------------------------------------------
@@ -514,8 +481,10 @@ sub load_cache {
 
 	local($/) = "\0";	# デリミタ変更
 	my $lines = $self->fread_lines($file);
-	# 全データからデリミタ除去
-	foreach(@$lines) { chop(); }
+	# 全データからデリミタ除去。デリミタがなければ途中で切れている
+	foreach(@$lines) {
+		if (chop() ne "\0") { return; }	# 失敗
+	}
 
 	shift(@$lines);	# 注意書き読み捨て
 	my $version = shift(@$lines);
@@ -527,17 +496,11 @@ sub load_cache {
 	# このキャッシュの生成に使用したソースファイルのタイムスタンプ(UTC)
 	$cache{src_tm}      = shift(@$lines);
 
-	# ルーチンバッファの読み込み
-	my @arybuf;
+	# ルーチンバッファの読み込み。数が合わなければ失敗
 	my $arys = shift(@$lines) + 0;
-	for(my $i=0; $i<$arys; $i++) {
-		push(@arybuf, shift(@$lines));
-	}
+	if ($arys < 1 || $#$lines +1 != $arys) { return; }
 
-	# @$lines が空であるかチェック
-	if ($#$lines != -1) { return (2); }	# 失敗
-
-	$cache{arybuf} = \@arybuf;
+	$cache{arybuf} = $lines;
 	return \%cache;
 }
 
@@ -1170,9 +1133,11 @@ sub fread_lines_cached {
 	my $key   = join('//',$flags->{PostProcessor},$flags->{DelCR});
 	my $c     = $cache->{$key} || {};
 
-	my $st   = $StatCache{$file} ||= [ stat($file) ];
-	my $size = $st->[7];
-	my $mod  = $st->[9];
+	# 同じ秒に書き直されても分かるように、秒より細かい時刻で比べる。
+	# 別のスレッドが書き直しても分かるように、毎回調べる（%StatCacheは使わない）。
+	my @st   = Time::HiRes::stat($file);
+	my $size = $st[7];
+	my $mod  = $st[9];
 
 	my $lines;
 	if (0<$mod && $mod == $c->{modified} && $size == $c->{size}) {

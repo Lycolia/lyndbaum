@@ -23,7 +23,7 @@ sub load_arts_list {
 	my $rev  = $opt->{rev};
 
 	# sortのチェック
-	my %a = ('enable'=>1,'yyyymmdd'=>1,'ctype'=>1,'name'=>1,'tm'=>1,'update_tm'=>1,'coms'=>1,'coms_all'=>1,'title'=>1);
+	my %a = ('enable'=>1,'yyyymmdd'=>1,'ctype'=>1,'tm'=>1,'update_tm'=>1,'coms'=>1,'coms_all'=>1,'title'=>1);
 	$sort =~ s/\W//g;
 	if (!$a{$sort} || $sort eq '') { $sort='yyyymmdd'; }
 	$rev = ($rev eq '' || $rev) ? 1 : 0;
@@ -42,7 +42,7 @@ sub load_arts_list {
 	# 検索
 	if ($opt->{q} !~ /^\s*$/) {
 		$h{search_words} = [split(/\s+/, $opt->{q})];
-		$h{search_cols}  = ['title', 'tags', 'name'];
+		$h{search_cols}  = ['title', 'tags'];
 		# エスケープした状態で保存されているのでエスケープして検索する必要がある
 		$ROBJ->tag_escape(@{ $h{search_words} });
 	}
@@ -82,7 +82,7 @@ sub load_arts_list {
 	}
 
 	# ロードカラム
-	$h{cols} = [qw(pkey link_key title tags ctype name id yyyymmdd tm update_tm coms coms_all enable)];
+	$h{cols} = [qw(pkey link_key title tags ctype yyyymmdd tm update_tm coms coms_all enable)];
 
 	my ($logs,$hits) =  $DB->select("art", \%h);
 
@@ -168,7 +168,6 @@ sub load_coms_list {
 sub edit_article {
 	my ($self, $form) = @_;
 	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
 
 	# 書き込み権限確認
 	my $blog = $self->{blog};
@@ -178,9 +177,6 @@ sub edit_article {
 	# データチェックなど
 	#-----------------------------------------------------------------------
 	my $ping    = $form->{ping}    ? 1:0;
-	$form->{id}   = $auth->{id};
-	$form->{name} = $auth->{name};
-	$self->delete_ip_host_agent($form);
 
 	# 日付の分解
 	if (exists $form->{ymd}) {
@@ -307,11 +303,8 @@ sub regist_article {
 	#-------------------------------------------------------------
 	my $title = $form->{title};
 	my $tags = $form->{tags};
-	my $name = $form->{name};
-	my $id   = $form->{id};
-	$ROBJ->normalize_string($title, $tags, $name);
-	$ROBJ->tag_escape_amp($title, $tags, $name);
-	$id =~ s/\W//g;
+	$ROBJ->normalize_string($title, $tags);
+	$ROBJ->tag_escape_amp($title, $tags);
 	if ($title =~ /^\s*$/) {	# タイトルがない場合、タイトルを日付にする
 		$title = sprintf("%04d-%02d-%02d", $year, $mon, $day);
 	}
@@ -334,9 +327,6 @@ sub regist_article {
 			$ROBJ->form_error('edit_pkey', "Can't find the article (key: %d)", $edit_pkey);
 			return 10;
 		}
-	} else {
-		$art{name} = $name;
-		$art{id}   = $id;
 	}
 
 	#-------------------------------------------------------------
@@ -522,7 +512,6 @@ sub regist_article {
 			$self->save_revision($old);
 		}
 	} else {
-		$self->set_ip_host_agent(\%art, $form, $opt->{iha_default});
 		$art{pkey} = $pkey;
 		my $r = $DB->insert("art", \%art);
 		if (!$r) {
@@ -720,7 +709,7 @@ sub load_revision_json {
 
 	my $ROBJ = $self->{ROBJ};
 	my @ary = map { "\"$_\": " . $ROBJ->json_encode($rev->{$_}) } qw(pkey a_pkey tm update_tm title);
-	push(@ary, '"text": ' . $self->json_long_text($rev->{_text}));
+	push(@ary, '"text": ' . $ROBJ->json_string($rev->{_text}));
 	return '{' . join(', ', @ary) . '}';
 }
 
@@ -738,23 +727,8 @@ sub load_article_now_json {
 	my $ROBJ = $self->{ROBJ};
 	my @ary = map { "\"$_\": " . $ROBJ->json_encode($art->{$_}) } qw(pkey update_tm title);
 	push(@ary, '"digest": "' . $self->article_digest($art) . '"');
-	push(@ary, '"text": ' . $self->json_long_text($art->{_text}));
+	push(@ary, '"text": ' . $ROBJ->json_string($art->{_text}));
 	return '{' . join(', ', @ary) . '}';
-}
-
-#-------------------------------------------------------------------------------
-# ●本文をjsonの文字列にする
-#-------------------------------------------------------------------------------
-# json_encode()は\を&#92;にするので、本文はここでエスケープする
-sub json_long_text {
-	my ($self, $text) = @_;
-	$text =~ s/\\/\\\\/g;
-	$text =~ s/"/\\"/g;
-	$text =~ s/\n/\\n/g;
-	$text =~ s/\r/\\r/g;
-	$text =~ s/\t/\\t/g;
-	$text =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg;
-	return "\"$text\"";
 }
 
 #-------------------------------------------------------------------------------
@@ -1543,7 +1517,7 @@ sub load_arts_for_rss {
 		}
 
 		# & のエスケープ
-		$ROBJ->tag_escape_for_xml($_->{title}, $_->{name}, $_->{tags});
+		$ROBJ->tag_escape_for_xml($_->{title}, $_->{tags});
 	}
 	# 全体変数のセット
 	my %h;

@@ -118,13 +118,12 @@
 		<th class="sort"><@exec(sort_th, 'yyyymmdd',  '公開日',   1)></th>
 		<th class="sort"><@exec(sort_th, 'update_tm', '更新日',   1)></th>
 		<th class="sort"><@exec(sort_th, 'coms_all',  'コメント', 1)></th>
-		<th class="sort"><@exec(sort_th, 'name',      '投稿者',   0)></th>
 	</tr></thead>
 	<tbody class="small">
 	<@forexec(t, logs, begin)>
 	<tr>
 		<td class="c"><input type="checkbox" name="pkey_ary" value="<@t.pkey>" class="pkey-ary" id="art-<@t.pkey>"></td>
-		<@> 題名は編集画面へのリンク。編集できない記事（投稿者だけが編集できる設定で、ほかの人の記事）は記事へのリンク
+		<@> 題名は編集画面へのリンク
 		<td class="list-wide"><a href="<@v.myself2><@if(v.check_editor(t), '0' . t.pkey . '?edit', t.elink_key)>" title="<@t.pkey>"><@t.title></a></td>
 		<td class="c"><label for="art-<@t.pkey>"><@if(t.ctype, 'ページ', '記事')></label></td>
 		<td class="c"><label for="art-<@t.pkey>"><@if(!t.tm, '下書き', if(t.enable, '公開', '非公開'))></label></td>
@@ -132,7 +131,6 @@
 		<td class="c"><label for="art-<@t.pkey>"><@print_tmf('%Y-%m-%d', t.update_tm)></label></td>
 		<@> コメントがあれば、記事のコメント欄へのリンク
 		<td class="r"><@if(t.coms_all, #'<a href="<@v.myself2><@t.elink_key>#com"><@t.coms_all></a>', t.coms_all)></td>
-		<td><@t.name></td>
 	</tr>
 	<$end>
 	</tbody>

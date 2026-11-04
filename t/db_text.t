@@ -8,6 +8,7 @@ use FindBin;
 BEGIN { push(@INC, "$FindBin::Bin/../lib"); }
 use Test::More;
 use File::Temp ();
+use POSIX ();
 
 require Satsuki::Base;
 my $ROBJ = Satsuki::Base->new();
@@ -83,6 +84,36 @@ is($DB->select_match_limit1('art', 'title', 'abc')->{title}, 'abc', '先にあ�
 }
 
 #-------------------------------------------------------------------------------
+# drop_column
+#-------------------------------------------------------------------------------
+{
+	$DB->create_table('drop', [
+		{ name => 'title', type => 'text' },
+		{ name => 'who',   type => 'text', index => 1, not_null => 1 },
+		{ name => 'num',   type => 'int' },
+	]);
+	$DB->insert('drop', { title => 'abc', who => 'me', num => 1 });
+	$DB->add_column('drop', { name => 'def', type => 'text', default => 'x' });
+
+	is($DB->drop_column('drop', 'who'), 0, 'indexとNOT NULLのカラムを消す');
+	is($DB->drop_column('drop', 'def'), 0, '既定値のカラムを消す');
+	foreach my $f ('drop/#index.dat', 'drop/#index.backup.dat') {
+		my $lines = &read_index($f);
+		is($lines->[3], "num\tpkey\ttitle", "$f のカラムの一覧から消える");
+		is($lines->[11], 'pkey', "$f のindexから消える");
+		is($lines->[10], "\t\t", "$f の既定値から消える");
+	}
+	is($DB->drop_column('drop', 'none'), 9, '無いカラムは消せない');
+
+	my $row = $DB->select_match_limit1('drop', 'title', 'abc');
+	ok(!exists($row->{who}), '行の値が消える');
+	is($row->{num}, 1, 'ほかのカラムは残る');
+	my $pkey = $DB->insert('drop', { title => 'new' });
+	ok($pkey, 'NOT NULLのカラムを消した後は、無くても入れられる');
+	is($DB->update_match('drop', { num => 2 }, 'pkey', $pkey), 1, '消した後も更新できる');
+}
+
+#-------------------------------------------------------------------------------
 # NOT NULL
 #-------------------------------------------------------------------------------
 {
@@ -135,6 +166,141 @@ is($DB->select_match_limit1('art', 'title', 'abc')->{title}, 'abc', '先にあ�
 	unlink("${dir}rb/#index.dat") || die $!;
 	$DB->clear_cache('rb');
 	is($DB->generate_pkey('rb'), 5, 'generate_pkeyで作り直したときも、最大のpkeyの次を振る');
+}
+
+#-------------------------------------------------------------------------------
+# 空のindex
+#-------------------------------------------------------------------------------
+{
+	$DB->create_table('emp', [ { name => 'title', type => 'text', index => 1 } ]);
+	$DB->insert('emp', { title => 'a' }) for 1..2;
+
+	# 前の版が書き込みの途中で落ちて、空になった場合
+	truncate("${dir}emp/#index.dat", 0) || die $!;
+	$DB->clear_cache('emp');
+	is($DB->select_match_limit1('emp', 'pkey', 2)->{title}, 'a', '空のindexは読むときに作り直す');
+	is(&read_index("emp/#index.dat")->[2], '000002', 'シリアル値も戻る');
+
+	truncate("${dir}emp/#index.dat", 0) || die $!;
+	$DB->clear_cache('emp');
+	is($DB->insert('emp', { title => 'b' }), 3, '空のindexは書くときに作り直す');
+
+	truncate("${dir}emp/#index.dat", 0) || die $!;
+	$DB->clear_cache('emp');
+	is($DB->generate_pkey('emp'), 4, 'generate_pkeyでも作り直す');
+
+	# バックアップも空なら、作り直せない（止まらずに失敗する）
+	truncate("${dir}emp/#index.dat", 0) || die $!;
+	truncate("${dir}emp/#index.backup.dat", 0) || die $!;
+	$DB->clear_cache('emp');
+	$DB->set_noerror(1);
+	my $r = eval {
+		local $SIG{ALRM} = sub { die "timeout\n" };
+		alarm(5);
+		my $r = $DB->select_match_limit1('emp', 'pkey', 2);
+		alarm(0);
+		$r;
+	};
+	alarm(0);
+	is($@, '', 'バックアップも空のとき、再帰で止まらない');
+	is($r, undef, '行は返らない');
+	$DB->set_noerror(0);
+}
+
+#-------------------------------------------------------------------------------
+# 書き込みの失敗
+#-------------------------------------------------------------------------------
+SKIP: {
+	skip 'rootでは書き込みを止められません', 4 if ($< == 0);
+	$DB->create_table('wf', [ { name => 'title', type => 'text' } ]);
+	$DB->insert('wf', { title => 'a' });
+
+	# 次の行のファイルに書けない
+	open(my $fh, '>', "${dir}wf/00002.dat") || die $!;
+	close($fh);
+	chmod(0444, "${dir}wf/00002.dat");
+	$ROBJ->clear_error();
+	is($DB->insert('wf', { title => 'b' }), 0, '行のファイルに書けなければ失敗を返す');
+	$ROBJ->clear_error();
+	is(scalar(@{ &read_index('wf/#index.dat') }) - 12, 1, 'indexに行を足さない');
+	ok(&insert_with_timeout('wf', { title => 'c', pkey => 5 }), '失敗した後もロックが残らない');
+	is($DB->select_match_limit1('wf', 'pkey', 5)->{title}, 'c', '失敗の後も書き込める');
+	chmod(0644, "${dir}wf/00002.dat");
+}
+
+SKIP: {
+	skip 'rootでは書き込みを止められません', 3 if ($< == 0);
+	$DB->create_table('wi', [ { name => 'title', type => 'text' } ]);
+	$DB->insert('wi', { title => 'a' });
+	my $before = &read_index('wi/#index.dat');
+
+	# フォルダに書けないと、indexの一時ファイルを作れない。行のファイルはすでにあるものを使う
+	open(my $fh, '>', "${dir}wi/00002.dat") || die $!;
+	close($fh);
+	chmod(0555, "${dir}wi");
+	$ROBJ->clear_error();
+	is($DB->insert('wi', { title => 'b' }), 0, 'indexを書けなければ失敗を返す');
+	$ROBJ->clear_error();
+	chmod(0755, "${dir}wi");
+	is_deeply(&read_index('wi/#index.dat'), $before, 'indexは前のまま残る');
+	ok(&insert_with_timeout('wi', { title => 'c' }), '失敗の後も書き込める');
+}
+
+#-------------------------------------------------------------------------------
+# indexの置き換えとロック
+#-------------------------------------------------------------------------------
+{
+	$DB->create_table('par', [ { name => 'title', type => 'text', index => 1 } ]);
+	my $n = 40;
+	my @pids;
+	foreach my $w (1..3) {
+		my $pid = fork();
+		die "fork: $!" if (!defined $pid);
+		if (!$pid) {
+			alarm(30);
+			srand();	# 親が乱数を使った後なので、子ごとに種を変える（indexの署名が重ならないように）
+			my $R = Satsuki::Base->new();
+			my $D = $R->loadpm('DB_text', $dir);
+			# insertとgenerate_pkeyの両方が、置き換えられたindexを正しく開き直す
+			foreach my $i (1..$n) {
+				my $key = $i % 2 ? undef : $D->generate_pkey('par');
+				$D->insert('par', { title => "$w-$i", ($key ? (pkey => $key) : ()) }) || POSIX::_exit(1);
+			}
+			POSIX::_exit(0);
+		}
+		push(@pids, $pid);
+	}
+	my $fail = 0;
+	foreach (@pids) { waitpid($_, 0); $fail ||= $?; }
+	is($fail, 0, '同時に書いても失敗しない');
+
+	$DB->clear_cache('par');
+	my $rows = $DB->select('par', { cols => ['pkey', 'title'] });
+	is(scalar(@$rows), $n*3, '同時に書いても行が失われない');
+	my %titles = map { $_->{title} => 1 } @$rows;
+	is(scalar(keys(%titles)), $n*3, 'どの書き込みも残る');
+	my %pkeys  = map { $_->{pkey}  => 1 } @$rows;
+	is(scalar(keys(%pkeys)), $n*3, 'pkeyが重ならない');
+	is_deeply([ grep { /\.tmp$/ } @{ $ROBJ->search_files("${dir}par/") } ], [], '一時ファイルが残らない');
+}
+
+#-------------------------------------------------------------------------------
+# pkeyを指定したinsertとシリアル値
+#-------------------------------------------------------------------------------
+{
+	$DB->create_table('ser', [ { name => 'title', type => 'text' } ]);
+	is($DB->insert('ser', { title => 'a', pkey => 100 }), 100, 'pkeyを指定して足す');
+	is(&read_index('ser/#index.dat')->[2], '00000100', 'シリアル値がファイルに残る');
+	is($DB->insert('ser', { title => 'b' }), 101, '次の普通のinsertは続きの番号になる');
+	is($DB->insert('ser', { title => 'c', pkey => 50 }), 50, '小さいpkeyも指定できる');
+	is(&read_index('ser/#index.dat')->[2], '00000101', '小さいpkeyではシリアル値を戻さない');
+	is($DB->insert('ser', { title => 'd' }), 102, '続きの番号のまま');
+
+	$DB->begin();
+	is($DB->insert('ser', { title => 'e', pkey => 200 }), 200, 'トランザクションでも指定できる');
+	is($DB->insert('ser', { title => 'f' }), 201, 'トランザクションの中でも続きの番号になる');
+	is($DB->commit(), 0, 'コミットする');
+	is(&read_index('ser/#index.dat')->[2], '00000201', 'コミットでシリアル値が残る');
 }
 
 # ロックが残っていると、同じプロセスでも書き込みが止まるので、時間を切る
