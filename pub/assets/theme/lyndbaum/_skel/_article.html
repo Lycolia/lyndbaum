@@ -19,14 +19,12 @@
 <$v.title = s.blog_name>
 
 <@ifexec(!v.allow_view, begin)>
-	<$message(if(v.exists_blog(), "ブログを見る権限がありません", "ブログがまだ作られていません"))>
-	<$ifmessage(v.exists_blog() && ! Auth.ok, "閲覧を許可されている場合はログインしてください。")>
+	<$message("ブログがまだ作られていません")>
 <$end>
 <$ifexec(v.allow_view && !t, begin)>
 	<$message("該当する記事がありません")>
 <$end>
-<@> 閲覧できない（プライベートモード）ときは403、記事が無いときは404
-<$ifjump_clear(!v.allow_view && v.exists_blog(), "_sub/error_message_403")>
+<@> 記事が無いときは404
 <$ifjump_clear(!t || @Message, "_sub/error_message_404")>
 
 <@>URL

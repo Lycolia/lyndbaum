@@ -6,13 +6,12 @@ use strict;
 # [image:S:folder/:x.png:x.png] → [image:S:folder/:x.png]（image:Lも同じ）
 # [file:mp4:folder/:x.mp4:x.mp4] → [file:mp4:folder/:x.mp4]
 #
-# 書き換えるのは記事データ（data/db/*_art/0*.dat）の原文（_text）だけ。
+# 書き換えるのは記事データ（data/db/art/0*.dat）の原文（_text）だけ。
 # コードフェンスとコードスパンの中は書き換えない。
 #
 # 使い方:
 #   perl t/tools/drop_filename_alt.pl            書き換える箇所と、変換結果が変わる記事を表示する（書き換えない）
 #   perl t/tools/drop_filename_alt.pl --apply    書き換える。元のファイルはdata/tmp/の下に残す
-#   perl t/tools/drop_filename_alt.pl --data=data/db/lycolia_art   対象のブログを指定
 #   perl t/tools/drop_filename_alt.pl --lib=DIR  変換結果の確認に使うパーサー（既定は作業ツリーのlib）
 #
 # 注意:
@@ -31,10 +30,10 @@ use POSIX ();
 my $ROOT = "$FindBin::Bin/../..";
 
 my %opt;
-Getopt::Long::GetOptions(\%opt, 'apply', 'data=s@', 'lib=s');
+Getopt::Long::GetOptions(\%opt, 'apply', 'lib=s');
 
-my @dirs = $opt{data} ? @{ $opt{data} } : glob("$ROOT/data/db/*_art");
-if (!@dirs) { die "記事データが見つかりません（--data で指定してください）\n"; }
+my $dir = "$ROOT/data/db/art";
+if (!-d $dir) { die "記事データが見つかりません（$dir）\n"; }
 
 my $lib = $opt{lib} || "$ROOT/lib";
 unshift(@INC, $lib, "$FindBin::Bin/../lib");
@@ -103,52 +102,49 @@ my $backup = "$ROOT/data/tmp/drop_filename_alt-" . POSIX::strftime('%Y%m%d%H%M%S
 my ($n_files, $n_tags, $n_changed, $n_skipped) = (0, 0, 0, 0);
 my @changed;
 
-foreach my $dir (@dirs) {
-	(my $blog = $dir) =~ s|.*/||;
-	foreach my $file (sort glob("$dir/0*.dat")) {
-		my $mtime = (stat($file))[9];
-		open(my $fh, '<', $file) or next;
-		my $d = do { local $/; <$fh> };	# $/の変更はこの読み込みだけに限る
-		close($fh);
-		if ($d !~ /\*_text=<<__END_BLK_DATA\n(.*?)\n__END_BLK_DATA\n/s) { next; }
-		my ($text, $start, $len) = ($1, $-[1], $+[1] - $-[1]);
+foreach my $file (sort glob("$dir/0*.dat")) {
+	my $mtime = (stat($file))[9];
+	open(my $fh, '<', $file) or next;
+	my $d = do { local $/; <$fh> };	# $/の変更はこの読み込みだけに限る
+	close($fh);
+	if ($d !~ /\*_text=<<__END_BLK_DATA\n(.*?)\n__END_BLK_DATA\n/s) { next; }
+	my ($text, $start, $len) = ($1, $-[1], $+[1] - $-[1]);
 
-		my ($new, $count) = drop_alt($text);
-		if (!$count) { next; }
-		(my $pkey = $file) =~ s|.*/0*(\d+)\.dat$|$1|;
-		$n_files++;
-		$n_tags += $count;
+	my ($new, $count) = drop_alt($text);
+	if (!$count) { next; }
+	(my $pkey = $file) =~ s|.*/0*(\d+)\.dat$|$1|;
+	$n_files++;
+	$n_tags += $count;
 
-		# 変換結果が変わるか（Markdownの記事だけ確かめる）
-		my $diff = '';
-		if ($d =~ /^parser=markdown$/m) {
-			my $a = MarkdownTest::parse_md($text);
-			my $b = MarkdownTest::parse_md($new);
-			if ($a ne $b) {
-				$n_changed++;
-				$diff = ' （変換結果が変わる）';
-				push(@changed, "$blog/$pkey");
-			}
+	# 変換結果が変わるか（Markdownの記事だけ確かめる）
+	my $diff = '';
+	if ($d =~ /^parser=markdown$/m) {
+		my $a = MarkdownTest::parse_md($text);
+		my $b = MarkdownTest::parse_md($new);
+		if ($a ne $b) {
+			$n_changed++;
+			$diff = ' （変換結果が変わる）';
+			push(@changed, $pkey);
 		}
-		print "$blog/$pkey: $count 箇所$diff\n";
-
-		if (!$opt{apply}) { next; }
-
-		# 読んだ後に保存された記事は飛ばす
-		if ((stat($file))[9] != $mtime) {
-			print "  → 読んだ後にファイルが変わったため飛ばしました\n";
-			$n_skipped++;
-			next;
-		}
-		File::Path::make_path("$backup/$blog");
-		File::Copy::copy($file, "$backup/$blog/") or die "$file のバックアップに失敗しました: $!\n";
-
-		substr($d, $start, $len) = $new;
-		open(my $out, '>', "$file.tmp") or die "$file.tmp: $!\n";
-		print $out $d;
-		close($out) or die "$file.tmp: $!\n";
-		rename("$file.tmp", $file) or die "$file: $!\n";
 	}
+	print "$pkey: $count 箇所$diff\n";
+
+	if (!$opt{apply}) { next; }
+
+	# 読んだ後に保存された記事は飛ばす
+	if ((stat($file))[9] != $mtime) {
+		print "  → 読んだ後にファイルが変わったため飛ばしました\n";
+		$n_skipped++;
+		next;
+	}
+	File::Path::make_path($backup);
+	File::Copy::copy($file, "$backup/") or die "$file のバックアップに失敗しました: $!\n";
+
+	substr($d, $start, $len) = $new;
+	open(my $out, '>', "$file.tmp") or die "$file.tmp: $!\n";
+	print $out $d;
+	close($out) or die "$file.tmp: $!\n";
+	rename("$file.tmp", $file) or die "$file: $!\n";
 }
 
 print "\n";

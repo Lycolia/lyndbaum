@@ -33,31 +33,6 @@
 		<td>ユーザーIDを「<span class="mono">,</span>」区切りで。「<span class="mono">*</span>」で全ユーザー<br><input type="text" name="editors"  class="w320" value="<@s.editors>"><br>
 		<label><input type="checkbox" name="edit_by_author_only" value="1"<@if(s.edit_by_author_only, ' checked')>>他人の記事は編集できないようにする。</label><span class="help-text">管理権限をもつ人は自動的に編集権限を持ちます。</span></td>
 	</tr>
-	<tr>
-		<th>ブログ<em>表示</em>権限を付与</th>
-		<td>
-		<@ifexec(v.blog.private, begin, begin)>
-		ユーザーIDを「<span class="mono">,</span>」区切りで。「<span class="mono">*</span>」で全ユーザー<br><input type="text" name="viewers" class="w320" value="<@s.viewers>">
-		<$else>
-		<input type="text" name="viewers" class="w320" value="<@s.viewers>" disabled><br>
-		※プライベートモード時のみ設定できます
-		<$end>
-		<span class="help-text">管理権限・編集権限をもつ人は自動的に表示権限を持ちます。</span>
-		</td>
-	</tr>
-	<tr>
-		<th>ブログ表示パスワード</th>
-		<td>
-			<@ifexec(v.blog.private, begin, begin)>
-			全角文字も使用できます。<br>
-			<input type="text" name="view_pass" class="w320" value="<@s.view_pass>">
-			<$else>
-			<input type="text" name="view_pass" class="w320" value="<@s.view_pass>" disabled><br>
-			※プライベートモード時のみ設定できます
-			<$end>
-			<span class="help-text">この項目を設定するとパスワード入力画面が表示され、設定したパスワードを入力した人がブログをみることができます。</span>
-		</td>
-	</tr>
 	</tbody>
 	</table>
 

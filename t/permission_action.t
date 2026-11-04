@@ -127,7 +127,7 @@ my @ACTIONS = (
 	{ action => 'set/detail', min => 'owner',
 	  form => { load_items => 3 } },
 	{ action => 'set/role', min => 'owner',
-	  form => { admin_users => 'owner', editors => 'editor, user', viewers => '', view_pass => '' } },
+	  form => { admin_users => 'owner', editors => 'editor, user' } },
 	{ action => 'set/editor', min => 'owner',
 	  form => { enable => 0 } },
 	{ action => 'set2/tag_edit', min => 'editor',

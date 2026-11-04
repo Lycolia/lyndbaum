@@ -42,7 +42,8 @@ my @update_versions = (
 	{ ver => 4.22, func => 'sys_update_422', system=>1 },	# 標準記法（default、default_p1、default_p2）を削除した。設定ファイルとブログの既定のパーサーから外す
 	{ ver => 4.23, func => 'sys_update_423', system=>1 },	# パスワードをbcryptで保存するようにした。アップデートを行う管理者は、ここで新しいパスワードを決める（system_update）
 	{ ver => 4.24, info=>1, func => 'sys_update_424' },	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
-	{ ver => 4.25, func => 'sys_update_425', system=>1 }	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
+	{ ver => 4.25, func => 'sys_update_425', system=>1 },	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
+	{ ver => 4.27, plugin=>1, func => 'sys_update_427' }	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -73,11 +74,23 @@ sub system_update {
 		if ($ROBJ->form_err()) { return 10; }
 	}
 
+	# プライベートモードの削除（Ver4.27）。閉じていたブログが公開されるので、確認が無いとアップデートしない
+	if ($cur < 4.27 && ($self->{blog} || {})->{private} && !$ROBJ->{Form}->{publish_private}) {
+		$ROBJ->form_error('publish_private', 'Confirm that this blog will be published');
+		return 10;
+	}
+
 	# データの持ち方の変更（Ver4.10）。各バージョンの処理は新しいテーブル名とパスで動くので、それより先に行う
 	if ($cur < 4.10) {
 		$self->migrate_410();
 	}
 	my $exists = $self->select_blog();
+
+	# プライベートモードのファイルを pub/ へ戻す（Ver4.27）。各バージョンの処理は pub/ の下を見るので、それより先に行う
+	if ($cur < 4.27 && $exists && $exists->{pub_private_dir} ne '') {
+		if ($self->restore_private_dir()) { return 1; }
+		$opt{rebuild} = 1;	# 記事の中の画像のURLが変わる
+	}
 
 	foreach my $h (@update_versions) {
 		if ($cur >= $h->{ver}) { next; }
@@ -329,9 +342,6 @@ sub sys_update_416 {
 	$r += $DB->add_column("trash", {name=>'nsfw', type=>'flag'});
 	if ($r) { $ROBJ->message("Blog database error(%s)", $r); }
 
-	# プライベートモードなのに、公開フォルダのファイルが pub/ の直下にある。
-	# 4.10で pub/ に移したとき、推測できない名前のフォルダに置くのをやめていたため
-	$self->save_private_mode();
 }
 
 #-------------------------------------------------------------------------------
@@ -411,6 +421,61 @@ sub sys_update_422 {
 	if ($blog->{parser} ne '' && !$self->{ROBJ}->check_skeleton("_parser/$blog->{parser}")) {
 		$self->update_blogset($blog, 'parser', 'markdown');
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.27
+#-------------------------------------------------------------------------------
+# プライベートモードを削除した。ファイルは restore_private_dir で先に戻してある
+sub sys_update_427 {
+	my $self = shift;
+	my $blog = $self->{blog};
+	foreach(qw(private pub_private_dir viewers view_pass)) {
+		$self->update_blogset($blog, $_, undef);
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ●プライベートモードのフォルダのファイルを pub/ へ戻す
+#-------------------------------------------------------------------------------
+# 戻すのはブログが書き出すものだけ。手で置いたものは公開しないよう、フォルダごと残す。
+# 途中で失敗したら pub_private_dir を消さず、もう一度アップデート処理を行えるようにする（0以外を返す）
+my @Private_dir_files = qw(attachments plugin custom static
+	images.json contents.json taglist.json sitemap.xml);
+
+sub restore_private_dir {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $blog = $self->{blog};
+	my $old_dir = "$self->{pub_dir}$blog->{pub_private_dir}/";
+	my $new_dir = $self->{pub_dir};
+	my @files = (@Private_dir_files, @{ $self->load_rss_files() });
+
+	# 上書きしないよう、移す前に確かめる
+	foreach(@files) {
+		if (-e "$old_dir$_" && -e "$new_dir$_") {
+			$ROBJ->message('Move failed (%s)', "$old_dir$_");
+			return 1;
+		}
+	}
+	foreach(@files) {
+		if (!-e "$old_dir$_") { next; }
+		if (!rename("$old_dir$_", "$new_dir$_")) {
+			$ROBJ->message('Move failed (%s)', "$old_dir$_");
+			return 2;
+		}
+	}
+
+	# 設定に入っているパス（ブログの画像、アイコンなど）を書き換える
+	my $re = join('|', map { quotemeta("$old_dir$_") } sort { length($b) <=> length($a) } @files);
+	foreach(keys(%$blog)) {
+		if ($blog->{$_} !~ /^(?:$re)/) { next; }
+		$self->update_blogset($blog, $_, $new_dir . substr($blog->{$_}, length($old_dir)));
+	}
+
+	rmdir($old_dir) || $ROBJ->message('Remove folder failed (%s)', $old_dir);
+	$self->update_blogset($blog, 'pub_private_dir', undef);
+	return 0;
 }
 
 #-------------------------------------------------------------------------------

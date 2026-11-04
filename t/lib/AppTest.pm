@@ -245,8 +245,6 @@ sub setup {
 		action      => 'set/role',
 		admin_users => 'owner',
 		editors     => 'editor',
-		viewers     => '',
-		view_pass   => '',
 	});
 	die "set/role failed: $r->{title}" if (!is_reload($r));
 
@@ -377,15 +375,6 @@ sub restore {
 sub _copy_cookie {
 	my $c = shift;
 	return { map { $_ => { %{$c->{$_}} } } keys(%$c) };
-}
-
-#-------------------------------------------------------------------------------
-# ●Cookie
-#-------------------------------------------------------------------------------
-# ブラウザーのJavaScriptが書くCookie（表示パスワードのview-passなど）を置く
-sub set_cookie {
-	my ($self, $who, $name, $val) = @_;
-	$self->{cookie}->{$who}->{$name} = $val;
 }
 
 1;

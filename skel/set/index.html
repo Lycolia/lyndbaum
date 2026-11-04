@@ -36,14 +36,6 @@
 		<span class="help-text">新しい記事を書いたことを、pingサーバに通知し公開します。</span>
 		</td>
 	</tr>
-	<tr><th>プライベートモード</th>
-		<td>
-		<label><input type="checkbox" name="private" value="1"<@if(s.private eq '1', ' checked')>>プライベートモードに設定する</label>
-		<span class="help-text">ログインしているブログ所有者（＋書き込み権限保持者）以外にはブログ全体が非表示になるモードです。
-			設定するとアップロードした画像などのファイルパスが全て乱数を含んだものに変更されます。ファイルについてはURLを知っている人であれば閲覧可能です。
-			ここのチェックを切り替えて保存すると上記を全記事に反映するための再構築処理が走るので、時間がかかります。</span>
-		</td>
-	</tr>
 	<tr><th>サイトアイコン</th>
 		<td>
 			<input type="file" name="iconfile" accept=".png,.jpg,.jpeg,.gif"><br>

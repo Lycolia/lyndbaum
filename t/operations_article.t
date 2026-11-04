@@ -68,13 +68,13 @@ subtest '他人の記事' => sub {
 	ok(AppTest::is_reload($r), 'ブログ管理者は、編集者の記事を直せる');
 
 	# 自分の記事だけを直せる設定にすると、編集者はブログ管理者の記事を直せない
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => '', view_pass => '', edit_by_author_only => 1 });
+	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', edit_by_author_only => 1 });
 	ok(AppTest::is_reload($r), '「自分の記事だけ」にする');
 	$r = $app->post('editor', '', { %ART, edit_pkey_int => 2, title => '編集者が直した', body_txt => "本文\n" });
 	ok(!AppTest::is_reload($r), '編集者はブログ管理者の記事を直せない');
 	unlike($app->get('guest', '/02')->{title}, qr/編集者が直した/, '題名は変わらない');
 
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', viewers => '', view_pass => '' });
+	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
 	ok(AppTest::is_reload($r), '元に戻す');
 };
 

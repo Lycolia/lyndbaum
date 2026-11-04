@@ -57,8 +57,8 @@ Locale  : <@Locale> (<@CodeLib>)
 	<td>Image::Magick</td><td class="c"><@if(x = check_lib('Image::Magick'), #'<strong class="good">Ver<@x></strong>', ng)></td>
 	<td>存在すれば画像縮小可能</td>
 </tr><tr>
-	<td>Net::SSLeay</td><td class="c"><@if(x = check_lib('Net::SSLeay'), #'<strong class="good">Ver<@x></strong>', ng)></td>
-	<td>外部サイトへのhttps通信に必要</td>
+	<td>Net::SSLeay</td><td class="c"><@if(x = check_lib('Net::SSLeay'), if(x < 1.92, #'<strong class="error">Ver<@x>（古い）</strong>', #'<strong class="good">Ver<@x></strong>'), ng)></td>
+	<td>外部サイトへのhttps通信に必要（Ver1.92以降）</td>
 </tr>
 </table>
 

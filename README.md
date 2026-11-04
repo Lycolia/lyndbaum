@@ -15,28 +15,39 @@
 
 # 動作環境
 
-- Linux（WSLを含む）
-- nginxまたはApache2
+- Linux（WSLを含む）またはFreeBSD
 - Perl 5.14.0以降（pure Perl可）
-  - `crypt()`がbcrypt（`$2b$`）に対応していること（libxcryptを使うLinuxなら対応している）
+  - `crypt()`がbcrypt（`$2b$`）に対応していること（libxcryptを使うLinuxや、さくらのレンタルサーバーのFreeBSDなら対応している）
+
+次のどれかの構成で動かします。
+
+| 置く場所                  | 構成                               | 必要なApacheのモジュール           | 設定の見本                                                                                             |
+| ------------------------- | ---------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| レンタルサーバー          | Apache2 + CGI（`lyndbaum.cgi`）    | mod_rewrite                        | [.htaccess](docs/config-example/.htaccess.sample)                                                      |
+| VPS、小規模な自宅サーバー | Apache2 + CGI（`lyndbaum.cgi`）    | mod_cgiまたはmod_cgid、mod_rewrite | [apache.conf](docs/config-example/apache.conf)、[.htaccess](docs/config-example/.htaccess.sample)      |
+| VPS、小規模な自宅サーバー | nginx + FastCGI（`lyndbaum.fcgi`） | （不要）                           | [nginx.conf](docs/config-example/nginx.conf)、[lyndbaum.service](docs/config-example/lyndbaum.service) |
+
+さくらのレンタルサーバーのように常駐するプログラムを禁止しているサーバーでは、`lyndbaum.fcgi`は使えないのでCGIで動かします。
 
 Perl標準モジュールのほかに、使い方によって次のモジュールが必要です。
 
-| モジュール                        | 要るとき                                                                                                   |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| FCGI                              | FastCGIで動かすとき（`lyndbaum.fcgi`）。ソケットで待ち受けるときはスレッド（ithreads）に対応したPerlも必要 |
-| Image::Magick                     | 画像のサムネイルを作るとき。無いと、画像のサムネイルの代わりにアイコンを出す                               |
-| Net::SSLeay                       | 外部のサイトとhttpsで通信するとき（更新通知、`[&URL]`のタイトルの取得、記事の画像の取り込みなど）          |
-| threads（スレッドに対応したPerl） | `lyndbaum.httpd.pl`（Perlだけで動くWebサーバー）を使うとき                                                 |
+| モジュール    | 要るとき                                                                                                   |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| FCGI          | FastCGIで動かすとき（`lyndbaum.fcgi`）。ソケットで待ち受けるときはスレッド（ithreads）に対応したPerlも必要 |
+| Image::Magick | 画像のサムネイルを作るとき。無いと、画像のサムネイルの代わりにアイコンを出す                               |
+| Net::SSLeay   | 外部のサイトとhttpsで通信するとき（更新通知、`[&URL]`のタイトルの取得、記事の画像の取り込みなど）。Ver1.92以降 |
+
+httpsの通信では接続先の証明書を検証するので、サーバーにCA証明書（Debian系なら`ca-certificates`）が必要です。
 
 # インストール方法
 
 1. 解凍してでてきたファイルをサーバ上の任意の位置に置く
-2. lyndbaum.cgiに実行属性を付ける
+2. lyndbaum.cgiに実行属性を付ける（`lyndbaum.cgi`とそのフォルダは755か705。777ではCGIが動かないサーバーがある）
 3. `__cache/`, `data/`, `pub/`を`www`権限で書き込めるようにする。（suEXECの場合は不要）
 4. `lyndbaum.conf.cgi.sample`を`lyndbaum.conf.cgi`としてコピーし適当にいじる
-5. `lyndbaum.cgi`にアクセスし、ID、パスワードを適当に入力してログイン。
-6. その後、自分自身をユーザーとして追加する。
+5. Apacheでは、`docs/config-example/.htaccess.sample`を根元に`.htaccess`としてコピーする。これが無いと`data/`などの非公開のフォルダをWebから読める。VPSなどでは、`docs/config-example/apache.conf`も手元に合わせて設定する。nginxでは、[動作環境](#動作環境)の表の設定を使う
+6. `lyndbaum.cgi`にアクセスし、ID、パスワードを適当に入力してログイン。
+7. その後、自分自身をユーザーとして追加する。
 
 詳細は[オンラインマニュアル](http://adiary.org/v3man/)を参照してください。
 

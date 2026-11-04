@@ -38,10 +38,9 @@
 <$end>
 
 <@ifexec(!v.allow_view, begin, begin)>
-	<@> 閲覧できない（プライベートモード）ときは403、ブログが無いときは404
-	<$set_status(if(v.exists_blog(), 403, 404))>
-	<$message(if(v.exists_blog(), "ブログを見る権限がありません", "ブログがまだ作られていません"))>
-	<$ifmessage(v.exists_blog() && ! Auth.ok, "閲覧を許可されている場合はログインしてください。")>
+	<@> ブログが無いときは404
+	<$set_status(404)>
+	<$message("ブログがまだ作られていません")>
 <$else>
   <$ifexec(##logs==-1, begin)>
 	<@> 検索などで見つからないときと、/99 のような数字だけのURL（コンテンツの名前として探す）で無いときは404

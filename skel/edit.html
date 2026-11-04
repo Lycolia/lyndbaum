@@ -258,7 +258,7 @@
 		<ul id="art-detail" class="checkbox">
 			<li><label><input type="checkbox" name="com_ok" value="1"<@if(art.com_ok, ' checked')>>コメントを受け付ける</label></li>
 			<li><label><input type="checkbox" name="nsfw" value="1"<@if(art.nsfw, ' checked')>>NSFW記事にする</label></li>
-		<@ifexec(!s.private && (art.draft || !edit_pkey), begin)>
+		<@ifexec(art.draft || !edit_pkey, begin)>
 			<@ifexec(v.sys.ping_servers_txt, begin)>
 			<li><label><input type="checkbox" name="ping" value="1"<@if(s.ping, ' checked')>>更新通知Pingを送信する</label></li>
 			<$end>
