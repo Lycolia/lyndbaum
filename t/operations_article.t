@@ -236,31 +236,74 @@ subtest 'NSFWの記事' => sub {
 	unlike($rss, qr{成人向けの本文}, 'RSSに本文は出ない');
 };
 
-subtest 'アイキャッチ画像を設定しない' => sub {
+subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	my $img  = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
-	my %EYE  = (%ART, title => 'アイキャッチの記事', body_txt => "[image:S:$AppTest::IMAGE_FOLDER:$AppTest::IMAGE_FILE]\n本文\n");
+	my $tag  = "[image:S:$AppTest::IMAGE_FOLDER:$AppTest::IMAGE_FILE]";
+	my %EYE  = (%ART, title => 'アイキャッチの記事', body_txt => "$tag\n\n`$tag`\n\n```\n$tag\n```\n\n本文\n");
 	my $og   = sub { (body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '' };
 	my $rss  = sub { my ($item) = read_file("$dir/pub/rss.xml") =~ m{(<item>(?:(?!</item>).)*?アイキャッチの記事.*?</item>)}s; $item // '' };
 	my $ogp  = sub { (body($app->get('editor', '/07?edit')) =~ m{<input type="hidden" name="ogp" id="ogp-input" value="([^"]*)">})[0] // '' };
 
 	my $r = $app->post('editor', '', \%EYE);
-	ok(AppTest::is_reload($r), '保存できる');
-	like($og->(), qr{/\Q$img\E$}, '選んでいなければ、本文の最初の画像を使う');
-	like($rss->(), qr{<media:content url="[^"]*/\Q$img\E"}, 'RSSにも出る');
-
-	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => '?none' });
-	ok(AppTest::is_reload($r), '「設定しない」で保存できる');
+	ok(AppTest::is_reload($r), '選ばずに保存できる');
 	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、ブログの画像（設定していないので既定の画像）になる');
 	unlike($rss->(), qr{<media:content}, 'RSSにアイキャッチを出さない');
-	is($ogp->(), '?none', '編集画面を開き直しても「設定しない」のまま');
+	is($ogp->(), '', '編集画面の欄は空');
 
 	$r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
 	ok(AppTest::is_reload($r), 'ブログを再構築できる');
-	is($ogp->(), '?none', '再構築しても「設定しない」のまま');
+	is($ogp->(), '', '再構築しても本文の画像を拾わない');
+
+	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => $img });
+	ok(AppTest::is_reload($r), '選んで保存できる');
+	like($og->(), qr{/\Q$img\E$}, 'og:imageに選んだ画像を使う');
+	like($rss->(), qr{<media:content url="[^"]*/\Q$img\E"}, 'RSSにも出る');
+	is($ogp->(), $img, '編集画面の欄に選んだ画像が入る');
+
+	$r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
+	ok(AppTest::is_reload($r), 'ブログを再構築できる');
+	is($ogp->(), $img, '再構築しても選んだ画像が残る');
+
+	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => $img, body_txt => "[image:S:$AppTest::IMAGE_FOLDER:other.jpg]\n\n$EYE{body_txt}" });
+	ok(AppTest::is_reload($r), '本文の先頭に別の画像を足して保存できる');
+	is($ogp->(), $img, '選んだ画像は変わらない');
 
 	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => '' });
-	ok(AppTest::is_reload($r), '「設定しない」を外して保存できる');
-	like($og->(), qr{/\Q$img\E$}, '本文の最初の画像に戻る');
+	ok(AppTest::is_reload($r), '選んだ画像を外して保存できる');
+	like($og->(), qr{/default-icon\.png$}, 'ブログの画像に戻る');
+	is($ogp->(), '', '編集画面の欄が空に戻る');
+};
+
+subtest 'アップデート処理で、アイキャッチの?noneを空にする' => sub {
+	my $img  = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
+	my %EYE  = (%ART, body_txt => "本文\n");
+	my $data = sub { read_file("$dir/data/db/$_[0]/" . sprintf('%05d.dat', $_[1])) };
+
+	# 今までに「設定しない」で保存した記事、ゴミ箱の中の記事、選んだ画像がある記事
+	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => '?noneの記事', edit_pkey_int => 7, ogp => '?none' })), '?noneの記事を作る');
+	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => 'ゴミ箱の?noneの記事', ogp => '?none' })), 'ゴミ箱に入れる記事を作る');
+	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => '画像を選んだ記事', ogp => $img })), '画像を選んだ記事を作る');
+	ok(AppTest::is_reload($app->post('editor', '', { action => 'delete', delete_pkey_ary => 8, title => '' })), 'ゴミ箱に入れる');
+	like($data->('art', 7), qr/^main_image=\?none$/m, '作った状態の確認：記事に?noneがある');
+	like($data->('trash', 8), qr/^main_image=\?none$/m, '作った状態の確認：ゴミ箱に?noneがある');
+
+	my $sys  = "$dir/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.28/m;
+	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+	print $fh $conf;
+	close($fh);
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.29$/m, '版が上がる');
+
+	unlike($data->('art', 7), qr/^main_image=.*\S/m, '記事の?noneが空になる');
+	unlike($data->('trash', 8), qr/^main_image=.*\S/m, 'ゴミ箱の?noneが空になる');
+	like($data->('art', 9), qr/^main_image=\Q$img\E/m, '選んだ画像は変わらない');
+	like((body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '', qr{/default-icon\.png$}, 'og:imageは既定の画像');
+	like(body($app->get('editor', '/07?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '編集画面の欄は空');
+
+	ok(AppTest::is_reload($app->post('editor', '', { action => 'trash', mode => 'restore', pkey_ary => 8 })), 'ゴミ箱から戻せる');
+	like(body($app->get('editor', '/08?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '戻した記事の欄も空');
 };
 
 #-------------------------------------------------------------------------------

@@ -191,10 +191,9 @@ sub rebuild_blog {
 		if ($opt->{logs}) {
 			$h{_text} = $_->{_text};
 		}
-		# 記事概要の生成。アイキャッチ画像（main_image）は今のものを残し、無ければ本文の最初の画像にする
+		# 記事概要の生成。アイキャッチ画像（main_image）は今のものを残す
 		# ※set_description()は画像を渡さないとmain_imageを空にする
-		my $main_image = $_->{main_image} ne '' ? $_->{main_image} : $self->get_main_image_from_article($text);
-		$self->set_description(\%h, $main_image);
+		$self->set_description(\%h, $_->{main_image});
 
 		$update{ $_->{pkey} } = \%h;
 	}
