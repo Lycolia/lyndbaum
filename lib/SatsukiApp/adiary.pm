@@ -1470,7 +1470,7 @@ sub apply_sys_settings {
 	my $auth = $self->{ROBJ}->{Auth};
 
 	if ($sys->{max_sessions}) { $auth->{max_sessions} = $sys->{max_sessions}; }
-	foreach(qw(pass_min all_logout fail_count fail_minute)) {
+	foreach(qw(pass_min all_logout fail_count_ip fail_count fail_minute)) {
 		if ($sys->{$_} ne '') { $auth->{$_} = $sys->{$_}; }
 	}
 	if ($sys->{session_days} ne '') { $auth->{expires} = $sys->{session_days} * 86400; }

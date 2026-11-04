@@ -50,7 +50,12 @@
 
 	all_logout = flag
 
-	fail_count = ログインを止める失敗の回数
+	fail_count_ip = ログインを止める失敗の回数（同じIP）
+	fail_count_ip:type = int
+	fail_count_ip:min = 3
+	fail_count_ip:max = 100
+
+	fail_count = ログインを止める失敗の回数（アカウント）
 	fail_count:type = int
 	fail_count:min = 3
 	fail_count:max = 100

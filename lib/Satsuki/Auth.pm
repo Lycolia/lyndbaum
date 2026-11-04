@@ -34,7 +34,8 @@ sub new {
 	$self->{start_up}    = 0;
 	$self->{exists_admin}= -1;	# 初期値は-1
 
-	$self->{fail_count}  = 15;
+	$self->{fail_count_ip} = 15;	# 同じIPからの失敗の上限
+	$self->{fail_count}  = 100;	# アカウントごとの失敗の上限
 	$self->{fail_minute} = 10;
 	
 	$self->{logtext_max} = 128;	# ログ１要素あたりの最大文字数

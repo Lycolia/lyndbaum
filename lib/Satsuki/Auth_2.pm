@@ -41,6 +41,13 @@ sub login {
 	# 失敗したときのメッセージ。IDが無い・パスワードが違う・ロック中を見分けられないよう同じにする
 	my $fail_msg = $ROBJ->translate('Username or password incorrect, or too many failed. Please retry in %d minutes.', $self->{fail_minute});
 
+	# 同じIPからの失敗が多ければ止める。アカウントの失敗の回数には足さない
+	if (0 < $self->{fail_count_ip} && $self->count_ip_fails() >= $self->{fail_count_ip}) {
+		$self->dummy_check_pass($pass);
+		$self->log_save($id, 'login', 'fail (IP limit)');
+		return { ret=>12, msg => $fail_msg };
+	}
+
 	if (!$udata || !%$udata) {	# uid が存在しない
 		$self->dummy_check_pass($pass);		# 応答時間でIDの有無が分からないように
 		$self->log_save_fail($id, 'login');
@@ -116,6 +123,46 @@ sub login {
 	# ログ保存
 	$self->log_save($id, 'login');
 	return { ret=>0, sid=>$sid };
+}
+
+#-------------------------------------------------------------------------------
+# ●同じIPからのログインの失敗を数える
+#-------------------------------------------------------------------------------
+# 直近fail_minute分のログから数える。同じIPで成功していたら、それより前は数えない
+sub count_ip_fails {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $ip   = $self->ip_group($ENV{REMOTE_ADDR});
+
+	my $logs = $self->{DB}->select($self->{table} . '_log', {
+		match => { type => 'login' },
+		min   => { tm => $ROBJ->{TM} - $self->{fail_minute}*60 },
+		sort  => ['-tm', '-pkey'],
+		cols  => [ qw(pkey tm ip msg) ]
+	});
+
+	my $fails = 0;
+	foreach(@$logs) {
+		if ($self->ip_group($_->{ip}) ne $ip) { next; }
+		if ($_->{msg} eq '') { last; }
+		if ($_->{msg} eq 'fail') { $fails++; }
+	}
+	return $fails;
+}
+# 同じ接続元として数える単位。IPv6は上位64bit（1回線に/64が割り当てられるため）
+sub ip_group {
+	my ($self, $ip) = @_;
+	if ($ip !~ /:/) { return $ip; }
+
+	require Socket;
+	my $bin = Socket::inet_pton(Socket::AF_INET6(), $ip);
+	if (!defined $bin) { return $ip; }
+
+	# ::ffff:1.2.3.4 はIPv4。上位64bitで比べると全員が同じになる
+	if (substr($bin, 0, 12) eq ("\0" x 10) . "\xff\xff") {
+		return join('.', unpack('C4', substr($bin, 12)));
+	}
+	return unpack('H16', $bin) . '::/64';
 }
 
 #-------------------------------------------------------------------------------
