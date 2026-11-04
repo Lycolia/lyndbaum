@@ -1,5 +1,8 @@
-# mod_rewriteの使用に以下の設定が必要です。
-Options +FollowSymLinks
+# Lyndbaumの.htaccessの見本。根元に.htaccessという名前でコピーする
+#
+# ・mod_rewriteが必要。使えないサーバーでは、この設定を読むところでエラーになる
+# ・Optionsは書かない。指定できないレンタルサーバーでは、サイト全体がエラーになる。
+#   VPSなどでは、Apacheの設定に書く（apache.conf）
 
 # 使用メモリ量の制限
 # RLimitMem 268435456
@@ -7,14 +10,16 @@ Options +FollowSymLinks
 RewriteEngine	On
 
 # 非公開のフォルダ。公開するのはpub/だけ
-# ※mod_rewriteが使えないサーバでは拒否されません。サーバの設定で拒否してください。
 RewriteRule	^(?:__cache|data|docs|info|lib|plugin|skel|skel\.local|t)(?:/|$)	-	[F]
 
-# mod_rewrite設定。可能な限り使用してください。
-# ※一部の細工されたレンタルサーバでは mod_rewrite が正しく動かないことがあります。
+# ドットで始まるもの（.git/、.vscode/など）
+# ・pub/は除く。サムネイルが.thumbnail/の下にある
+# ・.well-known/は除く。SSL証明書の発行や更新で読まれることがある
+RewriteRule	^(?!pub/|\.well-known/)(?:.*/)?\.	-	[F]
 
-# RewriteCond	%{REQUEST_FILENAME}	!-f
-# RewriteRule	^(.*)$			lyndbaum.cgi/$1	[L]
+# 設定ファイル（lyndbaum.conf.cgiなど）
+RewriteRule	^lyndbaum\.(?:conf|env)\.cgi	-	[F]
 
-# 常にタイマーを表示
-# SetENV SatsukiTimer 1
+# ファイルが無いURLは、lyndbaum.cgiに渡す
+RewriteCond	%{REQUEST_FILENAME}	!-f
+RewriteRule	^(.*)$			lyndbaum.cgi/$1	[L]

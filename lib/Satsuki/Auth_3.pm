@@ -410,7 +410,7 @@ sub check_new_pass {
 #-------------------------------------------------------------------------------
 # ●パスワードをbcryptでハッシュにする
 #-------------------------------------------------------------------------------
-# OSのcrypt()の$2b$（libxcrypt）を使う。対応していなければundef
+# OSのcrypt()の$2b$を使う。対応していなければundef
 my $BCRYPT_COST = 12;
 my $BCRYPT_B64  = './ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 sub hash_pass {
