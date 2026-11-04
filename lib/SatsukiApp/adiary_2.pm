@@ -504,17 +504,8 @@ sub regist_article {
 	$art{text}   = $text;
 	$art{text_s} = ($text eq $short) ? '' : $short;
 
-	# アイキャッチ画像（OGP）。?none は「設定しない」（本文の画像を拾わず、ブログの画像を使う）
-	if ($form->{ogp} eq '?none') {
-		$self->set_description(\%art, '');
-		$art{main_image} = '?none';
-	} elsif ($form->{ogp} eq '') {
-		my $main_image = $self->get_main_image_from_article($text);
-		$self->set_description(\%art, $main_image);
-	} else {
-		my $main_image = $self->get_main_image_from_input($form->{ogp});
-		$self->set_description(\%art, $main_image);
-	}
+	# アイキャッチ画像（OGP）。編集画面で選んだものだけを使い、本文からは拾わない
+	$self->set_description(\%art, $self->get_main_image_from_input($form->{ogp}));
 	#-------------------------------------------------------------
 	# DBに書き込み
 	#-------------------------------------------------------------
@@ -635,26 +626,8 @@ sub check_link_key_path {
 }
 
 #-------------------------------------------------------------------------------
-# ●記事からメイン画像を取得
+# ●編集画面で選んだメイン画像を取得
 #-------------------------------------------------------------------------------
-sub get_main_image_from_article {
-	my ($self, $text) = @_;
-	my $ROBJ = $self->{ROBJ};
-
-	while($text =~ /<img\s+(?:[\w-]+\s*=\s*"[^"]*"\s+)*src\s*=\s*"([^"]+)"/gi) {
-		my $img = $1;
-		my $dir = $ROBJ->{Basepath} . $self->blogimg_dir();
-		if (substr($img,0, length($dir)) ne $dir) { next; }
-
-		# 代表画像
-		$img = substr($img, length($dir));
-		$img =~ s!(^|/).thumbnail/(.+)\.(?:jpg|avif)$!$1$2!;
-		return $img;
-	}
-
-	return '';
-}
-
 sub get_main_image_from_input {
         my ($self, $ogp) = @_;
 

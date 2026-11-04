@@ -15,7 +15,7 @@ our $VERSION    = 4.29;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.28;
+our $DATA_VERSION = 4.29;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -1138,11 +1138,8 @@ sub post_process_article {
 	$art->{wday} = $self->get_dayweek($art->{year}, $art->{mon}, $art->{day});
 	$art->{wday_name} = $ROBJ->{WDAY_name}->[ $art->{wday} ];
 
-	# メイン画像。?none は「設定しない」（画像なしとして扱い、ブログの画像を使う）
-	if ($art->{main_image} eq '?none') {
-		$art->{main_image}      = '';
-		$art->{main_image_none} = 1;
-	} elsif ($art->{main_image} =~ /^(.*?)\?(\d+),(\d+)/) {
+	# メイン画像
+	if ($art->{main_image} =~ /^(.*?)\?(\d+),(\d+)/) {
 		$art->{main_image}   = $1;
 		$art->{main_image_w} = $2;
 		$art->{main_image_h} = $3;

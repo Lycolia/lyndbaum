@@ -44,7 +44,8 @@ my @update_versions = (
 	{ ver => 4.24, info=>1, func => 'sys_update_424' },	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
 	{ ver => 4.25, func => 'sys_update_425', system=>1 },	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
 	{ ver => 4.27, plugin=>1, func => 'sys_update_427' },	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
-	{ ver => 4.28, func => 'sys_update_428', system=>1 }	# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
+	{ ver => 4.28, func => 'sys_update_428', system=>1 },	# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
+	{ ver => 4.29, func => 'sys_update_429' }	# アイキャッチを選んだ画像だけにし、「設定しない」（main_image の ?none）を廃止した
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -792,6 +793,22 @@ sub delete_default_setting_file {
 	if (-e $file) {
 		my $ok = $self->{ROBJ}->file_delete($file);
 		$self->{ROBJ}->message($ok ? "Delete '%s'" : "Delete '%s' failed", $file);
+	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.29
+#-------------------------------------------------------------------------------
+# アイキャッチの「設定しない」を廃止した。保存してある ?none を空にする
+sub sys_update_429 {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+	foreach my $table (qw(art trash)) {
+		if (!$DB->find_table($table)) { next; }
+		$DB->begin();
+		$DB->update_match($table, { main_image => '' }, 'main_image', '?none');
+		if ($DB->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
 	}
 }
 

@@ -215,22 +215,19 @@ const contents_loaded = adiary.load_contents_list($upsel);
 //##############################################################################
 // ■アイキャッチ画像（OGP画像）
 //##############################################################################
-// name="ogp" の欄が実体（main_image）。空なら記事の最初の画像（サーバー側で自動選択）、
-// それも無ければブログの画像を使う。画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
-// 「設定しない」にすると欄を ?none にし、本文の画像を拾わずにブログの画像を使う
+// name="ogp" の欄が実体（main_image）。空ならブログの画像を使う。本文の画像は拾わない。
+// 画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
 {
 	const $preview = $('#eyecatch-preview');
 	const $note    = $('#eyecatch-note');
 	const $pick    = $('#eyecatch-pick');
 	const $remove  = $('#eyecatch-remove');
-	const $none    = $('#eyecatch-none');
-	const NONE     = '?none';
 	const $ogp     = $('#ogp-input');
 	const imgdir   = $('#image-dir').text();		// 画像ディレクトリ（相対）
 	const img_url  = adiary.Basepath + imgdir;
 	const img_ext  = /\.(?:jpe?g|png|gif|webp|apng|avif)$/i;
 
-	// [image:S:folder/:file:caption] 記法と、画像ディレクトリ内を指すURLを出現順に拾う
+	// 古い保存値の [image:S:folder/:file:caption] 記法と、画像ディレクトリ内を指すURLを拾う
 	const dir_re = imgdir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 	const img_re = new RegExp('\\[image:[^:\\]]*:([^:\\]]*/):([^:\\]]+)|' + dir_re + '([^\\s"\'<>()\\]]+)', 'g');
 
@@ -247,11 +244,19 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		return list;
 	}
 
+	// 表示用のパスにする。本文から自動で入った古い値はURLエンコードされている
+	function decode_path(path) {
+		try {
+			return decodeURIComponent(path);
+		} catch(e) {
+			return path;
+		}
+	}
+
 	// 欄の値を画像パスにする。保存した値の末尾の「?幅,高さ」と、記法で書いた古い値に対応する
 	function current_value() {
-		if ($ogp.val() === NONE) return '';
 		const val = $ogp.val().trim().replace(/\?\d+,\d+$/, '');
-		if (val.indexOf(':') < 0) return val;
+		if (val.indexOf(':') < 0) return decode_path(val);
 		return find_images(val)[0] || val;
 	}
 
@@ -272,29 +277,21 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		return $img;
 	}
 
-	let first_image = '';
 	function render() {
-		const cur  = current_value();
-		const none = $none.prop('checked');
+		const cur = current_value();
 		$preview.empty();
-		if (none) {
-			$preview.append( $('<img>').attr({ src: $preview.data('blog-image'), alt: '' }) );
-			$note.text( $('#eyecatch-note-none').text() );
-		} else if (cur != '') {
+		if (cur != '') {
 			// 選んだ画像は、押すと選び直せる
 			const $btn = $('<button>').attr({ type: 'button', title: '画像を変更' }).addClass('eyecatch-change');
 			$btn.append( make_img(cur) );
 			$preview.append($btn);
 			$note.text( $('#eyecatch-note-chosen').text() );
-		} else if (first_image) {
-			$preview.append( make_img(first_image) );
-			$note.text( $('#eyecatch-note-auto').text() );
 		} else {
 			$preview.append( $('<img>').attr({ src: $preview.data('blog-image'), alt: '' }) );
 			$note.text( $('#eyecatch-note-blog').text() );
 		}
-		$pick  .toggle(!none && cur == '');
-		$remove.toggle(!none && cur != '');
+		$pick  .toggle(cur == '');
+		$remove.toggle(cur != '');
 	}
 
 	// 画像アルバムを開く。選んである画像があれば、そのフォルダを開く
@@ -313,43 +310,13 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		render();
 	});
 
-	// 「設定しない」。外したら、入れる前の値に戻す
-	let before_none = '';
-	$none.on('change', function(){
-		if ($none.prop('checked')) {
-			before_none = $ogp.val();
-			$ogp.val(NONE);
-		} else {
-			$ogp.val(before_none);
-		}
-		render();
-	});
-
 	// 画像アルバムから呼ばれる。path は画像ディレクトリからの相対パス
 	window.set_eyecatch = function(path) {
-		$none.prop('checked', false);
 		$ogp.val(path);
 		render();
 	};
 
-	// 記事本文の変更を反映（アルバムからの挿入等はinputイベントが来ないので定期確認）
-	let last_text;
-	function rescan() {
-		const text = $edit.val();
-		if (text === last_text) return;
-		last_text = text;
-		const first = find_images(text)[0] || '';
-		if (first === first_image) return;
-		first_image = first;
-		render();
-	}
-	rescan();
-
-	// 保存した値が記事の最初の画像と同じなら、選んでいない（自動）扱いにする
-	if ($ogp.val() === NONE) $none.prop('checked', true);
-	else if (first_image && current_value() == first_image) $ogp.val('');
 	render();
-	setInterval(rescan, 1500);
 }
 
 //##############################################################################
