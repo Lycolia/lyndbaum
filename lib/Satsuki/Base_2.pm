@@ -299,6 +299,7 @@ sub fedit_readlines {
 			} else {
 				$self->error("File can't open (for %s) '%s'", 'edit', $file);
 			}
+			return ($fh, []);
 		}
 		binmode($fh);
 		if ($flags->{NB}) {

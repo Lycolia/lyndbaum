@@ -98,6 +98,27 @@ subtest 'ロックを待っている間に置き換わったら、新しいフ�
 	is($got, "new\n", '待っていた側は新しい中身を読む');
 };
 
+subtest '開けないファイルを編集しようとしたら、エラーにして戻る' => sub {
+	my $file = "$dir/cant_open";	# フォルダはrootでもO_RDWRで開けない
+	mkdir($file) || die $!;
+	$ROBJ->clear_error();
+
+	my ($fh, $lines);
+	my $ok = eval {
+		local $SIG{ALRM} = sub { die "timeout\n" };
+		alarm(3);
+		($fh, $lines) = $ROBJ->fedit_readlines($file);
+		alarm(0);
+		1;
+	};
+	alarm(0);
+	ok($ok, '戻ってくる');
+	is_deeply($lines, [], '中身は空');
+	is(scalar(@{$ROBJ->{Error}}), 1, 'エラーは1件');
+	$ROBJ->fedit_exit($fh);
+	$ROBJ->clear_error();
+};
+
 #-------------------------------------------------------------------------------
 # umask
 #-------------------------------------------------------------------------------
