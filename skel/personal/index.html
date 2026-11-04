@@ -34,10 +34,6 @@
 
 	<h3>パスワードの変更</h3>
 
-	<@ifexec(Auth.need_pass_reset, begin)>
-	<p class="warning">パスワードの保存方式を変えました。<@Auth.pass_min>文字以上の新しいパスワードを決めてください。変えるまで、ほかの画面は使えません。</p>
-	<$end>
-
 	<form class="js-ajax" data-url="<@v.myself>?menu">
 	<input type="hidden" name="action" value="_ajax_self_change_pass">
 	<table class="blog-setting">

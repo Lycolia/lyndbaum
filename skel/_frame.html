@@ -45,12 +45,12 @@
 <$end>
 <@>
 <@> このブログ用に作ったCSS（pub/custom/）。テーマの色の調整（get_theme_custom_css）と、動的CSS（dynamic_css_url_file）
-<$file = "<@v.blogpub_dir>custom/theme.css">
+<$file = "<@v.pub_dir>custom/theme.css">
 <@ifexec(!v.system_theme && s.theme_custom && s.theme eq v.theme && file_size(file), begin)>
 <link rel="stylesheet" href="<@Basepath><@file>?<@get_lastmodified(file)>" id="theme-custom-css">
 <$end>
 <@>
-<$file = "<@v.blogpub_dir>custom/dynamic.css">
+<$file = "<@v.pub_dir>custom/dynamic.css">
 <@ifexec(!v.system_mode && !v.stop_all_plugins && file_size(file), begin)>
 <link rel="stylesheet" href="<@Basepath><@file>?<@get_lastmodified(file)>" id="user-css">
 <$end>
@@ -66,7 +66,7 @@
 <@if(canonical_url, #'<link rel="canonical" href="<@canonical_url>">\n')>
 <@>
 <@forexec(t, v.load_rss_files(), begin)>
-<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.blogpub_dir><@t>" />
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.pub_dir><@t>" />
 <$end>
 <@> ショートカットアイコン
 <link rel="icon" href="<@Basepath><@if(s.iconfile, s.iconfile, #'<@v.pubdist_dir>default-icon.png')>">
@@ -120,7 +120,7 @@
 </script>
 
 </head>
-<body id="body" class="<@if(v.blog_admin, 'blog-owner')><@if(v.allow_edit, ' blog-editor')><@if(v.system_mode, ' system')><@if(nsfw_site, ' nsfw nsfw-site')>">
+<body id="body" class="<@if(v.blog_admin, 'blog-owner')><@if(v.blog_admin, ' blog-editor')><@if(v.system_mode, ' system')><@if(nsfw_site, ' nsfw nsfw-site')>">
 <@>
 <@ifexec(v.special_system_mode, begin.sp_sysmode, begin.sp_sysmode)>
 <@inframe>

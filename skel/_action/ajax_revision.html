@@ -1,5 +1,5 @@
 <@7>
-<$ifbreak(!v.allow_edit)>
+<$ifbreak(!v.blog_admin)>
 
 <@> now指定時は今の記事（本文と要約込み）、rev指定時は履歴1件（本文込み）、それ以外は記事pkeyの履歴一覧
 <$data = if(Form.now, v.load_article_now_json(Form.now), if(Form.rev, v.load_revision_json(Form.rev), v.load_revisions_json(Form.pkey)))>

@@ -148,7 +148,6 @@ Too short password (min %d)=パスワードが短すぎます（最低%d文字�
 Mismatch password and retype password=確認用パスワードと一致していません
 Too long password (max %d bytes)=パスワードが長すぎます（最大%dバイトまで）
 bcrypt is not supported on this server=このサーバーではbcryptが使えないため、パスワードを保存できません
-Password save failed=パスワードを保存できませんでした
 %d users must reset the password at the next login=%d人のユーザーは、次のログインのあとにパスワードの再設定が要ります
 
 ###############################################################################
@@ -252,8 +251,6 @@ File is not image : %s=画像をアップロードしてください : %s
 ###############################################################################
 # adiary_5
 ###############################################################################
-Blog already existed=ブログはすでに存在します
-Blog create failed=ブログの作成に失敗しました
 
 # データインポート
 Data format error (%s)=%s形式のデータではありません
@@ -275,8 +272,6 @@ Not exists article=該当する記事がみつかりません
 # adiary_6
 ###############################################################################
 Restart of %s is required!=%sの再起動が必要です！
+Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.25〜4.30の版でアップデート処理を行ってください
+Confirm that other users will be deleted=アップデート処理を行うには、ほかのユーザーが消えることの確認にチェックを入れてください
 Blog database error(%s)=ブログのデータベースのエラーです（%s）
-Migrate blog '%s'=ブログ「%s」のデータを新しい持ち方に移しました
-Rename table '%s' failed=テーブル「%s」の名前を変えられませんでした
-Rename '%s' failed=「%s」を移せませんでした
-Already exists '%s'=「%s」がすでにあるため移しませんでした

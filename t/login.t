@@ -35,19 +35,19 @@ sub fail_times {
 
 #-------------------------------------------------------------------------------
 subtest '失敗し続けたら止める' => sub {
-	$app->user_add('admin', 'lock1', 0);
+	$app->insert_user('lock1');
 	fail_times('lock1', $FAIL_COUNT - 1);
 	my ($ret) = try_login('lock1', $AppTest::PASS);
 	is($ret, '0', "${FAIL_COUNT}回目より前なら、正しいパスワードで入れる");
 
-	$app->user_add('admin', 'lock2', 0);
+	$app->insert_user('lock2');
 	fail_times('lock2', $FAIL_COUNT);
 	($ret) = try_login('lock2', $AppTest::PASS);
 	isnt($ret, '0', "${FAIL_COUNT}回失敗したら、正しいパスワードでも入れない");
 };
 
 subtest '成功したら失敗の回数を戻す' => sub {
-	$app->user_add('admin', 'lock3', 0);
+	$app->insert_user('lock3');
 	fail_times('lock3', $FAIL_COUNT - 1);
 	my ($ret) = try_login('lock3', $AppTest::PASS);
 	is($ret, '0', 'ログインできる');
@@ -58,7 +58,7 @@ subtest '成功したら失敗の回数を戻す' => sub {
 
 subtest '失敗の理由を見分けられない' => sub {
 	my (undef, $no_user)  = try_login('no-such-user', 'wrong-pass');
-	my (undef, $bad_pass) = try_login('user', 'wrong-pass');
+	my (undef, $bad_pass) = try_login('lock3', 'wrong-pass');
 	my (undef, $locked)   = try_login('lock2', $AppTest::PASS);
 	ok($no_user ne '', 'メッセージが出る');
 	is($bad_pass, $no_user, 'パスワード違いとIDなしで同じメッセージ');
@@ -70,14 +70,14 @@ subtest '失敗の理由を見分けられない' => sub {
 subtest 'HTTPSのときはCookieにSecureを付ける' => sub {
 	my $session = sub { (grep { /^session=/ } @{ $_[0]->{cookies} })[0] // '' };
 
-	my (undef, undef, $r) = try_login('user', $AppTest::PASS);
+	my (undef, undef, $r) = try_login('lock3', $AppTest::PASS);
 	like($session->($r), qr/HttpOnly/i, 'HTTPでもHttpOnlyは付く');
 	unlike($session->($r), qr/\bSecure\b/i, 'HTTPではSecureを付けない');
 
 	foreach my $env ({ HTTPS => 'on' }, { HTTP_X_FORWARDED_PROTO => 'https' }, { SERVER_PORT => 443 }) {
 		my ($k) = keys(%$env);
 		local $app->{env} = $env;
-		(undef, undef, $r) = try_login('user', $AppTest::PASS);
+		(undef, undef, $r) = try_login('lock3', $AppTest::PASS);
 		like($session->($r), qr/\bSecure\b/i, "$k=$env->{$k} ならSecureを付ける");
 	}
 };

@@ -22,7 +22,7 @@ sub {
 	my $xml = $ROBJ->call('_format/sitemap', $ary);
 
 	# sitemap.xml
-	my $file = $self->{blogpub_dir} . 'sitemap.xml';
+	my $file = $self->{pub_dir} . 'sitemap.xml';
 	$ROBJ->fwrite_lines($file, $xml);
 
 	return 0;

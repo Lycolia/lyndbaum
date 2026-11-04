@@ -26,7 +26,7 @@ my $dir = $app->dir;
 # 記事
 #-------------------------------------------------------------------------------
 subtest '記事を書く' => sub {
-	my $r = $app->post('editor', '', { %ART, title => '新しい記事', body_txt => "新しい**本文**\n", tag_ary => '新しいタグ' });
+	my $r = $app->post('admin', '', { %ART, title => '新しい記事', body_txt => "新しい**本文**\n", tag_ary => '新しいタグ' });
 	ok(AppTest::is_reload($r), '保存できる');
 
 	$r = $app->get('guest', '/04');
@@ -41,16 +41,16 @@ subtest '記事を書く' => sub {
 };
 
 subtest '下書き' => sub {
-	my $r = $app->post('editor', '', { %ART, title => '下書きの記事', body_txt => "下書き\n", enable => 0 });
+	my $r = $app->post('admin', '', { %ART, title => '下書きの記事', body_txt => "下書き\n", enable => 0 });
 	ok(AppTest::is_reload($r), '保存できる');
 	is($app->get('guest', '/05')->{status}, 404, 'ログインしていない人には出ない');
-	like($app->get('editor', '/05')->{title}, qr/^下書きの記事 - /, '編集者には出る');
+	like($app->get('admin', '/05')->{title}, qr/^下書きの記事 - /, '管理者には出る');
 	unlike(body($app->get('guest', '')), qr{下書きの記事}, 'トップに出ない');
 	unlike(read_file("$dir/pub/rss.xml"), qr{下書きの記事}, 'RSSに出ない');
 };
 
 subtest '記事を直す' => sub {
-	my $r = $app->post('editor', '', { %ART, edit_pkey_int => 1, title => '直した題名', body_txt => "直した本文\n", ymd => '2026-10-01' });
+	my $r = $app->post('admin', '', { %ART, edit_pkey_int => 1, title => '直した題名', body_txt => "直した本文\n", ymd => '2026-10-01' });
 	ok(AppTest::is_reload($r), '保存できる');
 
 	$r = $app->get('guest', '/01');
@@ -58,48 +58,33 @@ subtest '記事を直す' => sub {
 	like(body($r), qr{直した本文}, '本文が変わる');
 	like(read_file("$dir/pub/rss.xml"), qr{直した題名}, 'RSSも変わる');
 
-	$r = $app->post('editor', '', { action => 'ajax_revision', pkey => 1 });
+	$r = $app->post('admin', '', { action => 'ajax_revision', pkey => 1 });
 	my $revs = $r->{json};
 	ok(ref($revs) eq 'ARRAY' && @$revs == 1, '更新履歴に、直す前の版が1つ残る');
 };
 
-subtest '他人の記事' => sub {
-	my $r = $app->post('owner', '', { %ART, edit_pkey_int => 1, title => 'ブログ管理者が直した', body_txt => "本文\n" });
-	ok(AppTest::is_reload($r), 'ブログ管理者は、編集者の記事を直せる');
-
-	# 自分の記事だけを直せる設定にすると、編集者はブログ管理者の記事を直せない
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor', edit_by_author_only => 1 });
-	ok(AppTest::is_reload($r), '「自分の記事だけ」にする');
-	$r = $app->post('editor', '', { %ART, edit_pkey_int => 2, title => '編集者が直した', body_txt => "本文\n" });
-	ok(!AppTest::is_reload($r), '編集者はブログ管理者の記事を直せない');
-	unlike($app->get('guest', '/02')->{title}, qr/編集者が直した/, '題名は変わらない');
-
-	$r = $app->post('owner', 'set/role', { action => 'set/role', admin_users => 'owner', editors => 'editor' });
-	ok(AppTest::is_reload($r), '元に戻す');
-};
-
 subtest 'ゴミ箱' => sub {
-	my $r = $app->post('editor', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
+	my $r = $app->post('admin', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
 	ok(AppTest::is_reload($r), 'ゴミ箱へ移せる');
 	is($app->get('guest', '/01')->{status}, 404, '記事のページは出ない');
-	like(body($app->get('editor', 'trash')), qr{ブログ管理者が直した}, 'ゴミ箱に出る');
+	like(body($app->get('admin', 'trash')), qr{直した題名}, 'ゴミ箱に出る');
 
-	$r = $app->post('editor', '', { action => 'trash', mode => 'restore', pkey_ary => 1 });
+	$r = $app->post('admin', '', { action => 'trash', mode => 'restore', pkey_ary => 1 });
 	ok(AppTest::is_reload($r), '戻せる');
 	is($app->get('guest', '/01')->{status}, 200, '記事のページがまた出る');
 
-	$r = $app->post('owner', '', { action => 'trash', mode => 'purge_all' });
+	$r = $app->post('admin', '', { action => 'trash', mode => 'purge_all' });
 	ok(AppTest::is_reload($r), 'ゴミ箱を空にできる');
-	unlike(body($app->get('editor', 'trash')), qr{消す記事}, 'ゴミ箱から消える');
+	unlike(body($app->get('admin', 'trash')), qr{消す記事}, 'ゴミ箱から消える');
 };
 
 subtest '記事一覧からのまとめての操作' => sub {
-	my $r = $app->post('editor', 'artlist', [ action => 'articles_edit', mode => 'disable', pkey_ary => 1, pkey_ary => 2 ]);
+	my $r = $app->post('admin', 'artlist', [ action => 'articles_edit', mode => 'disable', pkey_ary => 1, pkey_ary => 2 ]);
 	ok(AppTest::is_reload($r), '非公開にできる');
 	is($app->get('guest', '/01')->{status}, 404, '記事1は出ない');
 	is($app->get('guest', '/02')->{status}, 404, '記事2は出ない');
 
-	$r = $app->post('editor', 'artlist', [ action => 'articles_edit', mode => 'enable', pkey_ary => 1, pkey_ary => 2 ]);
+	$r = $app->post('admin', 'artlist', [ action => 'articles_edit', mode => 'enable', pkey_ary => 1, pkey_ary => 2 ]);
 	ok(AppTest::is_reload($r), '公開に戻せる');
 	is($app->get('guest', '/01')->{status}, 200, '記事1が出る');
 	is($app->get('guest', '/02')->{status}, 200, '記事2が出る');
@@ -128,20 +113,20 @@ subtest 'ログインしていない人のコメント' => sub {
 	$r = $app->post('visitor', '/02', { %form });
 	like($r->{title}, qr/^処理結果/, '投稿できる');
 	like(body($app->get('guest', '/02')), qr{ゲストのコメント}, '記事のページに出る');
-	like(body($app->get('editor', 'comlist')), qr{ゲストのコメント}, 'コメント一覧に出る');
+	like(body($app->get('admin', 'comlist')), qr{ゲストのコメント}, 'コメント一覧に出る');
 };
 
 subtest 'コメントの承認の取り消し・承認・削除' => sub {
-	my $r = $app->post('editor', '', { action => 'comments_edit', disable => 1, pkey_ary => 1 });
+	my $r = $app->post('admin', '', { action => 'comments_edit', disable => 1, pkey_ary => 1 });
 	ok(AppTest::is_reload($r), '承認を取り消せる');
 	unlike(body($app->get('guest', '/01')), qr{seedのコメント}, 'ログインしていない人には出ない');
-	like(body($app->get('editor', '/01')), qr{seedのコメント}, '編集者には出る');
+	like(body($app->get('admin', '/01')), qr{seedのコメント}, '管理者には出る');
 
-	$r = $app->post('editor', '', { action => 'comments_edit', enable => 1, pkey_ary => 1 });
+	$r = $app->post('admin', '', { action => 'comments_edit', enable => 1, pkey_ary => 1 });
 	ok(AppTest::is_reload($r), '承認できる');
 	like(body($app->get('guest', '/01')), qr{seedのコメント}, 'ログインしていない人にも出る');
 
-	$r = $app->post('editor', '', { action => 'comments_edit', delete => 1, pkey_ary => 1 });
+	$r = $app->post('admin', '', { action => 'comments_edit', delete => 1, pkey_ary => 1 });
 	ok(AppTest::is_reload($r), '削除できる');
 	ok(!-e "$dir/data/db/com/00001.dat" || read_file("$dir/data/db/com/00001.dat") !~ /\S/, 'コメントが消える');
 };
@@ -150,7 +135,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	# コメント一覧の、そのコメントの行の「状態」
 	my $state = sub {
 		my ($text, $q) = @_;
-		my $b = body($app->get('editor', 'comlist' . ($q // '')));
+		my $b = body($app->get('admin', 'comlist' . ($q // '')));
 		foreach ($b =~ m{<tr>\s*<td class="c"><input.*?</tr>}sg) {
 			next if (index($_, $text) < 0);
 			my @td = map { s/<[^>]*>//gr } /<td[^>]*>(.*?)<\/td>/sg;
@@ -164,7 +149,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	};
 	my $coms = sub {
 		# ブログのコメント数（v.blog.coms）。ダッシュボードには出さないので、全記事の削除の画面で見る
-		my ($n) = body($app->get('owner', 'mainte/blog_clear')) =~ m{<th>コメント</th>\s*<td>(\d+)件}s;
+		my ($n) = body($app->get('admin', 'mainte/blog_clear')) =~ m{<th>コメント</th>\s*<td>(\d+)件}s;
 		return $n;
 	};
 
@@ -184,8 +169,8 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	is($state->('保留のコメント', '&hold=0'), '', '承認済みで絞り込むと、承認待ちは出ない');
 	is($coms->(), 1, 'ブログのコメント数に入らない');
 
-	my ($pkey) = body($app->get('editor', 'comlist')) =~ m{value="(\d+)" class="pkey-ary" id="com-\d+">.*?保留の人}s;
-	$r = $app->post('editor', 'comlist', { action => 'comments_edit', enable => 1, pkey_ary => $pkey, from_comlist => 1 });
+	my ($pkey) = body($app->get('admin', 'comlist')) =~ m{value="(\d+)" class="pkey-ary" id="com-\d+">.*?保留の人}s;
+	$r = $app->post('admin', 'comlist', { action => 'comments_edit', enable => 1, pkey_ary => $pkey, from_comlist => 1 });
 	ok(AppTest::is_reload($r), '承認できる');
 	like(body($app->get('guest', '/02')), qr{保留のコメント}, '承認すると記事のページに出る');
 	is($state->('保留のコメント'), '承認済み', '承認済みになる');
@@ -193,16 +178,16 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	is($coms->(), 2, 'ブログのコメント数に入る');
 
 	# 記事を非公開にしても、承認したことは残る。公開に戻すと、承認済みのコメントだけまた出る
-	$r = $app->post('editor', '', { action => 'comments_edit', disable => 1, pkey_ary => $pkey });
+	$r = $app->post('admin', '', { action => 'comments_edit', disable => 1, pkey_ary => $pkey });
 	ok(AppTest::is_reload($r), '承認を取り消せる');
 	is($state->('保留のコメント'), '承認待ち', '承認待ちに戻る');
-	$r = $app->post('editor', 'artlist', [ action => 'articles_edit', mode => 'disable', pkey_ary => 2 ]);
+	$r = $app->post('admin', 'artlist', [ action => 'articles_edit', mode => 'disable', pkey_ary => 2 ]);
 	ok(AppTest::is_reload($r), '記事を非公開にできる');
 	is($state->('ゲストのコメント'), '承認済み', '記事を非公開にしても承認済みのまま');
 	unlike($recent->(), qr{通りすがり}, '非公開の記事のコメントは最近のコメントに出ない');
 	is($coms->(), 0, '非公開の記事のコメントはブログのコメント数に入らない');
 
-	$r = $app->post('editor', 'artlist', [ action => 'articles_edit', mode => 'enable', pkey_ary => 2 ]);
+	$r = $app->post('admin', 'artlist', [ action => 'articles_edit', mode => 'enable', pkey_ary => 2 ]);
 	ok(AppTest::is_reload($r), '記事を公開に戻せる');
 	like(body($app->get('guest', '/02')), qr{ゲストのコメント}, '承認済みのコメントがまた出る');
 	unlike(body($app->get('guest', '/02')), qr{保留のコメント}, '承認待ちのコメントは出ない');
@@ -210,13 +195,13 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	is($coms->(), 1, 'ブログのコメント数に戻る');
 
 	# 非公開の記事のコメントも承認できる。記事を公開したときに出る
-	$r = $app->post('owner', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 0 });
+	$r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 0 });
 	ok(AppTest::is_reload($r), '編集画面で記事を非公開にできる');
-	$r = $app->post('editor', '', { action => 'comments_edit', enable => 1, pkey_ary => $pkey });
+	$r = $app->post('admin', '', { action => 'comments_edit', enable => 1, pkey_ary => $pkey });
 	ok(AppTest::is_reload($r), '非公開の記事のコメントを承認できる');
 	is($state->('保留のコメント'), '承認済み', '承認済みになる');
 	is($coms->(), 0, '記事が非公開なので、ブログのコメント数には入らない');
-	$r = $app->post('owner', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 1 });
+	$r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 1 });
 	ok(AppTest::is_reload($r), '編集画面で記事を公開にできる');
 	like(body($app->get('guest', '/02')), qr{保留のコメント}, '承認したコメントが出る');
 	is($coms->(), 2, 'ブログのコメント数に戻る');
@@ -226,7 +211,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 # NSFW
 #-------------------------------------------------------------------------------
 subtest 'NSFWの記事' => sub {
-	my $r = $app->post('owner', '', { %ART, title => '成人向けの記事', body_txt => "成人向けの本文\n", nsfw => 1 });
+	my $r = $app->post('admin', '', { %ART, title => '成人向けの記事', body_txt => "成人向けの本文\n", nsfw => 1 });
 	ok(AppTest::is_reload($r), '保存できる');
 	$r = $app->get('guest', '/06');
 	like(body($r), qr{<meta name="rating" content="adult">}, 'ratingのmetaが出る');
@@ -242,33 +227,36 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	my %EYE  = (%ART, title => 'アイキャッチの記事', body_txt => "$tag\n\n`$tag`\n\n```\n$tag\n```\n\n本文\n");
 	my $og   = sub { (body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '' };
 	my $rss  = sub { my ($item) = read_file("$dir/pub/rss.xml") =~ m{(<item>(?:(?!</item>).)*?アイキャッチの記事.*?</item>)}s; $item // '' };
-	my $ogp  = sub { (body($app->get('editor', '/07?edit')) =~ m{<input type="hidden" name="ogp" id="ogp-input" value="([^"]*)">})[0] // '' };
+	my $ogp  = sub { (body($app->get('admin', '/07?edit')) =~ m{<input type="hidden" name="ogp" id="ogp-input" value="([^"]*)">})[0] // '' };
 
-	my $r = $app->post('editor', '', \%EYE);
+	my $r = $app->post('admin', '', \%EYE);
 	ok(AppTest::is_reload($r), '選ばずに保存できる');
 	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、ブログの画像（設定していないので既定の画像）になる');
+	like(body($app->get('guest', '/07')), qr{<meta name="twitter:card" content="summary">}, '記事の画像が無ければtwitter:cardはsummary');
+	like(read_file("$dir/pub/rss.xml"), qr{<generator>[^<]*#\d+\.\d{2}</generator>}, 'RSSのgeneratorの版は小数2桁');
 	unlike($rss->(), qr{<media:content}, 'RSSにアイキャッチを出さない');
 	is($ogp->(), '', '編集画面の欄は空');
 
-	$r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
+	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
 	ok(AppTest::is_reload($r), 'ブログを再構築できる');
 	is($ogp->(), '', '再構築しても本文の画像を拾わない');
 
-	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => $img });
+	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => $img });
 	ok(AppTest::is_reload($r), '選んで保存できる');
 	like($og->(), qr{/\Q$img\E$}, 'og:imageに選んだ画像を使う');
+	like(body($app->get('guest', '/07')), qr{<meta name="twitter:card" content="summary_large_image">}, '記事の画像があればtwitter:cardはsummary_large_image');
 	like($rss->(), qr{<media:content url="[^"]*/\Q$img\E"}, 'RSSにも出る');
 	is($ogp->(), $img, '編集画面の欄に選んだ画像が入る');
 
-	$r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
+	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
 	ok(AppTest::is_reload($r), 'ブログを再構築できる');
 	is($ogp->(), $img, '再構築しても選んだ画像が残る');
 
-	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => $img, body_txt => "[image:S:$AppTest::IMAGE_FOLDER:other.jpg]\n\n$EYE{body_txt}" });
+	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => $img, body_txt => "[image:S:$AppTest::IMAGE_FOLDER:other.jpg]\n\n$EYE{body_txt}" });
 	ok(AppTest::is_reload($r), '本文の先頭に別の画像を足して保存できる');
 	is($ogp->(), $img, '選んだ画像は変わらない');
 
-	$r = $app->post('editor', '', { %EYE, edit_pkey_int => 7, ogp => '' });
+	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => '' });
 	ok(AppTest::is_reload($r), '選んだ画像を外して保存できる');
 	like($og->(), qr{/default-icon\.png$}, 'ブログの画像に戻る');
 	is($ogp->(), '', '編集画面の欄が空に戻る');
@@ -280,10 +268,10 @@ subtest 'アップデート処理で、アイキャッチの?noneを空にする
 	my $data = sub { read_file("$dir/data/db/$_[0]/" . sprintf('%05d.dat', $_[1])) };
 
 	# 今までに「設定しない」で保存した記事、ゴミ箱の中の記事、選んだ画像がある記事
-	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => '?noneの記事', edit_pkey_int => 7, ogp => '?none' })), '?noneの記事を作る');
-	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => 'ゴミ箱の?noneの記事', ogp => '?none' })), 'ゴミ箱に入れる記事を作る');
-	ok(AppTest::is_reload($app->post('editor', '', { %EYE, title => '画像を選んだ記事', ogp => $img })), '画像を選んだ記事を作る');
-	ok(AppTest::is_reload($app->post('editor', '', { action => 'delete', delete_pkey_ary => 8, title => '' })), 'ゴミ箱に入れる');
+	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => '?noneの記事', edit_pkey_int => 7, ogp => '?none' })), '?noneの記事を作る');
+	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => 'ゴミ箱の?noneの記事', ogp => '?none' })), 'ゴミ箱に入れる記事を作る');
+	ok(AppTest::is_reload($app->post('admin', '', { %EYE, title => '画像を選んだ記事', ogp => $img })), '画像を選んだ記事を作る');
+	ok(AppTest::is_reload($app->post('admin', '', { action => 'delete', delete_pkey_ary => 8, title => '' })), 'ゴミ箱に入れる');
 	like($data->('art', 7), qr/^main_image=\?none$/m, '作った状態の確認：記事に?noneがある');
 	like($data->('trash', 8), qr/^main_image=\?none$/m, '作った状態の確認：ゴミ箱に?noneがある');
 
@@ -294,38 +282,38 @@ subtest 'アップデート処理で、アイキャッチの?noneを空にする
 	print $fh $conf;
 	close($fh);
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.29$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 
 	unlike($data->('art', 7), qr/^main_image=.*\S/m, '記事の?noneが空になる');
 	unlike($data->('trash', 8), qr/^main_image=.*\S/m, 'ゴミ箱の?noneが空になる');
 	like($data->('art', 9), qr/^main_image=\Q$img\E/m, '選んだ画像は変わらない');
 	like((body($app->get('guest', '/07')) =~ m{<meta property="og:image" content="([^"]*)">})[0] // '', qr{/default-icon\.png$}, 'og:imageは既定の画像');
-	like(body($app->get('editor', '/07?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '編集画面の欄は空');
+	like(body($app->get('admin', '/07?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '編集画面の欄は空');
 
-	ok(AppTest::is_reload($app->post('editor', '', { action => 'trash', mode => 'restore', pkey_ary => 8 })), 'ゴミ箱から戻せる');
-	like(body($app->get('editor', '/08?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '戻した記事の欄も空');
+	ok(AppTest::is_reload($app->post('admin', '', { action => 'trash', mode => 'restore', pkey_ary => 8 })), 'ゴミ箱から戻せる');
+	like(body($app->get('admin', '/08?edit')), qr{<input type="hidden" name="ogp" id="ogp-input" value="">}, '戻した記事の欄も空');
 };
 
 #-------------------------------------------------------------------------------
 # エクスポートとインポート
 #-------------------------------------------------------------------------------
 subtest 'エクスポートとインポート' => sub {
-	my $r = $app->post('owner', '', { action => 'mainte/export', file => '10_movable_type' });
+	my $r = $app->post('admin', '', { action => 'mainte/export', file => '10_movable_type' });
 	is($r->{status}, 200, 'エクスポートできる');
 	my $data = $r->{body};
 	like($data, qr/TITLE: /, 'Movable Typeの形式で出る');
 	my @titles = $data =~ /^TITLE: (.*)$/mg;
 	utf8::decode($_) foreach (@titles);
 
-	$r = $app->post('owner', '', { action => 'mainte/blog_clear', yes => 'yes' });
+	$r = $app->post('admin', '', { action => 'mainte/blog_clear', yes => 'yes' });
 	ok(AppTest::is_reload($r), '全記事を消せる');
 	is($app->get('guest', '/02')->{status}, 404, '記事が無くなる');
 
-	$r = $app->post('owner', '', [ action => 'mainte/import', type => 'MT',
+	$r = $app->post('admin', '', [ action => 'mainte/import', type => 'MT',
 		file => { filename => 'export.txt', content => $data, type => 'text/plain' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'インポートできる');
 	like($r->{body}, qr/^articles=${\ scalar(@titles)}$/m, '応答の articles= はインポートできた記事の数');
-	my $list = body($app->get('editor', 'artlist'));	# 下書きも出る
+	my $list = body($app->get('admin', 'artlist'));	# 下書きも出る
 	is(scalar(grep { index($list, $_) >= 0 } @titles), scalar(@titles), '出した記事（' . scalar(@titles) . '件）がすべて記事一覧に出る');
 };
 
@@ -334,7 +322,7 @@ subtest 'エクスポートとインポート' => sub {
 #-------------------------------------------------------------------------------
 subtest '再構築' => sub {
 	unlink("$dir/pub/rss.xml");
-	my $r = $app->post('owner', '', { action => 'mainte/blog_rebuild' });
+	my $r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
 	ok(AppTest::is_reload($r), 'ブログを再構築できる');
 	ok(-s "$dir/pub/rss.xml", 'RSSが書き出し直される');
 };
@@ -343,12 +331,14 @@ subtest '再構築' => sub {
 # ダッシュボード
 #-------------------------------------------------------------------------------
 subtest 'ダッシュボード' => sub {
-	my $r = $app->post('editor', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
+	my $r = $app->post('admin', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
 	ok(AppTest::is_reload($r), '記事の下書きを保存できる');
-	$r = $app->post('editor', '', { %ART, title => 'ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
+	$r = $app->post('admin', '', { %ART, title => 'ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
 	ok(AppTest::is_reload($r), 'ページの下書きを保存できる');
 
-	my $b = body($app->get('editor', 'menu'));
+	my $b = body($app->get('admin', 'menu'));
+	unlike($b, qr{<p>ユーザー }, 'ユーザーのカードを出さない');
+	unlike($b, qr{<h2>ダッシュボード</h2>}, 'ダッシュボードの見出しの箱を出さない');
 	my ($glance) = $b =~ m{<ul class="dashboard-glance">(.*?)</ul>}s;
 	my @rows;
 	while (($glance // '') =~ m{<li><a href="[^"]*\?([^"]*)">([^<]+)</a><span class="dashboard-count">(\d+)件</span></li>}g) {
@@ -363,7 +353,7 @@ subtest 'ダッシュボード' => sub {
 	# 件数は、行き先の一覧の件数と同じ
 	my %count = map { $_->{label} => $_->{count} } @rows;
 	foreach (@rows) {
-		my $list = body($app->get('editor', $_->{query}));
+		my $list = body($app->get('admin', $_->{query}));
 		my ($n) = $list =~ m{<p>Total (\d+) (?:articles|comments)\.</p>};
 		is($_->{count}, $n, "$_->{label}の件数は、一覧（?$_->{query}）と同じ");
 	}
@@ -371,11 +361,11 @@ subtest 'ダッシュボード' => sub {
 	is($count{'ページの下書き'}, 1, 'ページの下書きを数える');
 
 	# 記事一覧の「下書き」には、下書きだけが出る
-	my $drafts = body($app->get('editor', 'artlist&enable=draft'));
+	my $drafts = body($app->get('admin', 'artlist&enable=draft'));
 	like($drafts, qr{記事の下書き}, '記事一覧の下書きに、記事の下書きが出る');
 	like($drafts, qr{ページの下書き}, '記事一覧の下書きに、ページの下書きが出る');
 	unlike($drafts, qr{editorの記事}, '記事一覧の下書きに、公開の記事は出ない');
-	my $all = body($app->get('editor', 'artlist'));
+	my $all = body($app->get('admin', 'artlist'));
 	like($all, qr{記事の下書き}, '記事一覧の「すべて」には、下書きも出る');
 	like($all, qr{ページの下書き}, '記事一覧の「すべて」には、ページの下書きも出る');
 	like($all, qr{ownerの記事}, '記事一覧の「すべて」には、公開の記事も出る');
@@ -386,13 +376,12 @@ subtest 'ダッシュボード' => sub {
 	is($state{'ページの下書き'}, '下書き', 'ページの下書きの公開状態も「下書き」');
 	is($state{'ownerの記事'}, '公開', '公開の記事の公開状態は「公開」');
 	is($state{'下書きの記事'}, '非公開', '非公開の記事の公開状態は「非公開」');	# インポートした下書きは非公開になる
-	unlike(body($app->get('editor', 'artlist&enable=0')), qr{記事の下書き}, '記事一覧の「非公開」には、下書きは出ない');
+	unlike(body($app->get('admin', 'artlist&enable=0')), qr{記事の下書き}, '記事一覧の「非公開」には、下書きは出ない');
 
 	# 書くは1つ
 	my @write = $b =~ m{<a class="button-primary" href="([^"]*)">}g;
 	is(scalar(@write), 1, '書くのボタンは1つ');
 	like($write[0] // '', qr{\?edit$}, '書くの行き先は編集画面');
-	unlike(body($app->get('user', 'menu')), qr{dashboard-glance}, '編集者でなければ概要は出ない');
 };
 
 done_testing();

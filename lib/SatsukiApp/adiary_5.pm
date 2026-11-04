@@ -23,44 +23,16 @@ sub _ajax_user_add {
 	my $ROBJ = $self->{ROBJ};
 	my $auth = $ROBJ->{Auth};
 
-	if (!$auth->{isadmin}) {
+	# ユーザーは管理者1人だけ。管理者がいないとき（root*）に作る
+	if (!$auth->{auto}) {
 		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
 	}
 
 	$form->{id} = $form->{adiary_id};
 	delete $form->{adiary_id};
+	$form->{isadmin} = 1;
 
 	return $auth->user_add($form);
-}
-
-#-------------------------------------------------------------------------------
-# ●ユーザー編集
-#-------------------------------------------------------------------------------
-sub _ajax_user_edit {
-	my $self = shift;
-	my $form = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
-
-	if (!$auth->{isadmin}) {
-		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
-	}
-	return $auth->user_edit($form);
-}
-
-#-------------------------------------------------------------------------------
-# ●ユーザー削除
-#-------------------------------------------------------------------------------
-sub _ajax_user_delete {
-	my $self = shift;
-	my $form = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
-
-	if (!$auth->{isadmin}) {
-		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
-	}
-	return $auth->user_delete($form->{id} || $form->{id_ary});
 }
 
 #-------------------------------------------------------------------------------
@@ -81,38 +53,55 @@ sub _ajax_self_change_pass {
 # ■ブログの作成と削除
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログを作る
+# ●ブログが無ければ作る
 #-------------------------------------------------------------------------------
-# ブログは1つだけ。まだ無いときに、システム管理者だけが作れる
-sub blog_create {
+# リクエストの最初に、権限によらず呼ばれる。失敗してもブログが無いまま返り、呼び出し元が503にする。
+# 残っているものを消さないよう、テーブルや設定の一部だけがあるときは作らず、失敗しても消さない
+sub blog_auto_create {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
+	my $DB   = $self->{DB};
 
-	if (! $auth->{ok}) { $ROBJ->message('Not login'); return 1; }
-	if (! $auth->{isadmin}) {
-		$ROBJ->message('Operation not permitted');
-		return 5;
-	}
-	if ($self->exists_blog()) {
-		$ROBJ->message('Blog already existed');
-		return 10;
-	}
+	# 同時のリクエストがあっても1回だけ作る
+	$ROBJ->mkdir( $self->{data_dir} );
+	my $lock = $self->{data_dir} . 'blog_create.lock';
+	sysopen(my $fh, $lock, Fcntl::O_CREAT() | Fcntl::O_RDWR()) || return;
+	flock($fh, Fcntl::LOCK_EX()) || return;
 
-	# データベーステーブル生成
-	my $r = $self->create_tables();
-	if ($r) {
-		$ROBJ->message('Blog create failed');
-		$self->drop_tables();
-		return $r;
-	}
-	# ディレクトリの作成
-	$ROBJ->mkdir( $self->blog_dir() );
-	$ROBJ->mkdir( $self->blogpub_dir() );
-	# キャッシュ除去して選択
 	delete $self->{_cache_exists_blog};
-	$self->select_blog();
+	my $r = $self->do_blog_auto_create();
+	delete $self->{_cache_exists_blog};
 
+	unlink($lock);
+	close($fh);
+	if ($r) { print STDERR "$self->{SYSTEM_NAME}: blog create failed ($r)\n"; }
+}
+
+sub do_blog_auto_create {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+	if ($self->exists_blog()) { return 0; }	# 待っている間に作られた
+
+	foreach(qw(art com tag tagart rev trash trashcom link)) {
+		if ($DB->find_table($_)) { return "table '$_' already exists"; }
+	}
+	if (-e $self->blog_dir() . 'setting.dat') { return 'setting.dat already exists'; }
+
+	my $r = $self->create_tables();
+	if ($r) { return "create tables: $r"; }
+	$ROBJ->mkdir( $self->blog_dir() );
+	$ROBJ->mkdir( $self->{pub_dir} );
+	if (!-d $self->blog_dir()) { return 'mkdir ' . $self->blog_dir(); }
+
+	delete $self->{_cache_exists_blog};
+	if (!$self->exists_blog()) { return "table 'art' was not created"; }
+	if (!$self->select_blog())  { return 'select blog'; }
+
+	# 標準のデザインを入れる。作っているのは利用者の操作ではないので、権限を確かめない
+	local($self->{blog_admin}) = 1;
+	$r = $self->load_default_design();
+	if ($r) { return "load default design: $r"; }
 	return 0;
 }
 
@@ -646,27 +635,6 @@ sub create_link_table {
 	$info{notnull} = [ qw(a_pkey link_key) ];
 	$info{ref}     = { };
 	return $self->{DB}->create_table_wrapper("link", \%info);
-}
-
-#-------------------------------------------------------------------------------
-# ●ブログテーブルの削除
-#-------------------------------------------------------------------------------
-sub drop_tables {
-	my $self = shift;
-	my $DB = $self->{DB};
-
-	my $r = 0;
-	$r += $DB->drop_table("link");
-	$r += $DB->drop_table("trashcom");
-	$r += $DB->drop_table("trash");
-	$r += $DB->drop_table("rev");
-	$r += $DB->drop_table("com");
-	$r += $DB->drop_table("tagart");
-	$r += $DB->drop_table("tag");
-	$r += $DB->drop_table("art");
-
-
-	return $r;
 }
 
 ################################################################################

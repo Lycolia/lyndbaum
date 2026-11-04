@@ -130,7 +130,7 @@ sub export {
 
 	my $qr_basepath = $ROBJ->{Basepath};
 	my $qr_myself2  = $aobj->{myself2};
-	my $qr_blogpub  = $aobj->{blogpub_dir};
+	my $qr_blogpub  = $aobj->{pub_dir};
 	my $qr_imgdir   = $ROBJ->{Basepath} . $aobj->blogimg_dir();
 	my $qr_query    = $aobj->{myself} . '?';
 
@@ -195,9 +195,8 @@ sub export {
 	local($ROBJ->{Basepath}) = './';
 	local($auth->{ok})         = undef;
 	local($auth->{id})         = undef;
-	local($aobj->{allow_edit}) = undef;
-	local($aobj->{allow_com})  = undef;
 	local($aobj->{blog_admin}) = undef;
+	local($aobj->{allow_com})  = undef;
 	local($aobj->{theme_dir})   = $static_theme_dir;
 	local($aobj->{script_dir})  = $static_theme_dir;
 

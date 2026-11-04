@@ -11,7 +11,7 @@
 <@>	argv#0	モジュール名（data-module-name。設定もこの名前で読む）
 <@>	argv#1	記事
 <@>
-<$coms = if(v.allow_edit, t.coms_all, t.coms)>
+<$coms = if(v.blog_admin, t.coms_all, t.coms)>
 <@ifexec(t.com_ok || coms, begin)>
 <div class="com-count" data-module-name="<@name>">
 	<span class="element com-caption"><a href="<@v.myself2><@t.elink_key>#com"><span class="com-title">コメント</span><span class="com-num">（<span class="num"><@coms></span>件）</span></a></span>

@@ -18,7 +18,7 @@
 <$permalink = if(t.link_key eq v.blog.frontpage, v.myself, "<@v.myself2><@t.elink_key>")>
 <$url = ServerURL . permalink>
 <$encode_uricom(url)>
-<$coms = if(v.allow_edit, t.coms_all, t.coms)>
+<$coms = if(v.blog_admin, t.coms_all, t.coms)>
 	<$ps = v.load_plgset(name)>
 	<div class="art-info" data-module-name="<@name>" data-fix="1">
 		<@ifexec(ps.hatena_bicon, begin)>

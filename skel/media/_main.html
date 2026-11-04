@@ -6,7 +6,7 @@
 <div class="body">
 	<div id="album-header">
 		<div>
-			<@ifexec(v.allow_edit, begin)>
+			<@ifexec(v.blog_admin, begin)>
 			<label><input type="checkbox" id="all-select">全選択</label><span class="help-text">クリック：選択 / ダブルクリック：表示 / SHIFT+クリック：範囲選択 / CTRL+クリック：ダウンロード</span>
 			<$end>
 		</div>

@@ -18,18 +18,12 @@
 <article class="system">
 <h2>ようこそ</h2>
 	<div class="body">
-	<p>ログインは右上です。</p>
 	<p>このページを書き換えたい時は "skel/_top.html" を "skel.local/_top.html" にコピーして編集してください。</p>
 
-	<@ifexec(Auth.isadmin && !v.exists_blog(), begin)>
-	<p><a href="<@v.myself>?etc/myblog_create">ブログを作成する</a>と、このページの代わりにブログが表示されます。</p>
-	<$end>
+	<p><a href="<@v.myself2>?login_auto">最初の管理者を作ると</a>、このページの代わりにブログが表示されます。</p>
 
 	<@> 初回起動時
-	<$ifexec(!Auth.ok)><$Auth.userdb_init()><$end>
-	<$ifexec(!Auth.exists_admin)>
 	<$ifredirect(Auth.auto, v.myself2 . '?login_auto')>
-	<$end>
 
 	</div>
 </article>

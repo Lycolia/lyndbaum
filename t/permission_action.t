@@ -24,7 +24,7 @@ use AppTest;
 binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
 
 # 権限の低い順
-my @ROLES = qw(guest user editor owner admin);
+my @ROLES = qw(guest admin);
 my %LEVEL = map { $ROLES[$_] => $_ } 0..$#ROLES;
 
 my $PNG = do {
@@ -53,132 +53,124 @@ my @ACTIONS = (
 	#---------------------------------------------------------------
 	# Ajax
 	#---------------------------------------------------------------
-	{ action => '_ajax_user_add', min => 'admin', ok => \&json_ret0,
-	  form => { adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS, email => '', isadmin => 0 } },
-	{ action => '_ajax_user_edit', min => 'admin', ok => \&json_ret0,
-	  form => { id => 'user', name => '名前を変えた' } },
-	{ action => '_ajax_user_delete', min => 'admin', ok => \&json_ret0,
-	  form => { id => 'user' } },
-	{ action => '_ajax_self_change_name', min => 'user', ok => \&json_ret0,
+	{ action => '_ajax_self_change_name', min => 'admin', ok => \&json_ret0,
 	  form => { name => '自分の名前' } },
-	{ action => '_ajax_self_change_pass', min => 'user', ok => \&json_ret0,
+	{ action => '_ajax_self_change_pass', min => 'admin', ok => \&json_ret0,
 	  form => { now_pass => $AppTest::PASS, pass => 'new-pass-5678', pass2 => 'new-pass-5678' } },
 
 	#---------------------------------------------------------------
 	# 記事とコメント
 	#---------------------------------------------------------------
-	{ action => 'edit', min => 'editor',
+	{ action => 'edit', min => 'admin',
 	  form => { title => '新しい記事', body_txt => "本文\n", parser => 'markdown', enable => 1, ymd => '2026-10-02' } },
-	{ action => 'delete', min => 'editor',
+	{ action => 'delete', min => 'admin',
 	  form => { delete_pkey_ary => 1, title => 'editorの記事' } },
-	{ action => 'articles_edit', min => 'editor',
+	{ action => 'articles_edit', min => 'admin',
 	  form => { mode => 'disable', pkey_ary => 1 } },
-	{ action => 'comments_edit', min => 'editor',
+	{ action => 'comments_edit', min => 'admin',
 	  form => { disable => 1, pkey_ary => 1 } },
-	{ action => 'trash', min => 'editor', label => 'trash（戻す）',
+	{ action => 'trash', min => 'admin', label => 'trash（戻す）',
 	  form => { mode => 'restore', pkey_ary => 3 } },
-	{ action => 'trash', min => 'editor', label => 'trash（完全に削除）',
+	{ action => 'trash', min => 'admin', label => 'trash（完全に削除）',
 	  form => { mode => 'purge', pkey_ary => 3 } },
-	{ action => 'trash', min => 'owner', label => 'trash（空にする）',
+	{ action => 'trash', min => 'admin', label => 'trash（空にする）',
 	  form => { mode => 'purge_all' } },
-	{ action => 'ajax_lock', min => 'editor', ok => \&json_any,
+	{ action => 'ajax_lock', min => 'admin', ok => \&json_any,
 	  form => { pkey => 1, sid => 'test' } },
-	{ action => 'ajax_revision', min => 'editor', ok => \&json_any,
+	{ action => 'ajax_revision', min => 'admin', ok => \&json_any,
 	  form => { pkey => 1 } },
 
 	#---------------------------------------------------------------
 	# 画像アルバム
 	#---------------------------------------------------------------
-	{ action => 'media/upload_form', min => 'editor', ok => \&text_ret0,
+	{ action => 'media/upload_form', min => 'admin', ok => \&text_ret0,
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up.png', content => $PNG, type => 'image/png' } ] },
-	{ action => 'media/load_image_files', min => 'editor', ok => \&json_any,
+	{ action => 'media/load_image_files', min => 'admin', ok => \&json_any,
 	  form => { folder => $FOLDER } },
-	{ action => 'media/load_exif_files', min => 'editor', ok => \&json_any,
+	{ action => 'media/load_exif_files', min => 'admin', ok => \&json_any,
 	  form => { folder => $FOLDER } },
-	{ action => 'media/create_folder', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/create_folder', min => 'admin', ok => \&json_ret0,
 	  form => { folder => '/', name => 'new' } },
-	{ action => 'media/rename_folder', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/rename_folder', min => 'admin', ok => \&json_ret0,
 	  form => { folder => '/', old => 'test', name => 'test2' } },
-	{ action => 'media/delete_folder', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/delete_folder', min => 'admin', ok => \&json_ret0,
 	  form => { folder => $FOLDER } },
-	{ action => 'media/rename_file', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/rename_file', min => 'admin', ok => \&json_ret0,
 	  form => { folder => $FOLDER, old => $FILE, name => 'b.png' } },
-	{ action => 'media/move_files', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/move_files', min => 'admin', ok => \&json_ret0,
 	  form => { from => $FOLDER, to => '/', file_ary => $FILE } },
-	{ action => 'media/delete_files', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/delete_files', min => 'admin', ok => \&json_ret0,
 	  form => { folder => $FOLDER, file_ary => $FILE } },
-	{ action => 'media/remake_thumbnail', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/remake_thumbnail', min => 'admin', ok => \&json_ret0,
 	  form => { folder => $FOLDER, file_ary => $FILE, size => 100 } },
-	{ action => 'media/remove_exifjpeg', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/remove_exifjpeg', min => 'admin', ok => \&json_ret0,
 	  form => { folder => $FOLDER, file_ary => $FILE } },
-	{ action => 'media/refresh', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/refresh', min => 'admin', ok => \&json_ret0,
 	  form => {} },
-	{ action => 'media/upload_video_thumbnail', min => 'editor', ok => \&json_ret0,
+	{ action => 'media/upload_video_thumbnail', min => 'admin', ok => \&json_ret0,
 	  form => [ folder => $FOLDER, file => $VIDEO,
 		poster => { filename => 'poster.png', content => $PNG, type => 'image/png' } ] },
-	{ action => 'etc/ajax_upload', min => 'editor', ok => \&json_ret0,
+	{ action => 'etc/ajax_upload', min => 'admin', ok => \&json_ret0,
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up2.png', content => $PNG, type => 'image/png' } ] },
 
 	#---------------------------------------------------------------
 	# ブログの設定
 	#---------------------------------------------------------------
-	{ action => 'set/index', min => 'owner',
+	{ action => 'set/index', min => 'admin',
 	  form => { blog_name => '新しい名前', description_txt => '' } },
-	{ action => 'set/detail', min => 'owner',
+	{ action => 'set/detail', min => 'admin',
 	  form => { load_items => 3 } },
-	{ action => 'set/role', min => 'owner',
-	  form => { admin_users => 'owner', editors => 'editor, user' } },
-	{ action => 'set/editor', min => 'owner',
+	{ action => 'set/editor', min => 'admin',
 	  form => { enable => 0 } },
-	{ action => 'set2/tag_edit', min => 'editor',
+	{ action => 'set2/tag_edit', min => 'admin',
 	  form => { del_ary => 1 } },
-	{ action => 'set2/contents_edit', min => 'editor',
+	{ action => 'set2/contents_edit', min => 'admin',
 	  form => { contents_txt_ary => '1,0,1,new-key' } },
-	{ action => 'set2/usertag', min => 'editor',
+	{ action => 'set2/usertag', min => 'admin',
 	  form => { usertag_txt => "[mytag]\nhtml = <b>\$1</b>\n" } },
-	{ action => 'set2/header', min => 'owner',
+	{ action => 'set2/header', min => 'admin',
 	  form => { html_header_txt => '<meta name="test" content="1">' } },
 
 	#---------------------------------------------------------------
 	# デザイン
 	#---------------------------------------------------------------
-	{ action => 'design/theme', min => 'owner',
+	{ action => 'design/theme', min => 'admin',
 	  form => { theme => 'satsuki2/chie' } },
-	{ action => 'design/edit', min => 'owner',
+	{ action => 'design/edit', min => 'admin',
 	  form => { side_a_ary => 'des_clock' } },
-	{ action => 'design/load_module', min => 'owner', ok => \&no_frame,
+	{ action => 'design/load_module', min => 'admin', ok => \&no_frame,
 	  form => { module_name => 'des_artlist' } },
-	{ action => 'design/reset', min => 'owner',
+	{ action => 'design/reset', min => 'admin',
 	  form => { all => 1 } },
-	{ action => 'design/reinstall_modules', min => 'owner', ok => \&AppTest::is_reload,	# 同じものを入れ直すので、ファイルは変わらない
+	{ action => 'design/reinstall_modules', min => 'admin', ok => \&AppTest::is_reload,	# 同じものを入れ直すので、ファイルは変わらない
 	  form => {} },
-	{ action => 'design/usercss', min => 'owner',
+	{ action => 'design/usercss', min => 'admin',
 	  form => { usercss_txt => 'body { color: red; }' } },
 
 	#---------------------------------------------------------------
 	# プラグインとメンテナンス
 	#---------------------------------------------------------------
-	{ action => 'plugin/index', min => 'owner',
+	{ action => 'plugin/index', min => 'admin',
 	  form => { 'sitemap' => 1 } },
-	{ action => 'plugin/plugin_setting', min => 'owner', ok => \&text_ret0,
+	{ action => 'plugin/plugin_setting', min => 'admin', ok => \&text_ret0,
 	  form => { module_name => 'des_clock' } },
-	{ action => 'plugin/reinstall_plugins', min => 'owner', ok => \&AppTest::is_reload,
+	{ action => 'plugin/reinstall_plugins', min => 'admin', ok => \&AppTest::is_reload,
 	  form => {} },
-	{ action => 'plugin/reset_plugin', min => 'owner', ok => \&text_ret0,
+	{ action => 'plugin/reset_plugin', min => 'admin', ok => \&text_ret0,
 	  form => { name => 'des_clock' } },
-	{ action => 'plugin/reset_plugins', min => 'owner', ok => \&AppTest::is_reload,
+	{ action => 'plugin/reset_plugins', min => 'admin', ok => \&AppTest::is_reload,
 	  form => { name_ary => 'des_clock' } },
-	{ action => 'mainte/blog_rebuild', min => 'owner',
+	{ action => 'mainte/blog_rebuild', min => 'admin',
 	  form => {} },
-	{ action => 'mainte/blog_clear', min => 'owner',
+	{ action => 'mainte/blog_clear', min => 'admin',
 	  form => { yes => 'yes' } },
-	{ action => 'mainte/import', min => 'owner', ok => \&text_ret0,
+	{ action => 'mainte/import', min => 'admin', ok => \&text_ret0,
 	  form => [ type => 'MT', file => { filename => 'import.txt', content => "TITLE: 取り込んだ記事\nDATE: 10/03/2026 12:00:00\n-----\nBODY:\n本文\n-----\n--------\n" } ] },
-	{ action => 'mainte/import_img_init', min => 'owner', ok => \&json_any,
+	{ action => 'mainte/import_img_init', min => 'admin', ok => \&json_any,
 	  form => {} },
-	{ action => 'mainte/import_img', min => 'owner', ok => sub { $_[0]->{status} == 200 && $_[0]->{body} !~ /<title>/i },	# 取り込む画像が無いので、応答は空
+	{ action => 'mainte/import_img', min => 'admin', ok => sub { $_[0]->{status} == 200 && $_[0]->{body} !~ /<title>/i },	# 取り込む画像が無いので、応答は空
 	  form => { pkey => 1 } },
-	{ action => 'mainte/export', min => 'owner', ok => sub { $_[0]->{status} == 200 && $_[0]->{headers}->{'content-type'} !~ m{^text/html} },
+	{ action => 'mainte/export', min => 'admin', ok => sub { $_[0]->{status} == 200 && $_[0]->{headers}->{'content-type'} !~ m{^text/html} },
 	  form => { file => '10_movable_type' } },
 
 	#---------------------------------------------------------------
@@ -196,24 +188,24 @@ my @ACTIONS = (
 	  form => {} },
 	{ action => 'system/remake_custom_css', min => 'admin', ok => \&AppTest::is_reload,
 	  form => {} },
-	{ action => 'etc/init_session', min => 'user', ok => sub { $_[0]->{body} =~ /^snum=/m },
+	{ action => 'etc/init_session', min => 'admin', ok => sub { $_[0]->{body} =~ /^snum=/m },
 	  form => {} },
 );
 
 # 上の表に入れない操作と、その理由
 my %SKIP = (
 	'_ajax_login'       => '誰でも',
+	'_ajax_user_add'    => '管理者がいないとき（root*）だけ（t/operations_user.t）',
 	'comment_post'      => '誰でも（ブログの設定で、コメントできる人を決める）',
 	'etc/dummy'         => '誰でも（何もしない）',
-	'etc/myblog_create' => 'ブログが1つしか作れず、作った後では下限の人でも通らない',
 );
 
 # 上の表に入れない操作を、GETで送るときの中身
 my %SKIP_FORM = (
 	'_ajax_login'       => { adiary_id => 'admin', pass => $AppTest::PASS },
+	'_ajax_user_add'    => { adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS },
 	'comment_post'      => { a_pkey => 1, comment_txt => 'GETのコメント', name => 'admin' },
 	'etc/dummy'         => {},
-	'etc/myblog_create' => { load_design => 1 },
 );
 
 #-------------------------------------------------------------------------------
@@ -249,7 +241,7 @@ my $snap = $app->snapshot();
 #-------------------------------------------------------------------------------
 # フォームの中身をクエリにして、システム管理者で送る。送り方は2通り
 #	?action=操作&名前=値...
-#	?操作の画面&action=操作&名前=値...（set/role のように、画面と同じ名前の操作を、その画面のURLで送る）
+#	?操作の画面&action=操作&名前=値...（set/detail のように、画面と同じ名前の操作を、その画面のURLで送る）
 # ファイル（multipartで送るもの）はクエリにできないので、ファイル名だけを入れる
 sub get_queries {
 	my ($action, $form) = @_;

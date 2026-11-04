@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.29;
+our $VERSION    = 4.32;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
-our $OUTVERSION = "$VERSION"."$BRANCH_VERSION";
-our $DATA_VERSION = 4.29;
+our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
+our $DATA_VERSION = 4.32;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -56,7 +56,6 @@ sub new {
 
 	# ディフォルト値の設定
 	$self->SetDefaultValue();
-	$self->{_loaded_bset} = {};
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
 
 	# Cache環境向け Timer のロード
@@ -166,7 +165,7 @@ sub main {
 	$self->secure_http_host();
 
 	# 外部HTTPリクエストのUser-Agent
-	$ROBJ->{HttpAgent} = "$SYSTEM_NAME v$VERSION" . ($sys->{ServerURL} ? " ($sys->{ServerURL})" : '');
+	$ROBJ->{HttpAgent} = "$SYSTEM_NAME v$OUTVERSION" . ($sys->{ServerURL} ? " ($sys->{ServerURL})" : '');
 
 	# pinfoとブログの選択。テーマ選択
 	$self->select_blog_and_pinfo();
@@ -182,13 +181,11 @@ sub main {
 	# 表示スケルトン選択
 	$self->select_skeleton( $ROBJ->{Query}->{_} || $self->{query0} );
 
-	#-------------------------------------------------------------
-	# パスワードの再設定（bcryptで保存されていないユーザー）
-	#-------------------------------------------------------------
-	# 管理者でアップデートが要るときは、アップデート処理の画面で再設定する
-	my $auth = $ROBJ->{Auth};
-	if ($auth->{ok} && $auth->{need_pass_reset} && !($auth->{isadmin} && $self->{require_update})) {
-		$self->force_pass_reset();
+	# ブログを読めないときは、何も処理せず知らせるだけ
+	if ($self->{blog_error}) {
+		$ROBJ->{POST} = 0;
+		$ROBJ->set_status(503);
+		$self->{skeleton} = '_sub/blog_error';
 	}
 
 	#-------------------------------------------------------------
@@ -200,6 +197,7 @@ sub main {
 		# メンテナンスモード
 		if ($sys->{mainte_mode} || $self->{require_update}) { $self->mainte_mode(); }
 	}
+	$action = $ROBJ->{POST} && $ROBJ->{Form}->{action};	# メンテナンスモードで止めた操作は行わない
 
 	#-------------------------------------------------------------
 	# POST actionの呼び出し
@@ -283,8 +281,15 @@ sub select_blog_and_pinfo {
 
 	my @pinfo   = @{ $ROBJ->read_path_info() };	# PATH_INFO
 
-	# ブログは1つだけ。ブログが無いときも選択して内部変数を初期化すること
+	# ブログは1つだけ。無ければ作る。アップデートが要るときは、処理の後に作る
+	if (!$self->{require_update} && !$self->exists_blog()) {
+		$self->blog_auto_create();
+	}
 	$self->select_blog();
+	if (!$self->{blog} && !$self->{require_update}) {
+		$self->{blog_error} = 1;
+		print STDERR "$self->{SYSTEM_NAME}: blog is not available. Check " . $self->blog_dir() . " and the blog tables.\n";
+	}
 
 	# テーマの設定（$self->{blog}->{theme} と書くと、ブログが無いときに空のハッシュができる）
 	my $theme = ($self->{blog} || {})->{theme};
@@ -357,7 +362,10 @@ sub select_default_skeleton {
 	my $self = shift;
 	my $mode = shift || $self->{pinfo};
 	my $blog = $self->{blog};
-	if ($mode eq '' && !$self->exists_blog()) {
+	# 最初の管理者を作るまでは、案内を出す。記事があれば、ユーザーのテーブルを見に行かない
+	my $auth = $self->{ROBJ}->{Auth};
+	if ($mode eq '' && !$blog->{arts}) { $auth->userdb_init(); }
+	if ($mode eq '' && !$blog->{arts} && !$auth->{exists_admin}) {
 		return $self->{top_skeleton};
 	} elsif ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
 		return ($self->{view_event} = $self->{article_skeleton});
@@ -406,7 +414,7 @@ sub output_html {
 # ■ブログの存在確認と設定ロード
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログが作られているか	※キュッシュ仕様を変更したら blog_create も変更すること!!
+# ●ブログが作られているか
 #-------------------------------------------------------------------------------
 sub exists_blog {
 	my $self = shift;
@@ -419,21 +427,20 @@ sub exists_blog {
 #-------------------------------------------------------------------------------
 # ※書き換えは瞬時に反映され、$blog->{_update}=1 ならばプログラム終了時に保存される。
 sub load_blogset {
-	my ($self, $default) = @_;	# '*' = 新しいブログの既定値
+	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $key  = $default eq '*' ? '*' : '';
-	if ($self->{_loaded_bset}->{$key}) { return $self->{_loaded_bset}->{$key}; }
-	if ($key eq '' && !$self->exists_blog()) { return undef; }
+	if ($self->{_loaded_bset}) { return $self->{_loaded_bset}; }
+	if (!$self->exists_blog()) { return undef; }
 
 	my $file = $self->blog_dir() . 'setting.dat';
-	if ($key eq '*' || !-e $file) {
+	if (!-e $file) {
 		$file = $self->{default_setting_file};
 	}
 
 	# 設定のロード
 	my $blog = $ROBJ->fread_hash_cached($file);
 	if (%$blog) {
-		$self->{_loaded_bset}->{$key} = $blog;
+		$self->{_loaded_bset} = $blog;
 	}
 	return $blog;
 }
@@ -447,17 +454,27 @@ sub select_blog {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
 
-	$self->unselect_blog();
+	# 内部変数の初期化（選び直すときは、前の登録も消す）
+	$self->{myself}  = $ROBJ->{myself};
+	$self->{myself2} = $ROBJ->{myself2};
+	$self->{blog}       = undef;
+	$self->{allow_view} = undef;
+	$self->{allow_com}  = undef;
+	$self->{blog_admin} = undef;
+	$self->{blog_dir} = $self->blog_dir();
+	$self->{blogpub_dir} = $self->{pub_dir};	# 4.31までの生成物（アップデート処理で作り直すまで使う）
+	$ROBJ->{Change_hour} = 0;
+	$self->{now} = $ROBJ->{Now};
+	$self->delete_blog_skeleton();
+
 	my $blog = $self->load_blogset();
 	if (!$blog || !%$blog) { return; }	# ブログが無い
 
-	$self->set_blog_permission($self, $blog);
+	$self->set_blog_permission($blog);
 
 	# ブログ情報設定
 	$self->{blog}        = $blog;
-	$self->{allow_view}  = 1;	# ブログを選べた。ブログが無いときは立たない
-	$self->{blog_dir}    = $self->blog_dir();
-	$self->{blogpub_dir} = $self->blogpub_dir();
+	$self->{allow_view}  = 1;	# ブログを選べた。アップデート前でブログが無いときは立たない
 	# ブログ個別スケルトンの登録（プラグイン等で生成される）
 	if (!$self->{stop_all_plugins}) {
 		$ROBJ->regist_skeleton($self->{blog_dir} . 'skel/', $self->{user_skeleton_level});
@@ -474,28 +491,11 @@ sub select_blog {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの選択の解除（内部変数の初期化）
+# ●ブログ用に登録したスケルトンを外す
 #-------------------------------------------------------------------------------
-sub unselect_blog {
+sub delete_blog_skeleton {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-
-	# myself設定
-	$self->{myself}     = $ROBJ->{myself};
-	$self->{myself2}    = $ROBJ->{myself2};
-
-	# 内部変数初期化
-	$self->{blog}   = undef;
-	$self->{allow_view} = undef;
-	$self->{allow_edit} = undef;
-	$self->{allow_com}  = undef;
-	$self->{blog_admin} = undef;
-	$self->{blog_dir}    = undef;
-	$self->{blogpub_dir} = undef;
-	$ROBJ->{Change_hour} = 0;
-	$self->{now} = $ROBJ->{Now};
-
-	# スケルトン登録の削除
 	$ROBJ->delete_skeleton($self->{user_skeleton_level});
 	$ROBJ->delete_skeleton($self->{theme_design_skeleton_level});
 }
@@ -504,46 +504,15 @@ sub unselect_blog {
 # ●ブログの権限設定
 #-------------------------------------------------------------------------------
 sub set_blog_permission {
-	my $self = shift;
-	my $h    = shift;
-	my $blog = shift;
-	my $ROBJ = $self->{ROBJ};
+	my ($self, $blog) = @_;
+	my $isadmin = $self->{ROBJ}->{Auth}->{isadmin};
 
-	# 設定を解釈
-	my $auth   = $ROBJ->{Auth};
-	my $authok = $auth->{ok};
-	my $authid = $auth->{id};
-	if ($auth->{isadmin}) {	# 管理者は許可
-		$h->{blog_admin} = 1;
-		$h->{allow_edit} = 1;
-		$h->{allow_com}  = 1;
-		return;
-	}
+	# ユーザーは管理者1人だけ
+	$self->{blog_admin} = $isadmin;
+	$self->{allow_edit} = $isadmin;	# 4.31までの生成物（アップデート処理で作り直すまで使う）
 
-	# 記事の執筆／編集許可を判別
-	if ($authok) {
-		$h->{blog_admin} = $h->users_check($blog->{admin_users}, $authid);
-		$h->{allow_edit} = $h->{blog_admin} || $h->users_check($blog->{editors}, $authid);
-	}
-
-	# コメントの許可
-	my $allow_com = $blog->{allow_com_users};
-	if ($allow_com eq '*' || ($allow_com eq 'user*' && $authok)) {
-		$self->{allow_com} = 1;
-	} elsif ($allow_com ne '' && $authok) {
-		$self->{allow_com} = $self->users_check($allow_com, $authid);
-	}
-}
-
-#--------------------------------------
-# 許可ユーザー判別
-#--------------------------------------
-sub users_check {
-	my ($self,$users,$uid) = @_;
-	if ($users eq '*') { return 1; }
-	if ($uid eq '') { return 0; }
-	$users =~ s|\s*,\s*|,|g;
-	return (0 <= index(",$users,",",$uid,")) ? 1 : 0;
+	# コメントできるのは、誰でもか管理者だけ
+	$self->{allow_com} = ($isadmin || $blog->{allow_com_users} eq '*') ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------
@@ -552,14 +521,11 @@ sub users_check {
 sub save_blogset_sys {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $x = $self->{'_loaded_bset'};
+	my $h = $self->{_loaded_bset};
 
-	foreach(keys(%$x)) {
-		my $h = $x->{$_};
-		if ($_ eq '*' || ref($h) ne 'HASH' || !$h->{_update}) { next; }
-		delete $h->{_update};
-		$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
-	}
+	if (!$h || !$h->{_update}) { return; }
+	delete $h->{_update};
+	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
 }
 
 ################################################################################
@@ -665,7 +631,7 @@ sub load_articles_current_blog {
 	$opt->{loads}     = $opt->{load_items} || $blog->{load_items};
 	$opt->{blog_only} = $blog->{separate_blog};
 
-	if ($self->{allow_edit}) {
+	if ($self->{blog_admin}) {
 		$opt->{load_hidden} = 1;
 	}
 	return $self->load_articles($mode, $query, $opt);
@@ -677,7 +643,7 @@ sub load_articles_current_blog {
 sub load_article_current_blog {
 	my ($self, $mode, $query, $opt) = @_;
 
-	if ($self->{allow_edit}) {
+	if ($self->{blog_admin}) {
 		$opt->{load_hidden} = 1;
 		$opt->{load_draft}  = 1;
 	}
@@ -715,7 +681,6 @@ sub load_articles {
 	my $DB   = $self->{DB};
 
 	# ブログが無い
-	if (!$self->{allow_view}) { return []; }
 	my $blog = $self->{blog};
 
 	#-------------------------------------------------------------
@@ -1190,13 +1155,13 @@ sub load_comments_current_blog {
 	if (ref($a_pkey)) {
 		my $art = $a_pkey;
 		$a_pkey = $art->{pkey};
-		if (!$art->{coms_all} || !$self->{allow_edit} && !$art->{coms}) {
+		if (!$art->{coms_all} || !$self->{blog_admin} && !$art->{coms}) {
 			return [];
 		}
 	}
 
 	if (!exists($opt->{enable_only})) {
-		$opt->{enable_only} = $self->{allow_edit} ? 0 : 1;
+		$opt->{enable_only} = $self->{blog_admin} ? 0 : 1;
 	}
 	$opt->{loads} = $num ? $num : undef;
 
@@ -1214,7 +1179,6 @@ sub load_comments {
 	my $self = shift;
 	my ($a_pkey, $opt) = @_;
 	my $DB   = $self->{DB};
-	if (!$self->{allow_view}) { return []; }	# ブログが無い
 
 	# コメントのロード
 	my $loads  = $opt->{loads} ne '' ? int($opt->{loads}) : undef;
@@ -1242,7 +1206,7 @@ sub load_comments {
 #-------------------------------------------------------------------------------
 # ●管理者が書いたコメントに印を付ける
 #-------------------------------------------------------------------------------
-# ブログの管理者かシステムの管理者が書いたコメントに by_admin=1 を付ける
+# 管理者が書いたコメントに by_admin=1 を付ける
 #
 sub set_comment_by_admin {
 	my $self = shift;
@@ -1257,7 +1221,7 @@ sub set_comment_by_admin {
 	foreach(@$comments) {
 		my $id = $_->{id};
 		if ($id eq '') { next; }
-		$_->{by_admin} = ($ids->{$id} || $self->users_check($self->{blog}->{admin_users}, $id)) ? 1 : 0;
+		$_->{by_admin} = $ids->{$id} ? 1 : 0;
 	}
 	return $comments;
 }
@@ -1402,7 +1366,7 @@ sub load_jscss_events {
 
 	$name =~ tr/a-z/A-Z/;
 	my $evt = $self->{blog}->{"event:$name"};
-	my $dir = $self->{blogpub_dir} . 'plugin/';	# plugin_pub_dir（adiary_4.pm）。公開画面で毎回通るので、ここでは読み込まない
+	my $dir = $self->{pub_dir} . 'plugin/';	# plugin_pub_dir（adiary_4.pm）。公開画面で毎回通るので、ここでは読み込まない
 
 	my @ary;
 	foreach(split("\n", $evt)) {
@@ -1511,7 +1475,6 @@ sub save_sysdat {
 sub load_tag_cache {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-	if (!$self->{allow_view}) { return [ {} ]; }	# ブログが無い（0番目は名前からpkeyへの表）
 
 	my $file = $self->blog_dir() . "tag_cache.txt";
 	return $ROBJ->fread_lines_cached($file, {
@@ -1665,13 +1628,9 @@ sub blog_dir {
 	my $self = shift;
 	return "$self->{data_dir}blog/";
 }
-sub blogpub_dir {
-	my $self = shift;
-	return $self->{pub_dir};
-}
 sub blogimg_dir {
 	my $self = shift;
-	return $self->blogpub_dir() . 'attachments/';
+	return $self->{pub_dir} . 'attachments/';
 }
 
 #-------------------------------------------------------------------------------
@@ -1817,7 +1776,7 @@ sub link_key_encode {
 #-------------------------------------------------------------------------------
 sub load_rss_files {
 	my $self = shift;
-	return [ split(',', ($self->{blog} || {})->{rss_files}) ];
+	return [ split(',', $self->{blog}->{rss_files}) ];
 }
 
 #-------------------------------------------------------------------------------
@@ -1874,22 +1833,8 @@ sub regist_post_html {
 # ●記事編集権限チェック
 #-------------------------------------------------------------------------------
 sub check_editor {
-	my $self  = shift;
-	if (!$self->{allow_edit}) { return 0; }
-	# 管理者か制限かかってなければ許可
-	if ($self->{blog_admin} || !$self->{blog}->{edit_by_author_only}) {
-		return 1;
-	}
-	# id確認
-	my $artid = shift;
-	my $auth = $self->{ROBJ}->{Auth};
-	$artid = ref($artid) ? $artid->{id} : $artid;
-	if ($artid =~ /^\d+$/) {
-		my $h = $self->{DB}->select_match_limit1("art", 'pkey', $artid, '*cols', ['id']);
-		if (!$h) { return ; }
-		$artid = $h->{id};
-	}
-	return ($auth->{id} eq $artid);
+	my $self = shift;
+	return $self->{blog_admin} ? 1 : 0;
 }
 
 #---------------------------------------------------------------------

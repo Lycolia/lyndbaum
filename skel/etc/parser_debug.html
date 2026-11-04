@@ -1,5 +1,5 @@
 <@7>
-<$ifbreak(!Develop || !v.allow_edit)>
+<$ifbreak(!Develop || !v.blog_admin)>
 <@local(ret,s,t,t2,c,permalink)>
 <$s = v.blog>
 
@@ -9,10 +9,7 @@
 <$art_mon  = ret.mon>
 <$art_day  = ret.day>
 
-<@ifexec(!v.allow_view, begin)>
-	<$message("ブログがまだ作られていません")>
-<$end>
-<$ifexec(v.allow_view && !t, begin)>
+<$ifexec(!t, begin)>
 	<$message("該当する記事がありません")>
 <$end>
 <$ifjump_clear(!t || @Message, "_sub/error_message_404")>
@@ -41,7 +38,7 @@
 <textarea rows="20" class="w100p" readonly><@t.text_s></textarea>
 <$end>
 </div>
-	<$coms = if(v.allow_edit, t.coms_all, t.coms)>
+	<$coms = if(v.blog_admin, t.coms_all, t.coms)>
 	<div class="body-footer">
 	<@ifexec(t.com_ok || coms, begin)>
 		<span class="element com-caption"><a href="<@v.myself2><@t.elink_key>#com"><span class="com-title">コメント</span><span class="com-num">（<span class="num"><@coms></span>件）</span></a></span>

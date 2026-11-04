@@ -9,7 +9,7 @@
 <$ifjump(!Auth.ok && ENV.REQUEST_METHOD ne 'POST', 'login')>
 
 <@> ブログが存在しない or 権限がない
-<$ifjump_clear(! v.allow_edit, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
+<$ifjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
 
 <@> 編集モードなら記事をロード
 <$ifexec(v.pinfo, begin, begin)>
@@ -48,7 +48,7 @@
 <$ifjump_clear(@Message, '_sub/error_message', undef, 'ブラウザの戻るボタンで戻ってください')>
 
 <@> 他人の記事は編集できない？
-<$ifjump_clear(edit_pkey && !v.check_editor(art), '_sub/error_message', '他人の記事は編集できません。')>
+<$ifjump_clear(edit_pkey && !v.check_editor(art), '_sub/error_message', '権限がありません')>
 
 <@> スクリプトをロード
 <$v.regist_js("<@v.script_dir>edit.js")>
@@ -222,7 +222,7 @@
 		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>コンテンツページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
 		<ul id="content-block" style="display: none">
-			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.blogpub_dir>contents.json?<@v.blog.json_tm>">
+			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>">
 				<option value="0">*トップ(root)</option>
 			</select></li>
 			<li>コンテンツkey<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"><span class="help-text">"FrontPage", "top", "index"のいずれかを指定するとブログトップの固定記事になります。</span></li>
@@ -332,7 +332,7 @@
 </div>
 <details id="tag-select-details">
 <summary>一覧から選ぶ</summary>
-<div><select name="taglist" id="tag-select" data-url="<@Basepath><@v.blogpub_dir>taglist.json?<@v.blog.json_tm>">
+<div><select name="taglist" id="tag-select" data-url="<@Basepath><@v.pub_dir>taglist.json?<@v.blog.json_tm>">
 	<option value="" class="special" data-new="1">【タグを選択】</option>
 </select></div>
 </details>

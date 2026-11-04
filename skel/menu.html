@@ -1,5 +1,5 @@
 <@7>
-<@local(glance_arts,glance_coms,trash)>
+<@local(glance_arts,glance_coms,trash,need_info)>
 <$ifjump_clear(! Auth.ok, '_sub/error_message_403', 'ログインしていません')>
 
 <@> システムモード
@@ -16,16 +16,18 @@
 <@parse_special_block>
 
 <!--=========================================================================-->
+<@> 知らせがあるときだけ出す。アップデートが必要なときの知らせは、管理画面の枠（_sub/require_update_notice）で出す
+<$need_info = Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2)>
+<@ifexec(Auth.auto || need_info || v.blog.newcom_flag, begin)>
 <article class="system">
-<h2><@v.title></h2>
+<h2>お知らせ</h2>
 <div class="body">
 	<@ifexec(Auth.auto, begin)>
-		<p><a href="<@myself>?user/add">最初のユーザーを追加してください</a></p>
+		<p><a href="<@myself>?user/add">最初に管理者を作ってください</a></p>
 	<$end>
 
 <@ifexec(!Auth.auto, begin)>
-	<@> アップデートが必要なときの知らせは、管理画面の枠（_sub/require_update_notice）で出す
-	<@ifexec(Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2), begin)>
+	<@ifexec(need_info, begin)>
 		<p><a href="<@v.myself>?system/update">付加情報の再生成</a>が必要です。</p>
 	<$end>
 
@@ -33,16 +35,10 @@
 	<span class="admin-new-badge">新着</span> コメントがあります &gt;<a href="<@v.myself>?comlist">コメント一覧から確認</a><br>
 	<$end>
 
-	<@ifexec(Auth.isadmin && !v.exists_blog(), begin)>
-	<ul class="menu">
-		<li><a href="<@myself>?etc/myblog_create">ブログを作成</a></li>
-	</ul>
 	<$end>
-<$end>
-
-	<p>ユーザー <@Auth.id><@if(Auth.isadmin, '（システム管理者）')></p>
 </div>
 </article>
+<$end>
 
 <@>
 <@> 概要の1行。argv : 種類（art/page）, 公開（1/0/draft）, 見出し
@@ -66,9 +62,9 @@
 	<li><a href="<@v.myself>?comlist&amp;hold=<@argv#0>"><@argv#1></a><span class="dashboard-count"><@int(r.hits)>件</span></li>
 <$end>
 
-<@ifexec(!Auth.auto && v.allow_view, begin)>
+<@ifexec(!Auth.auto, begin)>
 <div class="dashboard-cards">
-	<@ifexec(v.allow_edit, begin)>
+	<@ifexec(v.blog_admin, begin)>
 	<$trash = v.load_trash_list()>
 	<article class="system">
 	<h2>概要</h2>

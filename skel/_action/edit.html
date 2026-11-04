@@ -1,6 +1,6 @@
 <@20>
 <@local(art)>
-<$ifbreak(!v.allow_edit)>
+<$ifbreak(!v.blog_admin)>
 
 <$ifexec(Form.edit_pkey_int && !v.check_editor(Form.edit_pkey_int), begin)>
 	<$message("他人の記事は編集できません")>

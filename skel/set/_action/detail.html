@@ -1,9 +1,6 @@
 <@20>
 <@local(h)>
-<$ifbreak(! v.blog_admin && ! Auth.isadmin)>
-
-前処理
-<$ifset(Form.allow_com_sel ne '' , Form.allow_com_users, Form.allow_com_sel)>
+<$ifbreak(! v.blog_admin)>
 
 <$h = validator(begin_hash, Form)>
 	load_items = ブログトップの記事表示件数
@@ -23,7 +20,7 @@
 	fp_title:filter1 = tag
 
 	allow_com_users = コメント許可対象
-	allow_com_users:filter0 = reg_del:[^\*\w,]
+	allow_com_users:filter0 = reg_del:[^\*]
 
 	defer_com = コメント保留機能
 	defer_com:type = int

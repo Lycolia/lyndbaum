@@ -45,7 +45,7 @@ sub login_ret {
 my $lock_no = 0;
 sub locked_after_2_fails {
 	my $id = 'lock' . ++$lock_no;
-	$app->user_add('admin', $id, 0);
+	$app->insert_user($id);
 	login_ret($id, 'wrong-pass') foreach (1..2);
 	return login_ret($id, $AppTest::PASS) ne '0';
 }
@@ -115,7 +115,7 @@ subtest 'ユーザー設定で値を変えられる' => sub {
 #-------------------------------------------------------------------------------
 subtest 'アップロード' => sub {
 	mkdir("$dir/pub/attachments");
-	my $r = $app->post('editor', '', { action => 'media/create_folder', folder => '/', name => 'test' });
+	my $r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'test' });
 	is(($r->{json} || {})->{ret}, 0, 'アルバムのフォルダを作る');
 
 	my $upload = sub {
@@ -124,19 +124,19 @@ subtest 'アップロード' => sub {
 			file_ary => { filename => $name, content => 'x' x $size, type => 'text/plain' } ]);
 		return -e "$dir/pub/attachments/test/$name";
 	};
-	ok($upload->('editor', 'small.txt', 2048), 'ログインしていれば、マルチパートで送れる');
+	ok($upload->('admin', 'small.txt', 2048), 'ログインしていれば、マルチパートで送れる');
 	ok(!$upload->('guest', 'guest.txt', 2048), 'ログインしていなければ、マルチパートは受け付けない');
 
 	# 1MBを超えると一時ファイルに書く。一時フォルダの場所はユーザー設定で変えられる
 	write_file($user, "$PRAGMA<\$Temp = 'data/tmp2/'>\n");
-	ok($upload->('editor', 'big.txt', 1048576 + 1024), '1MBを超えるファイルを送れる');
+	ok($upload->('admin', 'big.txt', 1048576 + 1024), '1MBを超えるファイルを送れる');
 	is(-s "$dir/pub/attachments/test/big.txt", 1048576 + 1024, '中身が欠けない');
 	ok(-d "$dir/data/tmp2", 'ユーザー設定の一時フォルダを使う');
 
 	write_file($user, "$PRAGMA<\$v.uplaod_files_max = 1K>\n");
-	ok(!$upload->('editor', 'over.txt', 2048), 'ユーザー設定の上限を超えると受け付けない');
+	ok(!$upload->('admin', 'over.txt', 2048), 'ユーザー設定の上限を超えると受け付けない');
 	unlink($user);
-	ok($upload->('editor', 'again.txt', 2048), 'ユーザー設定を消すと、既定の上限に戻る');
+	ok($upload->('admin', 'again.txt', 2048), 'ユーザー設定を消すと、既定の上限に戻る');
 };
 
 #-------------------------------------------------------------------------------
@@ -164,7 +164,7 @@ subtest 'ユーザー設定が書けないときは、今までの設定ファ�
 	plan skip_all => 'rootではフォルダの権限で止められない' if ($> == 0);
 	set_version('4.27');
 	chmod(0555, $dir) || die;
-	my $r = $app->post('admin', 'system/update', { action => 'system/update' });
+	my $r = $app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 });
 	chmod(0755, $dir) || die;
 	ok(AppTest::is_reload($r), 'アップデート処理を行える');
 	ok(!-e $user, 'ユーザー設定はできない');
@@ -176,10 +176,10 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	write_file("$dir/data/default_setting.dat", "enable=1\n");
 	write_file($env, "$PRAGMA# 開発用\n<\$ENV_print = 0>\n");
 	set_version('4.27');
-	my $done = $app->post('admin', 'system/update', { action => 'system/update' });
+	my $done = $app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 });
 	ok(AppTest::is_reload($done), 'アップデート処理を行える');
 	like(body($done), qr{Auth\.fail_count = 2}, '画面の範囲の外の値を知らせる');
-	like(read_file($sys), qr/^VERSION=4\.29$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.32$/m, '版が上がる');
 
 	my $u = read_file($user);
 	my $s = read_file($sys);
@@ -222,7 +222,7 @@ subtest 'admin_trust_modeとAuth.start_upの行があれば、足さない' => s
 	unlink($user);
 	write_file($conf, $sample);
 	set_version('4.27');
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
 	ok(-e $user, 'ユーザー設定ができる');
 	unlike(read_file($user), qr/^<\$/m, '4.27の見本と同じなら、中身は無い');
 	ok(!-e $conf, '今までの設定ファイルは無くなる');
@@ -232,7 +232,7 @@ subtest 'ユーザー設定があれば、移行の処理をしない' => sub {
 	my $text = "$PRAGMA<\$v.uplaod_files_max = 128M>\n";
 	write_file($user, $text);
 	set_version('4.27');
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update', remove_other_users => 1 })), 'アップデート処理を行える');
 	is(read_file($user), $text, 'ユーザー設定は変わらない');
 };
 

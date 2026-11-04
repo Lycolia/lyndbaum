@@ -18,9 +18,7 @@
 <$end>
 
 <@> OGP/Twitter Cards
-<$ifexec(Develop || index(ENV.HTTP_USER_AGENT, 'Mozilla/')<0, begin)>
-	<$call('_sub/set_ogp', 'website', v.myself)>
-<$end>
+<$call('_sub/set_ogp', 'website', v.myself)>
 
 
 <@> dayモードでの処理
@@ -37,17 +35,13 @@
 	<$end>
 <$end>
 
-<@ifexec(!v.allow_view, begin, begin)>
-	<@> ブログが無いときは404
-	<$set_status(404)>
-	<$message("ブログがまだ作られていません")>
-<$else>
+
   <$ifexec(##logs==-1, begin)>
 	<@> 検索などで見つからないときと、/99 のような数字だけのURL（コンテンツの名前として探す）で無いときは404
 	<$ifset_status(v.query ne '' || v.pinfo ne '', 404)>
 	<$message("該当する記事がありません")>
   <$end>
-<$end>
+
 
 <@><!--========================================================================-->
 <$page = ret.page>
@@ -166,9 +160,6 @@
 <div class="body">
 	<div class="messages"><@join("\n", Message)></div>
 
-	<@if(Auth.isadmin && !v.exists_blog(), #'<p><a href="<@v.myself>?etc/myblog_create">ブログを作成する</a></p>')>
-
-	<@if(Auth.ok && !v.allow_view, #'<p><a href="<@v.myself>?menu">管理メニューに移動</a></p>')>
 	
 </div>
 </article>

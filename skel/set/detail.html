@@ -12,7 +12,6 @@
 <$s = set>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.allow_com_users)>
 <$end>
 
 <!--=========================================================================-->
@@ -73,11 +72,8 @@
 	</tr>
 	<tr><th>コメント許可対象</th>
 		<td>
-		<label><input type="radio" class="js-enable" data-state="0" data-target="#allow-com-users" name="allow_com_sel" value="*"<@if(s.allow_com_users eq '*', ' checked')>>誰でも</label>
-		<label><input type="radio" class="js-enable" data-state="1" data-target="#allow-com-users" name="allow_com_sel" value="user*"<@if(s.allow_com_users eq 'user*', ' checked')>>ユーザーのみ</label>
-		<label><input type="radio" class="js-enable" data-state="1" data-target="#allow-com-users" name="allow_com_sel" value=""<@if(s.allow_com_users ne '*' && s.allow_com_users ne 'user*', ' checked')>>ID指定（「,」区切り）</label><br>
-		<input type="text" name="allow_com_users" id="allow-com-users" class="w320"  value="<@if(s.allow_com_users ne '*' && s.allow_com_users ne 'user*', s.allow_com_users)>">
-		<span class="help-text">ユーザーのみ：ログインできる人のみに限定します</span>
+		<label><input type="radio" name="allow_com_users" value="*"<@if(s.allow_com_users eq '*', ' checked')>>誰でも</label>
+		<label><input type="radio" name="allow_com_users" value=""<@if(s.allow_com_users ne '*', ' checked')>>管理者のみ</label>
 		</td>
 	</tr>
 	<tr><th>コメント保留</th>
