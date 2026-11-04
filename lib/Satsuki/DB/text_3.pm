@@ -146,7 +146,7 @@ sub index_rebuild {
 
 	my $dir = $self->{dir} . $table . '/';
 	my $index_backup_file = $dir . $self->{index_backup_file};
-	if (!-r $index_backup_file) { return 1; }
+	if (!-r $index_backup_file || !-s $index_backup_file) { return 1; }
 
 	# バックアップの読み込み
 	my $index_file_orig = $self->{index_file};

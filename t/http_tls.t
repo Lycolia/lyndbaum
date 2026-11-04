@@ -27,6 +27,17 @@ if (system('openssl version >/dev/null 2>&1') != 0) {
 	plan skip_all => 'opensslコマンドがありません';
 }
 
+# テストの接続先は127.0.0.1の空いているポートなので、接続先の制限を外す（制限はt/http_restrict.t）
+{
+	no warnings 'redefine';
+	my $new = \&Satsuki::Base::HTTP::new;
+	*Satsuki::Base::HTTP::new = sub {
+		my $http = $new->(@_);
+		$http->{allow_internal} = 1;
+		return $http;
+	};
+}
+
 my $dir = File::Temp::tempdir('adiary-tls-XXXXXX', TMPDIR => 1, CLEANUP => 1);
 my @servers;
 

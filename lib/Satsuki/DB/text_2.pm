@@ -66,15 +66,18 @@ sub insert {
 	push(@$db, $h);			# add
 	$self->add_unique_hash($table,$h);
 
-	# 保存
-	$self->write_rowfile($table, $h);
-	my $r = $self->save_index($table);
-	if ($r) { return 0; }	# 失敗
-
-	# pkey書き換え
-	if ($h->{pkey}>0 && $pkey>$self->{"$table.serial"}) {
+	# pkey書き換え。indexと一緒に保存するので、save_indexより先に行う
+	if ($pkey>$self->{"$table.serial"}) {
 		$self->{"$table.serial"} = $pkey;
 	}
+
+	# 保存
+	if ($self->write_rowfile($table, $h)) {
+		$self->edit_index_exit($table);
+		return 0;	# 失敗
+	}
+	my $r = $self->save_index($table);
+	if ($r) { return 0; }	# 失敗
 
 	return $pkey;		# 成功
 }
@@ -673,14 +676,18 @@ sub generate_pkey {
 	# 編集準備
 	my $dir   = $self->{dir} . $table . '/';
 	my $index = $dir . $self->{index_file};
-	if (!-e $index && -e $dir) { $self->index_rebuild( $table ); }
+	if (!-s $index && -e $dir) { $self->index_rebuild( $table ); }	# 無いか空
 
 	# indexをopenしてlockをかける
 	my $fh;
-	if ( !sysopen($fh, $index, O_RDWR) ) {
-		return 0;
+	while (1) {
+		if ( !sysopen($fh, $index, O_RDWR) ) {
+			return 0;
+		}
+		$ROBJ->write_lock($fh);
+		if (!$ROBJ->file_replaced($fh, $index)) { last; }
+		close($fh);
 	}
-	$ROBJ->write_lock($fh);
 	binmode($fh);
 
 	# データを読み出し
@@ -805,10 +812,10 @@ FUNC
 
 	my $r;
 	if (exists $self->{"$table.lock"}) {
-		$r = $ROBJ->fedit_writelines($self->{"$table.lock"}, \@lines);
+		$r = $ROBJ->fedit_replace($self->{"$table.lock"}, $index, \@lines);
 		delete $self->{"$table.lock"};	# unlock
 	} else {
-		$ROBJ->fwrite_lines($index, \@lines);
+		$r = $ROBJ->fwrite_atomic($index, \@lines);
 	}
 	# 失敗
 	if ($r) { $self->clear_cache($table); return $r; }

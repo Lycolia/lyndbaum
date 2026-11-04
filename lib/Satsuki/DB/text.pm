@@ -457,7 +457,7 @@ sub load_index {
 	# ロード準備
 	my $dir   = $self->{dir} . $table . '/';
 	my $index = $dir . $self->{index_file};
-	if (!-e $index) {
+	if (!-s $index) {	# 無いか空
 		if (-e $dir) { $self->index_rebuild( $table ); }
 		else {
 			$self->error("Table '$table' not found!");

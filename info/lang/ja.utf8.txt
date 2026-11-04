@@ -94,6 +94,9 @@ Don't use ordering hash (contaion variable key) in '%s'=変数keyが含まれる
 # error
 #-----------------------------------------------------------
 Can't find host '%s'=%s が見つかりません
+Can't connect to port %d=ポート %d には接続できません（80番と443番だけ）
+Can't connect to internal address '%s'=%s は内部のアドレスなので接続できません
+Response too large '%s'=%s の応答が大きすぎます
 Can't open socket=socket が開けません
 Can't connect %s=%s に接続できません
 Connection closed by '%s'=通信が切断されました（%s）

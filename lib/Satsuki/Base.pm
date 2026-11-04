@@ -134,8 +134,9 @@ sub setup_main {
 	$self->{WDAY_name} = ['日', '月', '火', '水', '木', '金', '土'];
 	$self->{AMPM_name} = ['午前', '午後', '深夜'];
 
-	# wwwプロセスで実行されてるようならば0777,0666になるようにする
-	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(0); }
+	# wwwプロセスで実行されてるようならば0775,0664になるようにする
+	# ほかの人が書けるようにしない（__cache/のPerlはevalするので、書き換えられるとコードを実行される）
+	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(002); }
 
 	$self->regist_skeleton('skel/');
 	$self->regist_skeleton('skel.local/', 2);
