@@ -7,6 +7,9 @@ package Satsuki::Base::Mail;
 our $VERSION = '1.30';
 #-------------------------------------------------------------------------------
 use Socket;
+use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
+use Errno qw(EINPROGRESS EWOULDBLOCK EINTR);
+use Time::HiRes ();
 #-------------------------------------------------------------------------------
 my $TIMEOUT = 5;
 my $CODE;
@@ -122,16 +125,10 @@ sub send_mail {
 		}
 		my $addr = pack_sockaddr_in($port, $ip_bin);
 		socket($sock, Socket::PF_INET(), Socket::SOCK_STREAM(), 0);
-		{
-			local $SIG{ALRM} = sub { close($sock); };
-			alarm( $TIMEOUT );
-			my $r = connect($sock, $addr);
-			alarm(0);
-			if (!$r) {
-				close($sock);
-				$ROBJ->message("Can't connect '%s'", $host);
-				return 21;
-			}
+		if (!$self->connect_with_timeout($sock, $addr)) {
+			close($sock);
+			$ROBJ->message("Can't connect '%s'", $host);
+			return 21;
 		}
 		binmode($sock);
 	}
@@ -178,6 +175,31 @@ sub send_mail {
 		return 200;
 	}
 	return 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●制限時間つきで接続する
+#-------------------------------------------------------------------------------
+# タイマーとシグナルはプロセス全体で共有されるので、FastCGIのスレッドでは使えない
+sub connect_with_timeout {
+	my ($self, $sock, $addr) = @_;
+	my $flags = fcntl($sock, F_GETFL, 0);
+	if (!defined($flags) || !fcntl($sock, F_SETFL, $flags | O_NONBLOCK)) { return 0; }
+	if (!connect($sock, $addr)) {
+		if ($! != EINPROGRESS && $! != EWOULDBLOCK) { return 0; }
+		my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $TIMEOUT;
+		while (1) {
+			my $left = $deadline - Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+			if ($left <= 0) { return 0; }
+			vec(my $out, fileno($sock), 1) = 1;
+			my $ready = select(undef, $out, undef, $left);
+			if ($ready > 0) { last; }
+			if ($ready < 0 && $! != EINTR) { return 0; }
+		}
+		my $error = getsockopt($sock, SOL_SOCKET, SO_ERROR);
+		if (!defined($error) || unpack('i', $error)) { return 0; }
+	}
+	return fcntl($sock, F_SETFL, $flags) ? 1 : 0;
 }
 
 sub make_to_header {

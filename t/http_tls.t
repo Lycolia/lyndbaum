@@ -62,6 +62,7 @@ sub make_ca {
 sub make_cert {
 	my ($ca, $name, $san, $dates) = @_;
 	my $d = "$dir/$name";
+	my $alt = $san =~ /^IP:/ ? $san : "DNS:$san";
 	mkdir($d);
 	write_file("$d/ca.cnf", <<CNF);
 [ca]
@@ -79,7 +80,7 @@ unique_subject=no
 [p]
 commonName=supplied
 [e]
-subjectAltName=DNS:$san
+subjectAltName=$alt
 [req]
 distinguished_name=dn
 [dn]
@@ -156,6 +157,13 @@ sub start_test_server {
 				Net::SSLeay::shutdown($ssl);
 				POSIX::_exit(0);
 			}
+			# close_notifyを送らずに切る。truncatedは本文が足りず、no_notifyは足りている
+			if ($mode eq 'truncated' || $mode eq 'no_notify') {
+				Net::SSLeay::read($ssl);
+				my $length = $mode eq 'truncated' ? 20 : 4;
+				Net::SSLeay::ssl_write_all($ssl, "HTTP/1.0 200 OK\r\nContent-Length: $length\r\n\r\npart");
+				POSIX::_exit(0);
+			}
 			if ($mode eq 'partial') {
 				Net::SSLeay::ssl_write_all($ssl, "HTTP/1.0 200 OK\r\nContent-Length: 20\r\n\r\npart");
 			}
@@ -164,6 +172,26 @@ sub start_test_server {
 			POSIX::_exit(0);
 		}
 		sleep(8);
+		POSIX::_exit(0);
+	}
+	close($listener);
+	push(@servers, $pid);
+	return $port;
+}
+
+# 平文のHTTPの接続先。$responseを返して切る。undefなら応答せずに待つ。$stallなら返した後も切らない
+sub start_plain_server {
+	my ($response, $stall) = @_;
+	my $listener = IO::Socket::INET->new(Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0, Proto => 'tcp') || die "listen: $!";
+	my $port = $listener->sockport;
+	my $pid = fork();
+	die "fork: $!" if (!defined $pid);
+	if (!$pid) {
+		alarm(10);
+		my $sock = $listener->accept() || POSIX::_exit(1);
+		sysread($sock, my $request, 4096);
+		syswrite($sock, $response) if (defined $response);
+		sleep(8) if (!defined($response) || $stall);
 		POSIX::_exit(0);
 	}
 	close($listener);
@@ -231,6 +259,70 @@ subtest 'IPアドレスを指定したURL' => sub {
 	my $http = connect_with($ca, "https://127.0.0.1:$good_port/");
 	isnt($http->{status}, 200, '証明書にIPアドレスが無ければ拒否する');
 	like($http->{error}, qr/Certificate verification failed '127\.0\.0\.1'/, 'エラーに理由が出る');
+
+	my $ip_port = start_server(make_cert($ca, 'ip', 'IP:127.0.0.1'));
+	$http = connect_with($ca, "https://127.0.0.1:$ip_port/");
+	is($http->{status}, 200, '証明書に同じIPアドレスがあれば接続できる');
+	is($http->{error}, undef, 'エラーにならない');
+	$http = connect_with($ca, "https://localhost:$ip_port/");
+	isnt($http->{status}, 200, 'IPアドレスだけの証明書は、ホスト名では接続できない');
+
+	my $other_ip_port = start_server(make_cert($ca, 'other_ip', 'IP:192.0.2.10'));
+	$http = connect_with($ca, "https://127.0.0.1:$other_ip_port/");
+	isnt($http->{status}, 200, '証明書のIPアドレスが違えば拒否する');
+};
+
+subtest 'HTTPSの本文が途中で切れる' => sub {
+	local $ENV{SSL_CERT_FILE} = "$ca/ca.crt";
+	local $ENV{SSL_CERT_DIR} = "$dir/empty";
+	my $http = Satsuki::Base::HTTP->new(undef);
+	$http->set_timeout(5);
+	my $result = $http->get("https://localhost:" . start_test_server($good_cert, 'truncated') . "/");
+	is($result, undef, 'Content-Lengthより短ければ失敗にする');
+	like($http->{error}, qr/Connection closed by 'localhost'/, '切断として返る');
+
+	$result = $http->get("https://localhost:" . start_test_server($good_cert, 'no_notify') . "/");
+	is($http->{error}, undef, '前回のエラーが残らない');
+	is(join('', @{ $result || [] }), 'part', '長さが合えば、close_notifyが無くても成功にする');
+};
+
+subtest '平文のHTTP' => sub {
+	my $http = Satsuki::Base::HTTP->new(undef);
+	$http->set_timeout(5);
+	my $port = start_plain_server("HTTP/1.0 200 OK\r\nContent-Length: 9\r\n\r\nab\ncd\r\nef");
+	my $result = $http->get("http://localhost:$port/");
+	is($http->{status}, 200, '接続できる');
+	is_deeply($result, ["ab\n", "cd\r\n", "ef"], '本文を行に分けて返す');
+
+	$port = start_plain_server("HTTP/1.0 200 OK\r\nContent-Length: 20\r\n\r\npart");
+	$result = $http->get("http://localhost:$port/");
+	is($result, undef, 'Content-Lengthより短ければ失敗にする');
+	like($http->{error}, qr/Connection closed by 'localhost'/, '切断として返る');
+
+	$port = start_plain_server("HTTP/1.0 200 OK\r\nContent-Length: 20\r\n\r\n");
+	$http->request('HEAD', "http://localhost:$port/");
+	is($http->{error}, undef, 'HEADは本文が無くても成功にする');
+
+	$http->set_timeout(0.3);
+	$port = start_plain_server("HTTP/1.0 200 OK\r\nContent-Length: 20\r\n\r\npart", 1);
+	$result = $http->get("http://localhost:$port/");
+	is($result, undef, '途中まで受信していても成功にしない');
+	like($http->{error}, qr/Connection timeout/, 'タイムアウトとして返る');
+};
+
+subtest 'FastCGIと同じスレッド構成で、平文のHTTPがタイムアウトする' => sub {
+	plan skip_all => 'スレッド非対応のPerlです' if (!$Config{useithreads});
+	require threads;
+	my $port = start_plain_server(undef);
+	my $worker = threads->create(sub {
+		my $http = Satsuki::Base::HTTP->new(undef);
+		$http->set_timeout(0.3);
+		my $result = $http->get("http://localhost:$port/");
+		return [$result, $http->{error}];
+	});
+	my $result = $worker->join();
+	is($result->[0], undef, '接続は失敗する');
+	like($result->[1], qr/Connection timeout/, 'プロセスを終了せずにエラーを返す');
 };
 
 subtest 'Net::SSLeayの版が古い' => sub {

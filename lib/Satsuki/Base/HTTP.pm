@@ -145,27 +145,32 @@ sub send_http_request {
 		my $request = join('', @_);
 		syswrite($sock, $request, length($request));
 	}
-	my @response;
-	my $vec_in = '';
-	vec($vec_in, fileno($sock), 1) = 1;
-	my ($r, $timeout);
-	{
-		local $SIG{ALRM} = sub { close($sock); $timeout=1; };
-		alarm( $self->{timeout} );
-		$r = select($vec_in, undef, undef, $self->{timeout});
-		if (vec($vec_in, fileno($sock), 1) ) {
-			@response = <$sock>;
+	# 受信に期限を設ける。切断されるか期限が来るまで読む
+	my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $self->{timeout};
+	my $data = '';
+	my $timeout;
+	while (1) {
+		my $ready = $self->wait_socket($sock, 1, $deadline);
+		if ($ready != 1) {
+			$timeout = ($ready == 0);
+			last;
 		}
-		alarm(0);
-		close($sock);
+		my $got = sysread($sock, $data, 32768, length($data));
+		next if (!defined($got) && $! == EINTR);
+		last if (!$got);
 	}
+	close($sock);
+
+	# 途中まで受信していても、切れたデータは成功として扱わない
+	if ($timeout) {
+		return $self->error(undef, "Connection timeout '%s' (timeout %d sec)", $host, $self->{timeout});
+	}
+
+	my @response = split(/^/, $data);
 	$self->save_log(\@response);
 	$self->save_log_spliter();
 	if (! @response) {
-		if (!$r || $timeout) {
-			return $self->error($sock, "Connection timeout '%s' (timeout %d sec)", $host, $self->{timeout});
-		}
-		return $self->error($sock, "Connection closed by '%s'", $host);
+		return $self->error(undef, "Connection closed by '%s'", $host);
 	}
 
 	$self->parse_status_line($response[0], $host);
@@ -220,13 +225,17 @@ sub send_https_request {
 	my $ssl = Net::SSLeay::new($ctx);
 	goto cleanup if $errs = Net::SSLeay::print_errs('SSL_new') or !$ssl;
 
-	if ($self->{use_sni}) {
+	# IPアドレスにはSNIを送らない（RFC 6066）。connect_hostはIPv4だけを扱う
+	my $is_ip = ($host =~ /^\d{1,3}(?:\.\d{1,3}){3}$/);
+	if ($self->{use_sni} && !$is_ip) {
 		Net::SSLeay::set_tlsext_host_name($ssl, $host);
 	}
 
-	# 証明書のホスト名を検証する
-	if (!Net::SSLeay::X509_VERIFY_PARAM_set1_host(Net::SSLeay::get0_param($ssl), $host)) {
-		$errs = Net::SSLeay::print_errs('X509_VERIFY_PARAM_set1_host') || 'X509_VERIFY_PARAM_set1_host failed';
+	# 証明書のホスト名かIPアドレスを検証する
+	my $param = Net::SSLeay::get0_param($ssl);
+	if (!($is_ip ? Net::SSLeay::X509_VERIFY_PARAM_set1_ip_asc($param, $host)
+	             : Net::SSLeay::X509_VERIFY_PARAM_set1_host($param, $host))) {
+		$errs = Net::SSLeay::print_errs('X509_VERIFY_PARAM_set1') || 'X509_VERIFY_PARAM_set1 failed';
 		goto cleanup;
 	}
 
@@ -372,8 +381,10 @@ sub do_request {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
 
-	# 失敗したときに前回のリダイレクト先を辿り直さないよう、先に消す
+	# 失敗したときに前回のリダイレクト先を辿り直したり、前回の結果を返したりしないよう、先に消す
 	delete $self->{location};
+	delete $self->{error};
+	delete $self->{status};
 
 	my ($method, $url, $_header, $post_data) = @_;
 	my $cookie = $self->{cookie};
@@ -467,11 +478,14 @@ sub do_request {
 	# ヘッダの解析
 	#-----------------------------------------------------------------------
 	my $header= $self->{header} = [];
+	my ($content_length, $chunked);
 	while(@$res) {
 		my $line = shift(@$res);
 		$line =~ s/[\r\n]//g;		# 改行除去
 		if ($line eq '') { last; }	# ヘッダの終わり
 		push(@$header, $line);
+		if ($line =~ /^content-length:\s*(\d+)\s*$/i) { $content_length = $1; }
+		if ($line =~ /^transfer-encoding:/i) { $chunked = 1; }
 		# Cookie
 		if ($self->{use_cookie} && $line =~ /^set-cookie:\s*(.*)$/i) {
 			my @cookie = split(/\s*;\s*/, $1);
@@ -495,6 +509,18 @@ sub do_request {
 		# Redirect 
 		if ($line =~ /^location:\s*(.*)$/i) {
 			$self->{location} = $1;
+		}
+	}
+
+	#-----------------------------------------------------------------------
+	# 途中で切れた本文を成功として扱わない
+	#-----------------------------------------------------------------------
+	# close_notifyなしで閉じるサーバーがあるので、切断のしかたではなく長さで判定する
+	if ($self->{status} == 200 && $method ne 'HEAD' && defined $content_length && !$chunked) {
+		my $size = 0;
+		foreach(@$res) { $size += length($_); }
+		if ($size < $content_length) {
+			return $self->error(undef, "Connection closed by '%s'", $host);
 		}
 	}
 	return $res;

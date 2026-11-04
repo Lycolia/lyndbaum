@@ -978,8 +978,8 @@ sub rename_file {
 
 	my $r  = rename("$dir$old", "$dir$name");
 	my $r2;
-	# 画像ファイルのみ移動を試みる
-	if ($self->is_image($old) && $self->is_image($name)) {
+	# 画像ファイルのみ移動を試みる。本体を移せなければ、サムネイルも動かさない
+	if ($r && $self->is_image($old) && $self->is_image($name)) {
 		$r2 = $self->rename_thumbnail($dir, $old, $dir, $name);
 	}
 	# 動画のサムネイル（ブラウザーで作ったもの）は、動画のままなら移す。動画でなくなれば消す

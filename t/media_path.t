@@ -76,6 +76,20 @@ subtest 'ファイル名の変更で、同じ名前のファイルを上書き�
 	unlink($other, $thumb);
 };
 
+subtest 'ファイル名の変更に失敗したら、サムネイルを動かさない' => sub {
+	my $thumb = "$img/test/.thumbnail/gone.png.jpg";
+	my $moved = "$img/test/.thumbnail/d.png.jpg";
+	mkdir("$img/test/.thumbnail");
+	touch($thumb);
+
+	my $r = $app->post('editor', '', { action => 'media/rename_file', folder => 'test/', old => 'gone.png', name => 'd.png' });
+	isnt(json_ret($r), '0', '元のファイルが無いと失敗する');
+	ok(-e $thumb,  '元のサムネイルは残る');
+	ok(!-e $moved, '変更先にサムネイルができない');
+
+	unlink($thumb);
+};
+
 #-------------------------------------------------------------------------------
 # ファイルの削除
 #-------------------------------------------------------------------------------

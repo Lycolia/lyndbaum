@@ -977,7 +977,7 @@ POST_BODY
 	#-------------------------------------------------------------
 	my ($status, $header, $res) = $http->post($post_url, undef, $post_body);
 	if ($status != 200 || !defined $res) {
-		return $http->{error_msg} || "[$status] ping server access error";
+		return $http->{error} || "[$status] ping server access error";
 	}
 
 	#-------------------------------------------------------------
