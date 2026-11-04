@@ -74,31 +74,6 @@ subtest 'パスワード' => sub {
 	like($pass_of->('reset'), qr/^\$2b\$/, '追加したユーザーもbcrypt');
 	isnt($pass_of->('reset'), $pass_of->('admin'), 'saltは毎回違う');
 
-	# 前のSHA-512のハッシュに戻す（4.22までに保存したユーザー）
-	my $sha = crypt('old-pass-1234', '$6$abcdefghijklmnop$');
-	foreach my $file (glob("$dir/data/db/_users/0*.dat")) {
-		my $t = read_file($file);
-		next if ($t !~ /^id=reset$/m);
-		$t =~ s/^pass=.*$/pass=$sha/m;
-		open(my $fh, '>:utf8', $file) || die; print $fh $t; close($fh);
-	}
-	my $r = $app->post('reset', '', { action => '_ajax_login', adiary_id => 'reset', pass => 'old-pass-1234' });
-	ok(json_ok($r), 'SHA-512のハッシュでもログインできる');
-
-	$r = $app->get('reset', 'menu');
-	is($r->{status}, 302, '再設定するまで、ほかの画面は開けない');
-	like($r->{headers}->{location} // '', qr{\?personal/$}, 'パスワードの変更画面へ送る');
-	$r = $app->get('reset', 'personal/');
-	is($r->{status}, 200, 'パスワードの変更画面は開ける');
-	like(body($r), qr{パスワードの保存方式を変えました}, '再設定の知らせが出る');
-	ok(!json_ok($app->post('reset', '', { action => '_ajax_self_change_name', name => 'x' })), 'ほかの操作はできない');
-
-	$r = $app->post('reset', '', { action => '_ajax_self_change_pass', now_pass => 'old-pass-1234', pass => 'new-pass-5678', pass2 => 'new-pass-5678' });
-	ok(json_ok($r), 'パスワードを変えられる');
-	like($pass_of->('reset'), qr/^\$2b\$/, '変えるとbcryptになる');
-	ok(json_ok($app->post('reset', '', { action => '_ajax_login', adiary_id => 'reset', pass => 'new-pass-5678' })), '新しいパスワードでログインできる');
-	is($app->get('reset', 'menu')->{status}, 200, '再設定の後は、ほかの画面も開ける');
-
 	ok(json_ok($app->post('admin', '', { action => '_ajax_user_delete', id => 'reset' })), '後片付け');
 };
 
@@ -147,18 +122,6 @@ subtest '同時ログイン数' => sub {
 	}
 	like(body($app->get('admin', 'system/setting')), qr{name="max_sessions"[^>]*value="1"}, '保存できなかったときは前の値のまま');
 	unlike(body($app->get('guest', '')), qr{メンテナンス}, 'ほかの設定は変わらない');
-
-	# v4.19のアップデート処理で、設定ファイルの値（ここでは書いていないので1）をシステム設定に写す
-	my $sys = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^max_sessions=.*\n//m;
-	$conf =~ s/^VERSION=.*$/VERSION=4.18/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
-	close($fh);
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^max_sessions=1$/m, 'アップデート処理で、同時ログイン数がシステム設定に入る');
-	like(read_file($sys), qr/^VERSION=4\.3$/m, 'バージョンが今のデータのバージョン（4.30）になる');
 };
 
 subtest 'アップデートが必要なときの知らせ' => sub {
@@ -174,7 +137,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 
 	my $sys = "$dir/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.18/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.29/m;
 	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
 	print $fh $conf;
 	close($fh);
@@ -209,6 +172,31 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、管理画面に知らせが出ない');
 	unlike(body($app->get('admin', $art)), qr{admin-bar-update}, 'アップデート処理の後は、管理バーにリンクが出ない');
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
+};
+
+subtest '4.25より古いデータからのアップデート' => sub {
+	my $sys = "$dir/data/system_config.dat";
+	my $set_version = sub {
+		my $conf = read_file($sys);
+		$conf =~ s/^VERSION=.*$/VERSION=$_[0]/m;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf;
+		close($fh);
+	};
+	my $update = sub { return $app->post('admin', 'system/update', { action => 'system/update' }); };
+
+	$set_version->('4.24');
+	my $b = body($app->get('admin', 'system/update'));
+	like($b, qr{このデータの版（4\.24）からは、直接アップデートできません}, '画面で知らせる');
+	like($b, qr{value="system/update"[^>]*disabled}, 'ボタンを押せない');
+
+	ok(!AppTest::is_reload($update->()), '直接送っても断る');
+	like(read_file($sys), qr/^VERSION=4\.24$/m, '版はそのまま');
+
+	$set_version->('4.25');
+	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.25なら知らせない');
+	ok(AppTest::is_reload($update->()), '4.25からはアップデートできる');
+	like(read_file($sys), qr/^VERSION=4\.3$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -295,131 +283,15 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 };
 
 #-------------------------------------------------------------------------------
-# パスワードのbcrypt化（4.23）
+# 標準記法で書いた古い記事
 #-------------------------------------------------------------------------------
-subtest 'アップデート処理でのパスワードの再設定' => sub {
-	my $user_file = sub {
-		my $id = shift;
-		foreach my $file (glob("$dir/data/db/_users/0*.dat")) {
-			return $file if (read_file($file) =~ /^id=\Q$id\E$/m);
-		}
-	};
-	my $file = $user_file->('admin');
-	my $write = sub {
-		my ($f, $text) = @_;
-		open(my $fh, '>:utf8', $f) || die "$f: $!";
-		print $fh $text;
-		close($fh);
-	};
-	# 4.22までのデータ（管理者のパスワードがSHA-512）にする
-	my $t = read_file($file);
-	my $sha = crypt($AppTest::PASS, '$6$abcdefghijklmnop$');
-	$t =~ s/^pass=.*$/pass=$sha/m;
-	$write->($file, $t);
-	my $sys = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.22/m;
-	$write->($sys, $conf);
-
-	like(body($app->get('admin', 'system/update')), qr{name="pass".*name="pass2"}s, 'アップデート処理の画面に、新しいパスワードの欄が出る');
-	is($app->get('admin', 'menu')->{status}, 200, 'アップデートが要るときの管理者は、パスワードの変更画面へ送らない');
-
-	foreach my $f ({}, { pass => 'abcdefg', pass2 => 'abcdefg' }, { pass => 'abcdefgh', pass2 => 'abcdefgx' }) {
-		my $r = $app->post('admin', 'system/update', { action => 'system/update', %$f });
-		ok(!AppTest::is_reload($r), 'パスワードが規則に合わなければ、アップデート処理を行わない（' . ($f->{pass} // '空') . '）');
-		like(read_file($sys), qr/^VERSION=4\.22$/m, '版はそのまま');
-	}
-
-	my $r = $app->post('admin', 'system/update', { action => 'system/update', pass => $AppTest::PASS, pass2 => $AppTest::PASS });
-	ok(AppTest::is_reload($r), '新しいパスワードを入れると、アップデート処理を行える');
-	like(body($r), qr{\?login}, '終わるとログインの画面へ送る');
-	like(read_file($sys), qr/^VERSION=4\.3$/m, '版が今のデータのバージョン（4.30）になる');
-	like(read_file($file), qr/^pass=\$2b\$12\$/m, '管理者のパスワードがbcryptになる');
-	is($app->get('admin', 'menu')->{status}, 403, 'セッションが切れる');
-	$app->login('admin');
-	is($app->get('admin', 'menu')->{status}, 200, '新しいパスワードでログインし直せる');
-	unlike(body($app->get('admin', 'system/update')), qr{name="pass"}, 'アップデート処理の後は、パスワードの欄を出さない');
-};
-
-#-------------------------------------------------------------------------------
-# AVIFのサムネイルの画質の設定（4.25）
-#-------------------------------------------------------------------------------
-subtest 'アップデート処理で、設定ファイルにAVIFの画質を足す' => sub {
-	my $write = sub {
-		my ($f, $text) = @_;
-		open(my $fh, '>:utf8', $f) || die "$f: $!";
-		print $fh $text;
-		close($fh);
-	};
-	my $sys  = "$dir/data/system_config.dat";
-	my $file = "$dir/lyndbaum.conf.cgi";
-	my $bak  = "$dir/data/lyndbaum.conf.cgi.428.bak";	# 4.28の処理で、設定ファイルはここへ移る
-	# 4.27までの形（ユーザー設定が無く、lyndbaum.conf.cgiがある）にする
-	my $old_conf = sub {
-		$write->($file, shift);
-		unlink("$dir/lyndbaum.user.cgi");
-	};
-	my $update = sub {
-		my $t = read_file($sys);
-		$t =~ s/^VERSION=.*$/VERSION=4.24/m;
-		$write->($sys, $t);
-		return $app->post('admin', 'system/update', { action => 'system/update' });
-	};
-
-	# 4.24までの設定ファイル（AVIFの画質の行が無い）にする
-	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
-	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '4.27の見本からAVIFの画質の行を消す');
-	$old_conf->($conf);
-
-	ok(AppTest::is_reload($update->()), 'アップデート処理を行える');
-	my $new = read_file($bak);
-	like($new, qr{^<\$v\.album_jpeg_quality = 80>\n\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n}m, 'JPEGの画質の行の後に、AVIFの画質の行が入る');
-	is(scalar(() = $new =~ /album_avif_quality/g), 1, 'AVIFの画質の行は1つ');
-	is(read_file("$dir/data/lyndbaum.conf.cgi.425.bak"), $conf, '書き換える前のファイルを写しておく');
-
-	$old_conf->($new);
-	ok(AppTest::is_reload($update->()), 'もう一度アップデート処理を行える');
-	is(read_file($bak), $new, '行があれば、設定ファイルは変わらない');
-
-	# # で止めてある行も、その人が決めたことなので触らない
-	(my $off = $conf) =~ s/^(<\$v\.album_jpeg_quality = 80>\n)/$1#<\$v.album_avif_quality = 50>\n/m;
-	$old_conf->($off);
-	ok(AppTest::is_reload($update->()), '止めてある行があってもアップデート処理を行える');
-	is(read_file($bak), $off, '止めてある行があれば、設定ファイルは変わらない');
-};
-
-#-------------------------------------------------------------------------------
-# 標準記法の削除（4.22）
-#-------------------------------------------------------------------------------
-subtest '標準記法の削除' => sub {
+subtest '標準記法の記事' => sub {
 	my $write = sub {
 		my ($file, $text) = @_;
 		open(my $fh, '>:utf8', $file) || die "$file: $!";
 		print $fh $text;
 		close($fh);
 	};
-
-	# 4.21までの設定ファイルと、標準記法を既定にしたブログ
-	my $cf = "$dir/lyndbaum.conf.cgi";
-	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
-	$conf =~ s/^(\tmarkdown\s*=.*\n)/$1\tdefault       = 標準（改行処理）\n\tdefault_p1    = １行＝１段落\n\tdefault_p2    = 空行で段落処理\n/m;
-	$write->($cf, $conf);
-	unlink("$dir/lyndbaum.user.cgi");
-	my $bs = "$dir/data/blog/setting.dat";
-	my $set = read_file($bs);
-	$set =~ s/^parser=.*$/parser=default/m;
-	$write->($bs, $set);
-	my $sys = "$dir/data/system_config.dat";
-	my $sc = read_file($sys);
-	$sc =~ s/^VERSION=.*$/VERSION=4.21/m;
-	$write->($sys, $sc);
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	my $moved = read_file("$dir/data/lyndbaum.conf.cgi.428.bak");	# 4.28の処理で、設定ファイルはここへ移る
-	unlike($moved, qr/^\tdefault/m, '設定ファイルの v.parsers から標準記法の行が消える');
-	like($moved, qr/^\tmarkdown\s*=/m, 'Markdownの行は残る');
-	ok(-e "$dir/data/lyndbaum.conf.cgi.422.bak", '書き換える前の設定ファイルの控えを残す');
-	like(read_file($bs), qr/^parser=markdown$/m, 'ブログの既定のパーサーがMarkdownになる');
 
 	my $b = body($app->get('owner', 'edit'));
 	unlike($b, qr{<option value="default}, '記事の作成画面で、標準記法を選べない');

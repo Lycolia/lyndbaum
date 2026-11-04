@@ -2249,28 +2249,6 @@ sub mainte_mode {
 }
 
 #-------------------------------------------------------------------------------
-# ●パスワードの再設定を求める
-#-------------------------------------------------------------------------------
-# パスワードを変えるまで、パスワード変更画面（personal/）とログイン、ログアウトだけを通す
-sub force_pass_reset {
-	my $self = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	# POSTはパスワードの変更とログインだけ許可
-	my $form = $ROBJ->{Form};
-	if ($ROBJ->{POST} && $form->{action} ne '_ajax_self_change_pass' && $form->{action} ne '_ajax_login') {
-		$ROBJ->{POST} = 0;
-		$ROBJ->{Form} = {};
-	}
-	if ($ROBJ->{POST}) { return; }
-
-	if ($self->{skeleton} !~ m!^(?:personal/index|login\w*|logout)$!) {
-		$ROBJ->redirect( $self->{myself} . '?personal/' );
-	}
-	return;
-}
-
-#-------------------------------------------------------------------------------
 # ●hash/arrayツリーからjsonを生成する
 #-------------------------------------------------------------------------------
 sub generate_json {
