@@ -67,6 +67,14 @@ subtest '失敗の理由を見分けられない' => sub {
 };
 
 #-------------------------------------------------------------------------------
+subtest 'URLからパスワードを受け取らない' => sub {
+	my $r = $app->get('guest', 'login&id=test&pass=URL-PASS');
+	is($r->{status}, 200, 'ログイン画面を開ける');
+	unlike($r->{body}, qr/URL-PASS/, 'URLのパスワードを画面に出さない');
+	like($r->{body}, qr/name="adiary_id"[^>]*value="test"/, 'URLのIDは初期値に入れる');
+};
+
+#-------------------------------------------------------------------------------
 subtest 'HTTPSのときはCookieにSecureを付ける' => sub {
 	my $session = sub { (grep { /^session=/ } @{ $_[0]->{cookies} })[0] // '' };
 
