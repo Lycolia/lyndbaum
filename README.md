@@ -44,7 +44,7 @@ httpsの通信では接続先の証明書を検証するので、サーバーに
 1. 解凍してでてきたファイルをサーバ上の任意の位置に置く
 2. lyndbaum.cgiに実行属性を付ける（`lyndbaum.cgi`とそのフォルダは755か705。777ではCGIが動かないサーバーがある）
 3. `__cache/`, `data/`, `pub/`を`www`権限で書き込めるようにする。（suEXECの場合は不要）
-4. 設定を変えたいときだけ、`lyndbaum.user.cgi.sample`を`lyndbaum.user.cgi`としてコピーして直す（無くても動く）
+4. 設定ファイルは無くても動く。普段の設定は、ログインしてから管理画面の「システム設定」で行う。画面に無い項目（`lyndbaum.user.cgi.sample`を参照）を変えるときだけ、`lyndbaum.user.cgi`を作る
 5. Apacheでは、`docs/config-example/.htaccess.sample`を根元に`.htaccess`としてコピーする。これが無いと`data/`などの非公開のフォルダをWebから読める。VPSなどでは、`docs/config-example/apache.conf`も手元に合わせて設定する。nginxでは、[動作環境](#動作環境)の表の設定を使う
 6. `lyndbaum.cgi`にアクセスし、ID、パスワードを適当に入力してログイン。
 7. その後、自分自身をユーザーとして追加する。

@@ -12,7 +12,7 @@ use strict;
 #   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
-#   --quality=60      サムネイルの画質（既定は設定の album_avif_quality。無ければ65）
+#   --quality=60      サムネイルの画質（既定はシステム設定の album_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
 #   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
 #   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi。
@@ -146,9 +146,15 @@ sub thumb_size_setting {
 }
 
 #-------------------------------------------------------------------------------
-# ○AVIFのサムネイルの画質（設定の album_avif_quality。アップロードのときと同じ）
+# ○AVIFのサムネイルの画質（album_avif_quality。アップロードのときと同じ）
 #-------------------------------------------------------------------------------
+# 画面で保存した値（システム設定）を先に見る
 sub album_avif_quality_setting {
+	if (open(my $sys, '<', "${data}system_config.dat")) {
+		while(<$sys>) {
+			if (/^album_avif_quality=(\d+)\s*$/) { return $1; }
+		}
+	}
 	open(my $fh, '<', $conf) || return;
 	while(<$fh>) {
 		if (/^<\$v\.album_avif_quality\s*=\s*(\d+)\s*>/) { return $1; }

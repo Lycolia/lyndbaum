@@ -151,10 +151,8 @@ sub main {
 	# システム情報のロード
 	my $sys = $self->load_sysdat();
 
-	# 同時ログイン数（システム設定）。無ければ設定ファイルの値のまま
-	if ($sys->{max_sessions}) {
-		$ROBJ->{Auth}->{max_sessions} = $sys->{max_sessions};
-	}
+	# 画面で変えた設定（システム設定）。無ければ既定値かユーザー設定の値のまま
+	$self->apply_sys_settings($sys);
 
 	# Cookieログイン処理
 	$self->authorization();
@@ -1466,6 +1464,26 @@ sub load_sysdat {
 	}
 
 	return $sys;
+}
+
+#-------------------------------------------------------------------------------
+# ●画面で変えた設定を反映する
+#-------------------------------------------------------------------------------
+# 認証とフォームの読み込みより先に呼ぶ。空は「設定していない」、0は値として扱う
+sub apply_sys_settings {
+	my ($self, $sys) = @_;
+	my $auth = $self->{ROBJ}->{Auth};
+
+	if ($sys->{max_sessions}) { $auth->{max_sessions} = $sys->{max_sessions}; }
+	foreach(qw(pass_min all_logout fail_count fail_minute)) {
+		if ($sys->{$_} ne '') { $auth->{$_} = $sys->{$_}; }
+	}
+	if ($sys->{session_days} ne '') { $auth->{expires} = $sys->{session_days} * 86400; }
+
+	foreach(qw(album_jpeg_quality album_avif_quality)) {
+		if ($sys->{$_} ne '') { $self->{$_} = $sys->{$_}; }
+	}
+	if ($sys->{upload_max_mb} ne '') { $self->{uplaod_files_max} = $sys->{upload_max_mb} * 1048576; }
 }
 
 #-------------------------------------------------------------------------------

@@ -813,6 +813,18 @@ sub sys_update_428 {
 #
 # 組み立てる行と、コードに移して変えないことにした項目は写さない
 my $Conf_sample_428 = 'lib/SatsukiApp/lyndbaum_conf_427.txt';
+# 画面で変えられるようにした項目：システム設定のキー、値を割る数、画面の入力の範囲
+my %Conf_to_sys_428 = (
+	'v.uplaod_files_max'	=> [ 'upload_max_mb',      1048576, 1, 2048 ],
+	'v.album_jpeg_quality'	=> [ 'album_jpeg_quality', 1,       1, 100  ],
+	'v.album_avif_quality'	=> [ 'album_avif_quality', 1,       1, 100  ],
+	'Auth.pass_min'		=> [ 'pass_min',           1,       8, 64   ],
+	'Auth.expires'		=> [ 'session_days',       86400,   1, 365  ],
+	'Auth.all_logout'	=> [ 'all_logout',         1,       0, 1    ],
+	'Auth.fail_count'	=> [ 'fail_count',         1,       3, 100  ],
+	'Auth.fail_minute'	=> [ 'fail_minute',        1,       1, 1440 ]
+);
+my %Conf_unit_428 = (K=>1024, M=>1048576, G=>1073741824, sec=>1, min=>60, hour=>3600, day=>86400, week=>604800);
 my $Conf_not_movable_428 = qr/^\s*<\$(?:constant\(|const\(|regist_skeleton\(|load_language_file\(|ifumask\(|If_post_exec_pre\s*=|v\s*=|DB\s*=|Auth\s*=|v\.(?:\w+_dir|system_config_file|default_\w+_file|allow_tags_head|default_theme|parsers|rss_skeleton|words_separator|album_icons|album_font|album_font_size)\s*=)/;
 sub migrate_conf_428 {
 	my $self = shift;
@@ -831,6 +843,7 @@ sub migrate_conf_428 {
 
 	my @move;
 	my @not_moved;
+	my @out_of_range;
 	my $admin_trust;
 	my $start_up;
 	foreach my $file ($env, $conf) {
@@ -841,7 +854,13 @@ sub migrate_conf_428 {
 			if ($sample{ $st->{key} }) { next; }
 			if ($st->{key} =~ $Conf_not_movable_428 || $st->{key} =~ /$use_const/) {
 				push(@not_moved, @{ $st->{lines} });
+			} elsif (my $to_sys = $self->conf_to_sys_428($st->{key})) {
+				$self->update_sysdat(@$to_sys);
 			} else {
+				# 画面で変える項目でも、画面で扱えない値はユーザー設定で動かし続ける
+				if ($st->{key} =~ /^<\$(v\.\w+|Auth\.\w+)\s*=/ && $Conf_to_sys_428{$1}) {
+					push(@out_of_range, @{ $st->{lines} });
+				}
 				push(@move, @{ $st->{lines} });
 			}
 		}
@@ -874,6 +893,15 @@ sub migrate_conf_428 {
 	}
 	$ROBJ->message("Create '%s'", $user);
 
+	if (@out_of_range) {
+		$ROBJ->message("These values can't be set on the setting screen, so they stay in '%s'.", $user);
+		foreach(@out_of_range) {
+			my $x = $_;
+			$x =~ s/\s+$//;
+			$ROBJ->message("  %s", $x);
+		}
+	}
+
 	# 写せなかった行を知らせる。控えから確かめられる
 	if (@not_moved) {
 		$ROBJ->message("These lines were not moved to '%s'. Please check them.", $user);
@@ -897,6 +925,26 @@ sub migrate_conf_428 {
 		my $ok = $ROBJ->file_delete($file);
 		$ROBJ->message($ok ? "Move '%s' to '%s'" : "Can't delete '%s'. It is not used now (backup: '%s').", $file, $backup);
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ○画面で変える項目の行を、システム設定のキーと値にする
+#-------------------------------------------------------------------------------
+# 画面で変える項目でないか、画面で扱えない値（範囲の外、割り切れない、式）なら undef
+sub conf_to_sys_428 {
+	my ($self, $key) = @_;
+	if ($key !~ /^<\$(v\.\w+|Auth\.\w+)\s*=\s*(\d+|true)\s*(\w*)\s*>$/) { return; }
+	my ($name, $val, $unit) = ($1, $2, $3);
+	my $h = $Conf_to_sys_428{$name};
+	if (!$h) { return; }
+	if ($unit ne '' && !$Conf_unit_428{$unit}) { return; }
+	$val = ($val eq 'true' ? 1 : $val) * ($unit ne '' ? $Conf_unit_428{$unit} : 1);
+
+	my ($sys_key, $div, $min, $max) = @$h;
+	if ($val % $div) { return; }
+	$val = $val / $div;
+	if ($val < $min || $max < $val) { return; }
+	return [ $sys_key, $val ];
 }
 
 #-------------------------------------------------------------------------------

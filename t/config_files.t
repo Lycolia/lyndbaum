@@ -145,7 +145,7 @@ subtest 'アップロード' => sub {
 my $sample = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
 my $old = $sample;
 $old =~ s/^<\$v\.uplaod_files_max = 64M>$/<\$v.uplaod_files_max = 256M>/m || die;
-$old =~ s/^<\$Auth\.table = '_users'>$/$&\n<\$Auth.fail_count = 2>\n<\$Auth.allow_ip = begin_array>\n\t# ローカル\n\t127.0.0.1\n<\$end>/m || die;
+$old =~ s/^<\$Auth\.table = '_users'>$/$&\n<\$Auth.fail_count = 2>\n<\$Auth.fail_minute = 30>\n<\$Auth.expires = 90day>\n<\$Auth.allow_ip = begin_array>\n\t# ローカル\n\t127.0.0.1\n<\$end>/m || die;
 $old =~ s/^<\$v\.admin_trust_mode = 1>$/#$&/m || die;
 $old =~ s/^<\$Auth\.start_up = true>$/#$&/m || die;
 $old =~ s/^<\$v\.default_theme = .*$/<\$v.default_theme = 'other\/other'>/m || die;
@@ -176,11 +176,19 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	write_file("$dir/data/default_setting.dat", "enable=1\n");
 	write_file($env, "$PRAGMA# 開発用\n<\$ENV_print = 0>\n");
 	set_version('4.27');
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	my $done = $app->post('admin', 'system/update', { action => 'system/update' });
+	ok(AppTest::is_reload($done), 'アップデート処理を行える');
+	like(body($done), qr{Auth\.fail_count = 2}, '画面の範囲の外の値を知らせる');
 	like(read_file($sys), qr/^VERSION=4\.28$/m, '版が上がる');
 
 	my $u = read_file($user);
-	like($u, qr/^<\$v\.uplaod_files_max = 256M>$/m, '変えた値を写す');
+	my $s = read_file($sys);
+	like($s, qr/^upload_max_mb=256$/m, '画面で変える項目は、システム設定へ写す（単位を変える）');
+	like($s, qr/^fail_minute=30$/m, '画面で変える項目は、システム設定へ写す');
+	like($s, qr/^session_days=90$/m, '画面で変える項目は、システム設定へ写す（秒を日にする）');
+	unlike($u, qr/uplaod_files_max|fail_minute|Auth\.expires/, 'システム設定へ写した項目は、ユーザー設定に書かない');
+	like($u, qr/^<\$Auth\.fail_count = 2>$/m, '画面の範囲の外の値は、ユーザー設定で動かし続ける');
+	unlike($s, qr/^fail_count=/m, '画面の範囲の外の値は、システム設定へ写さない');
 	like($u, qr/^<\$Auth\.allow_ip = begin_array>\n\t127\.0\.0\.1\n<\$end>$/m, '複数行の設定を写す。中のコメントは写さない');
 	like($u, qr/^<\$ENV_print = 0>$/m, 'lyndbaum.env.cgiの設定を写す');
 	like($u, qr/^<\$v\.admin_trust_mode = 0>$/m, '止めていたadmin_trust_modeは、止めたままにする');
@@ -199,6 +207,15 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	is($app->get('guest', '')->{status}, 200, '公開画面が出る');
 	is($app->get('admin', 'menu')->{status}, 200, '管理画面が出る');
 	ok(locked_after_2_fails(), '移した値が効いている');
+	my $screen = body($app->get('admin', 'system/setting'));
+	like($screen, qr{name="upload_max_mb"[^>]*value="256"}, '写した値が画面に出る');
+	like($screen, qr{name="session_days"[^>]*value="90"}, '写した日数が画面に出る');
+	unlike($screen, qr{name="fail_count"}, '画面の範囲の外の値は、欄を止めて送らない');
+	like($screen, qr{value="2" disabled}, '止めた欄に今の値が出る');
+	ok(AppTest::is_reload($app->post('admin', 'system/setting', { action => 'system/setting', mainte_mode => 0, upload_max_mb => 128, fail_minute => 30 })), '欄を止めていても、ほかの項目を保存できる');
+	like(read_file($sys), qr/^upload_max_mb=128$/m, 'ほかの項目は保存される');
+	unlike(read_file($sys), qr/^fail_count=/m, '止めた欄の値は保存されない');
+	ok(locked_after_2_fails(), '止めた欄の項目は、ユーザー設定の値のまま');
 };
 
 subtest 'admin_trust_modeとAuth.start_upの行があれば、足さない' => sub {
