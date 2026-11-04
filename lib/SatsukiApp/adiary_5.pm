@@ -89,6 +89,59 @@ sub blog_create {
 }
 
 #-------------------------------------------------------------------------------
+# ●ブログが無ければ作る
+#-------------------------------------------------------------------------------
+# リクエストの最初に、権限によらず呼ばれる。失敗してもブログが無いまま返り、呼び出し元が503にする。
+# 残っているものを消さないよう、テーブルや設定の一部だけがあるときは作らず、失敗しても消さない
+sub blog_auto_create {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+
+	# 同時のリクエストがあっても1回だけ作る
+	$ROBJ->mkdir( $self->{data_dir} );
+	my $lock = $self->{data_dir} . 'blog_create.lock';
+	sysopen(my $fh, $lock, Fcntl::O_CREAT() | Fcntl::O_RDWR()) || return;
+	flock($fh, Fcntl::LOCK_EX()) || return;
+
+	delete $self->{_cache_exists_blog};
+	my $r = $self->do_blog_auto_create();
+	delete $self->{_cache_exists_blog};
+
+	unlink($lock);
+	close($fh);
+	if ($r) { print STDERR "$self->{SYSTEM_NAME}: blog create failed ($r)\n"; }
+}
+
+sub do_blog_auto_create {
+	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+	if ($self->exists_blog()) { return 0; }	# 待っている間に作られた
+
+	foreach(qw(art com tag tagart rev trash trashcom link)) {
+		if ($DB->find_table($_)) { return "table '$_' already exists"; }
+	}
+	if (-e $self->blog_dir() . 'setting.dat') { return 'setting.dat already exists'; }
+
+	my $r = $self->create_tables();
+	if ($r) { return "create tables: $r"; }
+	$ROBJ->mkdir( $self->blog_dir() );
+	$ROBJ->mkdir( $self->blogpub_dir() );
+	if (!-d $self->blog_dir()) { return 'mkdir ' . $self->blog_dir(); }
+
+	delete $self->{_cache_exists_blog};
+	if (!$self->exists_blog()) { return "table 'art' was not created"; }
+	if (!$self->select_blog())  { return 'select blog'; }
+
+	# 標準のデザインを入れる。作っているのは利用者の操作ではないので、権限を確かめない
+	local($self->{blog_admin}) = 1;
+	$r = $self->load_default_design();
+	if ($r) { return "load default design: $r"; }
+	return 0;
+}
+
+#-------------------------------------------------------------------------------
 # ●すべての記事の削除
 #-------------------------------------------------------------------------------
 sub blog_clear {

@@ -227,10 +227,6 @@ sub setup {
 	$self->login('admin');
 	delete $self->{cookie}->{'root*'};
 
-	# ブログを作る
-	$r = $self->post('admin', '', { action => 'etc/myblog_create', load_design => 1 });
-	die "blog create failed: $r->{title}" if (!is_reload($r));
-
 	# 最初に管理画面を開いたときに書くもの（システムの情報のmyselfなど）を、先に書かせておく
 	$self->get($_, 'menu') foreach (@USERS);
 	return $self;

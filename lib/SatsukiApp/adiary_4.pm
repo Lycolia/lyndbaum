@@ -1384,9 +1384,7 @@ sub load_default_design {
 	if (!$self->{blog}) { return -1; }
 
 	my $h = $self->parse_design_dat( $ROBJ->fread_hash( $self->{default_design_file} ) );
-	$self->save_design( $h );
-
-	return 0;
+	return $self->save_design( $h );
 }
 
 #-------------------------------------------------------------------------------

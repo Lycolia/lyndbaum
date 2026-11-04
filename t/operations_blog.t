@@ -189,23 +189,100 @@ subtest 'プライベートモードのブログのアップデート（4.27）'
 	$app->restore($snap);
 };
 
-subtest 'ブログが無いとき' => sub {
-	# システム管理者がいないと login_auto へ送られるので、システム管理者だけ作る
+subtest 'ブログの自動作成' => sub {
+	# 空のデータを初めて開く
 	my $fresh = AppTest->new();
+	my $r = $fresh->get('guest', '');
+	is($r->{status}, 200, 'トップが出る');
+	like(body($r), qr{\?login_auto}, '管理者がいなければ、管理者を作る案内を出す');
+	ok(-e "$fresh->{dir}/data/db/art", 'テーブルができる');
+	ok(-e "$fresh->{dir}/data/db/link", '最後のテーブルまでできる');
+	ok(-e "$fresh->{dir}/data/blog/design.dat", '標準のデザインが入る');
+	ok(!-e "$fresh->{dir}/data/blog_create.lock", 'ロックのファイルは残らない');
+	like($fresh->get('guest', '/02')->{status}, qr/^404$/, '無い記事は404');
+
 	$fresh->get('root*', 'login_auto');
 	$fresh->user_add('root*', 'admin', 1);
 	$fresh->login('admin');
+	unlike(body($fresh->get('guest', '')), qr{\?login_auto}, '管理者を作ると、案内を出さない');
+	is($fresh->get('admin', 'set/')->{status}, 200, 'そのまま設定を開ける');
 
-	my $r = $fresh->get('guest', '');
-	is($r->{status}, 200, 'トップは「ようこそ」の画面');
-	like(body($r), qr{ようこそ}, 'トップに「ようこそ」を出す');
-	$r = $fresh->get('guest', '/02');
-	is($r->{status}, 404, '記事のURLは404（403にならない）');
-	like(body($r), qr{ブログがまだ作られていません}, '記事のURLにブログが無いことを出す');
-	$r = $fresh->get('guest', '/99');	# _main の分岐を通る
-	is($r->{status}, 404, '数字だけのURLも404（403にならない）');
-	like(body($r), qr{ブログがまだ作られていません}, '数字だけのURLにもブログが無いことを出す');
-	like(body($fresh->get('admin', '')), qr{\?etc/myblog_create}, 'システム管理者には、ブログを作るリンクを出す');
+	# 同時に開いても壊れない
+	my $race = AppTest->new();
+	my @pid;
+	foreach (1..4) {
+		my $pid = fork();
+		die if (!defined $pid);
+		if (!$pid) { my $res = $race->get('guest', ''); require POSIX; POSIX::_exit($res->{status} == 200 ? 0 : 1); }
+		push(@pid, $pid);
+	}
+	my $fail = 0;
+	foreach (@pid) { waitpid($_, 0); $fail++ if ($?); }
+	is($fail, 0, '同時に開いても、すべて200');
+	is($race->get('guest', '')->{status}, 200, 'その後も開ける');
+	ok(-e "$race->{dir}/data/blog/design.dat", '標準のデザインが入る');
+
+	# 一部だけ残っているときは、作らず、消さない
+	my $part = AppTest->new()->setup()->seed();
+	system('rm', '-rf', "$part->{dir}/data/db/art") == 0 || die;
+	$r = $part->get('guest', '');
+	is($r->{status}, 503, 'artだけが無いと503');
+	like(body($r), qr{ブログのデータを読めない}, '読めないことを知らせる');
+	ok(!-e "$part->{dir}/data/db/art", '作らない');
+	ok(-e "$part->{dir}/data/db/com/00001.dat", 'ほかのテーブルは消えない');
+	ok(-e "$part->{dir}/data/blog/setting.dat", '設定は消えない');
+	is($part->get('admin', 'set/')->{status}, 503, '管理者にも503');
+	ok(!AppTest::is_reload($part->post('admin', 'set/', { action => 'set/index', blog_name => 'x' })), '操作もできない');
+
+	# 書き込めないとき
+	my $ro = AppTest->new();
+	mkdir("$ro->{dir}/data/db");
+	chmod(0555, "$ro->{dir}/data/db");
+	is($ro->get('guest', '')->{status}, 503, '書き込めないと503');
+	chmod(0755, "$ro->{dir}/data/db");
+	is($ro->get('guest', '')->{status}, 200, '直せば作る');
+
+	# ブログが無いままアップデートが要るとき
+	my $old = AppTest->new()->setup();
+	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
+	my $sys = "$old->{dir}/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.27/m;
+	open(my $fh, '>:utf8', $sys) || die;
+	print $fh $conf;
+	close($fh);
+	$r = $old->get('admin', 'menu');
+	is($r->{status}, 302, '管理者は、ほかの画面を開けない');
+	like($r->{headers}->{location} // '', qr{\?system/update$}, 'アップデート処理の画面へ送る');
+	ok(!-e "$old->{dir}/data/db/art", '処理の前には作らない');
+	is($old->get('guest', '')->{status}, 503, 'ほかの人にはメンテナンスの画面');
+	is($old->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面は開ける');
+	ok(AppTest::is_reload($old->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	is($old->get('guest', '')->{status}, 200, '処理の後は開ける');
+	ok(-e "$old->{dir}/data/db/art", '処理の後に作る');
+};
+
+subtest 'メンテナンス中のログイン画面' => sub {
+	my $m = AppTest->new()->setup();
+	my $sys = "$m->{dir}/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^mainte_mode=.*\n//m;
+	open(my $fh, '>:utf8', $sys) || die;
+	print $fh "mainte_mode=1\n$conf";
+	close($fh);
+
+	# プラグインが作ったスケルトンに印を付ける
+	my $skel = "$m->{dir}/data/blog/skel/_sub";
+	system('mkdir', '-p', $skel) == 0 || die;
+	open($fh, '>:utf8', "$m->{dir}/data/blog/skel/login.html") || die;
+	print $fh "<\@7>PLUGIN-MARK";
+	close($fh);
+
+	is($m->get('guest', '')->{status}, 503, 'ログインしていない人にはメンテナンスの画面');
+	my $r = $m->get('guest', 'login');
+	is($r->{status}, 200, 'ログイン画面は開ける');
+	unlike(body($r), qr{PLUGIN-MARK}, 'プラグインが作ったスケルトンを使わない');
+	ok($m->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => $AppTest::PASS })->{json}->{ret} eq '0', 'ログインできる');
 };
 
 subtest 'タグの削除' => sub {

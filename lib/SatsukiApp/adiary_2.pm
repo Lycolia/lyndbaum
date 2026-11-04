@@ -2228,6 +2228,17 @@ sub mainte_mode {
 	# 管理者
 	# アップデートが必要なときは、メッセージではなく、リンク付きの知らせを出す（_sub/require_update_notice、_sub/admin_bar）
 	if ($auth->{isadmin}) {
+		# ブログが無いままアップデート待ちなら、アップデート処理しかできない（処理の後にブログを作る）
+		if ($self->{require_update} && !$self->{allow_view}) {
+			if ($ROBJ->{Form}->{action} ne 'system/update') {
+				$ROBJ->{POST} = 0;
+				$ROBJ->{Form} = {};
+			}
+			if ($self->{skeleton} !~ m!^(?:system/update|login\w*|logout)$!) {
+				$ROBJ->redirect( $self->{myself} . '?system/update' );
+			}
+			return;
+		}
 		if (!$ROBJ->{POST} && !$self->{require_update}) {
 			$ROBJ->message('Now maintenance mode');
 		}
@@ -2243,7 +2254,12 @@ sub mainte_mode {
 		$ROBJ->set_status(503);
 		$self->{skeleton} = '_sub/maintenance_msg';
 	} else {
-		$self->unselect_blog();
+			# 動かないプラグインがあってもログインできるよう、プラグインが作ったものを使わない
+		$self->{blog_admin} = undef;
+		$self->{allow_edit} = undef;
+		$self->{allow_com}  = undef;
+		$self->{stop_all_plugins} = 1;
+		$self->delete_blog_skeleton();
 	}
 	return;
 }

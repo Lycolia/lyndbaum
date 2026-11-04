@@ -181,6 +181,13 @@ sub main {
 	# 表示スケルトン選択
 	$self->select_skeleton( $ROBJ->{Query}->{_} || $self->{query0} );
 
+	# ブログを読めないときは、何も処理せず知らせるだけ
+	if ($self->{blog_error}) {
+		$ROBJ->{POST} = 0;
+		$ROBJ->set_status(503);
+		$self->{skeleton} = '_sub/blog_error';
+	}
+
 	#-------------------------------------------------------------
 	# POST action判定
 	#-------------------------------------------------------------
@@ -190,6 +197,7 @@ sub main {
 		# メンテナンスモード
 		if ($sys->{mainte_mode} || $self->{require_update}) { $self->mainte_mode(); }
 	}
+	$action = $ROBJ->{POST} && $ROBJ->{Form}->{action};	# メンテナンスモードで止めた操作は行わない
 
 	#-------------------------------------------------------------
 	# POST actionの呼び出し
@@ -273,8 +281,15 @@ sub select_blog_and_pinfo {
 
 	my @pinfo   = @{ $ROBJ->read_path_info() };	# PATH_INFO
 
-	# ブログは1つだけ。ブログが無いときも選択して内部変数を初期化すること
+	# ブログは1つだけ。無ければ作る。アップデートが要るときは、処理の後に作る
+	if (!$self->{require_update} && !$self->exists_blog()) {
+		$self->blog_auto_create();
+	}
 	$self->select_blog();
+	if (!$self->{blog} && !$self->{require_update}) {
+		$self->{blog_error} = 1;
+		print STDERR "$self->{SYSTEM_NAME}: blog is not available. Check " . $self->blog_dir() . " and the blog tables.\n";
+	}
 
 	# テーマの設定（$self->{blog}->{theme} と書くと、ブログが無いときに空のハッシュができる）
 	my $theme = ($self->{blog} || {})->{theme};
@@ -347,7 +362,10 @@ sub select_default_skeleton {
 	my $self = shift;
 	my $mode = shift || $self->{pinfo};
 	my $blog = $self->{blog};
-	if ($mode eq '' && !$self->exists_blog()) {
+	# 最初の管理者を作るまでは、案内を出す。記事があれば、ユーザーのテーブルを見に行かない
+	my $auth = $self->{ROBJ}->{Auth};
+	if ($mode eq '' && !$blog->{arts}) { $auth->userdb_init(); }
+	if ($mode eq '' && !$blog->{arts} && !$auth->{exists_admin}) {
 		return $self->{top_skeleton};
 	} elsif ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
 		return ($self->{view_event} = $self->{article_skeleton});
@@ -436,7 +454,20 @@ sub select_blog {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
 
-	$self->unselect_blog();
+	# 内部変数の初期化（選び直すときは、前の登録も消す）
+	$self->{myself}  = $ROBJ->{myself};
+	$self->{myself2} = $ROBJ->{myself2};
+	$self->{blog}       = undef;
+	$self->{allow_view} = undef;
+	$self->{allow_edit} = undef;
+	$self->{allow_com}  = undef;
+	$self->{blog_admin} = undef;
+	$self->{blog_dir}    = $self->blog_dir();
+	$self->{blogpub_dir} = $self->blogpub_dir();
+	$ROBJ->{Change_hour} = 0;
+	$self->{now} = $ROBJ->{Now};
+	$self->delete_blog_skeleton();
+
 	my $blog = $self->load_blogset();
 	if (!$blog || !%$blog) { return; }	# ブログが無い
 
@@ -444,9 +475,7 @@ sub select_blog {
 
 	# ブログ情報設定
 	$self->{blog}        = $blog;
-	$self->{allow_view}  = 1;	# ブログを選べた。ブログが無いときは立たない
-	$self->{blog_dir}    = $self->blog_dir();
-	$self->{blogpub_dir} = $self->blogpub_dir();
+	$self->{allow_view}  = 1;	# ブログを選べた。アップデート前でブログが無いときは立たない
 	# ブログ個別スケルトンの登録（プラグイン等で生成される）
 	if (!$self->{stop_all_plugins}) {
 		$ROBJ->regist_skeleton($self->{blog_dir} . 'skel/', $self->{user_skeleton_level});
@@ -463,28 +492,11 @@ sub select_blog {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの選択の解除（内部変数の初期化）
+# ●ブログ用に登録したスケルトンを外す
 #-------------------------------------------------------------------------------
-sub unselect_blog {
+sub delete_blog_skeleton {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
-
-	# myself設定
-	$self->{myself}     = $ROBJ->{myself};
-	$self->{myself2}    = $ROBJ->{myself2};
-
-	# 内部変数初期化
-	$self->{blog}   = undef;
-	$self->{allow_view} = undef;
-	$self->{allow_edit} = undef;
-	$self->{allow_com}  = undef;
-	$self->{blog_admin} = undef;
-	$self->{blog_dir}    = undef;
-	$self->{blogpub_dir} = undef;
-	$ROBJ->{Change_hour} = 0;
-	$self->{now} = $ROBJ->{Now};
-
-	# スケルトン登録の削除
 	$ROBJ->delete_skeleton($self->{user_skeleton_level});
 	$ROBJ->delete_skeleton($self->{theme_design_skeleton_level});
 }
