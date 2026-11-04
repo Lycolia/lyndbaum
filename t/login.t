@@ -143,13 +143,16 @@ subtest '回数制限を止められる' => sub {
 
 subtest 'fail_minute分たつと数え直す' => sub {
 	$app->insert_user('window');
-	with_auth_config({ fail_count_ip => 3, fail_minute => 0.1 }, sub {	# 6秒
-		local $app->{env} = { REMOTE_ADDR => next_ip() };
+	local $app->{env} = { REMOTE_ADDR => next_ip() };
+	# 止まっていることは、標準のfail_minuteのまま確かめる（負荷が高くても時間切れにならない）
+	with_auth_config({ fail_count_ip => 3 }, sub {
 		fail_times('window', 3);
 		my ($ret) = try_login('window', $AppTest::PASS);
 		isnt($ret, '0', '止まっている');
-		sleep(7);
-		($ret) = try_login('window', $AppTest::PASS);
+	});
+	with_auth_config({ fail_count_ip => 3, fail_minute => 0.01 }, sub {	# 0.6秒
+		sleep(2);
+		my ($ret) = try_login('window', $AppTest::PASS);
 		is($ret, '0', '時間がたつと入れる');
 	});
 };

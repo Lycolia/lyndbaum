@@ -293,14 +293,14 @@ sub user_add {
 # ●ユーザーをDBに直接入れる（パスワードは管理者と同じ）
 #-------------------------------------------------------------------------------
 # 画面からは作れない。ログインの試験に使う
+# ログインの試験は何百回も照合するので、bcryptのコストを最小にする（照合は保存したハッシュのコストで動く）
 sub insert_user {
 	my ($self, $id) = @_;
 	require Satsuki::Base;
 	my $ROBJ = Satsuki::Base->new();
 	my $DB   = $ROBJ->loadpm('DB_text', "$self->{dir}/data/db/");
-	my $admin = $DB->select_match_limit1('_users', 'id', 'admin');
 	$DB->begin();
-	$DB->insert('_users', { id => $id, name => $id, email => '', pass => $admin->{pass} });
+	$DB->insert('_users', { id => $id, name => $id, email => '', pass => crypt($PASS, '$2b$04$' . ('.' x 22)) });
 	if ($DB->commit()) { die "insert_user $id failed"; }
 }
 

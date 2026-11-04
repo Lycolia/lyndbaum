@@ -11,7 +11,7 @@ use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 use Errno qw(EINPROGRESS EWOULDBLOCK EAGAIN EINTR);
 use Time::HiRes ();
 #-------------------------------------------------------------------------------
-my $TIMEOUT = 5;
+our $TIMEOUT = 5;	# テストでは短くする
 my $CODE;
 my $DEBUG = 0;
 my %Auth;
