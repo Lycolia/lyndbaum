@@ -1,12 +1,12 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 設定ファイル（固定の設定とユーザー設定）のテスト
+# 設定ファイル（ユーザー設定）のテスト
 #-------------------------------------------------------------------------------
 # 実行: prove t/config_files.t
 #
 # ・ユーザー設定が無くても動く
-# ・ユーザー設定で、固定の設定の値と、初期化より前に要る値を変えられる
+# ・ユーザー設定で、コードの既定値と、初期化より前に要る値を変えられる
 # ・4.27までの設定ファイルは、アップデート処理の前は今までどおり動き、処理でユーザー設定へ移る
 #
 use FindBin;
@@ -64,7 +64,7 @@ subtest 'ユーザー設定が無くても動く' => sub {
 	ok(!-e $conf, '4.27までの設定ファイルも無い');
 	is($app->get('guest', '')->{status}, 200, '公開画面が出る');
 	is($app->get('admin', 'menu')->{status}, 200, '管理画面が出る（最初の管理者は作ってある）');
-	ok(!locked_after_2_fails(), '固定の設定の既定値（2回の失敗では止めない）で動く');
+	ok(!locked_after_2_fails(), 'コードの既定値（2回の失敗では止めない）で動く');
 };
 
 subtest '見本をそのままコピーしても動く' => sub {
@@ -86,7 +86,7 @@ subtest '見本をそのままコピーしても動く' => sub {
 
 subtest 'ユーザー設定で値を変えられる' => sub {
 	write_file($user, "$PRAGMA<\$Auth.fail_count = 2>\n");
-	ok(locked_after_2_fails(), '固定の設定の後に読むので、Authの値を変えられる');
+	ok(locked_after_2_fails(), 'Authを作った後に読むので、値を変えられる');
 
 	write_file($user, "$PRAGMA<\$Basepath = '/base/'>\n");
 	like(body($app->get('guest', '')), qr{"/base/pub/assets/}, '初期化の前に読むので、Basepathを変えられる');
@@ -111,13 +111,44 @@ subtest 'ユーザー設定で値を変えられる' => sub {
 };
 
 #-------------------------------------------------------------------------------
-# 4.27までの設定ファイル。固定の設定を元に、手で変えた形にする
+# フォームの制限（set_form_options）
 #-------------------------------------------------------------------------------
-my $fixed = read_file("$dir/info/lyndbaum.conf.cgi");
-my $old = $fixed;
+subtest 'アップロード' => sub {
+	mkdir("$dir/pub/attachments");
+	my $r = $app->post('editor', '', { action => 'media/create_folder', folder => '/', name => 'test' });
+	is(($r->{json} || {})->{ret}, 0, 'アルバムのフォルダを作る');
+
+	my $upload = sub {
+		my ($who, $name, $size) = @_;
+		$app->post($who, '', [ action => 'media/upload_form', folder => 'test/', size => 120,
+			file_ary => { filename => $name, content => 'x' x $size, type => 'text/plain' } ]);
+		return -e "$dir/pub/attachments/test/$name";
+	};
+	ok($upload->('editor', 'small.txt', 2048), 'ログインしていれば、マルチパートで送れる');
+	ok(!$upload->('guest', 'guest.txt', 2048), 'ログインしていなければ、マルチパートは受け付けない');
+
+	# 1MBを超えると一時ファイルに書く。一時フォルダの場所はユーザー設定で変えられる
+	write_file($user, "$PRAGMA<\$Temp = 'data/tmp2/'>\n");
+	ok($upload->('editor', 'big.txt', 1048576 + 1024), '1MBを超えるファイルを送れる');
+	is(-s "$dir/pub/attachments/test/big.txt", 1048576 + 1024, '中身が欠けない');
+	ok(-d "$dir/data/tmp2", 'ユーザー設定の一時フォルダを使う');
+
+	write_file($user, "$PRAGMA<\$v.uplaod_files_max = 1K>\n");
+	ok(!$upload->('editor', 'over.txt', 2048), 'ユーザー設定の上限を超えると受け付けない');
+	unlink($user);
+	ok($upload->('editor', 'again.txt', 2048), 'ユーザー設定を消すと、既定の上限に戻る');
+};
+
+#-------------------------------------------------------------------------------
+# 4.27までの設定ファイル。4.27の見本を元に、手で変えた形にする
+#-------------------------------------------------------------------------------
+my $sample = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
+my $old = $sample;
 $old =~ s/^<\$v\.uplaod_files_max = 64M>$/<\$v.uplaod_files_max = 256M>/m || die;
 $old =~ s/^<\$Auth\.table = '_users'>$/$&\n<\$Auth.fail_count = 2>\n<\$Auth.allow_ip = begin_array>\n\t# ローカル\n\t127.0.0.1\n<\$end>/m || die;
 $old =~ s/^<\$v\.admin_trust_mode = 1>$/#$&/m || die;
+$old =~ s/^<\$Auth\.start_up = true>$/#$&/m || die;
+$old =~ s/^<\$v\.default_theme = .*$/<\$v.default_theme = 'other\/other'>/m || die;
 $old =~ s/^<\$regist_skeleton\('skel\.local\/', 2\)>$/$&\n<\$regist_skeleton('skel.other\/', 3)>/m || die;
 
 subtest 'アップデート処理の前は、今までの設定ファイルで動く' => sub {
@@ -153,8 +184,10 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	like($u, qr/^<\$Auth\.allow_ip = begin_array>\n\t127\.0\.0\.1\n<\$end>$/m, '複数行の設定を写す。中のコメントは写さない');
 	like($u, qr/^<\$ENV_print = 0>$/m, 'lyndbaum.env.cgiの設定を写す');
 	like($u, qr/^<\$v\.admin_trust_mode = 0>$/m, '止めていたadmin_trust_modeは、止めたままにする');
+	like($u, qr/^<\$Auth\.start_up = 0>$/m, '止めていたAuth.start_upは、止めたままにする');
 	unlike($u, qr/skel\.other/, '組み立ての行は写さない');
-	unlike($u, qr/loadpm|loadapp|album_jpeg_quality|v\.parsers/, '固定の設定と同じ行は写さない');
+	unlike($u, qr/default_theme/, 'コードに移して変えないことにした項目は写さない');
+	unlike($u, qr/loadpm|loadapp|album_jpeg_quality|v\.parsers/, '4.27の見本と同じ行は写さない');
 
 	ok(!-e $conf, '今までの設定ファイルは無くなる');
 	ok(!-e $env, '今までのlyndbaum.env.cgiは無くなる');
@@ -168,13 +201,13 @@ subtest 'アップデート処理で、ユーザー設定へ移す' => sub {
 	ok(locked_after_2_fails(), '移した値が効いている');
 };
 
-subtest 'admin_trust_modeの行があれば、足さない' => sub {
+subtest 'admin_trust_modeとAuth.start_upの行があれば、足さない' => sub {
 	unlink($user);
-	write_file($conf, $fixed);
+	write_file($conf, $sample);
 	set_version('4.27');
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
 	ok(-e $user, 'ユーザー設定ができる');
-	unlike(read_file($user), qr/^<\$/m, '固定の設定と同じなら、中身は無い');
+	unlike(read_file($user), qr/^<\$/m, '4.27の見本と同じなら、中身は無い');
 	ok(!-e $conf, '今までの設定ファイルは無くなる');
 };
 

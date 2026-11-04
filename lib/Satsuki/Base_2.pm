@@ -596,6 +596,27 @@ sub check_email {
 # ■クエリー・フォーム処理
 ################################################################################
 #-------------------------------------------------------------------------------
+# ●フォームの制限の設定
+#-------------------------------------------------------------------------------
+sub set_form_options {
+	my $self = shift;
+	my $opt  = $self->{Form_options} ||= {};
+
+	$opt->{str_max_chars} = 80;	# 文字数
+
+	# マルチパート用の設定。データインポートや画像アップロードの最大サイズ
+	$opt->{allow_multipart} = $self->{Auth}->{ok};
+	$opt->{multipart_total_max_size} = $self->{Main}->{uplaod_files_max};
+
+	# 大きいデータの場合、送信ファイルを一度テンポラリに書き出す
+	if ($ENV{CONTENT_LENGTH} > 1048576) {
+		$opt->{multipart_temp_flag} = 1;
+	}
+	# ホスト名逆引き（2重引き）
+	$self->resolve_host();
+}
+
+#-------------------------------------------------------------------------------
 # ●フォームの読み込み（実体）
 #-------------------------------------------------------------------------------
 sub _read_form {
@@ -604,7 +625,11 @@ sub _read_form {
 	if (ref $self->{Form} eq 'HASH') { return $self->{Form}; }
 
 	### POST 事前スクリプトの exec
-	if ($self->{If_post_exec_pre}) { $self->execute( $self->{If_post_exec_pre} ); }
+	if ($self->{If_post_exec_pre}) {
+		$self->execute( $self->{If_post_exec_pre} );	# 4.27までの設定ファイル
+	} else {
+		$self->set_form_options();
+	}
 	### オプションロード
 	my $options = $self->{Form_options} || {};
 	### マルチパート form か

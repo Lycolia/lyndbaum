@@ -44,7 +44,7 @@ my @update_versions = (
 	{ ver => 4.24, info=>1, func => 'sys_update_424' },	# RSSにチャンネル画像（サイトアイコン）と記事のアイキャッチを足し、2つ目のRSS（rss2.xml）を削除した。ブログ付加情報の再構築で書き出し直す
 	{ ver => 4.25, func => 'sys_update_425', system=>1 },	# AVIFのサムネイルの画質の設定（album_avif_quality）を、設定ファイルに無ければ足す
 	{ ver => 4.27, plugin=>1, func => 'sys_update_427' },	# プライベートモードを削除した。雛形から403の分岐を消したので、デザインのスケルトンを作り直す
-	{ ver => 4.28, func => 'sys_update_428', system=>1 }	# 設定ファイルを固定の設定（info/lyndbaum.conf.cgi）とユーザー設定（lyndbaum.user.cgi）に分けた
+	{ ver => 4.28, func => 'sys_update_428', system=>1 }	# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -798,7 +798,7 @@ sub delete_default_setting_file {
 #-------------------------------------------------------------------------------
 # ●システムアップデート for Ver4.28
 #-------------------------------------------------------------------------------
-# 設定ファイルを、固定の設定（info/lyndbaum.conf.cgi）とユーザー設定（lyndbaum.user.cgi）に分けた
+# 設定ファイルをやめて既定値をコードに移し、変えたい値だけをユーザー設定（lyndbaum.user.cgi）に書くようにした
 sub sys_update_428 {
 	my $self = shift;
 	$self->delete_default_setting_file();
@@ -808,11 +808,12 @@ sub sys_update_428 {
 #-------------------------------------------------------------------------------
 # ○4.27までの設定ファイルを、ユーザー設定に移す
 #-------------------------------------------------------------------------------
-# 有効な行のうち、固定の設定と違うものを写す。
+# 有効な行のうち、4.27の見本（lyndbaum_conf_427.txt）と違うものを写す。
 # ユーザー設定が書けないときは、今までの設定ファイルのまま動き続ける
 #
-# ユーザー設定は固定の設定を読んだ後に動くので、組み立てる行は写しても効かない
-my $Conf_not_movable_428 = qr/^\s*<\$(?:constant\(|const\(|regist_skeleton\(|load_language_file\(|ifumask\(|v\s*=|DB\s*=|Auth\s*=)/;
+# 組み立てる行と、コードに移して変えないことにした項目は写さない
+my $Conf_sample_428 = 'lib/SatsukiApp/lyndbaum_conf_427.txt';
+my $Conf_not_movable_428 = qr/^\s*<\$(?:constant\(|const\(|regist_skeleton\(|load_language_file\(|ifumask\(|If_post_exec_pre\s*=|v\s*=|DB\s*=|Auth\s*=|v\.(?:\w+_dir|system_config_file|default_\w+_file|allow_tags_head|default_theme|parsers|rss_skeleton|words_separator|album_icons|album_font|album_font_size)\s*=)/;
 sub migrate_conf_428 {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -821,21 +822,23 @@ sub migrate_conf_428 {
 	my $env  = $ROBJ->{Env_file};
 	my $user = $ROBJ->{User_file};
 
-	my $fixed = $self->conf_statements_428( $ROBJ->{Fixed_file} );
-	my %fixed = map { $_->{key} => 1 } @$fixed;
+	my $sample = $self->conf_statements_428($Conf_sample_428);
+	my %sample = map { $_->{key} => 1 } @$sample;
 
 	# 定数はファイルごとなので、ユーザー設定からは使えない
-	my @const = map { $_->{key} =~ /^<\$const(?:ant)?\((\w+)\)/ ? $1 : () } @$fixed;
+	my @const = map { $_->{key} =~ /^<\$const(?:ant)?\((\w+)\)/ ? $1 : () } @$sample;
 	my $use_const = '(?<![\.\w])(?:' . join('|', @const) . ')\b';
 
 	my @move;
 	my @not_moved;
 	my $admin_trust;
+	my $start_up;
 	foreach my $file ($env, $conf) {
 		if (!-r $file) { next; }
 		foreach my $st (@{ $self->conf_statements_428($file) }) {
 			if ($st->{key} =~ /^<\$v\.admin_trust_mode\s*=/) { $admin_trust = 1; }
-			if ($fixed{ $st->{key} }) { next; }
+			if ($st->{key} =~ /^<\$Auth\.start_up\s*=/)      { $start_up    = 1; }
+			if ($sample{ $st->{key} }) { next; }
 			if ($st->{key} =~ $Conf_not_movable_428 || $st->{key} =~ /$use_const/) {
 				push(@not_moved, @{ $st->{lines} });
 			} else {
@@ -843,9 +846,12 @@ sub migrate_conf_428 {
 			}
 		}
 	}
-	# 固定の設定はONなので、止めていた人の設定が変わらないようにする
+	# どちらも既定はONなので、止めていた人の設定が変わらないようにする
 	if (!$admin_trust) {
 		push(@move, "<\$v.admin_trust_mode = 0>\n");
+	}
+	if (!$start_up) {
+		push(@move, "<\$Auth.start_up = 0>\n");
 	}
 
 	my @out = (

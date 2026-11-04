@@ -94,17 +94,15 @@ sub start_up {
 
 	my $cgi = $0;
 
-	my $fixed;	# 固定の設定（配布物）
 	my $user;	# ユーザー設定（無くてもよい）
 	my $env;	# 4.27までの設定
 	my $conf;	# 4.27までの設定
 	if ($cgi =~ m!(?:^|/)([^/\.]*)[^/]*$!) {
-		$fixed = 'info/' . $1 . '.conf.cgi';
 		$user  = $1 . '.user.cgi';
 		$env   = $1 .  '.env.cgi';
 		$conf  = $1 . '.conf.cgi';
 	} else {
-		$fixed = $user = $env = $conf = '__(internal_error)__';
+		$user = $env = $conf = '__(internal_error)__';
 	}
 
 	if (!-r $user && -r $conf) {
@@ -115,14 +113,13 @@ sub start_up {
 		$self->init_tm();
 		$self->init_path();
 
-		$self->{Fixed_file}  = $fixed;	# 以下はアップデート処理で使う
-		$self->{User_file}   = $user;
+		$self->{User_file}   = $user;	# 以下はアップデート処理で使う
 		$self->{Env_file}    = $env;
 		$self->{Conf_file}   = $conf;
 		$self->{Conf_result} = $self->_call($conf);
 	} else {
-		# ユーザー設定で、固定の設定の値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
-		$self->{Conf_result} = $self->_call($fixed);
+		# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
+		$self->setup_main();
 		if (-r $user) {
 			$self->_call($user);
 		}
@@ -149,6 +146,34 @@ sub start_up {
 		}
 	};
 	if ($@ && $@ !~ /^Break\b/) { die $@; }
+}
+
+#-------------------------------------------------------------------------------
+# ●DB、ログイン、本体を作る
+#-------------------------------------------------------------------------------
+# 既定値は、できるだけそれぞれのnewに持つ。
+# admin_trust_modeとAuthのstart_upは、4.27までの設定ファイルで止めている環境の動きを変えないように、
+# それぞれのnewではなくここで設定する（4.27までの設定ファイルで動くときは、ここを通らない）
+sub setup_main {
+	my $self = shift;
+
+	$self->{Temp} = 'data/tmp/';
+	$self->{WDAY_name} = ['日', '月', '火', '水', '木', '金', '土'];
+	$self->{AMPM_name} = ['午前', '午後', '深夜'];
+
+	# wwwプロセスで実行されてるようならば0777,0666になるようにする
+	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(0); }
+
+	$self->regist_skeleton('skel/');
+	$self->regist_skeleton('skel.local/', 2);
+	$self->load_language_file('info/lang/ja.utf8.txt');
+
+	my $db   = $self->{DB}   = $self->loadpm('DB_text', 'data/db/');
+	my $auth = $self->{Auth} = $self->loadpm('Auth', $db);
+	$auth->{table}    = '_users';
+	$auth->{start_up} = 1;		# ユーザー未登録時に無条件に承認し管理権限を与える
+
+	$self->{v} = $self->{Main} = $self->loadapp('adiary', $db, { admin_trust_mode => 1 });
 }
 
 #-------------------------------------------------------------------------------

@@ -284,8 +284,8 @@ subtest 'アップデート処理で、設定ファイルにAVIFの画質を足�
 	};
 
 	# 4.24までの設定ファイル（AVIFの画質の行が無い）にする
-	my $conf = read_file("$dir/info/lyndbaum.conf.cgi");
-	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '固定の設定からAVIFの画質の行を消す');
+	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
+	ok($conf =~ s/\n# AVIFサムネイル生成時の品質\n<\$v\.album_avif_quality = 65>\n//, '4.27の見本からAVIFの画質の行を消す');
 	$old_conf->($conf);
 
 	ok(AppTest::is_reload($update->()), 'アップデート処理を行える');
@@ -318,7 +318,7 @@ subtest '標準記法の削除' => sub {
 
 	# 4.21までの設定ファイルと、標準記法を既定にしたブログ
 	my $cf = "$dir/lyndbaum.conf.cgi";
-	my $conf = read_file("$dir/info/lyndbaum.conf.cgi");
+	my $conf = read_file("$dir/lib/SatsukiApp/lyndbaum_conf_427.txt");
 	$conf =~ s/^(\tmarkdown\s*=.*\n)/$1\tdefault       = 標準（改行処理）\n\tdefault_p1    = １行＝１段落\n\tdefault_p2    = 空行で段落処理\n/m;
 	$write->($cf, $conf);
 	unlink("$dir/lyndbaum.user.cgi");
