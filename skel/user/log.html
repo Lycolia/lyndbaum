@@ -16,7 +16,6 @@
 	logout = ログアウト
 	regist = 追加
 	update = 変更
-	delete = 削除
 <$end>
 
 <$page  = int(Query.page)  || 1>
@@ -123,7 +122,7 @@
 		<@ifexec(t.msg eq '', begin, begin)>
 		<td>成功</td>
 		<$else>
-		<td><strong class="warning"><@if(t.msg eq 'fail', '失敗', if(t.msg eq 'fail (IP)', '失敗（IP制限）', t.msg))></strong></td>
+		<td><strong class="warning"><@if(t.msg eq 'fail', '失敗', if(t.msg eq 'fail (IP)', '失敗（IP制限）', if(t.msg eq 'fail (IP limit)', '失敗（同じIPの回数制限）', t.msg)))></strong></td>
 		<$end>
 		<td><@t.ip></td>
 		<td><@t.host></td>

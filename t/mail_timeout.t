@@ -21,6 +21,9 @@ binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo
 
 alarm(120);	# 送信が戻らなくなったら、テスト全体を止める
 
+# 制限時間まで待つテストが多いので、短くして動かす
+my $TIMEOUT = $Satsuki::Base::Mail::TIMEOUT = 1;
+
 my $BIG = 32 * 1024 * 1024;	# ソケットの送信バッファに必ず収まらない大きさ
 my @servers;
 
@@ -122,7 +125,7 @@ sub receive_all {
 }
 sub near_timeout {
 	my ($elapsed, $name) = @_;
-	ok(4 < $elapsed && $elapsed < 9, "$name（" . sprintf('%.1f', $elapsed) . '秒）');
+	ok($TIMEOUT * 0.8 < $elapsed && $elapsed < $TIMEOUT + 4, "$name（" . sprintf('%.1f', $elapsed) . '秒）');
 }
 
 #-------------------------------------------------------------------------------
@@ -164,7 +167,7 @@ subtest '遅くても受信が進んでいれば、制限時間を超えても�
 		until_data($sock);
 		my $data = '';
 		foreach (1 .. 7) {
-			Time::HiRes::sleep(1);
+			Time::HiRes::sleep($TIMEOUT * 0.2);	# 1回の間隔は制限時間より短く、合計は長く
 			my $left = 2 * 1024 * 1024;
 			while ($left > 0) {
 				my $got = sysread($sock, $data, $left, length($data)) || POSIX::_exit(2);
@@ -175,7 +178,7 @@ subtest '遅くても受信が進んでいれば、制限時間を超えても�
 	});
 	my ($ret, $elapsed, $error) = send_to($port, 'x' x $BIG);
 	is($ret, 0, '成功する') || diag($error);
-	ok($elapsed > 5, '制限時間より長く掛かっている（' . sprintf('%.1f', $elapsed) . '秒）');
+	ok($elapsed > $TIMEOUT, '制限時間より長く掛かっている（' . sprintf('%.1f', $elapsed) . '秒）');
 };
 
 subtest 'DATAの後に読まないサーバーへの送信はタイムアウトする' => sub {

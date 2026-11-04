@@ -28,8 +28,9 @@ $self->{all_logout}   = 0;	ログアウト時にすべてのセッションを�
 $self->{start_up}     = 0;	管理者未登録時に root* 無条件認証を行う
 
 $self->{fail_sleep}   = 0;	ログイン失敗時にsleep（秒）。0:無効。±0.2される
-$self->{fail_count}   = 15;	指定回数失敗したら、しばらくログインできなくする
-$self->{fail_minute}  = 10;	しばらくログインできなくなる時間（分）
+$self->{fail_count_ip}= 15;	同じIPから指定回数失敗したら、そのIPからしばらくログインできなくする。0:無効。IPv6は/64ごとに数える。logテーブルから数えるので、log_stopでは効かない
+$self->{fail_count}   = 100;	1つのアカウントで指定回数失敗したら、しばらくログインできなくする。0:無効
+$self->{fail_minute}  = 10;	しばらくログインできなくなる時間（分）。上の2つで共通
 
 $self->{logtext_max}  = 128;	ログ１要素あたりの最大文字数
 
@@ -130,6 +131,7 @@ agent		text	HTTP_USER_AGENT
 ################################################################################
 Auth.log_stop
 	1 を設定すると log テーブルに保存しなくなります。
+	fail_count_ip は log テーブルから数えるので、効かなくなります。
 	log_func と通常のログ保存は独立です。
 	両方保存することも可能です。
 
@@ -292,11 +294,11 @@ Ret:
 $ary = $self->load_logs(\%query)
 ($ary, $hits) = $self->load_logs(\%query)
 
-　ログイン、ログアウト、ユーザーの追加・変更・削除の記録を読む。新しい順。
+　ログイン、ログアウト、ユーザーの追加・変更の記録を読む。新しい順。
 管理者のみ実行可能。
 
 	$query->{id}	ユーザーID（保存時にタグをエスケープしているので、そろえて渡す）
-	$query->{type}	login, logout, regist, update, delete
+	$query->{type}	login, logout, regist, update
 	$query->{result}	ok（msgが空）, fail（msgが空でない）
 	$query->{year}	年
 	$query->{mon}	月（yearと一緒に）

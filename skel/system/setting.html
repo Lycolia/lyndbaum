@@ -12,12 +12,13 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
 <$end>
 
 <@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
 <$pm = if(s.pass_min     ne '', s.pass_min,     Auth.pass_min)>
 <$sd = if(s.session_days ne '', s.session_days, Auth.expires / 86400)>
+<$fi = if(s.fail_count_ip ne '', s.fail_count_ip, Auth.fail_count_ip)>
 <$fc = if(s.fail_count   ne '', s.fail_count,   Auth.fail_count)>
 <$fm = if(s.fail_minute  ne '', s.fail_minute,  Auth.fail_minute)>
 <$mb = if(s.upload_max_mb ne '', s.upload_max_mb, v.uplaod_files_max / 1048576)>
@@ -137,11 +138,16 @@
 	</tr>
 	<tr>
 		<th>ログインの失敗</th>
-		<td<@err.c_fail_count><@err.c_fail_minute>>
-<@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
-			<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）、
+		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
+<@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
+			同じIPから<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）、
 <$else>
-			<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）失敗したら、
+			同じIPから<input type="number" name="fail_count_ip" min="3" max="100" class="w50" value="<@fi>">回（3-100）、
+<$end>
+<@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
+			1つのアカウントで<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）失敗したら、
+<$else>
+			1つのアカウントで<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）失敗したら、
 <$end>
 <@ifexec(!POST && (fm < 1 || fm > 1440), begin, begin)>
 			<input type="number" class="w60" value="<@fm>" disabled>分（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）

@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.33;
+our $VERSION    = 4.34;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.33;
+our $DATA_VERSION = 4.34;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -1470,7 +1470,7 @@ sub apply_sys_settings {
 	my $auth = $self->{ROBJ}->{Auth};
 
 	if ($sys->{max_sessions}) { $auth->{max_sessions} = $sys->{max_sessions}; }
-	foreach(qw(pass_min all_logout fail_count fail_minute)) {
+	foreach(qw(pass_min all_logout fail_count_ip fail_count fail_minute)) {
 		if ($sys->{$_} ne '') { $auth->{$_} = $sys->{$_}; }
 	}
 	if ($sys->{session_days} ne '') { $auth->{expires} = $sys->{session_days} * 86400; }
