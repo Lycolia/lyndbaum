@@ -48,6 +48,15 @@ subtest 'メタディスクリプション' => sub {
 		is(scalar(@desc), 1, "?$q に1つだけ出る");
 		ok($desc[0] ne '' && $desc[0] eq $og, "?$q の中身はog:descriptionと同じ（$og）");
 	}
+
+	# ブラウザーや、User-AgentにMozilla/を含むクローラーにも出す
+	local $app->{env} = { HTTP_USER_AGENT => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' };
+	foreach my $q ('', $art) {
+		my $b = body($app->get('guest', $q));
+		like($b, qr{<meta name="description" content="[^"]+">}, "?$q はUser-Agentによらずdescriptionを出す");
+		like($b, qr{<meta property="og:type" content="[^"]+">}, "?$q はUser-AgentによらずOGPを出す");
+		like($b, qr{<meta name="twitter:card" content="[^"]+">}, "?$q はUser-AgentによらずTwitter Cardを出す");
+	}
 };
 
 subtest 'ブログの権限' => sub {
@@ -170,7 +179,7 @@ subtest 'プライベートモードのブログのアップデート（4.27）'
 	$r = $app->post('admin', 'system/update', { action => 'system/update', publish_private => 1 });
 	ok(AppTest::is_reload($r), '確認があるとアップデート処理を行う');
 	like(body($r), qr{フォルダを消せませんでした}, '手で置いたものが残ったことを出す');
-	like(read_file($sys), qr/^VERSION=4\.29$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.3$/m, '版が上がる');
 	ok(-f "$dir/pub/attachments/test/a.png" && -f "$dir/pub/rss.xml", 'ファイルが pub/ に戻る');
 	ok(-f "$dir/pub/$private/hand.txt" && !-e "$dir/pub/hand.txt", '手で置いたものはフォルダに残す');
 	ok(!-e "$dir/pub/$private/attachments", '戻したものはフォルダに残らない');
