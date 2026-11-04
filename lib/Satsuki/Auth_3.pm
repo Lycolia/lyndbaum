@@ -65,7 +65,6 @@ sub user_delete {
 
 	my $DB    = $self->{DB};
 	my $table = $self->{table};
-	my $ary   = $DB->select_match($table, $col, $del, '*sort', 'pkey');
 
 	$DB->begin();
 	$DB->delete_match($table . '_sid', $col, $del);
@@ -75,9 +74,6 @@ sub user_delete {
 	if ($r1 != $#$del+1 || $r2) {
 		$DB->rollback();
 		return { ret=>-1, msg => "DB delete error: $r1 / " . ($#$del+1) };
-	}
-	foreach(@$ary) {
-		$self->log_save($_->{id}, 'delete');
 	}
 	return { ret => 0 };
 }

@@ -190,7 +190,7 @@ subtest '4.31より古いデータからのアップデート' => sub {
 	$set_version->('4.31');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.33$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -365,7 +365,7 @@ subtest 'マルチサイトと複数ユーザーの列を消すアップデー�
 	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.33$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
 
 	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
 	foreach my $t (qw(art trash)) {
@@ -391,6 +391,49 @@ subtest 'マルチサイトと複数ユーザーの列を消すアップデー�
 	like(read_file("$dir/pub/rss.xml"), qr{<dc:creator>[^<]+</dc:creator>}, 'RSSに管理者の名前が出る');
 
 	ok(!json_ok($app->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => 'wrong-pass' })), '違うパスワードではログインできない');
+	$app->restore($snap);
+};
+
+subtest '操作の記録の削除の記録を消すアップデート（4.34）' => sub {
+	my $snap = $app->snapshot();
+	require Satsuki::Base;
+	my $ROBJ = Satsuki::Base->new();
+	my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+	my $count = sub {
+		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
+		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+		return scalar(@{ $DB->select_match('_users_log', 'type', $_[0]) });
+	};
+
+	$DB->begin();
+	foreach(qw(login logout regist update delete)) {
+		$DB->insert('_users_log', { id => 'admin', type => $_, tm => 1000000000 });
+	}
+	is($DB->commit(), 0, '各種類の記録を入れる');
+	my %before = map { $_ => $count->($_) } qw(login logout regist update);
+	foreach(qw(login logout regist update delete)) {
+		ok(0 < $count->($_), "作った状態の確認：$_ の記録がある");
+	}
+
+	my $sys  = "$dir/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.33/m;
+	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+	print $fh $conf;
+	close($fh);
+
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
+
+	is($count->('delete'), 0, 'delete の記録が消える');
+	foreach(qw(login logout regist update)) {
+		is($count->($_), $before{$_}, "$_ の記録は残る");
+	}
+
+	my $b = body($app->get('admin', 'user/log'));
+	like($b, qr{<option value="regist"}, '種類の選択肢に追加が残る');
+	like($b, qr{<option value="update"}, '種類の選択肢に変更が残る');
+	unlike($b, qr{<option value="delete"}, '種類の選択肢から削除が消える');
 	$app->restore($snap);
 };
 
