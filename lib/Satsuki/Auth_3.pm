@@ -236,7 +236,7 @@ sub check_user_data {
 	$ROBJ->clear_form_err();
 
 	# 整形済ユーザーデータ
-	if (! ref $user eq 'HASH') {
+	if (ref($user) ne 'HASH') {
 		$ROBJ->form_err('', 'Internal Error(%s)', 'in check_user_data()');
 		return undef;
 	}
