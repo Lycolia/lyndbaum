@@ -69,8 +69,8 @@ TEXT
 		push(@lines, "$_\0");	# routines
 	}
 
-	# ファイルに書き出し
-	$self->fwrite_lines($cache_file, \@lines);
+	# ファイルに書き出し。途中で落ちても、切れたキャッシュを残さない
+	$self->fwrite_atomic($cache_file, \@lines);
 }
 
 ################################################################################
@@ -1531,14 +1531,20 @@ sub json_encode {
 	my $v = shift;
 	if ($v ne '-0' && $v =~ /^-?(?:[1-9]\d*|0)(?:\.\d+)?$/) { return $v; }
 	if (ref($v) eq 'SCALAR') { return $$v; }	# true/false/null
-	# 文字列
-	$v =~ s/\\/&#92;/g;
+	return $self->json_string($v);
+}
+
+# 数字だけの値も文字列にする
+sub json_string {
+	my $self = shift;
+	my $v = shift;
+	$v =~ s/([\\"])/\\$1/g;
 	$v =~ s/\n/\\n/g;
 	$v =~ s/\t/\\t/g;
 	$v =~ s/\r/\\r/g;
 	$v =~ s/\x08/\\b/g;	# Backspace
-	$v =~ s/\x09/\\f/g;	# HT
-	$v =~ s/"/\\"/g;
+	$v =~ s/\x0c/\\f/g;	# Form Feed
+	$v =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg;
 	return '"' . $v . '"';
 }
 

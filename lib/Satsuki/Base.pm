@@ -12,6 +12,7 @@ my %StatCache;
 use Satsuki::AutoLoader;
 use Fcntl;		# for sysopen/flock
 use Scalar::Util();
+use Time::HiRes ();	# for fread_lines_cached
 ################################################################################
 # ■コンストラクタ
 ################################################################################
@@ -480,8 +481,10 @@ sub load_cache {
 
 	local($/) = "\0";	# デリミタ変更
 	my $lines = $self->fread_lines($file);
-	# 全データからデリミタ除去
-	foreach(@$lines) { chop(); }
+	# 全データからデリミタ除去。デリミタがなければ途中で切れている
+	foreach(@$lines) {
+		if (chop() ne "\0") { return; }	# 失敗
+	}
 
 	shift(@$lines);	# 注意書き読み捨て
 	my $version = shift(@$lines);
@@ -493,17 +496,11 @@ sub load_cache {
 	# このキャッシュの生成に使用したソースファイルのタイムスタンプ(UTC)
 	$cache{src_tm}      = shift(@$lines);
 
-	# ルーチンバッファの読み込み
-	my @arybuf;
+	# ルーチンバッファの読み込み。数が合わなければ失敗
 	my $arys = shift(@$lines) + 0;
-	for(my $i=0; $i<$arys; $i++) {
-		push(@arybuf, shift(@$lines));
-	}
+	if ($arys < 1 || $#$lines +1 != $arys) { return; }
 
-	# @$lines が空であるかチェック
-	if ($#$lines != -1) { return (2); }	# 失敗
-
-	$cache{arybuf} = \@arybuf;
+	$cache{arybuf} = $lines;
 	return \%cache;
 }
 
@@ -1136,9 +1133,11 @@ sub fread_lines_cached {
 	my $key   = join('//',$flags->{PostProcessor},$flags->{DelCR});
 	my $c     = $cache->{$key} || {};
 
-	my $st   = $StatCache{$file} ||= [ stat($file) ];
-	my $size = $st->[7];
-	my $mod  = $st->[9];
+	# 同じ秒に書き直されても分かるように、秒より細かい時刻で比べる。
+	# 別のスレッドが書き直しても分かるように、毎回調べる（%StatCacheは使わない）。
+	my @st   = Time::HiRes::stat($file);
+	my $size = $st[7];
+	my $mod  = $st[9];
 
 	my $lines;
 	if (0<$mod && $mod == $c->{modified} && $size == $c->{size}) {

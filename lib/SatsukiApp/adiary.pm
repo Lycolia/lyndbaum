@@ -589,10 +589,11 @@ sub do_ajax_function {
 	if (!$@) { return $r; }
 
 	# eval error
-	if ($self->can($func)) {
-		return [ -99.9, $@ ];
+	# can()は、AutoLoaderがまだ読み込んでいない関数では偽になるので使わない
+	if ($@ =~ /^\[AutoLoader\] Can't find method '\Q$func\E'/) {
+		return [ -99.2, "function not found: $func()" ];
 	}
-	return [ -99.2, "function not found: $func()" ];
+	return [ -99.9, $@ ];
 }
 
 #-------------------------------------------------------------------------------

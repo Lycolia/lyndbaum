@@ -663,7 +663,9 @@ sub generate_sort_func {
 #-------------------------------------------------------------------------------
 # ●evalキャッシュ
 #-------------------------------------------------------------------------------
+# 関数には検索の値が入っていて、値の数だけ増える。上限を超えたら捨てて作り直す
 my %function_cache;
+my $function_cache_max = 1000;
 sub eval_and_cache {
 	my $self=shift;
 	my $functext=shift;
@@ -674,6 +676,7 @@ sub eval_and_cache {
 	my $func;
 	eval "\$func=$functext";
 	if ($@) { die "[DB_text/eval_and_cache] $@"; }
+	if (keys(%function_cache) >= $function_cache_max) { undef %function_cache; }
 	return ($function_cache{$functext} = $func);
 }
 

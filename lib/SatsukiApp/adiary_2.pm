@@ -709,7 +709,7 @@ sub load_revision_json {
 
 	my $ROBJ = $self->{ROBJ};
 	my @ary = map { "\"$_\": " . $ROBJ->json_encode($rev->{$_}) } qw(pkey a_pkey tm update_tm title);
-	push(@ary, '"text": ' . $self->json_long_text($rev->{_text}));
+	push(@ary, '"text": ' . $ROBJ->json_string($rev->{_text}));
 	return '{' . join(', ', @ary) . '}';
 }
 
@@ -727,23 +727,8 @@ sub load_article_now_json {
 	my $ROBJ = $self->{ROBJ};
 	my @ary = map { "\"$_\": " . $ROBJ->json_encode($art->{$_}) } qw(pkey update_tm title);
 	push(@ary, '"digest": "' . $self->article_digest($art) . '"');
-	push(@ary, '"text": ' . $self->json_long_text($art->{_text}));
+	push(@ary, '"text": ' . $ROBJ->json_string($art->{_text}));
 	return '{' . join(', ', @ary) . '}';
-}
-
-#-------------------------------------------------------------------------------
-# ●本文をjsonの文字列にする
-#-------------------------------------------------------------------------------
-# json_encode()は\を&#92;にするので、本文はここでエスケープする
-sub json_long_text {
-	my ($self, $text) = @_;
-	$text =~ s/\\/\\\\/g;
-	$text =~ s/"/\\"/g;
-	$text =~ s/\n/\\n/g;
-	$text =~ s/\r/\\r/g;
-	$text =~ s/\t/\\t/g;
-	$text =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg;
-	return "\"$text\"";
 }
 
 #-------------------------------------------------------------------------------
