@@ -294,12 +294,12 @@ sub select {
 			# 検索の準備
 			my @cond;
 			foreach(@$words) {
-				my $x = $_ =~ s/([\\\"])/\\$1/rg;
+				my $x = $_ =~ s/([\\'])/\\$1/rg;
 				my $r = $_ =~ s/([^0-9A-Za-z\x80-\xff])/"\\x" . unpack('H2',$1)/reg;
 
 				my @ary;
 				foreach (@$equal) {
-					push(@ary, "\$_->{$_} eq \"$x\"");
+					push(@ary, "\$_->{$_} eq '$x'");
 				}
 				foreach (@$cols) {
 					push(@ary, "\$_->{$_} =~ /$r/i");
@@ -312,12 +312,12 @@ sub select {
 
 			my @not_words_reg;
 			foreach(@$not) {
-				my $x = $_ =~ s/([\\\"])/\\$1/rg;
+				my $x = $_ =~ s/([\\'])/\\$1/rg;
 				my $r = $_ =~ s/([^0-9A-Za-z\x80-\xff])/"\\x" . unpack('H2',$1)/reg;
 
 				my @ary;
 				foreach (@$equal) {
-					push(@ary, "\$_->{$_} ne \"$x\"");
+					push(@ary, "\$_->{$_} ne '$x'");
 				}
 				foreach (@$cols) {
 					push(@ary, "\$_->{$_} !~ /$r/i");
