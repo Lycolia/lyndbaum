@@ -8,7 +8,7 @@ our $VERSION = '1.30';
 #-------------------------------------------------------------------------------
 use Socket;
 use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
-use Errno qw(EINPROGRESS EWOULDBLOCK EINTR);
+use Errno qw(EINPROGRESS EWOULDBLOCK EAGAIN EINTR);
 use Time::HiRes ();
 #-------------------------------------------------------------------------------
 my $TIMEOUT = 5;
@@ -181,6 +181,7 @@ sub send_mail {
 # ●制限時間つきで接続する
 #-------------------------------------------------------------------------------
 # タイマーとシグナルはプロセス全体で共有されるので、FastCGIのスレッドでは使えない
+# 送受信にも制限時間を掛けるので、接続後もノンブロッキングのままにする
 sub connect_with_timeout {
 	my ($self, $sock, $addr) = @_;
 	my $flags = fcntl($sock, F_GETFL, 0);
@@ -199,7 +200,7 @@ sub connect_with_timeout {
 		my $error = getsockopt($sock, SOL_SOCKET, SO_ERROR);
 		if (!defined($error) || unpack('i', $error)) { return 0; }
 	}
-	return fcntl($sock, F_SETFL, $flags) ? 1 : 0;
+	return 1;
 }
 
 sub make_to_header {
@@ -269,7 +270,30 @@ sub send_cmd {
 	my $sock = shift;
 	my $data = (shift) . "\r\n";
 	$DEBUG && print STDERR "--> $data";	# debug-safe
-	syswrite($sock, $data, length($data));
+
+	# 制限時間内に少しも書けなければ失敗にする（遅くても進んでいれば続ける）
+	my $written = 0;
+	my $size    = length($data);
+	my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $TIMEOUT;
+	while ($written < $size) {
+		my $ret = syswrite($sock, $data, $size - $written, $written);
+		if ($ret) {
+			$written += $ret;
+			$deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $TIMEOUT;
+			next;
+		}
+		if (!defined($ret)) {
+			if ($! == EINTR) { next; }
+			if ($! != EWOULDBLOCK && $! != EAGAIN) { die("send error: $!\n"); }
+		}
+
+		my $left = $deadline - Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+		if ($left <= 0) { die("send timeout\n"); }
+		vec(my $out, fileno($sock), 1) = 1;
+		my $ready = select(undef, $out, undef, $left);
+		if ($ready == 0) { die("send timeout\n"); }
+		if ($ready < 0 && $! != EINTR) { die("send error: $!\n"); }
+	}
 }
 
 sub status_check {
