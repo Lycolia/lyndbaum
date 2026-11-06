@@ -11,7 +11,7 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.34;
+our $VERSION    = 4.35;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
@@ -170,11 +170,6 @@ sub main {
 	# pinfoとブログの選択。テーマ選択
 	$self->select_blog_and_pinfo();
 
-	# キャッシュの処理
-	if ($ROBJ->{CGI_cache} && $sys->{html_cache}) {
-		$self->regist_cache_checker();
-	}
-
 	# Query/Form処理  ※テーマ選択より後に処理
 	$self->read_query_form();
 
@@ -225,11 +220,6 @@ sub main {
 		} elsif (my ($dir,$file) = $self->parse_skel($action)) {
 			local($self->{skel_dir}) = $dir;
 			$self->{action_data} = $ROBJ->call( "${dir}_action/$file" );
-
-			# キャッシュのクリア
-			if ($ROBJ->{Auth}->{ok} || $ROBJ->{action_return} eq '0') {
-				$self->clear_cache();
-			}
 		}
 	}
 

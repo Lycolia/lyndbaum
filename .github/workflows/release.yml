@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: バージョン（例：v4.35）
+        required: true
+        type: string
+      pr:
+        description: 本文を取るPRの番号（例：144）
+        required: true
+        type: string
+      draft:
+        description: 下書きで作る
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      VERSION: ${{ inputs.version }}
+      PR: ${{ inputs.pr }}
+      DRAFT: ${{ inputs.draft }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 入力とPRを確かめる
+        id: check
+        run: |
+          fail() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]{2}$ ]] || fail "versionの形式が違います: $VERSION"
+          [[ "$PR" =~ ^[0-9]+$ ]] || fail "prは番号で指定してください: $PR"
+
+          pr_json=$(gh pr view "$PR" --json state,baseRefName,body,mergeCommit)
+          [[ $(jq -r .state <<<"$pr_json") == MERGED ]] || fail "PR #$PR はマージされていません"
+          [[ $(jq -r .baseRefName <<<"$pr_json") == main ]] || fail "PR #$PR のマージ先がmainではありません"
+          [[ $(jq -r '.body | test("\\S")' <<<"$pr_json") == true ]] || fail "PR #$PR の本文が空です"
+
+          merge_sha=$(jq -r .mergeCommit.oid <<<"$pr_json")
+          code_version=$(git show "$merge_sha:lib/SatsukiApp/adiary.pm" | sed -nE 's/^our \$VERSION[[:space:]]*=[[:space:]]*([0-9.]+);.*/\1/p')
+          [[ "v$code_version" == "$VERSION" ]] || fail "マージコミットの\$VERSIONは${code_version}で、${VERSION}と違います"
+
+          git rev-parse -q --verify "refs/tags/$VERSION" >/dev/null && fail "タグ${VERSION}は既にあります"
+          release_tags=$(gh api --paginate "repos/$GH_REPO/releases" --jq '.[].tag_name')
+          grep -Fxq -- "$VERSION" <<<"$release_tags" && fail "Release ${VERSION}は既にあります"
+
+          echo "merge_sha=$merge_sha" >>"$GITHUB_OUTPUT"
+
+      - name: 本文を生成する
+        env:
+          MERGE_SHA: ${{ steps.check.outputs.merge_sha }}
+        run: |
+          prev_tag=$(git describe --tags --abbrev=0 --match 'v*' "$MERGE_SHA^")
+          commit_log=$(git log --first-parent --format='%H %s' "$prev_tag..$MERGE_SHA")
+          pr_json=$(gh pr view "$PR" --json title,url,body)
+
+          {
+            jq -r '"## [\(.title)](\(.url))\n\n\(.body)\n"' <<<"$pr_json" | tr -d '\r'
+            echo '### Commits'
+            while read -r sha subject; do
+              echo "- $subject (${sha:0:8})"
+              if [[ "$subject" =~ \(#([0-9]+)\)$ ]]; then
+                commits_json=$(gh pr view "${BASH_REMATCH[1]}" --json commits)
+                if (( $(jq '.commits | length' <<<"$commits_json") > 1 )); then
+                  jq -r '.commits[] | "  - \(.messageHeadline) (\(.oid[0:8]))"' <<<"$commits_json"
+                fi
+              fi
+            done <<<"$commit_log"
+            echo
+            echo "**Full Changelog**: https://github.com/$GH_REPO/compare/$prev_tag...$VERSION"
+          } >"$RUNNER_TEMP/notes.md"
+
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Releaseを作る
+        env:
+          MERGE_SHA: ${{ steps.check.outputs.merge_sha }}
+        run: |
+          draft_args=()
+          if [[ "$DRAFT" == true ]]; then
+            draft_args=(--draft)
+          fi
+
+          gh release create "$VERSION" \
+            --target "$MERGE_SHA" \
+            --title "$VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            "${draft_args[@]}"

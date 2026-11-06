@@ -92,19 +92,6 @@
 	clip_append:filter0 = trim
 	clip_append:filter1 = tag
 
-	html_cache   = flag
-	search_cache = flag
-
-	html_cache_max = キャッシュ件数
-	html_cache_max:type = int
-	html_cache_max:min = 4
-	html_cache_max:max = 256
-
-	html_cache_timeout = タイムアウト
-	html_cache_timeout:type = int
-	html_cache_timeout:min = 60
-	html_cache_timeout:max = 3600
-
 <$end>
 <$ifbreak(form_error())>
 

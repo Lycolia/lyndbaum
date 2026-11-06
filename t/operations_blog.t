@@ -63,7 +63,7 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	my $b = body($app->get('guest', ''));
 	like($b, qr{<meta property="og:locale" content="ja_JP">}, 'og:localeを出す');
 	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d{2}">}, 'generatorの版は小数2桁（4.30が4.3にならない）');
-	like($b, qr{</a> Version \d+\.\d{2} }, 'フッターの版は小数2桁');
+	like($b, qr{</a> v\d+\.\d{2} }, 'フッターの版は小数2桁');
 
 	# ブログの画像しかないページは、小さいカードのまま
 	my $setting = "$dir/data/blog/setting.dat";
