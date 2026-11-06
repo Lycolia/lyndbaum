@@ -170,11 +170,6 @@ sub main {
 	# pinfoとブログの選択。テーマ選択
 	$self->select_blog_and_pinfo();
 
-	# キャッシュの処理
-	if ($ROBJ->{CGI_cache} && $sys->{html_cache}) {
-		$self->regist_cache_checker();
-	}
-
 	# Query/Form処理  ※テーマ選択より後に処理
 	$self->read_query_form();
 
@@ -225,11 +220,6 @@ sub main {
 		} elsif (my ($dir,$file) = $self->parse_skel($action)) {
 			local($self->{skel_dir}) = $dir;
 			$self->{action_data} = $ROBJ->call( "${dir}_action/$file" );
-
-			# キャッシュのクリア
-			if ($ROBJ->{Auth}->{ok} || $ROBJ->{action_return} eq '0') {
-				$self->clear_cache();
-			}
 		}
 	}
 

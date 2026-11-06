@@ -75,6 +75,10 @@ subtest 'パスワード' => sub {
 	isnt($pass_of->('reset'), $pass_of->('admin'), 'saltは毎回違う');
 };
 
+subtest 'ページキャッシュの設定は画面に出ない' => sub {
+	unlike(body($app->get('admin', 'system/setting')), qr{html_cache|search_cache}, 'キャッシュの欄が無い');
+};
+
 subtest '同時ログイン数' => sub {
 	# システム設定の画面のフォームの値に、変えたい値を重ねて保存する
 	my $save = sub {
