@@ -195,7 +195,7 @@
 	<section class="edit-box" id="edit-eyecatch">
 	<h3>アイキャッチ画像</h3>
 	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
-	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image, s.blog_image, #'<@v.pubdist_dir>default-icon.png')>"></div>
+	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image || s.iconfile, s.blog_image || s.iconfile, #'<@v.pubdist_dir>default-icon.png')>"></div>
 	<p id="eyecatch-note"></p>
 	<p class="edit-buttons">
 	<button type="button" id="eyecatch-pick" data-url="<@v.myself>?media/&amp;popup=1&amp;eyecatch=1">アイキャッチ画像を設定</button>
