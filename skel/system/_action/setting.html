@@ -20,6 +20,9 @@
 	ping_servers_txt:filter0 = tag
 	ping_servers_txt:filter1 = trim
 
+	indexnow       = flag
+	indexnow_renew = flag
+
 	http_timeout = 更新通知/TBのタイムアウト
 	http_timeout:type = int
 	http_timeout:default = 3
@@ -96,6 +99,9 @@
 <$ifbreak(form_error())>
 
 <$ifset(h.edit_lock_interval < 10, h.edit_lock_interval, 0)>
+
+<@> IndexNowの鍵。有効にして鍵が無いときと、作り直すときだけ作る
+<$v.set_indexnow_key(h)>
 
 <@> 設定更新
 <$v.update_sysdat(h)>

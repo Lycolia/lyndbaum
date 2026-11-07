@@ -250,6 +250,16 @@ sub edit_article {
 		$self->call_event('ARTICLE_FIRST_VISIBLE', $art, $form);
 	}
 
+	# IndexNow。今公開している記事と、前に公開していた記事のURLを知らせる。下書きのURLは外に出さない
+	my @urls;
+	if ($opt{old_enable}) {
+		my $k = $opt{old_link_key};
+		$self->link_key_encode($k);
+		push(@urls, $ROBJ->{ServerURL} . $self->{myself2} . $k);
+	}
+	if ($art->{enable}) { push(@urls, $art->{absolute_url}); }
+	$self->send_indexnow(\@urls);
+
 	# 正常終了
 	return wantarray ? (0, $art) : 0;
 }
@@ -328,6 +338,9 @@ sub regist_article {
 			return 10;
 		}
 	}
+	# 保存の前に公開していたかと、そのときのURL（IndexNowで古いURLも知らせる）
+	$opt->{old_enable}   = $old->{enable};
+	$opt->{old_link_key} = $old->{link_key};
 
 	#-------------------------------------------------------------
 	# コンテンツタイプ処理
@@ -956,6 +969,58 @@ POST_BODY
 		$xml{$name} = $value;
 	}
 	return \%xml;		# 成功
+}
+
+#-------------------------------------------------------------------------------
+# ●IndexNowで、変わったURLを検索エンジンに知らせる
+#-------------------------------------------------------------------------------
+# 受け口はBing、Yandexなどで共通。鍵のファイルは、Lyndbaumがmyself2の下に、鍵の文字列に.txtを付けた名前で返す
+# （select_default_skeleton）。知らせられるのは、鍵のファイルのあるフォルダより下のURLだけ
+#
+my $INDEXNOW_URL = 'https://api.indexnow.org/indexnow';
+sub send_indexnow {
+	my ($self, $urls) = @_;
+	my $ROBJ = $self->{ROBJ};
+	my $sys  = $self->{sys};
+	my $key  = $sys->{indexnow_key};
+	if (!$sys->{indexnow} || $key !~ /^[0-9a-f]{32}$/) { return 0; }
+
+	my %uniq;
+	my @list = grep { $_ ne '' && !$uniq{$_}++ } @{ $urls || [] };
+	if (!@list) { return 0; }
+
+	my $server = $ROBJ->{ServerURL};
+	my ($host) = $server =~ m|^https?://([^/:]+)|i;
+	if ($host eq '') { return 0; }
+
+	# 数字だけの鍵やURLを数値にしないよう、JSONは手で組み立てる。値はどれもASCII（URLは%で符号化済み）
+	my $str  = sub { my $v = shift; $v =~ s/([\\"])/\\$1/g; $v =~ s/([\x00-\x1f])/sprintf('\\u%04x', ord($1))/eg; return "\"$v\""; };
+	my $json = '{"host":' . $str->($host)
+		. ',"key":' . $str->($key)
+		. ',"keyLocation":' . $str->("$server$self->{myself2}$key.txt")
+		. ',"urlList":[' . join(',', map { $str->($_) } @list) . ']}';
+
+	my $http = $ROBJ->loadpm('Base::HTTP');
+	$http->set_timeout( $sys->{http_timeout} );
+	my ($status) = $http->post($INDEXNOW_URL, { 'Content-Type' => 'application/json; charset=utf-8' }, $json);
+	if ($status == 200 || $status == 202) {
+		$ROBJ->notice('IndexNow sent : %d URL(s)', scalar(@list));
+	} else {
+		$ROBJ->notice('IndexNow error : %s', $http->{error} || "status $status");
+	}
+	return 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●IndexNowの鍵を作る（システム設定の保存）
+#-------------------------------------------------------------------------------
+# 有効にして鍵が無いとき、作り直すときだけ作る。作り直しのチェックは保存しない
+sub set_indexnow_key {
+	my ($self, $h) = @_;
+	my $renew = delete $h->{indexnow_renew};
+	if (!$h->{indexnow}) { return; }
+	if (!$renew && $self->{sys}->{indexnow_key} =~ /^[0-9a-f]{32}$/) { return; }
+	$h->{indexnow_key} = $self->{ROBJ}->generate_rand_string(16, sub { sprintf('%02x', $_[0]) });
 }
 
 ################################################################################

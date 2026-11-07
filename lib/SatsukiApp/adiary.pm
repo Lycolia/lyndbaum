@@ -379,7 +379,13 @@ sub select_default_skeleton {
 	if ($mode eq '' && !$blog->{arts}) { $auth->userdb_init(); }
 	if ($mode eq '' && !$blog->{arts} && !$auth->{exists_admin}) {
 		return $self->{top_skeleton};
-	} elsif ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
+	}
+	# IndexNowの鍵ファイル。有効なときだけ返す
+	my $sys = $self->{sys};
+	if ($sys->{indexnow} && $sys->{indexnow_key} =~ /^[0-9a-f]{32}$/ && $mode eq "$sys->{indexnow_key}.txt") {
+		return '_sub/indexnow_key';
+	}
+	if ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
 		return ($self->{view_event} = $self->{article_skeleton});
 	}
 	return ($self->{view_event} = $self->{main_skeleton});

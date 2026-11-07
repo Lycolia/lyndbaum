@@ -1213,6 +1213,16 @@ sub edit_articles {
 	}
 	$keylist = [ map { int($_) } @$keylist ];
 
+	# IndexNow。公開をやめる記事（削除、非公開）は公開していたもの、公開する記事は下書きでないものを、変える前に集める
+	my %indexnow;
+	if ($mode ne 'tagset' && $self->{sys}->{indexnow}) {
+		my $arts = $DB->select_match("art", 'pkey', $keylist, '*cols', ['pkey', 'enable', 'tm', 'link_key']);
+		foreach(@$arts) {
+			my $target = $mode eq 'enable' ? (!$_->{enable} && $_->{tm} ne '') : $_->{enable};
+			if ($target) { $indexnow{ $_->{pkey} } = $_->{link_key}; }
+		}
+	}
+
 	# 初期状態設定
 
 	my $cnt = 0;
@@ -1340,6 +1350,15 @@ sub edit_articles {
 			$self->call_event('COMMENT_STATE_CHANGE', $keylist);
 		}
 		$self->call_event('ARTCOM_STATE_CHANGE',  $keylist);
+
+		# 削除は、ゴミ箱へ移せた記事（$keylist）だけ
+		my @urls;
+		foreach(grep { exists $indexnow{$_} } @$keylist) {
+			my $k = $indexnow{$_};
+			$self->link_key_encode($k);
+			push(@urls, $ROBJ->{ServerURL} . $self->{myself2} . $k);
+		}
+		$self->send_indexnow(\@urls);
 	}
 
 	return wantarray ? (0, $cnt) : 0;
