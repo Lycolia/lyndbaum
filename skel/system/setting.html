@@ -166,6 +166,18 @@
 	</tr>
 
 	<tr>
+		<th>IndexNow</th>
+		<td>
+			<label><input type="checkbox" name="indexnow" value="1"<@if(s.indexnow, ' checked')>>記事の公開、更新、削除をIndexNowで検索エンジンに知らせる</label>
+		<@ifexec(v.sys.indexnow_key ne '', begin)>
+			<br>鍵：<code><@v.sys.indexnow_key></code><@if(v.sys.indexnow, #'（<a href="<@v.myself2><@v.sys.indexnow_key>.txt">鍵のファイル</a>）')>
+			<br><label><input type="checkbox" name="indexnow_renew" value="1">鍵を作り直す</label>
+		<$end>
+			<span class="help-text">IndexNowに記事の公開や編集、削除など変化があったときにURLを送ります。送信するとBing、Yandexなどに登録されます。送信鍵は初回有効時に作成されます。下書きや、一度も公開していない記事のURLは送信されません。</span>
+		</td>
+	</tr>
+
+	<tr>
 		<th>更新通知等のタイムアウト</th>
 		<td<@err.c_http_timeout>>
 			<input type="number" name="http_timeout" min="1" max="60" class="w50" value="<@s.http_timeout || 3>">秒（標準3秒）

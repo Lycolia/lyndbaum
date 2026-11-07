@@ -11,7 +11,7 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.36;
+our $VERSION    = 4.37;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
@@ -379,7 +379,13 @@ sub select_default_skeleton {
 	if ($mode eq '' && !$blog->{arts}) { $auth->userdb_init(); }
 	if ($mode eq '' && !$blog->{arts} && !$auth->{exists_admin}) {
 		return $self->{top_skeleton};
-	} elsif ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
+	}
+	# IndexNowの鍵ファイル。有効なときだけ返す
+	my $sys = $self->{sys};
+	if ($sys->{indexnow} && $sys->{indexnow_key} =~ /^[0-9a-f]{32}$/ && $mode eq "$sys->{indexnow_key}.txt") {
+		return '_sub/indexnow_key';
+	}
+	if ($mode ne '' && $mode !~ /^[1-9]\d+$/ || $mode eq '' && $self->{query} eq '' && $blog->{frontpage}) {
 		return ($self->{view_event} = $self->{article_skeleton});
 	}
 	return ($self->{view_event} = $self->{main_skeleton});

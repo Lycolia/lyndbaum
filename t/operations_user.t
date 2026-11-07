@@ -194,7 +194,7 @@ subtest '4.31より古いデータからのアップデート' => sub {
 	$set_version->('4.31');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.37$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -369,7 +369,7 @@ subtest 'マルチサイトと複数ユーザーの列を消すアップデー�
 	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.37$/m, '版が上がる');
 
 	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
 	foreach my $t (qw(art trash)) {
@@ -427,7 +427,7 @@ subtest '操作の記録の削除の記録を消すアップデート（4.34）'
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.34$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.37$/m, '版が上がる');
 
 	is($count->('delete'), 0, 'delete の記録が消える');
 	foreach(qw(login logout regist update)) {
@@ -438,6 +438,50 @@ subtest '操作の記録の削除の記録を消すアップデート（4.34）'
 	like($b, qr{<option value="regist"}, '種類の選択肢に追加が残る');
 	like($b, qr{<option value="update"}, '種類の選択肢に変更が残る');
 	unlike($b, qr{<option value="delete"}, '種類の選択肢から削除が消える');
+	$app->restore($snap);
+};
+
+subtest '目次のある記事を作り直すアップデート（4.37）' => sub {
+	my $snap = $app->snapshot();
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '目次の記事', body_txt => "[*toc]\n\n# 見出し\n" })), '目次のある記事を書く');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '目次の無い記事', body_txt => "本文\n" })), '目次の無い記事を書く');
+
+	require Satsuki::Base;
+	require Encode;
+	my $load = sub {	# DBの値はバイト列なので、文字列にして比べる
+		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
+		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+		return ($DB, { map { Encode::decode_utf8($_->{title}) => { pkey => $_->{pkey}, text => Encode::decode_utf8($_->{text}), description => Encode::decode_utf8($_->{description}) } } @{ $DB->select_match('art', '*cols', ['pkey', 'title', 'text', 'description']) } }, $ROBJ);
+	};
+	my ($DB, $arts, $ROBJ) = $load->();	# $ROBJ は $DB が使うので持っておく
+	my $toc   = $arts->{'目次の記事'};
+	my $plain = $arts->{'目次の無い記事'};
+	like($toc->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>\s*<ul class="toc">}, '書いた記事の目次は、見出し付きの nav で囲まれる');
+	is($toc->{description}, '見出し 見出し', '記事の概要に「目次」の見出しは入れない');
+	like(body($app->get('guest', "/0$toc->{pkey}")), qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '公開画面にも出る');
+
+	# 4.36までの形の目次に戻す
+	(my $old = $toc->{text}) =~ s{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>\s*(.*?)\s*</nav>}{$1}s;
+	unlike($old, qr{toc-box|toc-title}, '作った状態の確認：古い形の目次にした');
+	like($old, qr{<ul class="toc">}, '作った状態の確認：目次の箇条書きは残す');
+	$DB->begin();
+	$DB->update_match('art', { text => Encode::encode_utf8($old) }, 'pkey', $toc->{pkey});
+	$DB->update_match('art', { text => Encode::encode_utf8('<p>作り直さない</p>') }, 'pkey', $plain->{pkey});
+	is($DB->commit(), 0, '保存したHTMLを古い形にする');
+
+	my $sys  = "$dir/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.36/m;
+	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+	print $fh $conf;
+	close($fh);
+
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.37$/m, '版が上がる');
+
+	(undef, $arts) = $load->();
+	like($arts->{'目次の記事'}->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '目次のある記事は作り直す');
+	is($arts->{'目次の無い記事'}->{text}, '<p>作り直さない</p>', '目次の無い記事は作り直さない');
 	$app->restore($snap);
 };
 

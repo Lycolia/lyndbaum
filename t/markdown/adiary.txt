@@ -7,9 +7,12 @@
 --- expected
 <section>
 <h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
 <ul class="toc">
 	<li><a href="/0001#見出し">見出し</a></li>
 </ul>
+</nav>
 </section>
 
 === 続きを読む
@@ -192,6 +195,8 @@ A((同じ))とB((同じ))
 <h3 id="a"><a href="/0001#a">A</a></h3>
 <h5 id="c"><a href="/0001#c">C</a></h5>
 <h4 id="b"><a href="/0001#b">B</a></h4>
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
 <ul class="toc">
 	<li><a href="/0001#a">A</a>
 	<ul>
@@ -199,6 +204,7 @@ A((同じ))とB((同じ))
 		<li><a href="/0001#b">B</a></li>
 	</ul></li>
 </ul>
+</nav>
 
 === 段を飛ばした見出しだけでも目次に出す
 --- input
@@ -207,9 +213,12 @@ A((同じ))とB((同じ))
 [*toc]
 --- expected
 <h4 id="見出し"><a href="/0001#見出し">見出し</a></h4>
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
 <ul class="toc">
 	<li><a href="/0001#見出し">見出し</a></li>
 </ul>
+</nav>
 
 === バナーの後に文章が続く段落は p で囲む
 --- input
@@ -224,12 +233,15 @@ A((同じ))とB((同じ))
 # 見出し [#a1b2c3d4]
 ## 引用符 [#x"y]
 --- expected
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
 <ul class="toc">
 	<li><a href="/0001#a1b2c3d4">見出し</a>
 	<ul>
 		<li><a href="/0001#x&quot;y">引用符</a></li>
 	</ul></li>
 </ul>
+</nav>
 <h3 id="a1b2c3d4"><a href="/0001#a1b2c3d4">見出し</a></h3>
 <h4 id="x&quot;y"><a href="/0001#x&quot;y">引用符</a></h4>
 
@@ -241,9 +253,12 @@ A((同じ))とB((同じ))
 
 > ## 引用の中の見出し
 --- expected
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
 <ul class="toc">
 	<li><a href="/0001#見出し">見出し</a></li>
 </ul>
+</nav>
 <h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
 <blockquote>
 <h4 id="引用の中の見出し"><a href="/0001#引用の中の見出し">引用の中の見出し</a></h4>

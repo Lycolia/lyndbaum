@@ -207,6 +207,8 @@ Ping sending=更新通知を送信します
 Error : Illegal response "%s". (Is it ping server?)=「%s」の応答が正しくありません（正しい更新通知サーバですか？）
 Error : %s (from %s)=エラー : %s（from %s）
 Ping sended : %s (from %s)=Ping送信 : %s（from %s）
+IndexNow sent : %d URL(s)=IndexNowで%d件のURLを知らせました
+IndexNow error : %s=IndexNowで知らせられませんでした：%s
 
 # &comment_post
 comment text is empty=コメント本文がありません

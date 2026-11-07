@@ -76,7 +76,7 @@
 <div class="body">
 	<select name="open_draft" id="select-draft">
 	<@forexec(t, logs, begin)>
-		<option value="<@t.pkey>"<@if(edit_pkey == t.pkey,' selected')>><@v.format_ymd(t.yyyymmdd)> <@t.title><@if(t.id ne Auth.id, " by <@t.name>")></option>
+		<option value="<@t.pkey>"<@if(edit_pkey == t.pkey,' selected')>><@v.format_ymd(t.yyyymmdd)> <@t.title></option>
 	<$end>
 	</select>
 	<div id="open-draft-buttons">
@@ -195,7 +195,7 @@
 	<section class="edit-box" id="edit-eyecatch">
 	<h3>アイキャッチ画像</h3>
 	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
-	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image, s.blog_image, #'<@v.pubdist_dir>default-icon.png')>"></div>
+	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image || s.iconfile, s.blog_image || s.iconfile, #'<@v.pubdist_dir>default-icon.png')>"></div>
 	<p id="eyecatch-note"></p>
 	<p class="edit-buttons">
 	<button type="button" id="eyecatch-pick" data-url="<@v.myself>?media/&amp;popup=1&amp;eyecatch=1">アイキャッチ画像を設定</button>

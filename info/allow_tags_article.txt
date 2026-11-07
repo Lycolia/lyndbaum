@@ -30,7 +30,7 @@ section
 header
 footer
 aside
-nav
+nav		aria-label
 details
 summary
 

@@ -152,11 +152,11 @@
 
 	<tr><th>サイト画像の設定</th>
 		<td>
-			<input type="file" name="blog_image"><br>
+			<input type="file" name="blog_image" accept=".png,.jpg,.jpeg,.gif"><br>
 			<@ifexec(s.blog_image, begin)>
 			<label><input type="checkbox" name="blog_image_void" value="1"><a data-lythumb="" href="<@Basepath><@s.blog_image>">現在使用している画像</a>を無効にする</label>
 			<$end>
-			<span class="help-text">サイトページをFacebookなどでシェアした時などに表示される画像です。630x315以上の正方形の画像を推奨します（Twitterでは正方形にクロップされて表示されます）。</span>
+			<span class="help-text">サイトのページをSNSでシェアしたときのカードや、RSSに表示されるバナー画像です。PNG・JPEG・GIFの画像が使えます。</span>
 		</td>
 	</tr>
 	<tr><th>Twitter ID</th>
