@@ -349,7 +349,11 @@ sub post_toc {
 	$opt->{class} = $self->chain_class("toc", $c, exists($opt->{none}) ? 'none' : '');
 
 	my $secs = $self->{sections};
-	return $self->generate_toc($secs, $opt, $opt->{depth}) . "\n";
+	my $toc  = $self->generate_toc($secs, $opt, $opt->{depth});
+	if ($toc eq '') { return "\n"; }
+
+	# 普通の箇条書きと見分けられるよう、「目次」の見出しを付けて<nav>で囲む
+	return "<nav class=\"toc-box\" aria-label=\"目次\">\n<div class=\"toc-title\">目次</div>\n$toc\n</nav>\n";
 }
 
 sub generate_toc {

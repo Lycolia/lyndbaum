@@ -207,6 +207,10 @@ dl {
 ul.none, ol.none, .none ul, .none ol {
 	list-style:	none;
 }
+/* 目次（[*toc]）の見出し。普通の箇条書きと見分けられるよう、目次の先頭に「目次」と出す */
+.toc-title {
+	font-weight:	bold;
+}
 
 audio, video,
 article figure,
