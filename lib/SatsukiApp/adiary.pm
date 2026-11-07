@@ -1412,12 +1412,21 @@ sub load_plgset {
 		return $blog->{"p:$name:$key"};
 	}
 
-	my $head = "p:$name:";
-	my $len = length($head);
+	# ブログの設定は項目が多いので、全項目を毎回見ない。プラグインごとの項目名を一度だけ作る
+	my $index = $self->{_plgset_index};
+	if (!$index || $self->{_plgset_blog} != $blog) {
+		$index = $self->{_plgset_index} = {};
+		$self->{_plgset_blog} = $blog;
+		foreach(keys(%$blog)) {
+			if (substr($_,0,2) ne 'p:') { next; }
+			my $x = index($_, ':', 2);
+			if ($x < 0) { next; }
+			push(@{ $index->{substr($_,2,$x-2)} }, substr($_,$x+1));
+		}
+	}
 	my %h;
-	foreach(keys(%$blog)) {
-		if (substr($_,0,$len) ne $head) { next; }
-		$h{ substr($_,$len) } = $blog->{$_};
+	foreach(@{ $index->{$name} || [] }) {
+		$h{$_} = $blog->{"p:$name:$_"};
 	}
 	return \%h;
 }

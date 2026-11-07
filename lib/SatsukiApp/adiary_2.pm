@@ -2052,6 +2052,7 @@ sub update_bloginfo_comment {
 sub update_blogset {
 	my ($self, $blog, $k, $v) = @_;
 	$blog = $self->load_blogset() if (!ref($blog));
+	$self->{_plgset_index} = undef;		# load_plgset の項目名を作り直す
 	$self->update_hash( $blog, $k, $v );
 	$blog->{_update}=1;
 }
