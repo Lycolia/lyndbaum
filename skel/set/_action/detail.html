@@ -96,6 +96,14 @@
 <@> ファイル無効化
 <$v.void_plugin_images(h, Form)>
 
+<@> ブログの画像は、RSSの<image>にも使うので、RSS 2.0で使える形式（GIF/JPEG/PNG）に限る
+<@> match() の前に ! を付けると =~ より先に効くので、いったん変数に入れる
+<$image_ok = is_hash(Form.blog_image) && match(Form.blog_image.name, '(?i)\.(?:png|jpe?g|gif)$')>
+<$ifexec(is_hash(Form.blog_image) && Form.blog_image.size && !image_ok, begin)>
+	<$form_error('blog_image', 'ブログの画像にはPNG・JPEG・GIFの画像を指定してください')>
+<$end>
+<$ifbreak(form_error())>
+
 <@> ファイルアップロード処理
 <$h2 = new>
 <$v.plugin_upload_images(h2, 'sys', Form, begin_array)>
@@ -104,6 +112,11 @@
 
 <$ifbreak(form_error())>
 <$ifset(h2.blog_image, h.blog_image, v.plugin_image_dir(h2.blog_image))>
+<@> 幅と高さはRSSの<image>に書く（読めなかったときは空にして、書かない）
+<$ifexec(h2.blog_image, begin)>
+	<$h.blog_image_w = h2.blog_image_w>
+	<$h.blog_image_h = h2.blog_image_h>
+<$end>
 
 <$action_return = v.save_blogset(h)>
 

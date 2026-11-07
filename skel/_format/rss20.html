@@ -19,8 +19,21 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
 <$(logs, h) = v.load_arts_for_rss( opt )>
 <$title = esc_xml(s.blog_name)>
-<@> サイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
-<$icon = ServerURL . Basepath . if(s.iconfile, s.iconfile, v.pubdist_dir . 'default-icon.png')>
+<@> チャンネルの画像は、ブログの画像、サイトアイコン、既定のアイコンの順に使う
+<@> ブログの画像とサイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
+<$icon = v.pubdist_dir . 'default-icon.png'>
+<$ifexec(s.blog_image, begin, begin)>
+	<$icon = s.blog_image>
+	<$icon_w = s.blog_image_w>
+	<$icon_h = s.blog_image_h>
+<$else>
+	<$ifexec(s.iconfile, begin)>
+		<$icon = s.iconfile>
+		<$icon_w = s.iconfile_w>
+		<$icon_h = s.iconfile_h>
+	<$end>
+<$end>
+<$icon = ServerURL . Basepath . icon>
 <channel>
 	<title><@title></title>
 	<link><@ServerURL><@v.myself></link>
@@ -37,9 +50,9 @@
 		<title><@title></title>
 		<link><@ServerURL><@v.myself></link>
 <@>		幅は144、高さは400まで。分からないときと超えるときは書かない
-<@ifexec(s.iconfile && s.iconfile_w && s.iconfile_h && s.iconfile_w <= 144 && s.iconfile_h <= 400, begin)>
-		<width><@s.iconfile_w></width>
-		<height><@s.iconfile_h></height>
+<@ifexec(icon_w && icon_h && icon_w <= 144 && icon_h <= 400, begin)>
+		<width><@icon_w></width>
+		<height><@icon_h></height>
 <$end>
 	</image>
 <@forexec(t, logs, begin)>
