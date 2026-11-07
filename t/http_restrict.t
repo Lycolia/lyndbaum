@@ -12,7 +12,8 @@ BEGIN { push(@INC, "$FindBin::Bin/../lib"); }
 use Test::More;
 use IO::Socket::INET;
 use POSIX ();
-use Socket qw(inet_aton);
+use IO::Socket::IP;
+use Socket qw(AF_INET AF_INET6 SOCK_STREAM inet_aton inet_pton pack_sockaddr_in);
 use Satsuki::Base::HTTP;
 
 binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo_output));
@@ -96,6 +97,104 @@ subtest 'リダイレクト先が内部のアドレスなら辿らない' => sub
 	$http->{allow_internal} = 1;
 	is($http->get("http://127.0.0.1:$port/"), undef, 'メタデータのアドレスへ辿らない');
 	like($http->{error}, qr/Can't connect to internal address '169\.254\.169\.254'/, 'エラーに理由が出る');
+};
+
+#-------------------------------------------------------------------------------
+# IPv6
+#-------------------------------------------------------------------------------
+subtest 'IPv6の内部のアドレスを判定する' => sub {
+	foreach my $ip (qw(:: ::1 ::ffff:8.8.8.8 ::ffff:127.0.0.1 64:ff9b::808:808 2001:db8::1 fc00::1 fd12:3456::1
+			fe80::1 febf:ffff::1 ff02::1)) {
+		ok(Satsuki::Base::HTTP->is_internal_ip(inet_pton(AF_INET6, $ip)), "$ip は内部");
+	}
+	foreach my $ip (qw(2606:4700::1 2400:4153:8f01:c800::1 2001:4860:4860::8888 fec0::1 fbff::1)) {
+		ok(!Satsuki::Base::HTTP->is_internal_ip(inet_pton(AF_INET6, $ip)), "$ip は外部");
+	}
+	ok(Satsuki::Base::HTTP->is_internal_ip('abc'), '長さのおかしいアドレスは内部として断る');
+};
+
+subtest 'IPv6で接続する' => sub {
+	my $listener = IO::Socket::IP->new(Listen => 1, LocalAddr => '::1', LocalPort => 0, Proto => 'tcp');
+	if (!$listener) { plan skip_all => 'IPv6のループバックが使えない'; }
+
+	my $http = Satsuki::Base::HTTP->new(undef);
+	$http->{allow_internal} = 1;
+	my $sock = $http->connect_host('::1', $listener->sockport);
+	ok($sock, '制限を外せば::1へ接続できる');
+	close($sock) if ($sock);
+
+	$http = Satsuki::Base::HTTP->new(undef);
+	is($http->connect_host('::1', 80), undef, '制限があれば::1へ接続しない');
+	like($http->{error}, qr/Can't connect to internal address '::1'/, 'エラーに理由が出る');
+};
+
+# getaddrinfoの結果を差し替えて、$hostの解決先を決める
+sub addrs_of {
+	return map { { family => AF_INET, socktype => SOCK_STREAM, protocol => 0, addr => pack_sockaddr_in($_->[1], inet_aton($_->[0])) } } @_;
+}
+
+subtest '接続できないアドレスは飛ばして次へ進む' => sub {
+	my $port = start_server("HTTP/1.0 200 OK\r\n\r\nsecond");
+
+	# 閉じているポートを作る
+	my $closed = IO::Socket::INET->new(Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0, Proto => 'tcp');
+	my $closed_port = $closed->sockport;
+	close($closed);
+
+	no warnings 'redefine';
+	local *Satsuki::Base::HTTP::getaddrinfo = sub { return ('', addrs_of(['127.0.0.1', $closed_port], ['127.0.0.1', $port])); };
+
+	my $http = Satsuki::Base::HTTP->new(undef);
+	$http->{allow_internal} = 1;
+	like(join('', @{ $http->get("http://example.test:$port/") || [] }), qr/second/, '2番目のアドレスから受け取る');
+
+	local *Satsuki::Base::HTTP::getaddrinfo = sub { return ('', addrs_of(['127.0.0.1', $closed_port])); };
+	$http = Satsuki::Base::HTTP->new(undef);
+	$http->{allow_internal} = 1;
+	is($http->get("http://example.test:$port/"), undef, 'すべて失敗すれば失敗する');
+	like($http->{error}, qr/Can't connect example\.test/, 'エラーに理由が出る');
+};
+
+subtest '内部のアドレスだけを除いて外部へ接続する' => sub {
+	my @tried;
+	no warnings 'redefine';
+	local *Satsuki::Base::HTTP::getaddrinfo = sub { return ('', addrs_of(['127.0.0.1', 80], ['192.0.2.1', 80])); };
+	local *Satsuki::Base::HTTP::connect_addr = sub { push(@tried, 1); return; };
+	my $http = Satsuki::Base::HTTP->new(undef);
+	is($http->connect_host('example.test', 80), undef, 'すべて内部なら接続しない');
+	is(scalar(@tried), 0, '接続を試みない');
+
+	local *Satsuki::Base::HTTP::getaddrinfo = sub { return ('', addrs_of(['127.0.0.1', 80], ['8.8.8.8', 80])); };
+	$http = Satsuki::Base::HTTP->new(undef);
+	$http->connect_host('example.test', 80);
+	is(scalar(@tried), 1, '外部のアドレスにだけ接続を試みる');
+};
+
+subtest 'ブログ自身のホスト名だけは内部のアドレスへ接続できる' => sub {
+	{
+		package FakeRobj;
+		sub translate { my $self = shift; my $f = shift; return sprintf($f, @_); }
+	}
+	my $ROBJ = bless({ ServerURL => 'https://Blog.Example.test' }, 'FakeRobj');
+	my $port = start_server("HTTP/1.0 200 OK\r\n\r\nself");
+
+	no warnings 'redefine';
+	local *Satsuki::Base::HTTP::getaddrinfo = sub { return ('', addrs_of(['127.0.0.1', $port])); };
+
+	my $http = Satsuki::Base::HTTP->new($ROBJ);
+	my $sock = $http->connect_host('blog.example.test', 443);
+	ok($sock, '大文字小文字を区別せず、自分のホスト名なら接続できる');
+	close($sock) if ($sock);
+
+	foreach my $host ('other.example.test', 'blog.example.test.evil.test', 'example.test') {
+		$http = Satsuki::Base::HTTP->new($ROBJ);
+		is($http->connect_host($host, 443), undef, "$host には接続しない");
+		like($http->{error}, qr/internal address/, "$host: エラーに理由が出る");
+	}
+
+	$http = Satsuki::Base::HTTP->new($ROBJ);
+	is($http->connect_host('blog.example.test', 8080), undef, '自分のホスト名でもポートの制限は残る');
+	like($http->{error}, qr/Can't connect to port 8080/, 'エラーに理由が出る');
 };
 
 #-------------------------------------------------------------------------------

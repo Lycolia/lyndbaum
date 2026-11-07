@@ -760,6 +760,9 @@ sub set_description {
 	my $ROBJ = $self->{ROBJ};
 	my $text = $h->{text};
 
+	# リンクカードはタイトルだけを残す。相手のサイトの説明が記事の概要やRSSに出ないように
+	$text =~ s!<span class="link-card-(?:desc|site)">[^<]*</span>!!g;
+
 	$text = substr($text, 0, 4096);		# 長文への対策
 	$ROBJ->tag_delete($text);
 	$text =~ s/\s+/ /g;
@@ -771,6 +774,15 @@ sub set_description {
 	} else {
 		$h->{main_image} = '';
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●リンクカードをタイトルだけのリンクにする（RSS用。リーダーにはカードのCSSが無い）
+#-------------------------------------------------------------------------------
+sub link_card_to_text {
+	my ($self, $text) = @_;
+	$text =~ s!<a class="link-card"( href="[^"]*")[^>]*>.*?<span class="link-card-title">([^<]*)</span>.*?</a>!<a$1>$2</a>!sg;
+	return $text;
 }
 
 #-------------------------------------------------------------------------------
@@ -1498,7 +1510,7 @@ sub load_arts_for_rss {
 		$_->{rfc_update} = $ROBJ->rfc_date( $_->{update_tm} );
 
 		# テキストロード
-		my $text = $escaper->escape( $_->{text_s} || $_->{text} );
+		my $text = $escaper->escape( $self->link_card_to_text($_->{text_s} || $_->{text}) );
 		$text =~ s/\]\]>/]]&gt;/g;
 		$_->{description} = $text;
 
