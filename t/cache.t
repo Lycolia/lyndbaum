@@ -122,4 +122,58 @@ subtest '壊れたテンプレートのキャッシュは作り直す' => sub {
 	}
 };
 
+#-------------------------------------------------------------------------------
+# プラグインの設定（load_plgsetの項目名の索引）
+#-------------------------------------------------------------------------------
+subtest 'プラグインの設定は、変更と追加と削除をすぐ読める' => sub {
+	require SatsukiApp::adiary;
+	my $blog = { 'p:mod:a' => 1, 'p:mod,1:a' => 2, 'other' => 3, 'p:mod:x:y' => 4 };
+	my $v = bless({ blog => $blog, ROBJ => Satsuki::Base->new() }, 'SatsukiApp::adiary');
+
+	is_deeply($v->load_plgset('mod'),   { a => 1, 'x:y' => 4 }, 'そのプラグインの項目だけ');
+	is_deeply($v->load_plgset('mod,1'), { a => 2 }, '複数置いたモジュールは別');
+	is_deeply($v->load_plgset('none'),  {}, '無ければ空');
+	is($v->load_plgset('mod', 'a'), 1, '項目を指定して読む');
+
+	$v->update_plgset('mod', 'a', 10);
+	is($v->load_plgset('mod')->{a}, 10, '変更');
+	$v->update_plgset('mod', 'b', 20);
+	is($v->load_plgset('mod')->{b}, 20, '追加');
+	$v->update_plgset('mod', { c => 30 });
+	is($v->load_plgset('mod')->{c}, 30, 'ハッシュで追加');
+	$v->update_blogset($blog, 'p:mod:d', 40);
+	is($v->load_plgset('mod')->{d}, 40, 'ブログの設定の変更から追加');
+	$v->update_plgset('mod', 'b', undef);
+	ok(!defined $v->load_plgset('mod')->{b}, 'undefで消す');
+
+	$v->load_plgset('mod')->{a} = 99;
+	is($v->load_plgset('mod')->{a}, 10, '戻り値を書き換えても設定は変わらない');
+
+	$v->{blog} = { 'p:mod:z' => 5 };
+	is_deeply($v->load_plgset('mod'), { z => 5 }, 'ブログの設定を差し替えると、そちらを読む');
+};
+
+#-------------------------------------------------------------------------------
+# URIエンコード
+#-------------------------------------------------------------------------------
+subtest 'encode_uricomの結果は、1文字ずつ変換したときと同じ' => sub {
+	my $r = Satsuki::Base->new();
+	my $old = sub { my $x = shift; $x =~ s/([^\w!\(\)\*\-\.\~\/:])/'%' . unpack('H2',$1)/eg; return $x; };
+	my $ng = 0;
+	foreach (0..255) {
+		my $x = chr($_);
+		my $e = $old->($x);
+		$r->encode_uricom($x);
+		if ($x ne $e) { $ng++; }
+	}
+	is($ng, 0, 'すべてのバイト');
+
+	my $wide = "\x{3042}a b";
+	my $e = $old->($wide);
+	$r->encode_uricom($wide);
+	is($wide, $e, '文字列（バイト列でないもの）');
+	my $x = '日本語 a/b';
+	is($r->encode_uricom($x), $old->('日本語 a/b'), '戻り値');
+};
+
 done_testing();

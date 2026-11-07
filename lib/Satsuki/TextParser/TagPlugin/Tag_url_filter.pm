@@ -4,6 +4,7 @@ use strict;
 #                                                (C)2013 nabe / nabe@abk.nu
 #-------------------------------------------------------------------------------
 package Satsuki::TextParser::TagPlugin::Tag_url_filter;
+use Time::HiRes ();
 ################################################################################
 # ■基本処理
 ################################################################################
@@ -130,13 +131,10 @@ sub _filter {
 	}
 
 	#-------------------------------------------------------------
-	# github/gist
+	# gist
 	#-------------------------------------------------------------
 	if ($url =~ m|^https://gist\.github\.com(/[\w\-/\.]*)|) {
 		return "<module name=\"gist\" path=\"$1\">";
-	}
-	if ($url =~ m|^https://github\.com(/[\w\-/\.]*)|) {
-		return "<module name=\"gist-it\" path=\"$1\">";
 	}
 
 	#-------------------------------------------------------------
@@ -263,31 +261,170 @@ sub _filter {
 	}
 
 	#-------------------------------------------------------------
-	# その他（URLからタイトルを取得してリンク）
+	# その他（URLのOGPを取得してカードにする）
 	#-------------------------------------------------------------
-	if ($urlf =~ m|^https?://[\w\./\@\?\&\~\=\+\-%\[\]:;,\!*]+|) {
-		my $http = $ROBJ->loadpm('Base::HTTP');
-		my ($status, $header, $res) = $http->get($urlf);
-		while(1) {
-			if (!ref($res)) { last; }
-			my $title='';
-			my $charset;
-			foreach(@$header, @$res) {
-				if ( $_ =~ /charset=([\w\-]+)/) { $charset=$1; }
-				if (!$charset && $_ =~ /charset=([\w\-]+)/) { $charset=$1; }
-				if ($_ !~ m!<title(?:>| [^>]*>)([^<]+)</title>!i) { next; }
-				$title = $1;
-				last;
-			}
-			if ($title eq '') { last; }
-			my $jcode = $ROBJ->load_codepm_if_needs($title);
-			$jcode && $jcode->from_to( \$title, $charset, $ROBJ->{SystemCode} );
-			return "<a href=\"$urlf\">$title</a>";
-		}
-		return "[(access failed) $urlf]";
+	if ($urlf =~ m|^https?://[^\s<>"]+$|) {
+		return &link_card($pobj, $urlf);
 	}
 
-	return "[(filter unkown) $urlf]";
+	return '[(filter unkown) ' . &esc_html($urlf) . ']';
+}
+
+################################################################################
+# ■リンクカード
+################################################################################
+# docs/仕様/機能一覧.md「リンクカード」
+my $CARD_TIMEOUT  = 4;			# 接続と受信のそれぞれの制限時間（秒）
+my $CARD_REDIRECT = 3;
+my $CARD_MAX_SIZE = 5*1024*1024;
+my $CARD_BUDGET   = 20;			# 記事1件で取得に使う時間の上限（秒）
+my $CARD_TEXT_LEN = 300;		# タイトルと説明の文字数の上限
+
+#-------------------------------------------------------------------------------
+# ●カードのHTML。取得できなければ普通のリンクにする
+#-------------------------------------------------------------------------------
+sub link_card {
+	my ($pobj, $url) = @_;
+	my $eurl = &esc_html($url);
+	my $link = "<a href=\"$eurl\">$eurl</a>";
+
+	# 記事の保存が止まらないよう、記事ごとに取得の時間を制限する。パーサーは全記事の再構築で使い回される
+	if ($pobj->{link_card_pkey} ne $pobj->{thispkey}) {
+		$pobj->{link_card_pkey}  = $pobj->{thispkey};
+		$pobj->{link_card_spent} = 0;
+	}
+	if ($pobj->{link_card_spent} >= $CARD_BUDGET) { return $link; }
+
+	my $start = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+	my $ogp   = &fetch_ogp($pobj->{ROBJ}, $url);
+	$pobj->{link_card_spent} += Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) - $start;
+	if (!$ogp) { return $link; }
+
+	my $type  = $ogp->{type}  ne '' ? " data-og-type=\"$ogp->{type}\"" : '';
+	my $image = $ogp->{image} ne '' ? '<img class="link-card-image" alt="" src="' . &esc_html($ogp->{image}) . '">' : '';
+	my $title = &esc_html($ogp->{title});
+	my $site  = &esc_html($ogp->{site});
+	my $desc  = $ogp->{description} ne ''
+		? '<span class="link-card-desc">' . &esc_html($ogp->{description}) . '</span>' : '';
+
+	return "<a class=\"link-card\" href=\"$eurl\"$type>$image<span class=\"link-card-body\">"
+	     . "<span class=\"link-card-title\">$title</span>$desc<span class=\"link-card-site\">$site</span>"
+	     . "</span></a>";
+}
+
+# 外部の値をHTMLへ入れる。&は実体参照のまま残し、TagEscapeが正規化する
+sub esc_html {
+	my $s = shift;
+	$s =~ s/</&lt;/g;
+	$s =~ s/>/&gt;/g;
+	$s =~ s/"/&quot;/g;
+	$s =~ s/'/&#39;/g;
+	return $s;
+}
+
+#-------------------------------------------------------------------------------
+# ●URLを取得してOGPを返す。カードにできなければundef
+#-------------------------------------------------------------------------------
+sub fetch_ogp {
+	my ($ROBJ, $url) = @_;
+
+	my $http = $ROBJ->loadpm('Base::HTTP');
+	$http->set_timeout($CARD_TIMEOUT);
+	$http->{redirect} = $CARD_REDIRECT;
+	$http->{max_size} = $CARD_MAX_SIZE;
+
+	my $target = $url;
+	$target =~ s/#.*//;	# フラグメントはサーバーへ送らない
+	my ($status, $header, $res) = $http->get($target);
+	if ($status != 200 || !ref($res)) { return; }
+
+	my ($ctype) = grep { /^content-type:/i } @$header;
+	if ($ctype ne '' && $ctype !~ m!\b(?:text/html|application/xhtml\+xml)\b!i) { return; }
+
+	return &parse_ogp($ROBJ, join('', @$res), $ctype, $http->{url});
+}
+
+#-------------------------------------------------------------------------------
+# ●HTMLからOGPを取り出す。タイトルが無ければundef
+#-------------------------------------------------------------------------------
+sub parse_ogp {
+	my ($ROBJ, $html, $ctype, $base) = @_;
+
+	# <head>の中だけを見る。コメントやスクリプトの中の文字列は拾わない
+	$html =~ s/<!--.*?-->//sg;
+	$html =~ s/<(script|style)\b.*?<\/\1\s*>//sgi;
+	$html =~ s/<\/head\b.*//si;
+	$html =~ s/<body\b.*//si;
+
+	# metaの属性（>を含む値でも、順序や引用符が違っても読む）
+	my %meta;
+	my $charset = $ctype =~ /charset=["']?([\w\-]+)/i ? $1 : '';
+	while ($html =~ /<meta\b((?:[^>"']++|"[^"]*"|'[^']*')*)>/gi) {
+		my $attrs = $1;
+		my %at;
+		while ($attrs =~ /([\w:\-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g) {
+			$at{lc($1)} = defined $2 ? $2 : defined $3 ? $3 : $4;
+		}
+		if ($charset eq '') {
+			if ($at{charset} =~ /^([\w\-]+)/ || $at{content} =~ /charset=([\w\-]+)/i) { $charset = $1; }
+		}
+		my $key = lc($at{property} ne '' ? $at{property} : $at{name});
+		if ($key ne '' && !exists $meta{$key}) { $meta{$key} = $at{content}; }
+	}
+	my $title = $meta{'og:title'};
+	if ($title eq '' && $html =~ /<title(?:\s[^>]*)?>(.*?)<\/title\s*>/si) { $title = $1; }
+
+	my %ogp = (
+		title       => $title,
+		site        => $meta{'og:site_name'},
+		description => $meta{'og:description'} ne '' ? $meta{'og:description'} : $meta{description},
+	);
+
+	# 文字コードをそろえ、改行をつめ、長さを制限する
+	my $jcode = $ROBJ->load_codepm_if_needs(values(%ogp));
+	foreach(values(%ogp)) {
+		$jcode && $jcode->from_to(\$_, $charset, $ROBJ->{SystemCode});
+		$_ = &clip_text($_);
+	}
+	if ($ogp{title} eq '') { return; }
+
+	if ($ogp{site} eq '' && $base =~ m|^https?://([^/:]+)|i) { $ogp{site} = $1; }
+	$ogp{image} = &absolute_https_url($meta{'og:image'}, $base);
+	$ogp{type}  = $meta{'og:type'} =~ /^[\w\.\-]+$/ ? lc($meta{'og:type'}) : '';
+	return \%ogp;
+}
+
+# 空白をつめて長さを制限する。文字の途中で切らないよう、UTF-8として数える
+sub clip_text {
+	my $s = shift;
+	$s =~ s/\s+/ /g;
+	$s =~ s/^ //;
+	$s =~ s/ $//;
+	if (utf8::decode($s)) {
+		my $over = length($s) > $CARD_TEXT_LEN;
+		if ($over) { $s = substr($s, 0, $CARD_TEXT_LEN); }
+		utf8::encode($s);
+		if ($over) { $s .= '…'; }	# このファイルの文字列はバイト列なので、戻してから足す
+	}
+	return $s;
+}
+
+# 画像のURLを絶対URLにする。https以外は読者の環境で読めないことがあるので使わない
+sub absolute_https_url {
+	my ($url, $base) = @_;
+	$url =~ s/^\s+//;
+	$url =~ s/\s+$//;
+	if ($url eq '') { return ''; }
+
+	if ($url =~ m|^//|) {
+		$url = "https:$url";
+	} elsif ($url !~ /^[a-z][a-z0-9\+\.\-]*:/i) {
+		if ($base !~ m|^(https?://[^/]+)([^?#]*)|i) { return ''; }
+		my ($origin, $path) = ($1, $2);
+		$path =~ s|[^/]*$||;
+		$url = $origin . ($url =~ m|^/| ? '' : ($path eq '' ? '/' : $path)) . $url;
+	}
+	return $url =~ m!^https://[^\s<>"']+$!i ? $url : '';
 }
 
 1;

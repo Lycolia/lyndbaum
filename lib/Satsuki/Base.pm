@@ -376,6 +376,7 @@ sub execute {
 # ●低レベル call
 #-------------------------------------------------------------------------------
 my %SkelCache;
+my %SkelCacheName;
 sub __call {
 	my $self      = shift;
 	my $src_file  = shift;
@@ -383,23 +384,26 @@ sub __call {
 
 	my $cache_file;
 	if ($self->{__cache_dir}) {
-		my $f = $src_file;
-		$f =~ s/([^\w\.\#])/'%' . unpack('H2', $1)/eg;
-		$cache_file = $self->{__cache_dir} . $f . '.cache';
+		my $f = $SkelCacheName{$src_file} ||= ($src_file =~ s/([^\w\.\#])/'%' . unpack('H2', $1)/egr) . '.cache';
+		$cache_file = $self->{__cache_dir} . $f;
 	}
 
-	# ソースファイルを読み込めない
-	if (!-r $src_file) {
-		if ($cache_file) { unlink($cache_file); }	# キャッシュ削除
-		$self->error("[call] failed - Can't read file '%s'", $src_file || $skel_name . $self->{SkeletonExt} );
-		return undef;
+	# 同じリクエストで同じファイルを確かめるのは1回だけ（POSTは書き出してすぐ使うことがあるので毎回）
+	my $src_tm = $self->{POST} ? undef : $self->{SkelSrcTM}->{$src_file};
+	if (!defined $src_tm) {
+		# ソースファイルを読み込めない
+		if (!-r $src_file) {
+			if ($cache_file) { unlink($cache_file); }	# キャッシュ削除
+			$self->error("[call] failed - Can't read file '%s'", $src_file || $skel_name . $self->{SkeletonExt} );
+			return undef;
+		}
+		$src_tm = $self->{SkelSrcTM}->{$src_file} = (stat(_))[9];
 	}
 
 	#-------------------------------------------------------------
 	# メモリキャッシュロード
 	#-------------------------------------------------------------
 	my $skel   = $SkelCache{$src_file};
-	my $src_tm = ($StatCache{$src_file} ||= [ stat($src_file) ])->[9];
 
 	# $self->debug("*** Call $src_file ***");
 	#-------------------------------------------------------------
@@ -633,6 +637,7 @@ sub regist_skeleton {
 
 	my $dirs = $self->{SkelDirs};
 	push(@$dirs, { level=>$level, dir=>$dir });
+	$self->{SkelMemo} = undef;
 	$self->{SkelDirs} = [ sort {$b->{level} <=> $a->{level}} @$dirs ];
 }
 
@@ -643,6 +648,7 @@ sub delete_skeleton {
 	my $self = shift;
 	my $lv   = shift;
 	my $dirs = $self->{SkelDirs};
+	$self->{SkelMemo} = undef;
 	$self->{SkelDirs} = [ grep { $_->{level} != $lv } @$dirs ];
 	return grep { $_->{level}==$lv } @$dirs;
 }
@@ -656,6 +662,17 @@ sub check_skeleton {
 	my $self  = shift;
 	my $name  = shift;
 	my $level = defined $_[0] ? shift : 0x7fffffff;
+
+	# 同じリクエストで同じ名前を探すのは1回だけ
+	# POSTは、スケルトンを書き出してすぐ使うことがあるので、覚えた結果も索引も使わない
+	my $post     = $self->{POST};
+	my $relative = substr($name, 0, 1) eq '.';	# 相対指定は呼び出し元で変わる
+	my $memo_key = "$level/$name";
+	if (!$post) {
+		my $memo = $self->{SkelMemo}->{$memo_key};
+		if ($memo) { return wantarray ? @$memo : $memo->[0]; }
+	}
+
 	$name =~ s|//+|/|g;
 
 	if ($name =~ m|^\.\.?/| && $self->{CurrentSkel} =~ m|^(.*/)|) {
@@ -676,6 +693,25 @@ sub check_skeleton {
 	}
 
 	$name .= $self->{SkeletonExt};
+
+	# ディレクトリの索引から探す。呼ぶたびに全部の場所へファイルを問い合わせないため
+	if (!$post) {
+		my $x    = rindex($name, '/') + 1;
+		my $sub  = substr($name, 0, $x);
+		my $base = substr($name, $x);
+		foreach(@{ $self->{SkelDirs} }) {
+			my $lv = $_->{level};
+			if ($lv > $level) { next; }
+			my $files = $self->skeleton_dir_files($_->{dir} . $sub);
+			if (!$files || !$files->{$base}) { next; }
+
+			my $file = $_->{dir} . $name;
+			if (!$relative) { $self->{SkelMemo}->{$memo_key} = [$file, $lv]; }
+			return wantarray ? ($file, $lv): $file;
+		}
+		# 見つからなければ、下で実物を確かめる
+	}
+
 	foreach(@{ $self->{SkelDirs} }) {
 		my $lv = $_->{level};
 		if ($lv > $level) { next; }
@@ -685,6 +721,40 @@ sub check_skeleton {
 		}
 	}
 	return;		# error
+}
+
+#-------------------------------------------------------------------------------
+# ●ディレクトリの中身（スケルトンの索引）
+#-------------------------------------------------------------------------------
+# ファイルの追加と削除でディレクトリの更新時刻が変わるので、索引を消す処理は要らない。
+# 更新時刻は1リクエストにつきディレクトリごとに1回だけ確かめる。
+# 戻り値：ファイル名をキーにしたハッシュ。ディレクトリが無ければundef
+#
+my %SkelDirIndex;
+sub skeleton_dir_files {
+	my ($self, $dir) = @_;
+	my $checked = $self->{SkelDirChecked} ||= {};
+	if (exists $checked->{$dir}) { return $checked->{$dir}; }
+
+	my $tm = (Time::HiRes::stat($dir))[9];
+	if (!defined $tm) {
+		delete $SkelDirIndex{$dir};
+		return ($checked->{$dir} = undef);
+	}
+	my $index = $SkelDirIndex{$dir};
+	if ($index && $index->{tm} == $tm) { return ($checked->{$dir} = $index->{files}); }
+
+	opendir(my $fh, $dir) || return ($checked->{$dir} = undef);
+	my %files = map { $_ => 1 } readdir($fh);
+	closedir($fh);
+
+	# 更新された直後は、同じ時刻のまま次の変更が入ることがあるので覚えない
+	if (time() - $tm > 2) {
+		$SkelDirIndex{$dir} = { tm => $tm, files => \%files };
+	} else {
+		delete $SkelDirIndex{$dir};
+	}
+	return ($checked->{$dir} = \%files);
 }
 
 ################################################################################
@@ -857,10 +927,11 @@ sub encode_uri {
 }
 
 # Queryを合成するための関数（encodeURIComponent()と「/, :」を除き同一）
+my %UriEscape = map { chr($_) => sprintf('%%%02x', $_) } 0..255;
 sub encode_uricom {
 	my $self = shift;
 	foreach(@_) {
-		$_ =~ s/([^\w!\(\)\*\-\.\~\/:])/'%' . unpack('H2',$1)/eg;
+		$_ =~ s/([^\w!\(\)\*\-\.\~\/:])/$UriEscape{$1} \/\/ ('%' . unpack('H2',$1))/eg;
 	}
 	return $_[0];
 }
@@ -1071,8 +1142,11 @@ sub get_lastmodified {
 	my $self = shift;
 	my $file = shift;
 
-	if (!-r $file) { return ; }	# 読み込めない。存在しないファイル
-	my $st = $StatCache{$file} ||= [ stat($file) ];
+	my $st = $StatCache{$file};
+	if (!$st) {
+		if (!-r $file) { return ; }	# 読み込めない。存在しないファイル
+		$st = $StatCache{$file} = [ stat(_) ];
+	}
 	return $st->[9];
 }
 

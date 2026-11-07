@@ -8,7 +8,7 @@ use strict;
 package Satsuki::Base::HTTP;
 our $VERSION = '1.40';
 #-------------------------------------------------------------------------------
-use Socket;
+use Socket qw(:DEFAULT AF_INET6 AI_ADDRCONFIG getaddrinfo inet_pton unpack_sockaddr_in6);
 use Fcntl qw(F_GETFL F_SETFL O_NONBLOCK);
 use Errno qw(EINPROGRESS EWOULDBLOCK EINTR);
 use Time::HiRes ();
@@ -77,40 +77,63 @@ sub connect_host {
 	if (!$self->{allow_internal} && $port != 80 && $port != 443) {
 		return $self->error(undef, "Can't connect to port %d", $port);
 	}
-	my $ip_bin = inet_aton($host);		# IP 情報に変換
-	if ($ip_bin eq '') {
+	my ($err, @addrs);
+	if ($host ne '') {	# 空の名前はgetaddrinfoがループバックにしてしまう
+		($err, @addrs) = getaddrinfo($host, $port, { socktype => SOCK_STREAM, flags => AI_ADDRCONFIG });
+	}
+	if ($err || !@addrs) {
 		return $self->error(undef, "Can't find host '%s'", $host);
 	}
-	if (!$self->{allow_internal} && $self->is_internal_ip($ip_bin)) {
-		return $self->error(undef, "Can't connect to internal address '%s'", $host);
-	}
-	my $sockaddr = pack_sockaddr_in($port, $ip_bin);
-	my $sh;
-	if (! socket($sh, Socket::PF_INET(), Socket::SOCK_STREAM(), 0)) {
-		return $self->error(undef, "Can't open socket");
-	}
-	my $flags = fcntl($sh, F_GETFL, 0);
-	if (!defined($flags) || !fcntl($sh, F_SETFL, $flags | O_NONBLOCK)) {
-		return $self->error($sh, "Can't connect %s", $host);
-	}
-	if (!connect($sh, $sockaddr)) {
-		if ($! != EINPROGRESS && $! != EWOULDBLOCK) {
-			return $self->error($sh, "Can't connect %s", $host);
+	if (!$self->{allow_internal} && !$self->is_self_host($host)) {
+		@addrs = grep { !$self->is_internal_ip( &addr_to_ip($_) ) } @addrs;
+		if (!@addrs) {
+			return $self->error(undef, "Can't connect to internal address '%s'", $host);
 		}
-		my $deadline = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $self->{timeout};
+	}
+
+	# 不通のアドレスで時間を使い切らないよう、残り時間を残りのアドレスで割る
+	my $limit = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) + $self->{timeout};
+	while (@addrs) {
+		my $now = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+		my $sh  = $self->connect_addr(shift(@addrs), $now + ($limit - $now) / (@addrs + 1));
+		if ($sh) { return $sh; }
+	}
+	return $self->error(undef, "Can't connect %s", $host);
+}
+
+# getaddrinfoの結果の1つへ接続する。失敗したらundefを返す
+sub connect_addr {
+	my ($self, $addr, $deadline) = @_;
+
+	my $sh;
+	if (! socket($sh, $addr->{family}, $addr->{socktype}, $addr->{protocol})) { return; }
+
+	my $flags = fcntl($sh, F_GETFL, 0);
+	if (!defined($flags) || !fcntl($sh, F_SETFL, $flags | O_NONBLOCK)) { close($sh); return; }
+
+	if (!connect($sh, $addr->{addr})) {
+		if ($! != EINPROGRESS && $! != EWOULDBLOCK) { close($sh); return; }
+
 		my $ready = $self->wait_socket($sh, 0, $deadline);
 		my $error = getsockopt($sh, SOL_SOCKET, SO_ERROR);
-		if ($ready != 1 || !defined($error) || unpack('i', $error)) {
-			return $self->error($sh, "Can't connect %s", $host);
-		}
+		if ($ready != 1 || !defined($error) || unpack('i', $error)) { close($sh); return; }
 	}
-	fcntl($sh, F_SETFL, $flags) || return $self->error($sh, "Can't connect %s", $host);
+	if (!fcntl($sh, F_SETFL, $flags)) { close($sh); return; }
 
 	binmode($sh);
 	return $sh;
 }
 
-# インターネットの宛先ではないアドレスか（RFC 6890）。connect_hostはIPv4だけを扱う
+# getaddrinfoの結果のアドレス（IPv4は4バイト、IPv6は16バイト）
+sub addr_to_ip {
+	my $addr = shift;
+	if ($addr->{family} == AF_INET6) {
+		return (unpack_sockaddr_in6($addr->{addr}))[1];
+	}
+	return (unpack_sockaddr_in($addr->{addr}))[1];
+}
+
+# インターネットの宛先ではないアドレスか（RFC 6890）
 my @INTERNAL_NET = map {
 	my ($ip, $bits) = split('/', $_);
 	[ unpack('N', inet_aton($ip)), (0xffffffff << (32-$bits)) & 0xffffffff ];
@@ -119,13 +142,38 @@ my @INTERNAL_NET = map {
 	192.168.0.0/16	198.18.0.0/15	198.51.100.0/24	203.0.113.0/24
 	224.0.0.0/4	240.0.0.0/4 );
 
+# ::ffff:0:0/96（IPv4射影）と64:ff9b::/96（NAT64）はIPv4へ届くので、IPv4の判定をすり抜けないよう断る
+my @INTERNAL_NET6 = map {
+	my ($ip, $bits) = split('/', $_);
+	my $mask = pack('B128', ('1' x $bits) . ('0' x (128-$bits)));
+	[ inet_pton(AF_INET6, $ip) & $mask, $mask ];
+} qw(	::/128		::1/128		::ffff:0:0/96	64:ff9b::/96
+	2001:db8::/32	fc00::/7	fe80::/10	ff00::/8 );
+
 sub is_internal_ip {
 	my ($self, $ip_bin) = @_;
+	if (length($ip_bin) == 16) {
+		foreach(@INTERNAL_NET6) {
+			if (($ip_bin & $_->[1]) eq $_->[0]) { return 1; }
+		}
+		return 0;
+	}
+	if (length($ip_bin) != 4) { return 1; }
+
 	my $ip = unpack('N', $ip_bin);
 	foreach(@INTERNAL_NET) {
 		if (($ip & $_->[1]) == $_->[0]) { return 1; }
 	}
 	return 0;
+}
+
+# ブログ自身のホスト名か。自分のドメインが内部アドレスに解決される環境でも、自分へのリンクは取得できるようにする
+# ServerURLはHostヘッダーの偽装から守られている（adiary.pm secure_http_host）
+sub is_self_host {
+	my ($self, $host) = @_;
+	my $ROBJ = $self->{ROBJ};
+	if (!$ROBJ || $host eq '') { return 0; }
+	return $ROBJ->{ServerURL} =~ m!^https?://([^/:]+)!i && lc($1) eq lc($host) ? 1 : 0;
 }
 
 # ソケットが読み取り／書き込み可能になるまで待つ。1:準備完了、0:期限切れ、-1:エラー
@@ -256,7 +304,7 @@ sub send_https_request {
 	my $ssl = Net::SSLeay::new($ctx);
 	goto cleanup if $errs = Net::SSLeay::print_errs('SSL_new') or !$ssl;
 
-	# IPアドレスにはSNIを送らない（RFC 6066）。connect_hostはIPv4だけを扱う
+	# IPアドレスにはSNIを送らない（RFC 6066）。URLにIPv6アドレスは書けない（do_request）のでIPv4だけを見る
 	my $is_ip = ($host =~ /^\d{1,3}(?:\.\d{1,3}){3}$/);
 	if ($self->{use_sni} && !$is_ip) {
 		Net::SSLeay::set_tlsext_host_name($ssl, $host);
@@ -431,6 +479,7 @@ sub do_request {
 	my $host = $1;
 	my $port = $3 || ($https ? 443 : 80);
 	my $path = $4 || '/';
+	$self->{url} = $url;	# 最後に要求したURL
 	#-----------------------------------------------------------------------
 	# Cookieの処理
 	#-----------------------------------------------------------------------
