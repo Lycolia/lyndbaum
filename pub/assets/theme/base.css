@@ -1030,6 +1030,43 @@ a.link-card img.link-card-image {
 	opacity:		0.7;
 	overflow-wrap:		anywhere;
 }
+/* Fediverseの投稿のカード */
+.link-card-author {
+	display:		flex;
+	align-items:		center;
+	flex-wrap:		wrap;
+	gap:			0 0.5em;
+	min-width:		0;
+}
+a.link-card img.link-card-avatar {
+	flex:			none;
+	width:			2.5em;
+	height:			2.5em;
+	margin:			0;
+	border-radius:		4px;
+	object-fit:		cover;
+}
+.link-card-acct {
+	font-size:		0.8em;
+	opacity:		0.7;
+	overflow-wrap:		anywhere;
+}
+.link-card-text {
+	white-space:		pre-line;
+	overflow-wrap:		anywhere;
+}
+.link-card-media {
+	display:		flex;
+	gap:			0.25em;
+}
+a.link-card .link-card-media img {
+	flex:			1 1 0;
+	min-width:		0;
+	max-height:		16em;
+	margin:			0;
+	border-radius:		4px;
+	object-fit:		cover;
+}
 @media (max-width: 480px) {
 	a.link-card {
 		flex-direction:	column;

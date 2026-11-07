@@ -295,9 +295,12 @@ sub link_card {
 	}
 	if ($pobj->{link_card_spent} >= $CARD_BUDGET) { return $link; }
 
+	my $ROBJ  = $pobj->{ROBJ};
 	my $start = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
-	my $ogp   = &fetch_ogp($pobj->{ROBJ}, $url);
+	my $ogp   = &fetch_ogp($ROBJ, $url);
+	my $post  = &fetch_fedi_post($ROBJ, $url, $ogp);
 	$pobj->{link_card_spent} += Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) - $start;
+	if ($post) { return &fedi_card($ROBJ, $eurl, $post); }
 	if (!$ogp) { return $link; }
 
 	my $type  = $ogp->{type}  ne '' ? " data-og-type=\"$ogp->{type}\"" : '';
@@ -312,6 +315,34 @@ sub link_card {
 	     . "</span></a>";
 }
 
+#-------------------------------------------------------------------------------
+# ●Fediverseの投稿のカード
+#-------------------------------------------------------------------------------
+sub fedi_card {
+	my ($ROBJ, $eurl, $p) = @_;
+
+	my $avatar = $p->{avatar} ne '' ? '<img class="link-card-avatar" alt="" src="' . &esc_html($p->{avatar}) . '">' : '';
+	my $name   = &esc_text($p->{name});
+	my $acct   = &esc_text($p->{acct});
+	my $text   = $p->{text} ne '' ? '<span class="link-card-text">' . &esc_text($p->{text}) . '</span>' : '';
+	my $media  = join('', map {
+		'<img alt="' . &esc_text($_->{alt}) . '" src="' . &esc_html($_->{url}) . '">'
+	} @{ $p->{media} });
+	if ($media ne '') { $media = "<span class=\"link-card-media\">$media</span>"; }
+
+	my $time = '';
+	if ($p->{tm}) {
+		$time = '<time datetime="' . $ROBJ->print_tmf('%Y-%m-%dT%H:%M:%S', $p->{tm}) . $p->{tz} . '">'
+		      . $ROBJ->print_tmf('%Y/%m/%d %H:%M', $p->{tm}) . '</time> ・ ';
+	}
+	my $host = &esc_html($p->{host});
+
+	return "<a class=\"link-card\" href=\"$eurl\" data-og-type=\"$p->{type}\" data-card=\"fediverse\"><span class=\"link-card-body\">"
+	     . "<span class=\"link-card-author\">$avatar<span class=\"link-card-title\">$name</span><span class=\"link-card-acct\">$acct</span></span>"
+	     . "$text$media<span class=\"link-card-site\">$time$host</span>"
+	     . "</span></a>";
+}
+
 # 外部の値をHTMLへ入れる。&は実体参照のまま残し、TagEscapeが正規化する
 sub esc_html {
 	my $s = shift;
@@ -322,16 +353,20 @@ sub esc_html {
 	return $s;
 }
 
+# 実体参照を戻した文字列をHTMLへ入れる。&も文字として出す
+sub esc_text {
+	my $s = shift;
+	$s =~ s/&/&amp;/g;
+	return &esc_html($s);
+}
+
 #-------------------------------------------------------------------------------
 # ●URLを取得してOGPを返す。カードにできなければundef
 #-------------------------------------------------------------------------------
 sub fetch_ogp {
 	my ($ROBJ, $url) = @_;
 
-	my $http = $ROBJ->loadpm('Base::HTTP');
-	$http->set_timeout($CARD_TIMEOUT);
-	$http->{redirect} = $CARD_REDIRECT;
-	$http->{max_size} = $CARD_MAX_SIZE;
+	my $http = &card_http($ROBJ);
 
 	my $target = $url;
 	$target =~ s/#.*//;	# フラグメントはサーバーへ送らない
@@ -342,6 +377,15 @@ sub fetch_ogp {
 	if ($ctype ne '' && $ctype !~ m!\b(?:text/html|application/xhtml\+xml)\b!i) { return; }
 
 	return &parse_ogp($ROBJ, join('', @$res), $ctype, $http->{url});
+}
+
+sub card_http {
+	my $ROBJ = shift;
+	my $http = $ROBJ->loadpm('Base::HTTP');
+	$http->set_timeout($CARD_TIMEOUT);
+	$http->{redirect} = $CARD_REDIRECT;
+	$http->{max_size} = $CARD_MAX_SIZE;
+	return $http;
 }
 
 #-------------------------------------------------------------------------------
@@ -371,6 +415,20 @@ sub parse_ogp {
 		my $key = lc($at{property} ne '' ? $at{property} : $at{name});
 		if ($key ne '' && !exists $meta{$key}) { $meta{$key} = $at{content}; }
 	}
+	# ActivityPubの表現（Fediverseの投稿のカードに使う）
+	my $ap;
+	while ($html =~ /<link\b((?:[^>"']++|"[^"]*"|'[^']*')*)>/gi) {
+		my $attrs = $1;
+		my %at;
+		while ($attrs =~ /([\w:\-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g) {
+			$at{lc($1)} = defined $2 ? $2 : defined $3 ? $3 : $4;
+		}
+		if (lc($at{rel}) ne 'alternate' || $at{type} !~ m!^application/activity\+json$!i) { next; }
+		$ap = $at{href};
+		$ap =~ s/&amp;/&/g;
+		last;
+	}
+
 	my $title = $meta{'og:title'};
 	if ($title eq '' && $html =~ /<title(?:\s[^>]*)?>(.*?)<\/title\s*>/si) { $title = $1; }
 
@@ -391,7 +449,254 @@ sub parse_ogp {
 	if ($ogp{site} eq '' && $base =~ m|^https?://([^/:]+)|i) { $ogp{site} = $1; }
 	$ogp{image} = &absolute_https_url($meta{'og:image'}, $base);
 	$ogp{type}  = $meta{'og:type'} =~ /^[\w\.\-]+$/ ? lc($meta{'og:type'}) : '';
+	if ($ap ne '' && &url_host($ap) ne '' && &url_host($ap) eq &url_host($base) && $ap =~ m!^https://[^\s<>"']+$!i) {
+		$ogp{ap} = $ap;
+	}
 	return \%ogp;
+}
+
+################################################################################
+# ■Fediverseの投稿
+################################################################################
+# docs/仕様/機能一覧.md「リンクカード」
+my $FEDI_TEXT_LEN  = 500;		# 本文の文字数の上限
+my $FEDI_MEDIA_MAX = 4;			# 添付画像の枚数の上限
+my $AP_ACCEPT = 'application/activity+json, application/ld+json; profile="https://www.w3.org/ns/activitystreams"';
+
+#-------------------------------------------------------------------------------
+# ●投稿を取得する。投稿でなければundef
+#-------------------------------------------------------------------------------
+# ActivityPubのNoteを取得し、拒否されたらMastodon APIを試す
+sub fetch_fedi_post {
+	my ($ROBJ, $url, $ogp) = @_;
+	if (!$ogp || $ogp->{ap} eq '') { return; }
+	my ($post, $denied) = &fetch_ap_post($ROBJ, $ogp->{ap});
+	if ($post || !$denied) { return $post; }
+	if ($url =~ m!^https://([^/:?#]+)/\@[\w\.\-]+(?:\@[\w\.\-]+)?/(\d+)/?(?:[?#].*)?$!) {
+		return &fetch_mastodon_post($ROBJ, $1, $2);
+	}
+	return;
+}
+
+# JSONを取得する。2つ目の戻り値は、拒否された（401/403）かどうか
+sub fetch_json {
+	my ($ROBJ, $url, $accept) = @_;
+	my $http = &card_http($ROBJ);
+	my ($status, $header, $res) = $http->get($url, { Accept => $accept });
+	if ($status == 401 || $status == 403) { return (undef, 1); }
+	if ($status != 200 || !ref($res)) { return; }
+
+	my ($ctype) = grep { /^content-type:/i } @$header;
+	if ($ctype ne '' && $ctype !~ m!json!i) { return; }
+
+	require JSON::PP;
+	my $json = eval { JSON::PP->new->utf8->decode(join('', @$res)) };
+	return ref($json) eq 'HASH' ? $json : undef;
+}
+
+#-------------------------------------------------------------------------------
+# ●ActivityPub
+#-------------------------------------------------------------------------------
+sub fetch_ap_post {
+	my ($ROBJ, $ap) = @_;
+	my $host = &url_host($ap);
+
+	my ($note, $denied) = &fetch_json($ROBJ, $ap, $AP_ACCEPT);
+	if (!$note) { return (undef, $denied); }
+	if ($note->{type} ne 'Note' && $note->{type} ne 'Question') { return; }
+	if (&url_host(&ap_id($note->{id})) ne $host) { return; }	# 他のサーバーの投稿を名乗るものは使わない
+
+	# 投稿者
+	my $actor_id = &ap_actor($note->{attributedTo});
+	if (&url_host($actor_id) ne $host) { return; }
+	my ($actor, $denied2) = &fetch_json($ROBJ, $actor_id, $AP_ACCEPT);
+	if (!$actor) { return (undef, $denied2); }
+	if (&url_host(&ap_id($actor->{id})) ne $host) { return; }
+
+	my $user = &ap_str($actor->{preferredUsername});
+	my $sensitive = $note->{sensitive} ? 1 : 0;
+	my @media;
+	foreach (&ap_list($note->{attachment})) {
+		if (ref($_) ne 'HASH') { next; }
+		if ($_->{sensitive}) { $sensitive = 1; }
+		my $type = &ap_str($_->{mediaType});
+		if ($type ne '' ? $type !~ m!^image/!i : $_->{type} ne 'Image') { next; }
+		push(@media, { url => &ap_url($_->{url}), alt => &ap_str($_->{name}) });
+	}
+
+	return &fedi_post($ROBJ, {
+		type	=> lc($note->{type}),
+		host	=> $host,
+		name	=> &ap_str($actor->{name}) ne '' ? &ap_str($actor->{name}) : $user,
+		acct	=> $user ne '' ? "\@$user\@$host" : '',
+		avatar	=> &ap_url(ref($actor->{icon}) eq 'ARRAY' ? $actor->{icon}->[0] : $actor->{icon}),
+		html	=> &ap_str($note->{content}),
+		cw	=> &ap_str($note->{summary}),
+		published => &ap_str($note->{published}),
+		media	=> $sensitive ? [] : \@media,
+	}, $ap);
+}
+
+# 値の取り出し。文字列でなければ空にする
+sub ap_str {
+	my $v = shift;
+	return ref($v) ? '' : $v;
+}
+sub ap_list {
+	my $v = shift;
+	return ref($v) eq 'ARRAY' ? @$v : defined $v ? ($v) : ();
+}
+sub ap_id {
+	my $v = shift;
+	return ref($v) eq 'HASH' ? &ap_str($v->{id}) : &ap_str($v);
+}
+# 投稿者。配列ならPersonなどのactorを選ぶ
+sub ap_actor {
+	my @list = &ap_list(shift);
+	foreach (@list) {
+		if (!ref($_) || $_->{type} =~ /^(?:Person|Service|Application|Group|Organization)$/) { return &ap_id($_); }
+	}
+	return '';
+}
+# url（文字列、Link、Image、その配列）
+sub ap_url {
+	my $v = shift;
+	if (ref($v) eq 'ARRAY') { $v = $v->[0]; }
+	if (ref($v) eq 'HASH')  { $v = exists $v->{href} ? $v->{href} : $v->{url}; }
+	if (ref($v) eq 'ARRAY') { $v = $v->[0]; }
+	if (ref($v) eq 'HASH')  { $v = $v->{href}; }
+	return &ap_str($v);
+}
+
+#-------------------------------------------------------------------------------
+# ●Mastodon API（ActivityPubを拒否されたとき）
+#-------------------------------------------------------------------------------
+sub fetch_mastodon_post {
+	my ($ROBJ, $host, $id) = @_;
+	my $st = &fetch_json($ROBJ, "https://$host/api/v1/statuses/$id", 'application/json');
+	if (!$st || ref($st->{account}) ne 'HASH' || &ap_str($st->{id}) ne $id) { return; }
+	my $ac = $st->{account};
+
+	my $acct = &ap_str($ac->{acct});
+	if ($acct ne '' && $acct !~ /\@/) { $acct .= "\@$host"; }
+	my @media;
+	foreach (&ap_list($st->{media_attachments})) {
+		if (ref($_) ne 'HASH' || $_->{type} ne 'image') { next; }
+		my $u = &ap_str($_->{preview_url}) ne '' ? $_->{preview_url} : $_->{url};
+		push(@media, { url => &ap_str($u), alt => &ap_str($_->{description}) });
+	}
+
+	return &fedi_post($ROBJ, {
+		type	=> 'note',
+		host	=> $host,
+		name	=> &ap_str($ac->{display_name}) ne '' ? &ap_str($ac->{display_name}) : &ap_str($ac->{username}),
+		acct	=> $acct ne '' ? "\@$acct" : '',
+		avatar	=> &ap_str($ac->{avatar}),
+		html	=> &ap_str($st->{content}),
+		cw	=> &ap_str($st->{spoiler_text}),
+		published => &ap_str($st->{created_at}),
+		media	=> $st->{sensitive} ? [] : \@media,
+	}, "https://$host/");
+}
+
+#-------------------------------------------------------------------------------
+# ●取り出した値をカードの値にする
+#-------------------------------------------------------------------------------
+# JSONの文字列は文字なので、このファイルにそろえてUTF-8のバイト列にする
+sub fedi_post {
+	my ($ROBJ, $p, $base) = @_;
+	foreach (qw(name acct avatar html cw published)) {
+		utf8::encode($p->{$_}) if utf8::is_utf8($p->{$_});
+	}
+	foreach (@{ $p->{media} }) {
+		utf8::encode($_->{url}) if utf8::is_utf8($_->{url});
+		utf8::encode($_->{alt}) if utf8::is_utf8($_->{alt});
+	}
+
+	my %post = (
+		type	=> $p->{type} =~ /^\w+$/ ? $p->{type} : 'note',
+		host	=> $p->{host},
+		name	=> &clip_text($p->{name}),
+		acct	=> &clip_text($p->{acct}),
+		avatar	=> &absolute_https_url($p->{avatar}, $base),
+	);
+	if ($post{name} eq '') { return; }
+
+	# 注意書き（CW）があれば、本文の代わりに注意書きだけを出す
+	$post{text} = $p->{cw} ne '' ? &clip_text(&html_to_text($p->{cw}))
+	                             : &clip_lines(&html_to_text($p->{html}, 1), $FEDI_TEXT_LEN);
+
+	my @media;
+	foreach (@{ $p->{media} }) {
+		my $url = &absolute_https_url($_->{url}, $base);
+		if ($url eq '') { next; }
+		push(@media, { url => $url, alt => &clip_text($_->{alt}) });
+		if (@media >= $FEDI_MEDIA_MAX) { last; }
+	}
+	$post{media} = $p->{cw} ne '' ? [] : \@media;
+
+	# 2026-11-07T12:36:40.311Z、2026-11-07T21:36:40+09:00
+	if ($p->{published} =~ /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(?:\.\d+)?(Z|([+\-])(\d\d):?(\d\d))$/i) {
+		require Time::Local;
+		my $tm = eval { Time::Local::timegm($6, $5, $4, $3, $2-1, $1) };
+		if ($tm && uc($7) ne 'Z') { $tm -= ($8 eq '-' ? -1 : 1) * ($9*3600 + $10*60); }
+		if ($tm) {
+			$post{tm} = $tm;
+			my @l = localtime($tm);
+			my @g = gmtime($tm);
+			my $off = (Time::Local::timegm(@l[0..5]) - Time::Local::timegm(@g[0..5])) / 60;
+			$post{tz} = $off == 0 ? 'Z' : sprintf('%s%02d:%02d', $off < 0 ? '-' : '+', abs($off)/60, abs($off)%60);
+		}
+	}
+	return \%post;
+}
+
+# 投稿のHTMLを文字にする。$linesなら改行を残す
+sub html_to_text {
+	my ($s, $lines) = @_;
+	$s =~ s/<!--.*?-->//sg;
+	$s =~ s/<(script|style)\b.*?<\/\1\s*>//sgi;
+	if ($lines) {
+		$s =~ s/[\r\n]+/ /g;
+		$s =~ s/<br\b[^>]*>/\n/gi;
+		$s =~ s/<\/(?:p|div|li|h\d|blockquote|pre)\s*>/\n\n/gi;
+	}
+	$s =~ s/<[^>]*>//g;
+	$s =~ s/&#[xX]([0-9A-Fa-f]{1,6});/&chr_utf8(hex($1))/eg;
+	$s =~ s/&#(\d{1,7});/&chr_utf8($1)/eg;
+	my %ent = (lt => '<', gt => '>', quot => '"', apos => "'", nbsp => ' ');
+	$s =~ s/&(lt|gt|quot|apos|nbsp);/$ent{$1}/g;
+	$s =~ s/&amp;/&/g;
+	return $s;
+}
+sub chr_utf8 {
+	my $c = shift;
+	if ($c < 0x20 && $c != 0x0a || 0x10ffff < $c || (0xd800 <= $c && $c <= 0xdfff)) { return ' '; }
+	my $s = chr($c);
+	utf8::encode($s);
+	return $s;
+}
+
+# 改行を残して長さを制限する。行の中の空白はつめ、空行は1つにする
+sub clip_lines {
+	my ($s, $len) = @_;
+	$s =~ s/[ \t\r\f]+/ /g;
+	$s =~ s/ *\n */\n/g;
+	$s =~ s/\n{3,}/\n\n/g;
+	$s =~ s/^\s+//;
+	$s =~ s/\s+$//;
+	if (utf8::decode($s)) {
+		my $over = length($s) > $len;
+		if ($over) { $s = substr($s, 0, $len); $s =~ s/\s+$//; }
+		utf8::encode($s);
+		if ($over) { $s .= '…'; }
+	}
+	return $s;
+}
+
+sub url_host {
+	my $url = shift;
+	return $url =~ m!^https?://([^/:?#\@]+)(?::\d+)?(?:[/?#]|$)!i ? lc($1) : '';
 }
 
 # 空白をつめて長さを制限する。文字の途中で切らないよう、UTF-8として数える

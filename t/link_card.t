@@ -28,8 +28,8 @@ my @GOT;
 {
 	no warnings 'redefine';
 	*Satsuki::Base::HTTP::get = sub {
-		my ($self, $url) = @_;
-		push(@GOT, { url => $url, timeout => $self->{timeout}, redirect => $self->{redirect}, max_size => $self->{max_size} });
+		my ($self, $url, $header) = @_;
+		push(@GOT, { url => $url, accept => ($header || {})->{Accept}, timeout => $self->{timeout}, redirect => $self->{redirect}, max_size => $self->{max_size} });
 		my $r = $RES{$url} || { status => 500 };
 		$self->{url} = $r->{final} || $url;
 		if ($r->{sleep}) { $r->{sleep}->(); }
@@ -234,6 +234,141 @@ subtest 'RSSではタイトルだけのリンクにする' => sub {
 
 	my $plain = '<a href="https://example.test/">普通のリンク</a>';
 	is($app->link_card_to_text($plain), $plain, '普通のリンクは変えない');
+};
+
+#-------------------------------------------------------------------------------
+# Fediverseの投稿
+#-------------------------------------------------------------------------------
+my $F     = 'https://fedi.test/@alice/1234';
+my $NOTE  = 'https://fedi.test/users/alice/statuses/1234';
+my $ACTOR = 'https://fedi.test/users/alice';
+sub json { return { status => 200, ctype => 'application/activity+json; charset=utf-8', body => JSON::PP->new->utf8->encode(shift) }; }
+sub fedi_page {
+	return page(qq{<title>t</title><meta property="og:title" content="アリス (\@alice\@fedi.test)">
+		<meta property="og:description" content="OGPの説明"><meta property="og:site_name" content="インスタンス">
+		<link href='$NOTE' rel='alternate' type='application/activity+json'>});
+}
+sub note {
+	return { id => $NOTE, type => 'Note', attributedTo => $ACTOR, published => '2026-11-07T12:36:40Z', sensitive => JSON::PP::false(),
+		content => '<p>一行目<br>二行目 &amp; &lt;b&gt;</p><p><a href="https://x.test/"><span class="invisible">https://</span>x.test/</a></p><script>alert(1)</script>',
+		attachment => [
+			{ type => 'Document', mediaType => 'image/png', url => 'https://fedi.test/m/1.png', name => '代替"テキスト' },
+			{ type => 'Document', mediaType => 'video/mp4', url => 'https://fedi.test/m/2.mp4' },
+			{ type => 'Document', mediaType => 'image/jpeg', url => 'http://fedi.test/m/3.jpg' },
+		], @_ };
+}
+sub actor { return { id => $ACTOR, type => 'Person', name => 'アリス<b>', preferredUsername => 'alice', icon => { type => 'Image', url => 'https://fedi.test/a.png' }, @_ }; }
+sub fedi_set {
+	my %o = @_;
+	$RES{$F}     = fedi_page();
+	$RES{$NOTE}  = $o{note}  || json(note());
+	$RES{$ACTOR} = $o{actor} || json(actor());
+	delete $RES{'https://fedi.test/api/v1/statuses/1234'};
+}
+require JSON::PP;
+
+subtest 'Fediverseの投稿をカードにする' => sub {
+	local $ENV{TZ} = 'Asia/Tokyo';
+	fedi_set();
+	@GOT = ();
+	my $h = render("[&$F]");
+	like($h, qr{<a class="link-card" href="https://fedi\.test/\@alice/1234" data-og-type="note" data-card="fediverse">}, 'カードのリンク');
+	like($h, qr{<img class="link-card-avatar" alt="" src="https://fedi\.test/a\.png">}, 'アイコン');
+	like($h, qr{<span class="link-card-title">アリス&lt;b&gt;</span>}, '表示名は文字として出す');
+	like($h, qr{<span class="link-card-acct">\@alice\@fedi\.test</span>}, '@アカウント');
+	like($h, qr{<span class="link-card-text">一行目\n二行目 &amp; &lt;b&gt;\n\nhttps://x\.test/</span>}, '本文は改行を残し、タグを外す');
+	unlike($h, qr{<script|alert|OGPの説明|インスタンス}, 'スクリプトとOGPの値は出さない');
+	like($h, qr{<span class="link-card-media"><img alt="代替&quot;テキスト" src="https://fedi\.test/m/1\.png"></span>}, '画像はhttpsのものだけ');
+	like($h, qr{<time datetime="2026-11-07T21:36:40\+09:00">2026/11/07 21:36</time> ・ fedi\.test</span>}, '日時とホスト');
+	is_deeply([ map { $_->{url} } @GOT ], [ $F, $NOTE, $ACTOR ], 'ページ、投稿、投稿者の順に取得する');
+	like($GOT[1]->{accept}, qr{application/activity\+json}, 'ActivityPubで取得する');
+};
+
+subtest '注意書きと閲覧注意' => sub {
+	fedi_set(note => json(note(summary => 'ネタバレ')));
+	my $h = render("[&$F]");
+	like($h, qr{<span class="link-card-text">ネタバレ</span>}, '注意書きを出す');
+	unlike($h, qr{一行目|link-card-media}, '本文と画像は出さない');
+
+	fedi_set(note => json(note(sensitive => JSON::PP::true())));
+	$h = render("[&$F]");
+	like($h, qr{一行目}, '閲覧注意でも本文は出す');
+	unlike($h, qr{link-card-media}, '閲覧注意の画像は出さない');
+};
+
+subtest '本文の長さと画像の枚数' => sub {
+	fedi_set(note => json(note(content => '<p>' . ('あ' x 600) . '</p>',
+		attachment => [ map { { type => 'Image', url => "https://fedi.test/m/$_.png" } } 1..6 ])));
+	my $h = render("[&$F]");
+	my ($t) = $h =~ /link-card-text">([^<]*)</;
+	is($t, ('あ' x 500) . '…', '本文は500文字で切る');
+	my @img = $h =~ m{(src="https://fedi\.test/m/)}g;
+	is(scalar(@img), 4, '画像は4枚まで');
+};
+
+subtest '他のホストの値は使わない' => sub {
+	fedi_set(note => json(note(id => 'https://evil.test/users/alice/statuses/1234')));
+	like(render("[&$F]"), qr{OGPの説明}, '投稿のidが違うホストならOGPのカード');
+
+	fedi_set(note => json(note(attributedTo => 'https://evil.test/users/alice')));
+	@GOT = ();
+	like(render("[&$F]"), qr{OGPの説明}, '投稿者が違うホストならOGPのカード');
+	ok(!grep({ $_->{url} =~ /evil/ } @GOT), '違うホストへは取得しない');
+
+	$RES{$F} = page(q{<title>t</title><link rel="alternate" type="application/activity+json" href="https://evil.test/users/alice/statuses/1234">});
+	@GOT = ();
+	render("[&$F]");
+	is(scalar(@GOT), 1, 'ページと違うホストのActivityPubは取得しない');
+};
+
+subtest '投稿でなければOGPのカード' => sub {
+	fedi_set(note => json(actor()));
+	like(render("[&$F]"), qr{<span class="link-card-desc">OGPの説明</span>}, 'Personのページ');
+	fedi_set(note => { status => 200, ctype => 'application/activity+json', body => '{broken' });
+	like(render("[&$F]"), qr{OGPの説明}, '壊れたJSON');
+	fedi_set(note => { status => 404 });
+	@GOT = ();
+	like(render("[&$F]"), qr{OGPの説明}, '取得できない');
+	is(scalar(@GOT), 2, '拒否でなければMastodon APIは試さない');
+};
+
+subtest 'ActivityPubを拒否されたらMastodon API' => sub {
+	local $ENV{TZ} = 'Asia/Tokyo';
+	my $api = 'https://fedi.test/api/v1/statuses/1234';
+	fedi_set(note => { status => 401 });
+	$RES{$api} = { status => 200, ctype => 'application/json; charset=utf-8', body => JSON::PP->new->utf8->encode({
+		id => '1234', created_at => '2026-11-07T12:36:40.311Z', sensitive => JSON::PP::false(), spoiler_text => '',
+		content => '<p>APIの本文</p>',
+		account => { username => 'alice', acct => 'alice', display_name => 'アリス', avatar => 'https://fedi.test/a.png' },
+		media_attachments => [ { type => 'image', url => 'https://fedi.test/m/1.png', preview_url => 'https://fedi.test/m/1s.png', description => '説明' } ],
+	}) };
+	@GOT = ();
+	my $h = render("[&$F]");
+	like($h, qr{data-card="fediverse"}, '投稿のカード');
+	like($h, qr{link-card-acct">\@alice\@fedi\.test<}, 'acctにホストを足す');
+	like($h, qr{link-card-text">APIの本文<}, '本文');
+	like($h, qr{<img alt="説明" src="https://fedi\.test/m/1s\.png">}, 'プレビューの画像');
+	like($h, qr{2026/11/07 21:36}, '日時');
+	is($GOT[-1]->{url}, $api, 'APIを取得する');
+
+	$RES{$api} = { status => 404 };
+	like(render("[&$F]"), qr{OGPの説明}, 'APIも駄目ならOGPのカード');
+	delete $RES{$api};
+};
+
+subtest 'Fediverseの投稿の概要とRSS' => sub {
+	require SatsukiApp::adiary;
+	my $app = bless({ ROBJ => $ROBJ, blog => { desc_len => 64 } }, 'SatsukiApp::adiary');
+	fedi_set();
+	my $html = bytes(render("前の文\n\n[&$F]\n\n後の文\n"));
+	my %h = (text => $html);
+	$app->set_description(\%h, '');
+	my $d = Encode::decode('UTF-8', $h{description});
+	like($d, qr{前の文 アリス&lt;b&gt; 後の文}, '概要には表示名だけ');
+
+	my $text = Encode::decode('UTF-8', $app->link_card_to_text($html));
+	like($text, qr{<a href="https://fedi\.test/\@alice/1234">アリス&lt;b&gt;</a>}, 'RSSは表示名のリンク');
+	unlike($text, qr{一行目|<img|<time|link-card}, 'カードの中身は残らない');
 };
 
 done_testing();

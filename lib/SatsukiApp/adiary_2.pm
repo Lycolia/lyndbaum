@@ -761,7 +761,7 @@ sub set_description {
 	my $text = $h->{text};
 
 	# リンクカードはタイトルだけを残す。相手のサイトの説明が記事の概要やRSSに出ないように
-	$text =~ s!<span class="link-card-(?:desc|site)">[^<]*</span>!!g;
+	$text =~ s{<span class="link-card-(?:desc|site|acct|text|media)">(?:(?!</span>).)*</span>}{}sg;
 
 	$text = substr($text, 0, 4096);		# 長文への対策
 	$ROBJ->tag_delete($text);
