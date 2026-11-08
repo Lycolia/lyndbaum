@@ -1,8 +1,8 @@
 <@7>
 <$ifbreak(!v.blog_admin)>
 
-<@> now指定時は今の記事（本文と要約込み）、rev指定時は履歴1件（本文込み）、それ以外は記事pkeyの履歴一覧
-<$data = if(Form.now, v.load_article_now_json(Form.now), if(Form.rev, v.load_revision_json(Form.rev), v.load_revisions_json(Form.pkey)))>
+<@> now指定時は今の記事（本文と要約込み）、rev指定時は履歴1件（本文込み）、last指定時は記事pkeyの直前の保存（本文込み）、それ以外は記事pkeyの履歴一覧
+<$data = if(Form.now, v.load_article_now_json(Form.now), if(Form.rev, v.load_revision_json(Form.rev), if(Form.last, v.load_lastrev_json(Form.last), v.load_revisions_json(Form.pkey))))>
 
 <$ifset_status(data eq '', 404)>
 <$v.action_is_main=1>

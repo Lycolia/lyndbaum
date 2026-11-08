@@ -520,9 +520,10 @@ sub regist_article {
 		}
 		$art{pkey} = $pkey;
 
-		# 本文かタイトルが変わったら、変更前の版を履歴に残す
+		# 本文かタイトルが変わったら、変更前の版を履歴と直前の保存に残す
 		if ($old->{_text} ne $art{_text} || $old->{title} ne $art{title}) {
 			$self->save_revision($old);
+			$self->save_lastrev($old);
 		}
 	} else {
 		$art{pkey} = $pkey;
@@ -693,8 +694,33 @@ sub save_revision {
 }
 
 #-------------------------------------------------------------------------------
+# ●直前の保存の保存
+#-------------------------------------------------------------------------------
+# $old : 更新前の記事データ
+#
+# PukiWikiの差分（diff/）と同様に、保存するたびに記事ごとに1つだけ上書きする。
+# rev_cycleでまとめないので、履歴に入らなかった直前の保存にも戻せる。
+#
+sub save_lastrev {
+	my ($self, $old) = @_;
+	my $DB = $self->{DB};
+	if ($self->{require_update}) { return; }	# テーブル未作成
+
+	my $a_pkey = $old->{pkey};
+	$DB->delete_match("lastrev", 'a_pkey', $a_pkey);
+	$DB->insert("lastrev", {
+		a_pkey    => $a_pkey,
+		tm        => $self->{ROBJ}->{TM},
+		update_tm => $old->{update_tm} || $old->{tm},
+		title     => $old->{title},
+		_text     => $old->{_text}
+	});
+}
+
+#-------------------------------------------------------------------------------
 # ●履歴一覧の取得（json）
 #-------------------------------------------------------------------------------
+# 直前の保存があれば、先頭に"last": 1を付けて入れる
 sub load_revisions_json {
 	my ($self, $a_pkey) = @_;
 	my $DB = $self->{DB};
@@ -703,12 +729,20 @@ sub load_revisions_json {
 
 	my $revs = $DB->select_match("rev", 'a_pkey', $a_pkey, '*sort', '-tm', '*sort', '-pkey',
 		'*cols', ['pkey', 'tm', 'update_tm', 'title', '_text']);
+	if (!$self->{require_update}) {
+		my $last = $DB->select_match_limit1("lastrev", 'a_pkey', $a_pkey,
+			'*cols', ['pkey', 'tm', 'update_tm', 'title', '_text']);
+		if ($last) {
+			$last->{last} = 1;
+			unshift(@$revs, $last);
+		}
+	}
 	foreach(@$revs) {
 		my $text = $_->{_text};
 		utf8::decode($text);
 		$_->{length} = length($text);
 	}
-	return $self->generate_json($revs, ['pkey', 'tm', 'update_tm', 'title', 'length']);
+	return $self->generate_json($revs, ['pkey', 'tm', 'update_tm', 'title', 'length', 'last']);
 }
 
 #-------------------------------------------------------------------------------
@@ -720,6 +754,23 @@ sub load_revision_json {
 	my $rev = $DB->select_match_limit1("rev", 'pkey', int($pkey));
 	if (!$rev || !$self->check_editor($rev->{a_pkey})) { return; }
 
+	return $self->revision_json($rev);
+}
+
+#-------------------------------------------------------------------------------
+# ●直前の保存の取得（json）
+#-------------------------------------------------------------------------------
+sub load_lastrev_json {
+	my ($self, $a_pkey) = @_;
+	$a_pkey = int($a_pkey);
+	if (!$a_pkey || $self->{require_update} || !$self->check_editor($a_pkey)) { return; }
+	my $rev = $self->{DB}->select_match_limit1("lastrev", 'a_pkey', $a_pkey);
+	if (!$rev) { return; }
+	return $self->revision_json($rev);
+}
+
+sub revision_json {
+	my ($self, $rev) = @_;
 	my $ROBJ = $self->{ROBJ};
 	my @ary = map { "\"$_\": " . $ROBJ->json_encode($rev->{$_}) } qw(pkey a_pkey tm update_tm title);
 	push(@ary, '"text": ' . $ROBJ->json_string($rev->{_text}));

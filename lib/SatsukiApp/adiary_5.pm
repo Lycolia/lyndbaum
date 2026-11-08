@@ -82,7 +82,7 @@ sub do_blog_auto_create {
 	my $DB   = $self->{DB};
 	if ($self->exists_blog()) { return 0; }	# 待っている間に作られた
 
-	foreach(qw(art com tag tagart rev trash trashcom link)) {
+	foreach(qw(art com tag tagart rev lastrev trash trashcom link)) {
 		if ($DB->find_table($_)) { return "table '$_' already exists"; }
 	}
 	if (-e $self->blog_dir() . 'setting.dat') { return 'setting.dat already exists'; }
@@ -440,6 +440,10 @@ sub create_tables {
 	$r = $self->create_rev_table();
 	if ($r) { return 900 + $r; }
 
+	# 記事の直前の保存のテーブル
+	$r = $self->create_lastrev_table();
+	if ($r) { return 1200 + $r; }
+
 	# 記事のリンクテーブル
 	$r = $self->create_link_table();
 	if ($r) { return 1100 + $r; }
@@ -536,6 +540,25 @@ sub create_rev_table {
 	$info{notnull} = [ qw(a_pkey tm) ];
 	$info{ref}     = { };
 	return $self->{DB}->create_table_wrapper("rev", \%info);
+}
+
+#-------------------------------------------------------------------------------
+# ●記事の直前の保存のテーブルの作成
+#-------------------------------------------------------------------------------
+# 記事を保存するたびに、保存する前の版を記事ごとに1つだけ入れる（上書き）。
+# 更新履歴（rev）はrev_cycleの間は版を入れないので、直前の保存に戻すために使う。
+# 列はrevと同じ。記事を削除しても残す（ゴミ箱から戻すため）ので、参照は張らない
+sub create_lastrev_table {
+	my $self = shift;
+	my %info;
+	$info{text}    = [ qw(title) ];
+	$info{ltext}   = [ qw(_text) ];
+	$info{int}     = [ qw(a_pkey tm update_tm) ];
+	$info{idx}     = [ qw(a_pkey) ];
+	$info{unique}  = [ qw(a_pkey) ];
+	$info{notnull} = [ qw(a_pkey tm) ];
+	$info{ref}     = { };
+	return $self->{DB}->create_table_wrapper("lastrev", \%info);
 }
 
 #-------------------------------------------------------------------------------

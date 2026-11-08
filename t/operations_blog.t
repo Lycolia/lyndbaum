@@ -209,7 +209,7 @@ subtest 'ブログの自動作成' => sub {
 
 	# ブログが無いままアップデートが要るとき
 	my $old = AppTest->new()->setup();
-	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
+	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev lastrev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
 	my $conf = read_file($sys);
 	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;

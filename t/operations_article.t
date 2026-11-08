@@ -60,7 +60,26 @@ subtest '記事を直す' => sub {
 
 	$r = $app->post('admin', '', { action => 'ajax_revision', pkey => 1 });
 	my $revs = $r->{json};
-	ok(ref($revs) eq 'ARRAY' && @$revs == 1, '更新履歴に、直す前の版が1つ残る');
+	my @revs = grep { !$_->{last} } @{ ref($revs) eq 'ARRAY' ? $revs : [] };
+	is(scalar(@revs), 1, '更新履歴に、直す前の版が1つ残る');
+	ok(ref($revs) eq 'ARRAY' && $revs->[0]->{last}, '一覧の先頭は直前の保存');
+};
+
+subtest '直前の保存' => sub {
+	my $r = $app->post('admin', '', { %ART, edit_pkey_int => 1, title => 'もう一度直した題名', body_txt => "もう一度直した本文\n", ymd => '2026-10-01' });
+	ok(AppTest::is_reload($r), '続けて保存できる');
+
+	my $revs = $app->post('admin', '', { action => 'ajax_revision', pkey => 1 })->{json};
+	is(scalar(grep { !$_->{last} } @$revs), 1, '続けて保存しても、更新履歴は増えない（rev_cycleでまとめる）');
+	is(scalar(grep { $_->{last} } @$revs), 1, '直前の保存は1つだけ');
+
+	my $last = $app->post('admin', '', { action => 'ajax_revision', last => 1 })->{json};
+	is($last->{title}, '直した題名', '直前の保存は、1つ前に保存した題名');
+	like($last->{text}, qr/^直した本文/, '直前の保存は、1つ前に保存した本文');
+
+	my $g = $app->post('guest', '', { action => 'ajax_revision', last => 1 });
+	ok(($g->{headers}->{'content-type'} // '') !~ m{json}, 'ログインしていない人は読めない');
+	is($app->post('admin', '', { action => 'ajax_revision', last => 99999 })->{status}, 404, '無い記事は404');
 };
 
 subtest 'ゴミ箱' => sub {
@@ -76,6 +95,20 @@ subtest 'ゴミ箱' => sub {
 	$r = $app->post('admin', '', { action => 'trash', mode => 'purge_all' });
 	ok(AppTest::is_reload($r), 'ゴミ箱を空にできる');
 	unlike(body($app->get('admin', 'trash')), qr{消す記事}, 'ゴミ箱から消える');
+	like(read_file("$dir/data/db/lastrev/#index.dat"), qr/^\d+\t1$/m, '戻した記事の直前の保存は残る');
+};
+
+subtest 'ゴミ箱を空にすると直前の保存も消える' => sub {
+	# 記事の番号を後のテストとずらさないよう、別のブログで行う
+	my $app  = AppTest->new()->setup()->seed();
+	my $file = $app->dir . '/data/db/lastrev/#index.dat';
+	$app->post('admin', '', { %ART, edit_pkey_int => 1, title => '直した題名', body_txt => "直した本文\n" });
+	like(read_file($file), qr/^\d+\t1$/m, '直すと直前の保存ができる');
+	$app->post('admin', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
+	like(read_file($file), qr/^\d+\t1$/m, 'ゴミ箱に入れても直前の保存は残る');
+	my $r = $app->post('admin', '', { action => 'trash', mode => 'purge_all' });
+	ok(AppTest::is_reload($r), 'ゴミ箱を空にできる');
+	unlike(read_file($file), qr/^\d+\t1$/m, '直前の保存も消える');
 };
 
 subtest '記事一覧からのまとめての操作' => sub {

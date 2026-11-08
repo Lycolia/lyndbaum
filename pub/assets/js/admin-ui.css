@@ -94,6 +94,14 @@ article.edit span.tag {
 #revision-list li.selected {
 	background-color:	#c8d4f8;
 }
+#revision-list li.rev-last {
+	border-bottom:		3px double #c0c0c0;
+}
+#revision-list .rev-last-label {
+	display:		block;
+	font-weight:		bold;
+	color:			#36c;
+}
 #revision-list li.rev-empty {
 	cursor:			default;
 	background-color:	transparent;

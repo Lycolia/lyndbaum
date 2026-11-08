@@ -429,12 +429,14 @@ function render_diff(diff, $body) {
 	//--------------------------------------------------------------------------
 	// ●一覧
 	//--------------------------------------------------------------------------
+	// 直前の保存（data-last）は記事のpkeyで、履歴は版のpkeyで読む
 	$list.on('click', 'li[data-pkey]', function(evt){
 		const $li = $(evt.currentTarget);
 		$list.children().removeClass('selected');
 		$li.addClass('selected');
-		ajax_revision({ rev: $li.attr('data-pkey') }, function(data){
-			if (!data) return;
+		const req = $li.attr('data-last') ? { last: $('#edit-pkey').val() } : { rev: $li.attr('data-pkey') };
+		ajax_revision(req, function(data){
+			if (!data || !$li.hasClass('selected')) return;
 			data.text = data.text.replace(/\r\n?/g, "\n");
 			cur_rev = data;
 			show_revision();
@@ -453,6 +455,10 @@ function render_diff(diff, $body) {
 			const chars = $('#rev-chars').text();
 			data.forEach(function(r){
 				const $li = $('<li>').attr('data-pkey', r.pkey);
+				if (r.last) {
+					$li.attr('data-last', 1).addClass('rev-last');
+					$li.append( $('<span>').addClass('rev-last-label').text( $('#rev-last').text() ) );
+				}
 				$li.append( $('<span>').addClass('rev-tm').text( format_tm(r.update_tm || r.tm) ) );
 				$li.append( $('<span>').addClass('rev-len').text( chars.replace('%n', r.length.toLocaleString()) ) );
 				$li.append( $('<div>').addClass('rev-title').html( r.title ) );
