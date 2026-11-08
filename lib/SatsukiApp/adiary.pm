@@ -8,14 +8,14 @@ use Satsuki::AutoLoader;
 use Fcntl;
 #-------------------------------------------------------------------------------
 our $SYSTEM_NAME = 'Lyndbaum';
-our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum4';
+our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.37;
+our $VERSION    = 4.38;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.37;
+our $DATA_VERSION = 4.38;
 ################################################################################
 # ■システム内部イベント
 ################################################################################

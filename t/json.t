@@ -72,8 +72,11 @@ subtest '\\を含む記事とタグ' => sub {
 	is($r->{json}->{text}, 'x\y', '今の記事の本文');
 
 	my $revs = $app->post('admin', '', { action => 'ajax_revision', pkey => 1 })->{json};
-	my $rev  = $app->post('admin', '', { action => 'ajax_revision', rev => $revs->[0]->{pkey} })->{json};
+	my ($first) = grep { !$_->{last} } @$revs;
+	my $rev  = $app->post('admin', '', { action => 'ajax_revision', rev => $first->{pkey} })->{json};
 	ok(defined $rev->{text}, '履歴の本文を読める');
+	my $last = $app->post('admin', '', { action => 'ajax_revision', last => 1 })->{json};
+	ok(defined $last->{text}, '直前の保存の本文を読める');
 
 	my $tags = eval { $json->decode(read_file($app->dir . '/pub/taglist.json')) };
 	my @names = map { $_->{title} } @{ $tags || [] };

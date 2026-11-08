@@ -1525,6 +1525,7 @@ sub purge_trash {
 	if (!@$keylist) { return wantarray ? (0,0) : 0; }
 
 	$DB->delete_match("rev",      'a_pkey', $keylist);
+	$DB->delete_match("lastrev",  'a_pkey', $keylist);
 	$DB->delete_match("trashcom", 'a_pkey', $keylist);
 	my $cnt = $DB->delete_match("trash", 'pkey', $keylist);
 	return wantarray ? (0, $cnt) : 0;

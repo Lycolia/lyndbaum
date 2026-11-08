@@ -283,10 +283,32 @@ my $CARD_TEXT_LEN = 300;		# タイトルと説明の文字数の上限
 #-------------------------------------------------------------------------------
 # ●カードのHTML。取得できなければ普通のリンクにする
 #-------------------------------------------------------------------------------
+# 記事の保存では、link_cardsに前回の保存のカード（URL→HTML）が入っている。そのURLは取得しない。
+# 取得した結果も入れておき、同じ保存の中のもう一度のパース（見出しのIDを足すとき）では取得しない。
+# 取得できずに普通のリンクにしたものも入れる（その保存の中だけ。表は保存が終わると消える）
+# 再構築では、link_cardsに今のHTMLのカードが入り、link_cards_offlineが付く。表に無いURLも取得せず、普通のリンクにする
 sub link_card {
 	my ($pobj, $url) = @_;
+	my $cards = $pobj->{link_cards};
+	if (!$cards) { return &make_link_card($pobj, $url); }
+
+	my $key = $url;
+	$key =~ s/&amp;/&/g;
+	if (!defined $cards->{$key}) {
+		$cards->{$key} = $pobj->{link_cards_offline} ? &plain_link($url) : &make_link_card($pobj, $url);
+	}
+	return $cards->{$key};
+}
+
+sub plain_link {
+	my $eurl = &esc_html(shift);
+	return "<a href=\"$eurl\">$eurl</a>";
+}
+
+sub make_link_card {
+	my ($pobj, $url) = @_;
 	my $eurl = &esc_html($url);
-	my $link = "<a href=\"$eurl\">$eurl</a>";
+	my $link = &plain_link($url);
 
 	# 記事の保存が止まらないよう、記事ごとに取得の時間を制限する。パーサーは全記事の再構築で使い回される
 	if ($pobj->{link_card_pkey} ne $pobj->{thispkey}) {
