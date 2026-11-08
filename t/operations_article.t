@@ -352,9 +352,21 @@ subtest 'リンクカードは編集のたびに取得しない' => sub {
 	like($h, qr{link-card-title">取得1<.*link-card-title">取得2<}s, '前のURLは前回のカード、新しいURLは取得する');
 	is_deeply($got->(), [ $A, $B ], '新しいURLだけ取得する');
 
+	like(body($app->get('admin', 'mainte/')), qr{<input type="checkbox" name="refetch_link_cards" value="1"[^>]*>リンクカード}, '再構築の画面に、取得し直すかのチェックボックスが出る');
 	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
 	ok(AppTest::is_reload($r), '再構築できる');
-	like(body($app->get('guest', "/$key")), qr{link-card-title">取得3<.*link-card-title">取得4<}s, '再構築では取得し直す');
+	like(body($app->get('guest', "/$key")), qr{link-card-title">取得1<.*link-card-title">取得2<}s, '再構築では今のカードを使う');
+	is(scalar(@{ $got->() }), 2, '再構築では取得しない');
+
+	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild', refetch_link_cards => 1 });
+	ok(AppTest::is_reload($r), '取得し直す再構築ができる');
+	like(body($app->get('guest', "/$key")), qr{link-card-title">取得3<.*link-card-title">取得4<}s, '選んだときは取得し直す');
+
+	# 記事ごとに取り直すときは、カードを消して保存し、貼り直して保存する
+	$app->post('admin', '', { %ART, edit_pkey_int => $pkey, title => 'リンクカードの記事', body_txt => "直した\n\n[&$A]\n" });
+	$app->post('admin', '', { %ART, edit_pkey_int => $pkey, title => 'リンクカードの記事', body_txt => "直した\n\n[&$A]\n\n[&$B]\n" });
+	like(body($app->get('guest', "/$key")), qr{link-card-title">取得3<.*link-card-title">取得5<}s, '消して貼り直したURLだけ取り直す');
+	is_deeply([ @{ $got->() }[4..$#{ $got->() }] ], [ $B ], '取得したのは貼り直したURLだけ');
 };
 
 #-------------------------------------------------------------------------------

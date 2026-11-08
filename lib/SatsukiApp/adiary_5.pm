@@ -141,7 +141,7 @@ sub rebuild_blog {
 	my $DB   = $self->{DB};
 	if (! $self->{blog_admin} ) { $ROBJ->message('Operation not permitted'); return 5; }
 
-	my $arts = $opt->{logs} || $DB->select_match("art", '*cols', ['pkey', '_text', 'parser', 'yyyymmdd', 'tm', 'link_key', 'main_image']);
+	my $arts = $opt->{logs} || $DB->select_match("art", '*cols', ['pkey', '_text', 'text', 'parser', 'yyyymmdd', 'tm', 'link_key', 'main_image']);
 	my $filter = $opt->{filter};
 	my %update;
 	my $r=0;
@@ -164,7 +164,15 @@ sub rebuild_blog {
 		$self->post_process_link_key( $_ );
 		$parser->{thisurl}  = $self->{myself2} . $_->{elink_key};
 		$parser->{thispkey} = $_->{pkey};
+		# リンクカードは今のHTMLのものを使い、取得しない。取り直すのは、再構築の画面で選んだときだけ
+		# （docs/仕様/機能一覧.md「リンクカード」）
+		if (!$opt->{refetch_link_cards}) {
+			$parser->{link_cards} = $self->extract_link_cards( $_->{text} );
+			$parser->{link_cards_offline} = 1;
+		}
 		my ($text, $text_s) = $parser->parse( $_->{_text} );
+		delete $parser->{link_cards};		# パーサーは使い回されるので、他の記事や保存に残さない
+		delete $parser->{link_cards_offline};
 		if ($text eq $text_s) { $text_s=""; }
 
 		# 許可タグ以外の除去処理

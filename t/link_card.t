@@ -435,6 +435,23 @@ subtest '同じ保存の中では、一度取得したURLを取得しない' => 
 	like($second, qr{<a href="https://example\.test/b">https://example\.test/b</a>}, '取得できなかったURLは普通のリンクのまま');
 };
 
+subtest '再構築では取得しない' => sub {
+	my $A = 'https://example.test/a';
+	my $B = 'https://example.test/b';
+	$RES{$A} = page('<title>Aの題名</title>');
+	$RES{$B} = page('<title>Bの題名</title>');
+	my $cards = saved_cards(render("[&$A]\n"));
+	my $md = new_parser();
+	$md->{satsuki_obj}->{ROBJ}->{CodeLib} = 'Jcode';
+	$md->{link_cards} = $cards;
+	$md->{link_cards_offline} = 1;
+	@GOT = ();
+	my $h = Encode::decode('UTF-8', $escape->escape(scalar $md->parse(bytes("[&$A]\n\n[&$B]\n"))));
+	is(scalar(@GOT), 0, '通信しない');
+	like($h, qr{link-card-title">Aの題名<}, '今のカードを使う');
+	like($h, qr{<a href="https://example\.test/b">https://example\.test/b</a>}, 'カードの無いURLは普通のリンク');
+};
+
 subtest '前回のカードを渡さなければ取得し直す' => sub {
 	my $A = 'https://example.test/a';
 	$RES{$A} = page('<title>新しい題名</title>');

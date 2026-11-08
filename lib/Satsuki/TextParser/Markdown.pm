@@ -73,7 +73,8 @@ sub parse {
 	if ( $sobj ) {
 		$sobj->{thisurl}  = $self->{thisurl};
 		$sobj->{thispkey} = $self->{thispkey};
-		$sobj->{link_cards} = $self->{link_cards};	# 記事の保存で使い回すリンクカード（Tag_url_filter.pm）
+		$sobj->{link_cards} = $self->{link_cards};	# 記事の保存と再構築で使い回すリンクカード（Tag_url_filter.pm）
+		$sobj->{link_cards_offline} = $self->{link_cards_offline};	# 再構築では取得しない
 	}
 	$self->{sections} = [];
 	$self->{ids}      = {};
