@@ -84,7 +84,7 @@ subtest '有効にすると鍵を作る' => sub {
 	unlike(read_file($sys), qr/^indexnow_renew=/m, '作り直しのチェックは保存しない');
 };
 
-subtest '鍵のファイル' => sub {
+subtest '鍵ファイル' => sub {
 	my $key = key();
 	my $r = $app->get('guest', "/$key.txt");
 	is($r->{status}, 200, '鍵の文字列に.txtを付けた名前で返す');
@@ -187,15 +187,15 @@ subtest '鍵を作り直す' => sub {
 	my $new = key();
 	like($new, qr/^[0-9a-f]{32}$/, '新しい鍵');
 	isnt($new, $old, '前の鍵と違う');
-	is($app->get('guest', "/$old.txt")->{status}, 404, '前の鍵のファイルは返さない');
-	is($app->get('guest', "/$new.txt")->{status}, 200, '新しい鍵のファイルを返す');
+	is($app->get('guest', "/$old.txt")->{status}, 404, '前の鍵ファイルは返さない');
+	is($app->get('guest', "/$new.txt")->{status}, 200, '新しい鍵ファイルを返す');
 };
 
 subtest '無効に戻す' => sub {
 	my $key = key();
 	ok(AppTest::is_reload(save_setting(indexnow => 0)), '無効にして保存する');
 	is(key(), $key, '鍵は残す');
-	is($app->get('guest', "/$key.txt")->{status}, 404, '鍵のファイルは返さない');
+	is($app->get('guest', "/$key.txt")->{status}, 404, '鍵ファイルは返さない');
 	ok(AppTest::is_reload(post('admin', '', { %ART, title => '無効に戻した後の記事', body_txt => "本文\n" })), '記事を書く');
 	is(scalar(posts()), 0, '送らない');
 };

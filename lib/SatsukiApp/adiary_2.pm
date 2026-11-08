@@ -1043,8 +1043,8 @@ POST_BODY
 #-------------------------------------------------------------------------------
 # ●IndexNowで、変わったURLを検索エンジンに知らせる
 #-------------------------------------------------------------------------------
-# 受け口はBing、Yandexなどで共通。鍵のファイルは、Lyndbaumがmyself2の下に、鍵の文字列に.txtを付けた名前で返す
-# （select_default_skeleton）。知らせられるのは、鍵のファイルのあるフォルダより下のURLだけ
+# 受け口はBing、Yandexなどで共通。鍵ファイルは、Lyndbaumがmyself2の下に、鍵の文字列に.txtを付けた名前で返す
+# （select_default_skeleton）。知らせられるのは、鍵ファイルのあるフォルダより下のURLだけ
 #
 my $INDEXNOW_URL = 'https://api.indexnow.org/indexnow';
 sub send_indexnow {
