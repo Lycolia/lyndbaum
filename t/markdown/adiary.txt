@@ -174,6 +174,88 @@ A((同じ))とB((同じ))
 </section>
 
 
+=== 注釈の一覧は、段を問わず次の見出しの手前に出す（注釈の無い範囲には出さない）
+--- options: sectioning=1
+--- input
+# 大
+
+前文((注釈A))
+
+## 中1
+
+本文((注釈B))
+
+### 小
+
+注釈なし
+
+## 中2
+
+本文((注釈C))
+--- expected
+<section>
+<h3 id="大"><a href="/0001#大">大</a></h3>
+<p>前文<span class="footnote"><a title="注釈A" href="/0001#fn-fn1" id="fnt-fn1">*1</a></span></p>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn1" id="fn-fn1">*1</a> : 注釈A</p>
+</footer>
+<h4 id="中1"><a href="/0001#中1">中1</a></h4>
+<p>本文<span class="footnote"><a title="注釈B" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn2" id="fn-fn2">*2</a> : 注釈B</p>
+</footer>
+<h5 id="小"><a href="/0001#小">小</a></h5>
+<p>注釈なし</p>
+<h4 id="中2"><a href="/0001#中2">中2</a></h4>
+<p>本文<span class="footnote"><a title="注釈C" href="/0001#fn-fn3" id="fnt-fn3">*3</a></span></p>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn3" id="fn-fn3">*3</a> : 注釈C</p>
+</footer>
+</section>
+
+=== 同じ内容の注釈を同じ番号にまとめるのは、見出しで区切った範囲の中だけ
+--- options: sectioning=1
+--- input
+A((同じ))
+
+## 中
+
+B((同じ))
+--- expected
+<section>
+<p>A<span class="footnote"><a title="同じ" href="/0001#fn-fn1" id="fnt-fn1">*1</a></span></p>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn1" id="fn-fn1">*1</a> : 同じ</p>
+</footer>
+<h4 id="中"><a href="/0001#中">中</a></h4>
+<p>B<span class="footnote"><a title="同じ" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn2" id="fn-fn2">*2</a> : 同じ</p>
+</footer>
+</section>
+
+=== 引用の中の見出しでは、注釈の一覧を区切らない
+--- options: sectioning=1
+--- input
+前((注釈A))
+
+> ## 引用の見出し
+>
+> 引用((注釈B))
+--- expected
+<section>
+<p>前<span class="footnote"><a title="注釈A" href="/0001#fn-fn1" id="fnt-fn1">*1</a></span></p>
+<blockquote>
+<h4 id="引用の見出し"><a href="/0001#引用の見出し">引用の見出し</a></h4>
+<p>引用<span class="footnote"><a title="注釈B" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
+</blockquote>
+<footer>
+	<p class="footnote"><a href="/0001#fnt-fn1" id="fn-fn1">*1</a> : 注釈A</p>
+	<p class="footnote"><a href="/0001#fnt-fn2" id="fn-fn2">*2</a> : 注釈B</p>
+</footer>
+</section>
+
+
 === 目次に入る見出しが無ければ何も出さない
 --- input
 本文

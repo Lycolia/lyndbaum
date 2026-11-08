@@ -11,6 +11,8 @@ package Satsuki::TextParser::Markdown;
 our $VERSION = '1.30';
 # 見出しの識別子[#id]に使える文字（ASCIIの空白と制御文字、]以外）
 my $HEADING_ID = qr/[^\x00-\x20\x7F\]]+/;
+# (())の注釈の一覧を出す位置の目印（見出しの手前に置く行。本文には出てこない文字列）
+my $FOOTNOTE_MARK = "\x02fn\x02";
 #-------------------------------------------------------------------------------
 ################################################################################
 # Constructor
@@ -98,6 +100,7 @@ sub parse {
 	# post process
 	#-----------------------------------------
 	my $all = join("\n", @$lines);
+	$all =~ s/\n\Q$FOOTNOTE_MARK\E//g;	# 注釈の一覧を出さなかった目印
 	$all =~ s|\n+\n</section>\x02|\n</section>\x02\n|g;
 
 	# Markdown脚注の出力
@@ -295,6 +298,12 @@ sub parse_block {
 				push(@ary, "$self->{indent}<h$h id=\"$id\"><a href=\"$self->{thisurl}#$id\">$title</a></h$h>\x01");
 				push(@ary,'');
 				next;
+			}
+
+			# [S] (())の注釈の一覧は、次の見出しの手前に出す（段を問わない）。
+			#     #の見出しは、節の終わり（</section>）で出すので目印は要らない
+			if ($level > 1 && $sectioning && @ary) {
+				push(@ary, $FOOTNOTE_MARK);
 			}
 
 			# generate section
@@ -791,11 +800,12 @@ sub parse_inline {
 
 	foreach(@$lines) {
 		if (substr($_,-1) eq "\x02") {
-			# [S] (())の注釈の一覧は、節の終わり（</section>）の前に出す。
+			# [S] (())の注釈の一覧は、見出しの手前（目印）と節の終わり（</section>）の前に出す。
 			#     一覧の中の注の文も、このあとの記法の処理を通すので、ここで読み飛ばさない
-			if (!@footnote || $_ ne "</section>\x02") { next; }
+			if (!@footnote || ($_ ne "</section>\x02" && $_ ne $FOOTNOTE_MARK)) { next; }
+			my $close = $_ eq $FOOTNOTE_MARK ? '' : '</section>';
 			my $ary = $satsuki->output_footnote(undef, \@footnote, \%note_hash);
-			$_ = join('', @$ary) . "</section>\x01";
+			$_ = join('', @$ary) . "$close\x01";
 			# 番号の「*1」は、強調の記法にしない
 			$_ =~ s/>\*(\d+)</>\x0342\x03$1</g;
 		}
