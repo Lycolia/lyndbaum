@@ -46,10 +46,11 @@ sub page {
 
 # 本番と同じ流れでHTMLにする
 sub render {
-	my ($text, $pkey) = @_;
+	my ($text, $pkey, $cards) = @_;
 	my $md = new_parser();
 	$md->{satsuki_obj}->{ROBJ}->{CodeLib} = 'Jcode';	# 本番の設定と同じ
 	$md->{thispkey} = $pkey if (defined $pkey);
+	$md->{link_cards} = $cards;
 	my $html = $escape->escape(scalar $md->parse(bytes($text)));
 	return Encode::decode('UTF-8', $html);
 }
@@ -369,6 +370,77 @@ subtest 'Fediverseの投稿の概要とRSS' => sub {
 	my $text = Encode::decode('UTF-8', $app->link_card_to_text($html));
 	like($text, qr{<a href="https://fedi\.test/\@alice/1234">アリス&lt;b&gt;</a>}, 'RSSは表示名のリンク');
 	unlike($text, qr{一行目|<img|<time|link-card}, 'カードの中身は残らない');
+};
+
+#-------------------------------------------------------------------------------
+# 前回の保存のカードを使い回す
+#-------------------------------------------------------------------------------
+# 保存と同じく、前回の本文（TagEscapeの後のバイト列）からカードを拾う
+sub saved_cards {
+	require SatsukiApp::adiary;
+	my $app = bless({ ROBJ => $ROBJ }, 'SatsukiApp::adiary');
+	return $app->extract_link_cards(bytes(shift));
+}
+
+subtest '前回のカードを使い、取得しない' => sub {
+	my $A = 'https://example.test/a?x=1&y=2';
+	$RES{$A} = page(q{<title>t</title><meta property="og:title" content="題名 &amp; &lt;記号&gt;">
+		<meta property="og:description" content="説明"><meta property="og:image" content="https://example.test/i.png?a=1&amp;b=2">});
+	fedi_set();
+	my $src = "前の文\n\n[&$A]\n\n[&$F]\n\n後の文\n";
+	my $first = render($src);
+	like($first, qr{data-card="fediverse"}, '1回目はFediverseのカード');
+	like($first, qr{<a class="link-card" href="https://example\.test/a\?x=1&amp;y=2">}, '1回目は&を含むURLのカード');
+
+	my $cards = saved_cards($first);
+	is(scalar(keys %$cards), 2, 'カードを2枚拾う');
+	@GOT = ();
+	my $second = render($src, undef, $cards);
+	is(scalar(@GOT), 0, '2回目は通信しない');
+	is($second, $first, '2回目も同じHTML');
+
+	@GOT = ();
+	is(render($src, undef, saved_cards($second)), $first, 'もう一度通しても変わらない');
+	is(scalar(@GOT), 0, '3回目も通信しない');
+};
+
+subtest '新しいURLと、前回カードにできなかったURLは取得する' => sub {
+	my $A = 'https://example.test/a';
+	my $B = 'https://example.test/b';
+	$RES{$A} = page('<title>Aの題名</title>');
+	delete $RES{$B};
+	my $cards = saved_cards(render("[&$A]\n\n[&$B]\n"));
+	is(scalar(keys %$cards), 1, '普通のリンクは拾わない');
+
+	$RES{$B} = page('<title>Bの題名</title>');
+	my $C = 'https://example.test/c';
+	$RES{$C} = page('<title>Cの題名</title>');
+	@GOT = ();
+	my $h = render("[&$A]\n\n[&$B]\n\n[&$C]\n", undef, $cards);
+	is_deeply([ map { $_->{url} } @GOT ], [ $B, $C ], '前回失敗したURLと新しいURLだけ取得する');
+	like($h, qr{Aの題名.*Bの題名.*Cの題名}s, 'どれもカードになる');
+};
+
+subtest '同じ保存の中では、一度取得したURLを取得しない' => sub {
+	my $A = 'https://example.test/a';
+	my $B = 'https://example.test/b';
+	$RES{$A} = page('<title>Aの題名</title>');
+	delete $RES{$B};
+	my %cards;	# 保存では、見出しのIDを足すときと本文を作るときの2回パースする
+	@GOT = ();
+	my $first  = render("[&$A]\n\n[&$A]\n\n[&$B]\n", undef, \%cards);
+	my $second = render("[&$A]\n\n[&$A]\n\n[&$B]\n", undef, \%cards);
+	is_deeply([ map { $_->{url} } @GOT ], [ $A, $B ], 'どのURLも1回だけ取得する');
+	is($second, $first, '2回目も同じHTML');
+	like($second, qr{<a href="https://example\.test/b">https://example\.test/b</a>}, '取得できなかったURLは普通のリンクのまま');
+};
+
+subtest '前回のカードを渡さなければ取得し直す' => sub {
+	my $A = 'https://example.test/a';
+	$RES{$A} = page('<title>新しい題名</title>');
+	@GOT = ();
+	like(render("[&$A]"), qr{新しい題名}, '取得した値を使う');
+	is(scalar(@GOT), 1, '取得する');
 };
 
 done_testing();

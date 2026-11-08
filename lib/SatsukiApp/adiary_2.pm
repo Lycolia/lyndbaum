@@ -485,11 +485,14 @@ sub regist_article {
 		# パース準備
 		$parser->{thisurl}  = $self->{myself2} . $elink_key;
 		$parser->{thispkey} = $pkey;
+		# 前回の保存で作ったリンクカードを使い回し、取得し直さない（docs/仕様/機能一覧.md「リンクカード」）
+		$parser->{link_cards} = $self->extract_link_cards( $old->{text} );
 		# 識別子の無い見出しに新しい識別子を書き足す（見出しの文字を変えてもIDが変わらないように）
 		if ($parser->can('add_heading_ids')) {
 			$_text = $parser->add_heading_ids( $_text );
 		}
 		($text, $short) = $parser->parse( $_text );
+		delete $parser->{link_cards};	# パーサーは使い回されるので、他の記事に残さない
 	} else {
 		$text = "<section>\n$_text\n</section>";
 	}
@@ -849,6 +852,21 @@ sub link_card_to_text {
 	my ($self, $text) = @_;
 	$text =~ s!<a class="link-card"( href="[^"]*")[^>]*>.*?<span class="link-card-title">([^<]*)</span>.*?</a>!<a$1>$2</a>!sg;
 	return $text;
+}
+
+#-------------------------------------------------------------------------------
+# ●本文のリンクカードを拾う。URL→カードのHTML
+#-------------------------------------------------------------------------------
+# hrefはTagEscapeを通った後の値なので、&amp;を&に戻してキーにする
+sub extract_link_cards {
+	my ($self, $text) = @_;
+	my %cards;
+	while ($text =~ m!(<a class="link-card" href="([^"]*)"[^>]*>.*?</a>)!sg) {
+		my ($card, $url) = ($1, $2);
+		$url =~ s/&amp;/&/g;
+		$cards{$url} = $card;
+	}
+	return \%cards;
 }
 
 #-------------------------------------------------------------------------------

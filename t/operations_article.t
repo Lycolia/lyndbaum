@@ -329,6 +329,35 @@ subtest '再構築' => sub {
 };
 
 #-------------------------------------------------------------------------------
+# リンクカード（[&URL]）は、編集の保存では取得し直さない
+#-------------------------------------------------------------------------------
+subtest 'リンクカードは編集のたびに取得しない' => sub {
+	my $log = "$dir/get.log";
+	unlink($log);
+	local $app->{env} = { PERL5OPT => "-I$FindBin::Bin/lib -MHTTPPostStub", STUB_GET_LOG => $log };
+	my $A = 'https://example.test/a';
+	my $B = 'https://example.test/b';
+	my $got = sub { my $s = -e $log ? read_file($log) : ''; return [ split(/\n/, $s) ]; };
+
+	my $r = $app->post('admin', '', { %ART, title => 'リンクカードの記事', body_txt => "[&$A]\n" });
+	ok(AppTest::is_reload($r), '保存できる');
+	my ($key) = body($app->get('admin', '')) =~ m{/(\d+)"[^>]*>リンクカードの記事<};
+	ok($key, '記事のURL');
+	my $pkey = int($key);
+	like(body($app->get('guest', "/$key")), qr{link-card-title">取得1<}, '1回目は取得してカードにする');
+
+	$r = $app->post('admin', '', { %ART, edit_pkey_int => $pkey, title => 'リンクカードの記事', body_txt => "直した\n\n[&$A]\n\n[&$B]\n" });
+	ok(AppTest::is_reload($r), '直して保存できる');
+	my $h = body($app->get('guest', "/$key"));
+	like($h, qr{link-card-title">取得1<.*link-card-title">取得2<}s, '前のURLは前回のカード、新しいURLは取得する');
+	is_deeply($got->(), [ $A, $B ], '新しいURLだけ取得する');
+
+	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
+	ok(AppTest::is_reload($r), '再構築できる');
+	like(body($app->get('guest', "/$key")), qr{link-card-title">取得3<.*link-card-title">取得4<}s, '再構築では取得し直す');
+};
+
+#-------------------------------------------------------------------------------
 # ダッシュボード
 #-------------------------------------------------------------------------------
 subtest 'ダッシュボード' => sub {
