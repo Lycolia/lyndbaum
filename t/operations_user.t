@@ -194,7 +194,7 @@ subtest '4.31より古いデータからのアップデート' => sub {
 	$set_version->('4.31');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.38$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
 };
 
 #-------------------------------------------------------------------------------
@@ -369,7 +369,7 @@ subtest 'マルチサイトと複数ユーザーの列を消すアップデー�
 	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.38$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
 
 	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
 	foreach my $t (qw(art trash)) {
@@ -427,7 +427,7 @@ subtest '操作の記録の削除の記録を消すアップデート（4.34）'
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.38$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
 
 	is($count->('delete'), 0, 'delete の記録が消える');
 	foreach(qw(login logout regist update)) {
@@ -477,7 +477,7 @@ subtest '目次のある記事を作り直すアップデート（4.37）' => su
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.38$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
 
 	(undef, $arts) = $load->();
 	like($arts->{'目次の記事'}->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '目次のある記事は作り直す');
@@ -502,12 +502,57 @@ subtest '直前の保存のテーブルを作るアップデート（4.38）' =>
 	ok(!-e "$dir/data/db/lastrev", '処理の前には直前の保存を入れない');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.38$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
 	ok(-e "$dir/data/db/lastrev/#index.dat", 'テーブルができる');
 
 	$app->post('admin', '', { %ART, edit_pkey_int => 1, title => '処理の後に直す', body_txt => "処理の後\n" });
 	my $last = $app->post('admin', '', { action => 'ajax_revision', last => 1 })->{json};
 	is($last->{title}, '処理の前に直す', '処理の後は直前の保存を入れる');
+	$app->restore($snap);
+};
+
+subtest '注釈のある記事を作り直すアップデート（4.39）' => sub {
+	my $snap = $app->snapshot();
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '注釈の記事', body_txt => "# 大\n\n## 中1\n\n本文((注釈A))\n\n## 中2\n\n本文((注釈B))\n" })), '注釈のある記事を書く');
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '注釈の無い記事', body_txt => "本文\n" })), '注釈の無い記事を書く');
+
+	require Satsuki::Base;
+	require Encode;
+	my $load = sub {	# DBの値はバイト列なので、文字列にして比べる
+		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
+		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+		return ($DB, { map { Encode::decode_utf8($_->{title}) => { pkey => $_->{pkey}, text => Encode::decode_utf8($_->{text}) } } @{ $DB->select_match('art', '*cols', ['pkey', 'title', 'text']) } }, $ROBJ);
+	};
+	my ($DB, $arts, $ROBJ) = $load->();	# $ROBJ は $DB が使うので持っておく
+	my $note  = $arts->{'注釈の記事'};
+	my $plain = $arts->{'注釈の無い記事'};
+	my $new_form = qr{注釈A</p>\s*</footer>\s*<h4 id="[^"]+"><a [^>]+>中2</a>};	# 見出しのIDは保存のときに付く
+	like($note->{text}, $new_form, '書いた記事の注釈の一覧は、次の見出しの手前に出る');
+	like(body($app->get('guest', "/0$note->{pkey}")), $new_form, '公開画面にも出る');
+
+	# 4.38までの形（#の節の終わりにまとめて出す）に戻す
+	(my $old = $note->{text}) =~ s{\s*<footer>\s*(<p class="footnote">.*?注釈A</p>)\s*</footer>}{}s;
+	my $first = $1;
+	$old =~ s{<footer>}{<footer>\n$first};
+	unlike($old, $new_form, '作った状態の確認：古い形の注釈の一覧にした');
+	$DB->begin();
+	$DB->update_match('art', { text => Encode::encode_utf8($old) }, 'pkey', $note->{pkey});
+	$DB->update_match('art', { text => Encode::encode_utf8('<p>作り直さない</p>') }, 'pkey', $plain->{pkey});
+	is($DB->commit(), 0, '保存したHTMLを古い形にする');
+
+	my $sys  = "$dir/data/system_config.dat";
+	my $conf = read_file($sys);
+	$conf =~ s/^VERSION=.*$/VERSION=4.38/m;
+	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+	print $fh $conf;
+	close($fh);
+
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+
+	(undef, $arts) = $load->();
+	like($arts->{'注釈の記事'}->{text}, $new_form, '注釈のある記事は作り直す');
+	is($arts->{'注釈の無い記事'}->{text}, '<p>作り直さない</p>', '注釈の無い記事は作り直さない');
 	$app->restore($snap);
 };
 
