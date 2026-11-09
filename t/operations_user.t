@@ -72,6 +72,8 @@ subtest '初期セットアップ' => sub {
 		like($b, qr{name="$n"}, "$n の欄がある");
 	}
 	unlike($b, qr{value="（ブログのタイトルを入力）"}, 'ブログ名の欄に、初めの値を入れない');
+	unlike($b, qr{（ブログのタイトルを入力）}, "上のバーやタブの題にも、初めのブログ名を出さない");
+	like($b, qr{<span class="admin-bar-blog">Lyndbaum</span>}, "上のバーにはシステム名を出す");
 	unlike($b, qr{id="admin-nav"}, '管理画面のナビは出ない');
 
 	my $before = $fresh->fingerprint();
