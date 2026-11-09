@@ -21,13 +21,6 @@ sub login {
 		return { ret=>1, msg=>'security error' };
 	}
 
-	# スタートアップ認証
-	if (! $self->{exists_admin} && $self->{start_up}) {
-		$self->set_start_up_admin();
-		$self->log_save('root*', 'login');
-		return { ret=>0, sid=>'auth (no exist user)' };
-	}
-
 	# ID確認
 	my $table = $self->{table};
 	my $udata;
@@ -176,18 +169,7 @@ sub session_auth {
 	if (! $ROBJ->check_ip_host($self->{allow_ip}, $self->{allow_host})) { return ; }
 
 	# 認証処理
-	my $r = $self->do_session_auth(@_);
-	if ($r) { return $r; }
-
-	# 失敗したとき
-	$self->userdb_init();
-
-	# スタートアップ認証
-	if (! $self->{exists_admin} && $self->{start_up}) {	# 無条件認証
-		$self->set_start_up_admin();
-		return 2;
-	}
-	return $r;
+	return $self->do_session_auth(@_);
 }
 
 sub do_session_auth {
@@ -195,7 +177,6 @@ sub do_session_auth {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 
-	if ($id eq 'root*') { return; }
 	if ($id eq '' || $session_id eq '') { return; }
 
 	# セッションの認証
@@ -255,23 +236,6 @@ sub logout {
 # ■サブルーチン
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●非登録時の初期管理者承認の設定
-#-------------------------------------------------------------------------------
-sub set_start_up_admin {
-	my $self = shift;
-	$self->{ok}      = 1;
-	$self->{pkey}    = -1;
-	$self->{id}      = "root*";
-	$self->{name}    = "root*";
-	$self->{email}   = '';
-	$self->{auto}    = 1;
-	$self->{isadmin} = 1;	# 管理者権限
-	$self->{isroot}  = 1;
-	$self->{ext}     = {};
-	return;
-}
-
-#-------------------------------------------------------------------------------
 # ●ログイン情報を内部変数に設定する
 #-------------------------------------------------------------------------------
 sub set_logininfo {
@@ -330,16 +294,11 @@ sub userdb_init {
 
 	my $DB = $self->{DB};
 
-	# 管理者の存在確認
-	$self->{exists_admin} = 1;
-	if ($self->{start_up}) {
-		my $bak  = $DB->set_noerror(1);
-		my $pkey = $DB->select_match_pkey1( $self->{table}, '*NoError', 1, '*cols', 'pkey' );
-		$DB->set_noerror($bak);
-		if (!$pkey) {
-			$self->{exists_admin} = 0;
-		}
-	}
+	# 管理者の存在確認（ユーザーは管理者1人だけ。いなければ初期セットアップの前）
+	my $bak  = $DB->set_noerror(1);
+	my $pkey = $DB->select_match_pkey1( $self->{table}, '*NoError', 1, '*cols', 'pkey' );
+	$DB->set_noerror($bak);
+	$self->{exists_admin} = $pkey ? 1 : 0;
 
 	# テーブルがなければ自動生成
 	if (!$DB->find_table( $self->{table} )) {

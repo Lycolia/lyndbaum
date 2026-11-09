@@ -2376,14 +2376,12 @@ sub mainte_mode {
 	if (!$ROBJ->{POST} && $self->{skeleton} !~ /^login\w*$/) {
 		$ROBJ->set_status(503);
 		$self->{skeleton} = '_sub/maintenance_msg';
-	} else {
-			# 動かないプラグインがあってもログインできるよう、プラグインが作ったものを使わない
-		$self->{blog_admin} = undef;
-		$self->{blog_admin} = undef;
-		$self->{allow_com}  = undef;
-		$self->{stop_all_plugins} = 1;
-		$self->delete_blog_skeleton();
 	}
+	# 動かないプラグインがあってもログインやメンテナンスの画面を出せるよう、プラグインが作ったものを使わない
+	$self->{blog_admin} = undef;
+	$self->{allow_com}  = undef;
+	$self->{stop_all_plugins} = 1;
+	$self->delete_blog_skeleton();
 	return;
 }
 

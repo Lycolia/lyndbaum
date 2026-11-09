@@ -1,0 +1,58 @@
+<@7>
+<@local(s, blog_name)>
+
+<!--=========================================================================-->
+<@> 管理者がいないときだけ開ける（ユーザーは管理者1人だけ）
+<@> 記事が無いときは、ほかの画面はすべてここへ送られる（SatsukiApp::adiary の main）
+<$Auth.userdb_init()>
+<$ifredirect(Auth.ok || Auth.exists_admin, myself)>
+
+<@> システムモード
+<$v.system_mode("初期セットアップ")>
+
+<@> ブログ名は今の値を入れておく。初めの「（ブログのタイトルを入力）」は入れない
+<$s = v.blog>
+<$blog_name = s.blog_name>
+<$ifset(blog_name eq '（ブログのタイトルを入力）', blog_name, '')>
+
+<!--=========================================================================-->
+<article class="system setting">
+<h2><@v.title></h2>
+<div class="body">
+<@call('_sub/writable_check')>
+<@ifexec(!ret, begin)>
+	<form class="js-ajax" id="setup-form" data-url="<@v.myself>?menu">
+	<input type="hidden" name="action" value="_ajax_setup">
+	<p>管理者とブログ名を決めてください。ユーザーは管理者1人だけです。</p>
+
+	<table>
+	<tr>
+		<th>ID</th>
+		<td><input type="text" name="adiary_id" class="w100" value="" data-name="id" pattern="^[a-z][a-z0-9_]*$" maxlength="<@Auth.uid_max_length>" autocomplete="username" required>
+			先頭はa-zで「a-z, 0-9, _」のみ使用可能。
+		</td>
+	</tr>
+	<tr>
+		<th>名前</th>
+		<td><input type="text" name="name" class="w120" value="" maxlength="<@Auth.name_max_length>" required></td>
+	</tr>
+	<tr>
+		<th>パスワード</th>
+		<td><input type="password" name="pass" class="w120" value="" minlength="<@Auth.pass_min>" autocomplete="new-password" required>
+		<strong class="warning"><@Auth.pass_min>文字</strong>以上</td>
+	</tr>
+	<tr>
+		<th>パスワード確認</th>
+		<td><input type="password" name="pass2" class="w120" value="" data-name="pass" autocomplete="new-password" required></td>
+	</tr>
+	<tr>
+		<th>ブログ名</th>
+		<td><input type="text" name="blog_name" class="w280" value="<@blog_name>" maxlength="48" required></td>
+	</tr>
+	</table>
+
+	<button type="submit">セットアップする</button>
+	</form>
+<$end>
+</div> <!-- end of body -->
+</article>

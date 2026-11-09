@@ -139,7 +139,6 @@ sub setup_main {
 	my $db   = $self->{DB}   = $self->loadpm('DB_text', 'data/db/');
 	my $auth = $self->{Auth} = $self->loadpm('Auth', $db);
 	$auth->{table}    = '_users';
-	$auth->{start_up} = 1;		# ユーザー未登録時に無条件に承認し管理権限を与える
 
 	$self->{v} = $self->{Main} = $self->loadapp('adiary', $db, { admin_trust_mode => 1 });
 }

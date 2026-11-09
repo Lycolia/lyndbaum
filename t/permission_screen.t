@@ -32,7 +32,7 @@ my $json  = sub { my $r = shift; $r->{status} == 200 && $r->{json} && !$r->{json
 
 my @SCREENS = (
 	# 公開画面
-	[ ''                    , 'guest' , '（ブログのタイトルを入力）' ],
+	[ ''                    , 'guest' , 'テストのブログ' ],
 	[ '/01'                 , 'guest' , 'editorの記事' ],
 
 	# ログインと共通
@@ -100,8 +100,7 @@ my @SCREENS = (
 my %SKIP = (
 	'login'            => '誰でも開くログインの画面',
 	'login_auth'       => 'ログインの後の振り分け（転送するだけ）',
-	'login_auto'       => '初期セットアップの自動ログイン（setup() で通す）',
-	'user/add'         => '初回の管理者の作成。管理者がいるときは開けない（setup() で通す）',
+	'setup'            => '初期セットアップ。管理者がいるときは開けない（t/operations_user.t）',
 	'logout'           => 'ログアウト（開くとセッションが消える）',
 	'system/'          => 'system/setting へ転送するだけ',
 	'etc/parser_debug' => '開発モード（Develop）のときだけ',

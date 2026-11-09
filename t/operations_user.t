@@ -45,9 +45,80 @@ subtest 'ユーザー' => sub {
 	ok(json_ok($r), '新しいパスワードでログインできる');
 
 	# 管理者がいるときは、ユーザーを作れない
-	$r = $app->post('admin', '', { action => '_ajax_user_add', adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS, email => '', isadmin => 1 });
-	ok(!json_ok($r), '管理者はユーザーを作れない');
-	is($app->get('admin', 'user/add')->{status}, 302, '作成の画面は開けない');
+	$r = $app->post('admin', '', AppTest::setup_form('newuser'));
+	ok(!json_ok($r), '管理者は初期セットアップでユーザーを作れない');
+	$r = $app->post('guest', '', AppTest::setup_form('newuser'));
+	ok(!json_ok($r), 'ログインしていない人も作れない');
+	is($app->get('admin', 'setup')->{status}, 302, '管理者は初期セットアップの画面を開けない');
+	is($app->get('guest', 'setup')->{status}, 302, 'ログインしていない人も開けない');
+};
+
+subtest '初期セットアップ' => sub {
+	my $fresh = AppTest->new();
+	mkdir("$fresh->{dir}/__cache");		# 書き込めないフォルダがあると、画面に入力の欄を出さない
+	my $setup = sub { $fresh->post('first', '', AppTest::setup_form('first', @_)) };
+	my $to_setup = sub {
+		my $r = shift;
+		return $r->{status} == 302 && ($r->{headers}->{location} // '') =~ m{\?setup$};
+	};
+
+	# セットアップの前は、ほかの画面を開けない
+	foreach my $q ('', '/01', 'login', 'menu', 'system/', 'set/', 'edit', 'artlist', 'user/log') {
+		ok($to_setup->($fresh->get('guest', $q)), "?$q は初期セットアップの画面へ送る");
+	}
+	my $b = body($fresh->get('guest', 'setup'));
+	like($b, qr{<title>初期セットアップ}, '初期セットアップの画面が出る');
+	foreach my $n (qw(adiary_id name pass pass2 blog_name)) {
+		like($b, qr{name="$n"}, "$n の欄がある");
+	}
+	unlike($b, qr{value="（ブログのタイトルを入力）"}, 'ブログ名の欄に、初めの値を入れない');
+	unlike($b, qr{（ブログのタイトルを入力）}, "上のバーやタブの題にも、初めのブログ名を出さない");
+	like($b, qr{<span class="admin-bar-blog">Lyndbaum</span>}, "上のバーにはシステム名を出す");
+	unlike($b, qr{id="admin-nav"}, '管理画面のナビは出ない');
+
+	my $before = $fresh->fingerprint();
+	ok(!json_ok($fresh->post('guest', '', { action => '_ajax_login', adiary_id => 'first', pass => $AppTest::PASS })), 'ログインの処理は動かない');
+	is_deeply([ AppTest::diff_fingerprint($before, $fresh->fingerprint()) ], [], 'ほかの処理では何も変わらない');
+
+	# 入力の誤り
+	ok(!json_ok($setup->(blog_name => '')), 'ブログ名が空なら作らない');
+	ok(!json_ok($setup->(blog_name => 'あ' x 49)), 'ブログ名が49文字なら作らない');
+	ok(!json_ok($setup->(pass => 'abcdefg', pass2 => 'abcdefg')), 'パスワードが7文字なら作らない');
+	ok(!json_ok($setup->(pass2 => 'different-pass')), '確認用のパスワードが違うと作らない');
+	ok(!json_ok($setup->(adiary_id => '1abc')), 'IDの先頭が数字なら作らない');
+	ok(!json_ok($setup->(name => '')), '名前が空なら作らない');
+	my $r = $setup->(blog_name => '', adiary_id => '');
+	ok($r->{json} && $r->{json}->{errs} && $r->{json}->{errs}->{blog_name} && $r->{json}->{errs}->{id}, 'ブログ名と管理者の誤りをまとめて返す');
+	ok($to_setup->($fresh->get('guest', '')), '誤りのときは、セットアップの前のまま');
+
+	# 作る
+	$r = $setup->(blog_name => '<b>最初</b>のブログ');
+	ok(json_ok($r), '管理者を作れる');
+	ok($fresh->{cookie}->{first}->{session}, 'ログインしたCookieが返る');
+	is($fresh->get('first', 'menu')->{status}, 200, 'そのままダッシュボードを開ける');
+	like(body($fresh->get('guest', '')), qr{<title>&lt;b&gt;最初&lt;/b&gt;のブログ}, 'ブログ名が入る（タグはエスケープする）');
+	ok(!-e "$fresh->{dir}/data/setup.lock", 'ロックのファイルは残らない');
+
+	# 2回目は作れない
+	ok(!json_ok($fresh->post('guest', '', AppTest::setup_form('second'))), '2回目は作れない');
+	ok(!json_ok($fresh->post('second', '', { action => '_ajax_login', adiary_id => 'second', pass => $AppTest::PASS })), '2人目はいない');
+	is($fresh->get('guest', 'setup')->{status}, 302, 'セットアップの画面はもう開けない');
+
+	# 同時に送っても、作るのは1人だけ
+	my $race = AppTest->new();
+	$race->get('guest', 'setup');
+	my @pid;
+	foreach my $n (1..4) {
+		my $pid = fork();
+		die if (!defined $pid);
+		if (!$pid) { my $res = $race->post("u$n", '', AppTest::setup_form("u$n")); require POSIX; POSIX::_exit(json_ok($res) ? 0 : 1); }
+		push(@pid, $pid);
+	}
+	my $ok = 0;
+	foreach (@pid) { waitpid($_, 0); $ok++ if (!$?); }
+	is($ok, 1, '同時に送っても、作れるのは1回だけ');
+	my @users = glob("$race->{dir}/data/db/_users/0*.dat");
+	is(scalar(@users), 1, 'ユーザーは1人だけ');
 };
 
 subtest 'パスワード' => sub {
@@ -579,12 +650,24 @@ subtest 'パスワードを忘れたときの復旧' => sub {
 	my $fresh = AppTest->new()->setup();
 	system('rm', '-rf', map { "$fresh->{dir}/data/db/$_" } qw(_users _users_sid _users_log)) == 0 || die;
 	$fresh->{cookie} = {};
-	$fresh->get('root*', 'login_auto');
-	ok($fresh->{cookie}->{'root*'}->{session}, 'ユーザーのフォルダを消すと、root*で入れる');
-	$fresh->user_add('root*', 'again', 1);
-	$fresh->login('again');
-	is($fresh->get('again', 'menu')->{status}, 200, '管理者を作り直せる');
+	is($fresh->get('admin', 'menu')->{status}, 302, 'ユーザーのフォルダを消すと、前の管理者のセッションでは入れない');
+	$fresh->setup_admin('again');
+	is($fresh->get('again', 'menu')->{status}, 200, '初期セットアップから管理者を作り直せる');
 	is($fresh->get('again', 'set/')->{status}, 200, 'ブログの設定はそのまま使える');
+
+	# 記事が残っているときは、公開画面を止めない
+	my $kept = AppTest->new()->setup()->seed();
+	system('rm', '-rf', map { "$kept->{dir}/data/db/$_" } qw(_users _users_sid _users_log)) == 0 || die;
+	$kept->{cookie} = {};
+	mkdir("$kept->{dir}/__cache");
+	is($kept->get('guest', '')->{status}, 200, '記事があれば、管理者がいなくてもトップを開ける');
+	is($kept->get('guest', '/01')->{status}, 200, '記事も開ける');
+	is($kept->get('guest', 'menu')->{status}, 403, '管理画面は開けない');
+	like(body($kept->get('guest', 'setup')), qr{<title>初期セットアップ}, '初期セットアップの画面は開ける');
+	like(body($kept->get('guest', 'setup')), qr{name="blog_name" [^>]*value="テストのブログ"}, 'ブログ名の欄に今の名前を入れる');
+	$kept->setup_admin('again');
+	is($kept->get('again', 'menu')->{status}, 200, '管理者を作り直せる');
+	like(body($kept->get('again', 'artlist')), qr{editorの記事}, '記事はそのまま');
 };
 
 subtest '操作の記録' => sub {

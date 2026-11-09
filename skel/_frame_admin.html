@@ -48,7 +48,7 @@
 <script defer src="<@t>"></script>
 <$end>
 <script defer src="<@Basepath><@v.script_dir>lythumb.min.js?<@get_lastmodified(v.script_dir . 'lythumb.min.js')>"></script>
-	<title><@v.subtitle><@if(v.subtitle ne '',' - ')><@v.title><@if(s.blog_name ne '', " - <@s.blog_name>")></title>
+	<title><@v.subtitle><@if(v.subtitle ne '',' - ')><@v.title><@if(s.blog_name ne '' && !v.setup_mode, " - <@s.blog_name>")></title>
 <@v.extra_header>
 </head>
 <@>-----------------------------------------------------------------------------
@@ -60,7 +60,12 @@
 <@>-----------------------------------------------------------------------------
 <@ifexec(!popup, begin)>
 <header id="admin-bar">
+	<@> セットアップの前は、ブログ名が初めの値（タイトルを入力するように見える）で、どの画面もセットアップに送られるので、システム名をリンクにせず出す
+	<@ifexec(v.setup_mode, begin, begin)>
+	<span class="admin-bar-blog"><@v.SYSTEM_NAME></span>
+	<$else>
 	<a class="admin-bar-blog" href="<@v.myself>"><@if(s.blog_name ne '', s.blog_name, 'adiary')></a>
+	<$end>
 	<@ifexec(Auth.ok && v.blog_admin, begin)>
 	<a class="admin-bar-edit" href="<@v.myself>?edit"><svg class="admin-bar-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M11 4H4v16h16v-7"/><path d="M18.5 2.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>書く</a>
 	<$end>
@@ -68,6 +73,12 @@
 	<span class="admin-bar-links">
 		<span class="admin-bar-user"><@Auth.name></span>
 		<a class="admin-bar-logout" href="<@v.thisurl>?logout"><svg class="admin-bar-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>ログアウト</a>
+	</span>
+	<$end>
+	<@> ログインしていないとき、画面が旗を立てたときだけ、右端にログインのリンクを出す（メンテナンス中の画面）
+	<@ifexec(!Auth.ok && v.admin_bar_login, begin)>
+	<span class="admin-bar-links">
+		<a class="admin-bar-login" href="<@v.myself>?login"><svg class="admin-bar-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 4h5v16h-5"/><path d="M10 8l4 4-4 4M14 12H5"/></svg>ログイン</a>
 	</span>
 	<$end>
 </header>

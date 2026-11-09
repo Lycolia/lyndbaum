@@ -64,22 +64,30 @@ sub get_system_info {
 	my $v = $];
 	$v =~ s/(\d+)\.(\d\d\d)(\d\d\d)/$1.'.'. ($2+0).'.'.($3+0)/e;
 	$h{perl_version} = $v;
-	$h{perl_cmd}     = $^X;
+	$h{os}           = $^O;
 	return \%h;
 }
 
 sub check_lib {
 	my ($self, $lib) = @_;
 	my $pm = $lib;
-	$pm =~ tr|::|/|;
+	$pm =~ s|::|/|g;
 	eval { require "$pm.pm"; };
 	if ($@) { return 0; }
-	my $ver;
-	{
-		no strict "refs";
-		$ver = ${$lib . '::VERSION'};
+
+	# $VERSIONが無ければ、親のパッケージのものを使う。
+	# DebianのImage::Magickは use parent qw/Image::Magick::Q16/ だけで、バージョンは親にある
+	my @pkgs = ($lib);
+	my %seen;
+	no strict "refs";
+	while(@pkgs) {
+		my $pkg = shift(@pkgs);
+		if ($seen{$pkg}++) { next; }
+		my $ver = ${$pkg . '::VERSION'};
+		if ($ver) { return $ver; }
+		push(@pkgs, @{$pkg . '::ISA'});
 	}
-	return $ver ? $ver : '?.??';
+	return '?.??';
 }
 
 sub check_cmd {

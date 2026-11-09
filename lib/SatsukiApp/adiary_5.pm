@@ -15,23 +15,94 @@ package SatsukiApp::adiary;
 # ■ユーザー管理
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ユーザー追加
+# ●初期セットアップ（最初の管理者とブログ名）
 #-------------------------------------------------------------------------------
-sub _ajax_user_add {
+# ユーザーは管理者1人だけ。管理者がいないときだけ作り、そのままログインする。
+# ログインしていなくても呼べるので（do_ajax_function）、管理者がいないことをここで確かめる。
+sub _ajax_setup {
 	my $self = shift;
 	my $form = shift;
 	my $ROBJ = $self->{ROBJ};
-	my $auth = $ROBJ->{Auth};
 
-	# ユーザーは管理者1人だけ。管理者がいないとき（root*）に作る
-	if (!$auth->{auto}) {
+	# 同時に送られても、作る管理者は1人だけ
+	$ROBJ->mkdir( $self->{data_dir} );
+	my $lock = $self->{data_dir} . 'setup.lock';
+	sysopen(my $fh, $lock, Fcntl::O_CREAT() | Fcntl::O_RDWR()) || return { ret=>-1, msg => 'Internal Error' };
+	flock($fh, Fcntl::LOCK_EX()) || return { ret=>-1, msg => 'Internal Error' };
+
+	my $r = $self->do_setup($form);
+
+	unlink($lock);
+	close($fh);
+	return $r;
+}
+
+sub do_setup {
+	my ($self, $form) = @_;
+	my $ROBJ = $self->{ROBJ};
+	my $auth = $ROBJ->{Auth};
+	my $DB   = $self->{DB};
+
+	# ロックを待っている間に作られていないか、ユーザーのテーブルを読み直して確かめる
+	$DB->clear_cache( $auth->{table} );
+	$auth->{exists_admin} = -1;
+	$auth->userdb_init();
+	if ($auth->{ok} || $auth->{exists_admin}) {
 		return { ret=>1, msg => $ROBJ->translate('Operation not permitted') };
 	}
 
-	$form->{id} = $form->{adiary_id};
-	delete $form->{adiary_id};
+	my %user = (
+		id    => $form->{adiary_id},
+		name  => $form->{name},
+		pass  => $form->{pass},
+		pass2 => $form->{pass2}
+	);
 
-	return $auth->user_add($form);
+	# ブログ名（基本設定の画面と同じ決まり。skel/set/_action/index.html）
+	my $blog = $self->{blog};
+	my $blog_name = $form->{blog_name};
+	$blog_name =~ s/[\r\n\0]//g;
+	$ROBJ->trim($blog_name);
+	my $jcode = $ROBJ->load_codepm_if_needs( $blog_name );
+	my $len   = $jcode ? $jcode->jlength($blog_name) : length($blog_name);
+	my @name_err = $blog_name eq '' ? ("'%s' is empty", 'ブログ名')
+		     : $len > 48        ? ("'%s' is too long. (maximum %d chars)", 'ブログ名', 48)
+		     : ();
+	if (@name_err) {
+		# 管理者の欄の誤りも、まとめて知らせる（check_user_data()はフォームのエラーを消してから調べる）
+		$ROBJ->clear_form_err();
+		my %h = (%user, new_user => 1);
+		$auth->check_user_data(\%h);
+		$ROBJ->form_err('blog_name', @name_err);
+		return { ret=>10, errs => $ROBJ->form_err() };
+	}
+	$ROBJ->tag_escape($blog_name);
+
+	# 管理者を作る。user_add()は管理者だけが呼べるので、ここだけ権限を与える
+	my $r;
+	{
+		local($auth->{isadmin}) = 1;
+		$r = $auth->user_add(\%user);
+	}
+	if ($r->{ret}) { return $r; }
+	$auth->{exists_admin} = 1;
+
+	# ログインする（_ajax_login と同じ）
+	my $login = $auth->login($user{id}, $form->{pass});
+	if ($login->{ret}) { return $login; }
+	$ROBJ->set_cookie('session', {
+		id  => $user{id},
+		sid => $login->{sid}
+	}, $auth->{expires});
+
+	# ブログ名を保存する。アップデートの処理の前でブログがまだ無いときは、保存しない
+	if ($blog) {
+		local($self->{blog_admin}) = 1;
+		$self->save_blogset({ blog_name => $blog_name });
+		$self->call_event('BLOG_SETTING');
+		$self->generate_rss();		# ブログ名はRSSにも出る
+	}
+	return { ret=>0, _no_debug=>1 };
 }
 
 #-------------------------------------------------------------------------------

@@ -158,18 +158,17 @@ subtest 'ブログの自動作成' => sub {
 	# 空のデータを初めて開く
 	my $fresh = AppTest->new();
 	my $r = $fresh->get('guest', '');
-	is($r->{status}, 200, 'トップが出る');
-	like(body($r), qr{\?login_auto}, '管理者がいなければ、管理者を作る案内を出す');
+	is($r->{status}, 302, '管理者がいなければ、トップは開けない');
+	like($r->{headers}->{location} // '', qr{\?setup$}, '初期セットアップの画面へ送る');
 	ok(-e "$fresh->{dir}/data/db/art", 'テーブルができる');
 	ok(-e "$fresh->{dir}/data/db/link", '最後のテーブルまでできる');
 	ok(-e "$fresh->{dir}/data/blog/design.dat", '標準のデザインが入る');
 	ok(!-e "$fresh->{dir}/data/blog_create.lock", 'ロックのファイルは残らない');
-	like($fresh->get('guest', '/02')->{status}, qr/^404$/, '無い記事は404');
+	is($fresh->get('guest', 'setup')->{status}, 200, '初期セットアップの画面は開ける');
 
-	$fresh->get('root*', 'login_auto');
-	$fresh->user_add('root*', 'admin', 1);
-	$fresh->login('admin');
-	unlike(body($fresh->get('guest', '')), qr{\?login_auto}, '管理者を作ると、案内を出さない');
+	$fresh->setup_admin('admin');
+	is($fresh->get('guest', '')->{status}, 200, '管理者を作ると、トップが出る');
+	is($fresh->get('guest', '/02')->{status}, 404, '無い記事は404');
 	is($fresh->get('admin', 'set/')->{status}, 200, 'そのまま設定を開ける');
 
 	# 同時に開いても壊れない
@@ -178,13 +177,13 @@ subtest 'ブログの自動作成' => sub {
 	foreach (1..4) {
 		my $pid = fork();
 		die if (!defined $pid);
-		if (!$pid) { my $res = $race->get('guest', ''); require POSIX; POSIX::_exit($res->{status} == 200 ? 0 : 1); }
+		if (!$pid) { my $res = $race->get('guest', 'setup'); require POSIX; POSIX::_exit($res->{status} == 200 ? 0 : 1); }
 		push(@pid, $pid);
 	}
 	my $fail = 0;
 	foreach (@pid) { waitpid($_, 0); $fail++ if ($?); }
 	is($fail, 0, '同時に開いても、すべて200');
-	is($race->get('guest', '')->{status}, 200, 'その後も開ける');
+	is($race->get('guest', 'setup')->{status}, 200, 'その後も開ける');
 	ok(-e "$race->{dir}/data/blog/design.dat", '標準のデザインが入る');
 
 	# 一部だけ残っているときは、作らず、消さない
@@ -203,9 +202,9 @@ subtest 'ブログの自動作成' => sub {
 	my $ro = AppTest->new();
 	mkdir("$ro->{dir}/data/db");
 	chmod(0555, "$ro->{dir}/data/db");
-	is($ro->get('guest', '')->{status}, 503, '書き込めないと503');
+	is($ro->get('guest', 'setup')->{status}, 503, '書き込めないと503');
 	chmod(0755, "$ro->{dir}/data/db");
-	is($ro->get('guest', '')->{status}, 200, '直せば作る');
+	is($ro->get('guest', 'setup')->{status}, 200, '直せば作る');
 
 	# ブログが無いままアップデートが要るとき
 	my $old = AppTest->new()->setup();
@@ -243,9 +242,12 @@ subtest 'メンテナンス中のログイン画面' => sub {
 	print $fh "<\@7>PLUGIN-MARK";
 	close($fh);
 
-	is($m->get('guest', '')->{status}, 503, 'ログインしていない人にはメンテナンスの画面');
-	my $r = $m->get('guest', 'login');
+	my $r = $m->get('guest', '');
+	is($r->{status}, 503, 'ログインしていない人にはメンテナンスの画面');
+	like(body($r), qr{<a class="admin-bar-login" href="[^"]*\?login">}, '上のバーにログインのリンクを出す');
+	$r = $m->get('guest', 'login');
 	is($r->{status}, 200, 'ログイン画面は開ける');
+	unlike(body($r), qr{admin-bar-login}, 'ログイン画面には、上のバーのログインのリンクを出さない');
 	unlike(body($r), qr{PLUGIN-MARK}, 'プラグインが作ったスケルトンを使わない');
 	ok($m->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => $AppTest::PASS })->{json}->{ret} eq '0', 'ログインできる');
 };

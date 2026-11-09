@@ -25,7 +25,7 @@
 <$setting = cur.set || cur.set2 || cur.plugin || cur.design || cur.mainte || cur.personal || cur.user || cur.system>
 <@>
 <@> 設定の子の項目は常に開いておく（open は設定の画面にいるときの強調）。「設定」は出せる最初の項目へのリンクにする
-<$first = if(s && v.blog_admin, 'set/', 'user/add')>
+<$first = if(s && v.blog_admin, 'set/', 'personal/')>
 <@>
 <nav id="admin-nav" aria-label="管理画面のナビ">
 <ul>
@@ -47,9 +47,7 @@
 		<li<@if(cur.design,   ' class="current"')>><a href="<@v.myself>?design/">デザイン設定</a></li>
 		<li<@if(cur.mainte,   ' class="current"')>><a href="<@v.myself>?mainte/">ブログの管理</a></li>
 	<$end>
-	<@ifexec(!Auth.auto, begin)>
-		<li<@if(cur.personal, ' class="current"')>><a href="<@v.myself>?personal/">アカウント設定</a></li>
-	<$end>
+	<li<@if(cur.personal, ' class="current"')>><a href="<@v.myself>?personal/">アカウント設定</a></li>
 	<@ifexec(Auth.isadmin, begin)>
 		<li<@if(cur.user,     ' class="current"')>><a href="<@v.myself>?user/log">操作の記録</a></li>
 		<li<@if(cur.system,   ' class="current"')>><a href="<@v.myself>?system/">システム管理</a></li>
