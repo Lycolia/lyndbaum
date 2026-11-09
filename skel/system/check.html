@@ -1,5 +1,5 @@
 <@7>
-<@local(x,t,ok,ng)>
+<@local(x,w,fs_row,lib_none)>
 
 <@> システムモード
 <$v.system_mode("システム管理メニュー")>
@@ -37,41 +37,77 @@
 
 <h3>ファイルシステムチェック</h3>
 
-<$fail = 0>
-<$ok = '<strong class="good">Good</strong>'>
-<$ng = '<strong class="warning">Failure</strong>'>
+<p>Webから読めるかは、このブラウザーから確かめています。</p>
+
+<@> 1行分。argv : 表に出すパス, 確かめるURLの前の部分, 書き込めるかを確かめるか（1/0）, 読めるかを確かめるファイル, その中身の目印
+<@> 読めるかは下のJavaScriptで確かめる。ブログの画面（200）を読めると取り違えないよう、中身に目印があるときだけ読めるとする
+<$fs_row = begin>
+	<@local(writable)>
+	<$writable = !argv#2 || file_writable(argv#1)>
+<tr>
+	<td><@argv#0></td>
+	<td<@if(argv#3, ' class="js-public-check" data-probe="' . argv#1 . argv#3 . '" data-marker="' . argv#4 . '"')>>
+		<@if(!writable, '<div class="js-write-ng"><strong class="warning">書き込み権限がありません</strong></div>')>
+		<@if(argv#3, '<div class="js-public-state">確認中…</div>', if(writable, '<strong class="good">問題なし</strong>'))>
+	</td>
+</tr>
+<$end>
+<$w = call('_sub/load_writable_dirs')>
 <table class="mono">
 <thead>
 <tr>
-	<th>Directory type</th><th>path</th><th>write check</th>
+	<th>パス</th><th>状態</th>
 </tr>
 </thead><tbody>
-<@foreach_hash(t, call('_sub/load_writable_dirs'), begin)>
-<tr>
-	<td><@t.key></td>
-	<td><@t.val></td>
-	<td class="c"><@if(x = file_writable( t.val ), ok, ng)><$ifset(!x, fail, 1)></td>
-</tr>
-<$end>
+<@> キャッシュのフォルダを公開のフォルダの外（絶対パス）に置いているときは、読めるかを確かめない
+<@exec(fs_row, w.Cache,  w.Cache,  1, if(index(w.Cache, '/') == 0, '', 'index.html'), 'セキュリティエラー')>
+<@exec(fs_row, w.Data,   w.Data,   1, 'index.html', 'セキュリティエラー')>
+<@exec(fs_row, w.Public, w.Public, 1, '', '')>
+<@exec(fs_row, 'info/',       'info/',       0, 'default_config.dat', 'reload_time=')>
+<@exec(fs_row, 'lib/',        'lib/',        0, 'Satsuki/Base.pm',    'package Satsuki::Base')>
+<@exec(fs_row, 'plugin/',     'plugin/',     0, 'README.txt',         '[UTF-8]')>
+<@exec(fs_row, 'skel/',       'skel/',       0, 'login.html',         '&lt;@7&gt;')>
+<@exec(fs_row, 'skel.local/', 'skel.local/', 0, 'README.txt',         '[UTF-8]')>
+<@exec(fs_row, 'docs/',       'docs/',       0, 'markdown-syntax.md', '# Markdown対応記法')>
+<@exec(fs_row, 't/',          't/',          0, 'login.t',            'use strict;')>
+<@exec(fs_row, '*.cgi（lyndbaum.user.cgiなどの設定ファイル）', '', 0, 'lyndbaum.cgi', '#!/usr/bin/perl')>
 </tbody>
 </table>
-<@ifexec(fail, begin)><p><strong class="error">エラーがあります。</strong>パーミッションなどを確認してください。</p><$end>
+
+<script-defer><!--
+	document.querySelectorAll('td.js-public-check').forEach(async function(td) {
+		const state = td.querySelector('.js-public-state');
+		let html;
+		try {
+			const res = await fetch('<@Basepath>' + td.dataset.probe, { cache: 'no-store', redirect: 'manual' });
+			const readable = res.status == 200 && (await res.text()).indexOf(td.dataset.marker) >= 0;
+			html = readable ? '<strong class="error">Webから読めます。Webサーバーの設定で非公開にしてください</strong>'
+			     : td.querySelector('.js-write-ng') ? '' : '<strong class="good">問題なし</strong>';
+		} catch(e) {
+			html = '<strong class="warning">Webから読めるか確かめられませんでした</strong>';
+		}
+		state.innerHTML = html;
+	});
+--></script-defer>
 
 <h3>ライブラリチェック</h3>
 
+<@> 何に使うか、どのバージョンが要るかは README.md に書いてある。Net::SSLeayはVer1.92以降
+<$lib_none = '<strong class="warning">ライブラリがありません</strong>'>
 <table class="mono">
 <thead>
 <tr>
-	<th>ライブラリ名</th><th>チェック</th><th>補足説明</th>
+	<th>ライブラリ名</th><th>バージョン</th><th>状態</th>
 </tr>
 </thead><tbody>
 <tr>
-	<td>Image::Magick</td><td class="c"><@if(x = check_lib('Image::Magick'), #'<strong class="good">Ver<@x></strong>', ng)></td>
-	<td>存在すれば画像縮小可能</td>
+	<td>Image::Magick</td><td><@if(x = check_lib('Image::Magick'), x, 'なし')></td>
+	<td><@if(!x, lib_none, if(v.thumbnail_ext() eq 'avif', '<strong class="good">問題なし（AVIFに対応）</strong>', '<strong class="good">問題なし</strong>（AVIFに非対応。サムネイルはJPEGで作ります）'))></td>
 </tr><tr>
-	<td>Net::SSLeay</td><td class="c"><@if(x = check_lib('Net::SSLeay'), if(x < 1.92, #'<strong class="error">Ver<@x>（古い）</strong>', #'<strong class="good">Ver<@x></strong>'), ng)></td>
-	<td>外部サイトへのhttps通信に必要（Ver1.92以降）</td>
+	<td>Net::SSLeay</td><td><@if(x = check_lib('Net::SSLeay'), x, 'なし')></td>
+	<td><@if(!x, lib_none, if(x < 1.92, '<strong class="warning">バージョンが足りません（Ver1.92以降が必要）</strong>', '<strong class="good">問題なし</strong>'))></td>
 </tr>
+</tbody>
 </table>
 
 
@@ -80,7 +116,7 @@
 <p>バグ報告のときに、この内容を貼ってください。サーバーの中のパスやサイトのドメインは含めていません。</p>
 
 <@> サーバーの中のパス（$0、Perlの場所）やドメイン（ServerURL）は、人に渡すと害があるので出さない。値はタブで16文字目にそろえる
-<textarea cols="74" rows="18" wrap="soft" readonly class="w100p mono" style="font-size:100%;">
+<textarea cols="74" rows="19" wrap="soft" readonly class="w100p mono" style="font-size:100%;">
 System		<@v.SYSTEM_NAME> <@v.OUTVERSION>
 Data version	<@sprintf('%.2f', v.sys.VERSION)>
 Satsuki		<@VERSION>
@@ -90,6 +126,7 @@ Server		<@esc(ENV.SERVER_SOFTWARE)>
 Runtime		<@CGI_mode>
 Locale		<@Locale> (<@CodeLib>)
 Image::Magick	<@if(x = check_lib('Image::Magick'), x, 'なし')>
+AVIF		<@if(v.thumbnail_ext() eq 'avif', 'on', 'off')>
 Net::SSLeay	<@if(x = check_lib('Net::SSLeay'), x, 'なし')>
 HTTPS		<@if(index(ServerURL, 'https://') == 0, 'on', 'off')>
 mod_rewrite	<@if(mod_rewrite, 'on', 'off')>
