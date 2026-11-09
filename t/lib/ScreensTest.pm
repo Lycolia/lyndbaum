@@ -38,8 +38,7 @@ our @ADMIN = qw(
 # 上の表に入れない画面と、その理由
 our %SKIP = (
 	'login_auth'        => 'ログインの後の振り分け（転送するだけ）',
-	'login_auto'        => '初期セットアップの自動ログイン（setup() で通す）',
-	'user/add'         => '初回の管理者の作成。管理者がいるときは開けない（setup() で通す）',
+	'setup'             => '初期セットアップ。管理者がいるときは開けない（t/operations_user.t）',
 	'logout'            => 'ログアウト（開くとセッションが消える）',
 	'system/'           => 'system/setting へ転送するだけ',
 );

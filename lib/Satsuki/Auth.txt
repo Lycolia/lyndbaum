@@ -25,7 +25,6 @@ $self->{expires}	 = 180*86400;	ログインの有効期限（秒）
 
 $self->{max_sessions} = 1;	１ユーザーあたりの最大ログインセッション数
 $self->{all_logout}   = 0;	ログアウト時にすべてのセッションを削除
-$self->{start_up}     = 0;	管理者未登録時に root* 無条件認証を行う
 
 $self->{fail_sleep}   = 0;	ログイン失敗時にsleep（秒）。0:無効。±0.2される
 $self->{fail_count_ip}= 15;	同じIPから指定回数失敗したら、そのIPからしばらくログインできなくする。0:無効。IPv6は/64ごとに数える。logテーブルから数えるので、log_stopでは効かない
@@ -51,8 +50,7 @@ Auth.name		ユーザー名
 Auth.email		メールアドレス（内部では使用せず）
 Auth.isadmin		ログインしていれば 1（admin_* のセキュリティで無効化されたときは 0）
 Auth.isroot		強権限管理者（Auth.pmではrootを区別しない）
-Auth.auto		スタートアップ認証の場合のみ 1
-Auth.exists_admin	Auth.start_upが無効か、有効な管理者が存在するとき 1
+Auth.exists_admin	管理者が存在するとき 1（userdb_init()の後のみ。初期値は -1）
 Auth.disabled_admin	管理者権限が admin_* のセキュリティで無効化されたとき 1
 
 Auth.ext.*		ユーザーテーブル内の下記カラム以外のすべて
@@ -181,7 +179,7 @@ $r = $self->session_auth($id, $session_id, $admin_secret);
 
 Ret:
 	undef			失敗
-	0以外			成功（1:通常成功, 2:ユーザー未登録自動認証）
+	1			成功
 
 Set:	成功時のみ。login() に同じ。
 

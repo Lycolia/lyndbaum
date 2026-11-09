@@ -3,7 +3,6 @@
 
 ログイン cookie 確認処理
 <$ifexec(Auth.ok, begin)>
-	<$ifredirect(Auth.auto            , myself . '?user/add')>
 	<$ifredirect(Auth.isadmin && v.require_update, myself . '?menu')>
 
 	<$redirect( v.thisurl )>

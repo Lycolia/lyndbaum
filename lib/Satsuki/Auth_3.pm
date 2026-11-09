@@ -88,7 +88,6 @@ sub change_user_info {
 	my ($self, $form, $ext) = @_;
 	my $ROBJ = $self->{ROBJ};
 	if (! $self->{ok}) { return { ret=>1, msg => $ROBJ->translate('No login') }; }
-	if ($self->{auto}) { return { ret=>2, msg => $ROBJ->translate("Can't execute with 'root*'") }; }
 
 	my %update = (id => $self->{id});
 
@@ -120,7 +119,6 @@ sub change_pass {
 	my ($self, $form) = @_;
 	my $ROBJ = $self->{ROBJ};
 	if (! $self->{ok}) { return { ret=>1, msg => $ROBJ->translate('No login') }; }
-	if ($self->{auto}) { return { ret=>2, msg => $ROBJ->translate("Can't execute with 'root*'") }; }
 	if ($form->{pass} eq '') {
 		return { ret=>3, msg => $ROBJ->translate('New password is empty') };
 	}

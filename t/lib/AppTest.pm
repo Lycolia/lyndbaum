@@ -219,13 +219,8 @@ sub _parse_response {
 sub setup {
 	my $self = shift;
 
-	# 初期セットアップ：システム管理者がいないのでroot*で自動ログインする
-	my $r = $self->get('root*', 'login_auto');
-	die "login_auto failed: $r->{status}" if (!$self->{cookie}->{'root*'}->{session});
-
-	$self->user_add('root*', 'admin');
-	$self->login('admin');
-	delete $self->{cookie}->{'root*'};
+	# 初期セットアップ：管理者を作ると、そのままログインする
+	$self->setup_admin('admin');
 
 	# 最初に管理画面を開いたときに書くもの（システムの情報のmyselfなど）を、先に書かせておく
 	$self->get($_, 'menu') foreach (@USERS);
@@ -274,19 +269,29 @@ sub is_reload {
 	return ($r->{title} // '') =~ /^reload\b/ ? 1 : 0;
 }
 
-sub user_add {
-	my ($self, $by, $id) = @_;
-	my $r = $self->post($by, '', {
-		action    => '_ajax_user_add',
+#-------------------------------------------------------------------------------
+# ●初期セットアップの画面から管理者を作る（作った人は $id としてログインする）
+#-------------------------------------------------------------------------------
+our $BLOG_NAME = 'テストのブログ';
+sub setup_form {
+	my ($id, %form) = @_;
+	return {
+		action    => '_ajax_setup',
 		adiary_id => $id,
 		name      => $id,
 		pass      => $PASS,
 		pass2     => $PASS,
-		email     => '',
-	});
-	if (!$r->{json} || $r->{json}->{ret} ne '0') {
-		die "user_add $id failed: $r->{body}";
+		blog_name => $BLOG_NAME,
+		%form
+	};
+}
+sub setup_admin {
+	my ($self, $id) = @_;
+	my $r = $self->post($id, '', setup_form($id));
+	if (!$r->{json} || $r->{json}->{ret} ne '0' || !$self->{cookie}->{$id}->{session}) {
+		die "setup $id failed: $r->{body}";
 	}
+	return $r;
 }
 
 #-------------------------------------------------------------------------------

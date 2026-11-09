@@ -117,7 +117,6 @@ user_skeleton_level  => 20,
 theme_design_skeleton_level => 21,	# テンプレート別に生成したデザイン
 default_tag_priority => 100000,
 default_wiki_priority=> 100000,
-top_skeleton	=> '_top',
 main_skeleton	=> '_main',
 article_skeleton=> '_article',
 frame_skeleton	=> '_frame',
@@ -190,12 +189,24 @@ sub main {
 		$self->{skeleton} = '_sub/post_denied';
 	}
 
+	# 初期セットアップの前は、セットアップの画面と処理のほかは何もさせない（公開画面も出さない）
+	if (!$self->{blog_error} && $self->is_before_setup()) {
+		$self->{setup_mode} = 1;
+		if (!$ROBJ->{POST} || $ROBJ->{Form}->{action} ne '_ajax_setup') {
+			$ROBJ->{POST} = 0;
+			$ROBJ->{Form} = {};
+			if ($self->{skeleton} ne 'setup' && $self->{skeleton} ne '_sub/post_denied') {
+				$ROBJ->redirect( $self->{myself} . '?setup' );
+			}
+		}
+	}
+
 	#-------------------------------------------------------------
 	# POST action判定
 	#-------------------------------------------------------------
 	my $action = $ROBJ->{POST} && $ROBJ->{Form}->{action};
 
-	if ($action ne '_ajax_login') {
+	if ($action ne '_ajax_login' && !$self->{setup_mode}) {
 		# メンテナンスモード
 		if ($sys->{mainte_mode} || $self->{require_update}) { $self->mainte_mode(); }
 	}
@@ -374,12 +385,6 @@ sub select_default_skeleton {
 	my $self = shift;
 	my $mode = shift || $self->{pinfo};
 	my $blog = $self->{blog};
-	# 最初の管理者を作るまでは、案内を出す。記事があれば、ユーザーのテーブルを見に行かない
-	my $auth = $self->{ROBJ}->{Auth};
-	if ($mode eq '' && !$blog->{arts}) { $auth->userdb_init(); }
-	if ($mode eq '' && !$blog->{arts} && !$auth->{exists_admin}) {
-		return $self->{top_skeleton};
-	}
 	# IndexNowの鍵ファイル。有効なときだけ返す
 	my $sys = $self->{sys};
 	if ($sys->{indexnow} && $sys->{indexnow_key} =~ /^[0-9a-f]{32}$/ && $mode eq "$sys->{indexnow_key}.txt") {
@@ -389,6 +394,19 @@ sub select_default_skeleton {
 		return ($self->{view_event} = $self->{article_skeleton});
 	}
 	return ($self->{view_event} = $self->{main_skeleton});
+}
+
+#-------------------------------------------------------------------------------
+# ●初期セットアップの前か（管理者がいなくて、記事も無い）
+#-------------------------------------------------------------------------------
+# 記事があれば、ユーザーのテーブルを見に行かない。記事が残ったまま管理者を消したとき（パスワードの再設定）は、
+# 公開画面を止めず、?setup から管理者を作り直す
+sub is_before_setup {
+	my $self = shift;
+	my $auth = $self->{ROBJ}->{Auth};
+	if ($auth->{ok} || ($self->{blog} || {})->{arts}) { return 0; }
+	$auth->userdb_init();
+	return !$auth->{exists_admin};
 }
 
 #-------------------------------------------------------------------------------
@@ -598,7 +616,8 @@ sub do_ajax_function {
 	my $func = shift;
 	my $ROBJ = $self->{ROBJ};
 
-	if ($func ne '_ajax_login' && !$ROBJ->{Auth}->{ok}) {
+	# ログインと初期セットアップは、ログインしていなくても呼べる（_ajax_setupは管理者がいないことを自分で確かめる）
+	if ($func ne '_ajax_login' && $func ne '_ajax_setup' && !$ROBJ->{Auth}->{ok}) {
 		return [ -99.1, 'Security Error' ];
 	}
 

@@ -131,7 +131,6 @@ Password is empty=パスワードを指定してください
 ID's character allowed "%s" only=IDには「%s」以外の文字を使用出来ません
 No assignment delete user=削除するユーザーが指定されていません
 No login=ログインしていません
-Can't execute with 'root*'=無条件承認(root*)では実行できません
 New password is empty=パスワードを指定してください
 Incorrect password=パスワードが違います
 Can't find ID=指定のIDが見つかりません

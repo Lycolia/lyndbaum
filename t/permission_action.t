@@ -195,7 +195,7 @@ my @ACTIONS = (
 # 上の表に入れない操作と、その理由
 my %SKIP = (
 	'_ajax_login'       => '誰でも',
-	'_ajax_user_add'    => '管理者がいないとき（root*）だけ（t/operations_user.t）',
+	'_ajax_setup'       => '管理者がいないときだけ（t/operations_user.t）',
 	'comment_post'      => '誰でも（ブログの設定で、コメントできる人を決める）',
 	'etc/dummy'         => '誰でも（何もしない）',
 );
@@ -203,7 +203,7 @@ my %SKIP = (
 # 上の表に入れない操作を、GETで送るときの中身
 my %SKIP_FORM = (
 	'_ajax_login'       => { adiary_id => 'admin', pass => $AppTest::PASS },
-	'_ajax_user_add'    => { adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS },
+	'_ajax_setup'       => { adiary_id => 'newuser', name => 'newuser', pass => $AppTest::PASS, pass2 => $AppTest::PASS, blog_name => '乗っ取り' },
 	'comment_post'      => { a_pkey => 1, comment_txt => 'GETのコメント', name => 'admin' },
 	'etc/dummy'         => {},
 );

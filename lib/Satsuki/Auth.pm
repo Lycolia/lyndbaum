@@ -31,7 +31,6 @@ sub new {
 
 	$self->{sessions}    = 1;
 	$self->{all_logout}  = 0;
-	$self->{start_up}    = 0;
 	$self->{exists_admin}= -1;	# 初期値は-1
 
 	$self->{fail_count_ip} = 15;	# 同じIPからの失敗の上限

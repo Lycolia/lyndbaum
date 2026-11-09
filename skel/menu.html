@@ -18,23 +18,16 @@
 <!--=========================================================================-->
 <@> 知らせがあるときだけ出す。アップデートが必要なときの知らせは、管理画面の枠（_sub/require_update_notice）で出す
 <$need_info = Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2)>
-<@ifexec(Auth.auto || need_info || v.blog.newcom_flag, begin)>
+<@ifexec(need_info || v.blog.newcom_flag, begin)>
 <article class="system">
 <h2>お知らせ</h2>
 <div class="body">
-	<@ifexec(Auth.auto, begin)>
-		<p><a href="<@myself>?user/add">最初に管理者を作ってください</a></p>
-	<$end>
-
-<@ifexec(!Auth.auto, begin)>
 	<@ifexec(need_info, begin)>
 		<p><a href="<@v.myself>?system/update">付加情報の再生成</a>が必要です。</p>
 	<$end>
 
 	<@ifexec(v.blog.newcom_flag, begin)>
 	<span class="admin-new-badge">新着</span> コメントがあります &gt;<a href="<@v.myself>?comlist">コメント一覧から確認</a><br>
-	<$end>
-
 	<$end>
 </div>
 </article>
@@ -62,7 +55,6 @@
 	<li><a href="<@v.myself>?comlist&amp;hold=<@argv#0>"><@argv#1></a><span class="dashboard-count"><@int(r.hits)>件</span></li>
 <$end>
 
-<@ifexec(!Auth.auto, begin)>
 <div class="dashboard-cards">
 	<@ifexec(v.blog_admin, begin)>
 	<$trash = v.load_trash_list()>
@@ -91,7 +83,6 @@
 	</article>
 	<$end>
 </div>
-<$end>
 
 <@ifexec(Auth.isadmin && !mod_rewrite && ENV.SERVER_SOFTWARE eq 'Apache' && 0<index(myself2, '.cgi'), begin)>
 <article class="system adiary-hint">
