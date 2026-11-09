@@ -1,22 +1,18 @@
 <@7>
-<$v.frame_skeleton = ''>
 <$clear_cookie('session')>
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="<@SystemCode>">
-<meta name="robots" content="noindex,nofollow">
-<title>メンテナンス中</title>
-</head>
-<body>
-<@v.sys.mainte_txt || 'メンテナンス中です。'>
+
+<@> システムモード。メンテナンス中のログイン画面と同じ、管理画面の枠で出す
+<@> テーマとプラグインのCSS・JavaScriptは読まない（SatsukiApp::adiary_2 の mainte_mode で止めている）
+<$v.system_mode("メンテナンス中")>
+
+<!--=========================================================================-->
+<article class="system">
+<h2><@v.title></h2>
+<div class="body">
+	<p><@v.sys.mainte_txt || 'メンテナンス中です。'></p>
 <@ifexec(v.require_update, begin)>
-<br>管理者ログイン後にアップデート処理を行ってください。
+	<p><strong class="warning">管理者ログイン後にアップデート処理を行ってください。</strong></p>
 <$end>
-
-
-<div style="margin-top: 2em; font-size: 9pt;">
-<a href="<@myself>?login">login</a>
+	<p><a href="<@myself>?login">管理者ログイン</a></p>
 </div>
-</body>
-</html>
+</article>
