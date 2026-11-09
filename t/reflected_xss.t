@@ -22,10 +22,12 @@ my $PATH = '/%3C/textarea%3E%3Cb%3Eprobe%3C/b%3E';
 #-------------------------------------------------------------------------------
 # システムチェック
 #-------------------------------------------------------------------------------
-subtest 'システムチェックの環境変数' => sub {
+subtest 'システムチェックのシステム情報' => sub {
 	my $r = $app->get('admin', "$PATH?system/check");
 	is($r->{status}, 200, '画面が出る');
-	like($r->{body},   qr/PATH_INFO\t\/&lt;\/textarea&gt;&lt;b&gt;probe/, 'PATH_INFOをエスケープして出す');
+	my ($info) = $r->{body} =~ m{(<textarea.*?</textarea>)}s;
+	ok($info, 'システム情報の欄がある');
+	unlike($info // '', qr/probe/, 'URLの値（PATH_INFO）は出さない');
 	unlike($r->{body}, qr/<b>probe/, 'タグのまま出さない');
 };
 

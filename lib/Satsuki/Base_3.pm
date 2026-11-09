@@ -64,7 +64,7 @@ sub get_system_info {
 	my $v = $];
 	$v =~ s/(\d+)\.(\d\d\d)(\d\d\d)/$1.'.'. ($2+0).'.'.($3+0)/e;
 	$h{perl_version} = $v;
-	$h{perl_cmd}     = $^X;
+	$h{os}           = $^O;
 	return \%h;
 }
 
