@@ -14,13 +14,26 @@
 
 <h3>システム環境</h3>
 
-<pre><$h = get_system_info()>
-Server  : <@ENV.SERVER_SOFTWARE> (<@if(Is_thread, 'worker', 'prefork')>)
-Perl    : <@h.perl_cmd> (Ver <@h.perl_version>)
-Runtime : <@CGI_mode>
-Version : <@v.OUTVERSION>
-Locale  : <@Locale> (<@CodeLib>)
-</pre>
+<$h = get_system_info()>
+<table class="mono">
+<thead>
+<tr>
+	<th>項目</th><th>値</th>
+</tr>
+</thead><tbody>
+<tr>
+	<td>Server</td><td><@ENV.SERVER_SOFTWARE> (<@if(Is_thread, 'worker', 'prefork')>)</td>
+</tr><tr>
+	<td>Perl</td><td><@h.perl_cmd> (Ver <@h.perl_version>)</td>
+</tr><tr>
+	<td>Runtime</td><td><@CGI_mode></td>
+</tr><tr>
+	<td>Version</td><td><@v.OUTVERSION></td>
+</tr><tr>
+	<td>Locale</td><td><@Locale> (<@CodeLib>)</td>
+</tr>
+</tbody>
+</table>
 
 <h3>ファイルシステムチェック</h3>
 
