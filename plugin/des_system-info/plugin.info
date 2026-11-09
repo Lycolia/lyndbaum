@@ -19,7 +19,6 @@ module_id=side-system-info
 Total time : 99.9 ms<br>
 DB time : 9.9 ms<br>
 Runtime : CGI-Perl<br>
-RDBMS : Text-DB<br>
 </div> <!-- hatena-modulebody -->
 </div> <!-- hatena-module -->
 HTML
