@@ -119,9 +119,10 @@ body.admin *::after {
 #admin-bar span.admin-bar-blog:after {
 	content:		none;
 }
-/* 書く、ログアウトのアイコン（形は base.css の admin-bar-icon） */
+/* 書く、ログアウト、ログインのアイコン（形は base.css の admin-bar-icon） */
 #admin-bar .admin-bar-edit,
-#admin-bar .admin-bar-logout {
+#admin-bar .admin-bar-logout,
+#admin-bar .admin-bar-login {
 	display:		inline-flex;
 	align-items:		center;
 }

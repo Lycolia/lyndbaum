@@ -75,6 +75,12 @@
 		<a class="admin-bar-logout" href="<@v.thisurl>?logout"><svg class="admin-bar-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M10 4H5v16h5"/><path d="M14 8l4 4-4 4M18 12H9"/></svg>ログアウト</a>
 	</span>
 	<$end>
+	<@> ログインしていないとき、画面が旗を立てたときだけ、右端にログインのリンクを出す（メンテナンス中の画面）
+	<@ifexec(!Auth.ok && v.admin_bar_login, begin)>
+	<span class="admin-bar-links">
+		<a class="admin-bar-login" href="<@v.myself>?login"><svg class="admin-bar-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M14 4h5v16h-5"/><path d="M10 8l4 4-4 4M14 12H5"/></svg>ログイン</a>
+	</span>
+	<$end>
 </header>
 <$end>
 

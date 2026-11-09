@@ -4,6 +4,8 @@
 <@> システムモード。メンテナンス中のログイン画面と同じ、管理画面の枠で出す
 <@> テーマとプラグインのCSS・JavaScriptは読まない（SatsukiApp::adiary_2 の mainte_mode で止めている）
 <$v.system_mode("メンテナンス中")>
+<@> ログインのリンクは上のバーの右端に出す（_frame_admin）
+<$v.admin_bar_login = 1>
 
 <!--=========================================================================-->
 <article class="system">
@@ -13,6 +15,5 @@
 <@ifexec(v.require_update, begin)>
 	<p><strong class="warning">管理者ログイン後にアップデート処理を行ってください。</strong></p>
 <$end>
-	<p><a href="<@myself>?login">管理者ログイン</a></p>
 </div>
 </article>

@@ -242,9 +242,12 @@ subtest 'メンテナンス中のログイン画面' => sub {
 	print $fh "<\@7>PLUGIN-MARK";
 	close($fh);
 
-	is($m->get('guest', '')->{status}, 503, 'ログインしていない人にはメンテナンスの画面');
-	my $r = $m->get('guest', 'login');
+	my $r = $m->get('guest', '');
+	is($r->{status}, 503, 'ログインしていない人にはメンテナンスの画面');
+	like(body($r), qr{<a class="admin-bar-login" href="[^"]*\?login">}, '上のバーにログインのリンクを出す');
+	$r = $m->get('guest', 'login');
 	is($r->{status}, 200, 'ログイン画面は開ける');
+	unlike(body($r), qr{admin-bar-login}, 'ログイン画面には、上のバーのログインのリンクを出さない');
 	unlike(body($r), qr{PLUGIN-MARK}, 'プラグインが作ったスケルトンを使わない');
 	ok($m->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => $AppTest::PASS })->{json}->{ret} eq '0', 'ログインできる');
 };
