@@ -62,8 +62,8 @@ subtest 'メタディスクリプション' => sub {
 subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	my $b = body($app->get('guest', ''));
 	like($b, qr{<meta property="og:locale" content="ja_JP">}, 'og:localeを出す');
-	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d{2}">}, 'generatorの版は小数2桁（4.30が4.3にならない）');
-	like($b, qr{</a> v\d+\.\d{2} }, 'フッターの版は小数2桁');
+	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d+\.\d+">}, 'generatorの版はmajor.minor.patch');
+	like($b, qr{</a> v\d+\.\d+\.\d+ }, 'フッターの版はmajor.minor.patch');
 
 	# ブログの画像を設定していないページは、既定のアイコン（正方形）なので小さいカード
 	like($b, qr{<meta property="og:image" content="[^"]*/default-icon\.png">}, 'og:imageは既定のアイコン');

@@ -4,9 +4,8 @@
 
 <$h = validator(begin_hash, Form)>
 	VERSION = データVersion
-	VERSION:type = num
-	VERSION:min = 2.90
-	VERSION:max = <@v.VERSION>
+	VERSION:filter0 = trim
+	VERSION:filter1 = reg_check:^\d+\.\d+(?:\.\d+)?$
 
 	mainte_mode = flag
 	mainte_txt  = メンテナンスメッセージ
@@ -95,6 +94,9 @@
 	clip_append:filter0 = trim
 	clip_append:filter1 = tag
 
+<$end>
+<$ifexec(h.VERSION ne '' && v.version_cmp(h.VERSION, v.VERSION) > 0, begin)>
+	<$form_error('VERSION', "データVersionは、今の版（" . v.VERSION . "）以下にしてください")>
 <$end>
 <$ifbreak(form_error())>
 
