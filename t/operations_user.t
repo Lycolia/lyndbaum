@@ -312,7 +312,10 @@ subtest '版の書式（major.minor.patch）' => sub {
 	like(read_file($sys), qr/^VERSION=4\.39$/m, '書いたとおりに保存する');
 	ok(AppTest::is_reload($save->('4.40.1')), 'データの版をpatch付きで書き換えられる');
 	like(read_file($sys), qr/^VERSION=4\.40\.1$/m, '書いたとおりに保存する');
-	foreach my $v ('4.42.0', '4.41.0-fix2', 'abc') {
+	# 今のプログラムの版より新しい版。バージョン上げのたびに変わるので決め打ちしない
+	my ($maj, $min) = $SatsukiApp::adiary::VERSION =~ /^(\d+)\.(\d+)/;
+	my $newer = "$maj." . ($min+1) . ".0";
+	foreach my $v ($newer, '4.41.0-fix2', 'abc') {
 		ok(!AppTest::is_reload($save->($v)), "データの版に $v は保存できない");
 		like(read_file($sys), qr/^VERSION=4\.40\.1$/m, '版はそのまま');
 	}
