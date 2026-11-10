@@ -54,6 +54,7 @@ sub send {
 sub send_mail {
 	my ($self, $h) = @_;
 	my $ROBJ = $self->{ROBJ};
+	delete $self->{error};	# 前の送信のエラー（オブジェクトは使い回される）
 
 	# 宛先確認
 	my $to    = $self->check_mail_addresses($h->{to}  );
@@ -63,7 +64,7 @@ sub send_mail {
 	my $repto = $self->check_mail_address($h->{reply_to}   );
 	my $retph = $self->check_mail_address($h->{return_path});
 
-	if (!$to) { $ROBJ->message('"To" is invalid'); return 1; }
+	if (!$to) { $self->report_error('"To" is invalid'); return 1; }
 
 	#-----------------------------------------------------------------------
 	# message body
@@ -120,14 +121,14 @@ sub send_mail {
 	{
 		my $ip_bin = inet_aton($host);
 		if ($ip_bin eq '') {
-			$ROBJ->message("Can't find host '%s'", $host);
+			$self->report_error("Can't find host '%s'", $host);
 			return 20;
 		}
 		my $addr = pack_sockaddr_in($port, $ip_bin);
 		socket($sock, Socket::PF_INET(), Socket::SOCK_STREAM(), 0);
 		if (!$self->connect_with_timeout($sock, $addr)) {
 			close($sock);
-			$ROBJ->message("Can't connect '%s'", $host);
+			$self->report_error("Can't connect '%s'", $host);
 			return 21;
 		}
 		binmode($sock);
@@ -154,7 +155,8 @@ sub send_mail {
 				&{ $Auth{$type} }($self, $sock, $h->{auth_name}, $h->{auth_pass}, $str);
 			};
 			if ($@) {
-				die("AUTH $type failed: \"$h->{auth_name}\" / \"$h->{auth_pass}\" : $@")
+				# エラーは画面に出る（コメントの通知では投稿した人の画面）ので、ユーザー名とパスワードは入れない
+				die("AUTH $type failed: $@")
 			}
 		}
 		$from ||= $to;
@@ -171,10 +173,29 @@ sub send_mail {
 	};
 	close($sock);
 	if ($@) {
-		$ROBJ->message('SMTP Error: %s', $@);
+		$self->report_error('SMTP Error: %s', $@);
 		return 200;
 	}
 	return 0;
+}
+
+#-------------------------------------------------------------------------------
+# ●送信のエラーを知らせる
+#-------------------------------------------------------------------------------
+# 画面のメッセージ（$ROBJ->message）には出さず、Webサーバーのエラーログ（STDERR）に書く。
+# 送信するのは新着コメントの通知で、そのとき画面を見ているのはコメントした人。
+# SMTPサーバーの名前や応答を見せることになるので、管理者が見られるところに書く。
+# 呼び出し側は、戻り値と $self->{error} で失敗の理由が分かる
+sub report_error {
+	my $self = shift;
+	my $fmt  = shift;
+	my $msg  = sprintf($fmt, @_);
+	$msg =~ s/[\x00-\x1f\x7f]+/ /g;	# サーバーの応答が入るので、ログを1行にする
+	$msg =~ s/ +$//;
+	if (500 < length($msg)) { $msg = substr($msg, 0, 500) . '...'; }
+
+	$self->{error} = $msg;
+	print STDERR __PACKAGE__ . ": $msg\n";
 }
 
 #-------------------------------------------------------------------------------
@@ -265,6 +286,16 @@ sub send_data_check {
 	return $self->status_check($sock, $code, $data);
 }
 
+# 認証の文字列を送る。失敗しても、送った文字列（ユーザー名やパスワード）をエラーに入れない
+sub send_auth_check {
+	my $self = shift;
+	my $sock = shift;
+	my $data = shift;
+	my $code = shift;
+	$self->send_cmd($sock, $data);
+	return $self->status_check($sock, $code);
+}
+
 sub send_cmd {
 	my $self = shift;
 	my $sock = shift;
@@ -351,7 +382,7 @@ sub auth_plain {
 	my $pass = shift;
 
 	my $plain = $self->base64encode("\0$user\0$pass");
-	$self->send_data_check($sock, $plain, 235);
+	$self->send_auth_check($sock, $plain, 235);
 }
 
 sub auth_login {
@@ -360,8 +391,8 @@ sub auth_login {
 	my $user = shift;
 	my $pass = shift;
 
-	$self->send_data_check($sock, $self->base64encode($user), 334);
-	$self->send_data_check($sock, $self->base64encode($pass), 235);
+	$self->send_auth_check($sock, $self->base64encode($user), 334);
+	$self->send_auth_check($sock, $self->base64encode($pass), 235);
 }
 
 sub auth_cram_md5 {
@@ -373,7 +404,7 @@ sub auth_cram_md5 {
 
 	my $md5 = Digest::HMAC_MD5::hmac_md5_hex($str,$pass);
 
-	$self->send_data_check($sock, $self->base64encode("$user $md5"), 235);
+	$self->send_auth_check($sock, $self->base64encode("$user $md5"), 235);
 }
 
 ################################################################################
