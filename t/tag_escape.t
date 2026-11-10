@@ -39,4 +39,43 @@ like($user->escape('<button formaction="https://example.com/">x</button>'),
 like($art->escape('<video poster="https://example.com/p.png" src="x.mp4"></video>'),
 	qr/poster="https:\/\/example\.com\/p\.png"/, 'poster に https: は書ける');
 
+#-------------------------------------------------------------------------------
+# 文字参照で書いたスキーム
+#-------------------------------------------------------------------------------
+# ブラウザは文字参照を戻し、先頭の制御文字と途中のTAB、改行を捨ててからスキームを読む
+foreach (
+	[ $art,  '&colon;',           '<a href="javascript&colon;alert(1)">x</a>' ],
+	[ $art,  '&COLON;（大文字）', '<a href="javascript&COLON;alert(1)">x</a>' ],
+	[ $art,  '途中の&Tab;',       '<a href="java&Tab;script:alert(1)">x</a>' ],
+	[ $art,  '途中の&NewLine;',   '<a href="java&NewLine;script:alert(1)">x</a>' ],
+	[ $art,  '途中の&#9;',        '<a href="java&#9;script:alert(1)">x</a>' ],
+	[ $art,  '途中の&#x0a;',      '<a href="java&#x0a;script:alert(1)">x</a>' ],
+	[ $art,  '途中の&#13;',       '<a href="java&#13;script&colon;alert(1)">x</a>' ],
+	[ $art,  '先頭の&#1;',        '<a href="&#1;javascript:alert(1)">x</a>' ],
+	[ $art,  '先頭の&#32;',       '<a href="&#32;&#x20;javascript:alert(1)">x</a>' ],
+	[ $art,  '桁の多い&#58;',     '<a href="javascript&#0000058;alert(1)">x</a>' ],
+	[ $art,  'iframeのsrc',       '<iframe src="javascript&colon;alert(1)"></iframe>' ],
+	[ $user, 'formのaction',      '<form action="javascript&colon;alert(1)"></form>' ],
+) {
+	my ($e, $name, $html) = @$_;
+	my $out = $e->escape($html);
+	like($out,   qr/="#javascript: is not allow"/, "$name で javascript: を書けない");
+	unlike($out, qr/alert/,                        "$name の元の値は残らない");
+}
+
+# 書けていたものは、そのまま書ける
+foreach (
+	[ 'クエリの&amp;',           '<a href="https://example.com/?a=1&amp;b=2">x</a>' ],
+	[ 'クエリの&（生）',         '<a href="https://example.com/?a=1&b=2">x</a>',  '<a href="https://example.com/?a=1&amp;b=2">x</a>' ],
+	[ '相対パスのクエリ',        '<a href="?a=1&amp;b=2">x</a>' ],
+	[ 'パスの中の:',             '<a href="./a&amp;b:c">x</a>' ],
+	[ 'パスの中の文字参照',      '<a href="/path/&colon;x&Tab;y">x</a>' ],
+	[ '文字参照で書いたhttps:',  '<a href="https&colon;//example.com/">x</a>' ],
+	[ 'ASCII以外の文字参照',     '<a href="&#12354;:x">x</a>' ],
+	[ 'mailto:',                 '<a href="mailto:a@example.com">x</a>' ],
+) {
+	my ($name, $html, $expect) = @$_;
+	is($art->escape($html), $expect // $html, "$name はそのまま書ける");
+}
+
 done_testing();
