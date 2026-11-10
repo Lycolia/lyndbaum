@@ -865,8 +865,11 @@ sub load_articles {
 		#-------------------------------------------
 		if (exists($query->{c})) {
 			$title_tag = 0;
-			$q{match}->{ctype} = $query->{c};
-			$ret{ctype} = $query->{c};
+			# 画面とURLに出すので、qやtと同じくエスケープする（検索は元の値で行う）
+			my $c = $query->{c};
+			$q{match}->{ctype} = $c;
+			$ROBJ->tag_escape_amp( $c );
+			$ret{ctype} = $c;
 		}
 
 		#-------------------------------------------
