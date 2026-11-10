@@ -11,7 +11,7 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.40;
+our $VERSION    = 4.41;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
@@ -561,7 +561,7 @@ sub save_blogset_sys {
 
 	if (!$h || !$h->{_update}) { return; }
 	delete $h->{_update};
-	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
+	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h, { atomic => 1 });
 }
 
 ################################################################################
@@ -865,8 +865,11 @@ sub load_articles {
 		#-------------------------------------------
 		if (exists($query->{c})) {
 			$title_tag = 0;
-			$q{match}->{ctype} = $query->{c};
-			$ret{ctype} = $query->{c};
+			# 画面とURLに出すので、qやtと同じくエスケープする（検索は元の値で行う）
+			my $c = $query->{c};
+			$q{match}->{ctype} = $c;
+			$ROBJ->tag_escape_amp( $c );
+			$ret{ctype} = $c;
 		}
 
 		#-------------------------------------------
@@ -1523,7 +1526,7 @@ sub save_sysdat {
 	my $sys = $self->{sys};
 	if (! $sys->{_update}) { return 0; }
 	delete $sys->{_update};
-	$ROBJ->fwrite_hash($self->{system_config_file}, $sys);
+	$ROBJ->fwrite_hash($self->{system_config_file}, $sys, { atomic => 1 });
 }
 
 #-------------------------------------------------------------------------------

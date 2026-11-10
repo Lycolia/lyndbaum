@@ -255,6 +255,10 @@ sub fappend_lines {
 #-------------------------------------------------------------------------------
 # ●ファイル：標準ハッシュ形式に書き込む
 #-------------------------------------------------------------------------------
+# flags
+#	append	追記する
+#	atomic	一時ファイルに書いてから置き換える（fwrite_atomic）。失敗しても、途中で落ちても、
+#		元の中身が残る。失うと困るファイル（DBの行、設定）に使う。appendとは併用できない
 sub fwrite_hash {
 	my ($self, $file, $h, $flags) = @_;
 
@@ -265,13 +269,25 @@ sub fwrite_hash {
 		if (ref $val || (!$append && $val eq '')) { next; }
 		if ($_ =~ /[\r\n=]/ || substr($_,0,1) eq '*') { next; } # 改行や「=」を含むか*で始まるkeyは無視
 		if (0 <= index($val, "\n")) {	# 値に改行を含む
-			$val =~ s/(^|\n)__END_BLK_DATA\n/$1__END_BLK_DATA \n/g;
+			# 値の中のブロックの終わりの行は、空白を付けて終わりと読まれないようにする
+			# ・続けて2行あっても両方に付ける（改行を先読みにして、次の行の頭として残す）
+			# ・最後の行（後ろに改行が無い）にも付ける
+			$val =~ s/(^|\n)__END_BLK_DATA(?=\n|\z)/$1__END_BLK_DATA /g;
 			push(@ary, "*$_=<<__END_BLK_DATA\n$val\n__END_BLK_DATA\n");
 		} else {
 			push(@ary, "$_=$val\n");
 		}
 	}
 	if ($file eq '') { return \@ary; }
+	if ($flags->{atomic} && !$append) {
+		# 置き換えはフォルダに書ければできるので、書き込みを禁じたファイルも置き換えてしまう。
+		# 上書きのときと同じく、失敗にする
+		if (-e $file && !-w _) {
+			$self->error("File can't write '%s'", $file);
+			return 1;
+		}
+		return $self->fwrite_atomic($file, \@ary);
+	}
 	return $self->fwrite_lines($file, \@ary, $flags);
 }
 

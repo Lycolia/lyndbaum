@@ -66,4 +66,17 @@ subtest 'deh_searchboxのallの値' => sub {
 	like($r->{body},   qr/name="all" value="0"/, '普通の値はそのまま出す');
 };
 
+#-------------------------------------------------------------------------------
+# 検索の条件（種類）
+#-------------------------------------------------------------------------------
+subtest '検索のcの値' => sub {
+	# 検索で見つからないときは404だが、検索の条件は出る
+	my $r = $app->get('guest', '?q=x&c=%22%3E%3Cb%3Eprobe%3C%2Fb%3E');
+	like($r->{body},   qr/name="c" value="&quot;&gt;&lt;b&gt;probe/, 'エスケープして出す');
+	unlike($r->{body}, qr/<b>probe/, 'タグのまま出さない');
+
+	$r = $app->get('guest', '?c=wiki');
+	like($r->{body},   qr/name="c" value="wiki"/, '普通の値はそのまま出す');
+};
+
 done_testing();

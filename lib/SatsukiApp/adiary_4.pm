@@ -498,7 +498,7 @@ sub save_use_plugins {
 	# 状態変更があった？
 	if ($flag) {
 		# プラグイン情報の保存
-		$ROBJ->fwrite_hash($self->{blog_dir} . 'plugins.dat', $pd);
+		$ROBJ->fwrite_hash($self->{blog_dir} . 'plugins.dat', $pd, { atomic => 1 });
 
 		# イベント情報の登録
 		$self->set_event_info($self->{blog}, $pd);
@@ -1851,9 +1851,9 @@ sub load_design_info {
 # ●デザイン情報の保存
 #-------------------------------------------------------------------------------
 sub save_design_info {
-	my $self = shift;
+	my ($self, $h) = @_;
 	my $ROBJ = $self->{ROBJ};
-	return $ROBJ->fwrite_hash( $self->{blog_dir} . 'design.dat', @_ );
+	return $ROBJ->fwrite_hash( $self->{blog_dir} . 'design.dat', $h, { atomic => 1 } );
 }
 
 #-------------------------------------------------------------------------------

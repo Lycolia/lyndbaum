@@ -376,10 +376,11 @@ sub filter {
 			# リンクプロトコルチェック
 			#---------------------------------------------
 			if ($PROTOCOL_CHECK{$_}) {
-				if ($v =~ /^([\w\+\-\.]+):/) {	# scheme by RFC2396 Sec3.1
-					my $x = $1;
+				my $scheme = &link_scheme($v);
+				if ($scheme ne '') {
+					my $x = $scheme;
 					$x =~ tr/A-Z/a-z/;
-					if (!$protocol->{$x}) { $v="#$1: is not allow"; }
+					if (!$protocol->{$x}) { $v="#$scheme: is not allow"; }
 				}
 			}
 
@@ -473,6 +474,36 @@ sub url_filter {
 			$at->{$_} = $v;
 		}
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●リンクのスキームを取り出す
+#-------------------------------------------------------------------------------
+# ブラウザと同じ読み方で取り出す。ブラウザは属性値の文字参照を戻し、先頭の制御文字と空白、
+# 途中のTABと改行を捨ててからスキームを読むので、「javascript&colon;」や「java&Tab;script:」は
+# javascript: になる。見たままの文字列で調べると、これらを見逃す。
+#
+# ・ここに来る属性値は、「&名前;」「&#数字;」「&#x16進;」の形の文字参照だけが残っている（escape_amp）
+# ・「:」、TAB、改行になる名前付きの文字参照は、colon、Tab、NewLineだけ
+# ・ASCII以外になる文字参照は、スキームに使えない文字（!）に置き換える
+#
+# Ret:	スキーム（「:」は含まない）。無ければundef
+sub link_scheme {
+	my $v = shift;
+	if (0 <= index($v, '&')) {
+		$v =~ s/&\#(\d+);/&ncr_to_ascii($1)/eg;
+		$v =~ s/&\#[Xx]([0-9A-Fa-f]+);/&ncr_to_ascii(length($1)<9 ? hex($1) : 0x80)/eg;
+		$v =~ s/&colon;/:/ig;
+		$v =~ s/&Tab;/\t/ig;
+		$v =~ s/&NewLine;/\n/ig;
+	}
+	$v =~ s/^[\x00-\x20]+//;
+	$v =~ tr/\t\n\r//d;
+	return ($v =~ /^([\w\+\-\.]+):/) ? $1 : undef;	# scheme by RFC2396 Sec3.1
+}
+sub ncr_to_ascii {
+	my $code = shift;
+	return $code < 0x80 ? chr($code) : '!';
 }
 
 #-------------------------------------------------------------------------------

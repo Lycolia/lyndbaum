@@ -98,7 +98,7 @@ sub read_message {
 	sub new { return bless({ TM => time(), SystemCode => 'UTF-8' }); }
 	sub message {
 		my ($self, $format, @args) = @_;
-		$self->{error} = sprintf($format, @args);
+		$self->{message} = sprintf($format, @args);
 	}
 }
 sub send_to {
@@ -106,6 +106,9 @@ sub send_to {
 	my $robj = TestROBJ->new();
 	my $mail = Satsuki::Base::Mail->new($robj);
 	my $start = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC());
+	# エラーはSTDERRにも書かれる。テストの出力に混ぜない
+	local *STDERR;
+	open(STDERR, '>', \my $log) || die "STDERR: $!";
 	my $ret = $mail->send_mail({
 		to      => 'to@example.com',
 		from    => 'from@example.com',
@@ -115,7 +118,7 @@ sub send_to {
 		port    => $port
 	});
 	my $elapsed = Time::HiRes::clock_gettime(Time::HiRes::CLOCK_MONOTONIC()) - $start;
-	return ($ret, $elapsed, $robj->{error});
+	return ($ret, $elapsed, $mail->{error});
 }
 sub receive_all {
 	my $reader = shift;
