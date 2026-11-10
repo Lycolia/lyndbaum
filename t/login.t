@@ -9,6 +9,7 @@ use utf8;
 # ・1つのアカウントで失敗し続けたら、そのアカウントを止める（Auth.fail_count、標準100回）
 # ・成功したら失敗の回数を戻す
 # ・IDが無い・パスワードが違う・止めている、を応答から見分けられない
+# ・操作の記録は、Auth.log_days日（標準365日）より古い行を消す
 # ・HTTPSのときはCookieにSecureを付ける
 #
 use FindBin;
@@ -194,6 +195,73 @@ subtest '止めた試行の記録' => sub {
 	my $b = $app->get('logview', 'user/log&result=fail&id=logged')->{body};
 	utf8::decode($b);
 	like($b, qr{<strong class="warning">失敗（同じIPの回数制限）</strong></td>\s*<td>\Q$ip\E</td>}, '操作の記録の画面に表示名とIPが出る');
+};
+
+subtest '古い操作の記録を消す' => sub {
+	require Satsuki::Base;
+	my $dbdir = $app->dir() . '/data/db/';
+	# アプリは別のプロセスで動くので、毎回読み直す
+	my $count = sub {
+		my $ROBJ = Satsuki::Base->new();
+		my $DB   = $ROBJ->loadpm('DB_text', $dbdir);
+		return scalar(@{ $DB->select_match('_users_log', 'id', $_[0]) });
+	};
+	my $put = sub {
+		my ($id, $days) = @_;
+		my $ROBJ = Satsuki::Base->new();
+		my $DB   = $ROBJ->loadpm('DB_text', $dbdir);
+		$DB->begin();
+		$DB->insert('_users_log', { id => $id, type => 'login', tm => time() - $days*86400 });
+		if ($DB->commit()) { die "insert log $id failed"; }
+	};
+	$app->insert_user('expire');
+	local $app->{env} = { REMOTE_ADDR => next_ip() };
+
+	$put->('old-log', 366);
+	$put->('new-log', 364);
+	with_auth_config({ log_days => 0 }, sub {
+		my ($ret) = try_login('expire', $AppTest::PASS);
+		is($ret, '0', 'ログインできる');
+		is($count->('old-log'), 1, 'log_days=0なら、古い記録を消さない');
+	});
+
+	try_login('no-such-user', 'wrong-pass');
+	is($count->('old-log'), 0, '失敗を記録するときにも、365日より古い記録が消える');
+	is($count->('new-log'), 1, '365日より新しい記録は残る');
+	ok(0 < $count->('expire'), '今の記録は残る');
+
+	$put->('old-log', 366);
+	my ($ret) = try_login('expire', $AppTest::PASS);
+	is($ret, '0', 'ログインできる');
+	is($count->('old-log'), 0, '成功を記録するときにも消える');
+
+	$put->('old-log', 31);
+	with_auth_config({ log_days => 30 }, sub {
+		try_login('expire', $AppTest::PASS);
+		is($count->('old-log'), 0, 'log_daysを変えると、その日数で消える');
+		is($count->('new-log'), 0, 'log_daysを変えると、その日数で消える（364日前）');
+	});
+
+	my $b = $app->get('guest', 'user/log')->{body};
+	utf8::decode($b);
+	unlike($b, qr/古い記録は消えます/, 'ログインしていなければ、操作の記録は見えない');
+	$app->login('expire');
+	$b = $app->get('expire', 'user/log')->{body};
+	utf8::decode($b);
+	like($b, qr/365日より古い記録は消えます/, '操作の記録の画面に、保持日数が出る');
+};
+
+subtest 'log_daysを短くしても、同じIPの回数制限に要る記録は残す' => sub {
+	$app->insert_user('keepfail');
+	local $app->{env} = { REMOTE_ADDR => next_ip() };
+	with_auth_config({ fail_count_ip => 3, log_days => '0.00001' }, sub {	# 1秒足らず。数のままだと1e-05と書かれる
+		fail_times('keepfail', 3);
+		sleep(2);
+		# 1回目の記録のときに掃除が走るので、2回目で確かめる
+		try_login('keepfail', $AppTest::PASS);
+		my ($ret) = try_login('keepfail', $AppTest::PASS);
+		isnt($ret, '0', 'log_daysを過ぎても、fail_minute分の失敗は消えず、止まったまま');
+	});
 };
 
 #-------------------------------------------------------------------------------

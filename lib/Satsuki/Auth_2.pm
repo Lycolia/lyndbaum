@@ -336,7 +336,32 @@ sub log_save {
 		$ROBJ->tag_escape( $h->{$_} );
 	}
 
+	$self->log_expire();
 	$DB->insert($self->{table} . '_log', $h);
+}
+
+#-------------------------------------------------------------------------------
+# ●古いログを消す
+#-------------------------------------------------------------------------------
+# log_days日より古い行を消す。同じIPからの失敗を数えるのに要る、直近fail_minute分は残す
+sub log_expire {
+	my $self = shift;
+	my $DB   = $self->{DB};
+	my $ROBJ = $self->{ROBJ};
+	if (!(0 < $self->{log_days})) { return; }
+
+	my $sec  = $self->{log_days} * 86400;
+	my $keep = $self->{fail_minute} * 60;
+	if ($sec < $keep) { $sec = $keep; }
+
+	my $table = $self->{table} . '_log';
+	my $old = $DB->select($table, {
+		lt   => { tm => $ROBJ->{TM} - $sec },
+		cols => ['pkey']
+	});
+	if (@$old) {
+		$DB->delete_match($table, 'pkey', [ map { $_->{pkey} } @$old ]);
+	}
 }
 
 #-------------------------------------------------------------------------------

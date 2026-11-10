@@ -1,5 +1,5 @@
 <@7>
-<@local(s,err,t,pm,sd,fc,fm,mb)>
+<@local(s,err,t,pm,sd,fi,fc,fm,ld,mb)>
 <$err=FormError>
 
 <!--=========================================================================-->
@@ -12,7 +12,7 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.log_days, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
 <$end>
 
 <@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
@@ -21,6 +21,7 @@
 <$fi = if(s.fail_count_ip ne '', s.fail_count_ip, Auth.fail_count_ip)>
 <$fc = if(s.fail_count   ne '', s.fail_count,   Auth.fail_count)>
 <$fm = if(s.fail_minute  ne '', s.fail_minute,  Auth.fail_minute)>
+<$ld = if(s.log_days     ne '', s.log_days,     Auth.log_days)>
 <$mb = if(s.upload_max_mb ne '', s.upload_max_mb, v.uplaod_files_max / 1048576)>
 
 <!--=========================================================================-->
@@ -113,6 +114,17 @@
 <$else>
 			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）ログインできなくする
 <$end>
+		</td>
+	</tr>
+	<tr>
+		<th>操作の記録の保持日数</th>
+		<td<@err.c_log_days>>
+<@ifexec(!POST && (ld < 1 || ld > 3650), begin, begin)>
+			<input type="number" class="w60" value="<@ld>" disabled>日（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="log_days" min="1" max="3650" class="w60" value="<@ld>">日（1-3650）
+<$end>
+			<span class="help-text">これより古い<a href="<@v.myself>?user/log">操作の記録</a>は、次に記録するときに消えます。</span>
 		</td>
 	</tr>
 	</tbody>

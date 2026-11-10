@@ -132,6 +132,6 @@
 	</tbody>
 	</table>
 
-	<p>全<@int(hits)>件</p>
+	<p>全<@int(hits)>件<@if(0 < Auth.log_days, "（" . Auth.log_days . "日より古い記録は消えます）")></p>
 </div> <!-- end of body -->
 </article>

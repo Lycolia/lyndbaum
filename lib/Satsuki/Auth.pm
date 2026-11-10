@@ -38,6 +38,7 @@ sub new {
 	$self->{fail_minute} = 10;
 	
 	$self->{logtext_max} = 128;	# ログ１要素あたりの最大文字数
+	$self->{log_days}    = 365;	# ログを残す日数。0なら消さない
 	return $self;
 }
 

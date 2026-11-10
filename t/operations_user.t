@@ -346,6 +346,7 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	$field->('session_days', 14, 'ログインの保持日数は、何も保存していなければ既定値');
 	$field->('fail_count_ip', 15, '同じIPからの失敗の回数は、何も保存していなければ既定値');
 	$field->('fail_count', 100, 'アカウントの失敗の回数は、何も保存していなければ既定値');
+	$field->('log_days', 365, '操作の記録の保持日数は、何も保存していなければ既定値');
 	$field->('upload_max_mb', 64, 'アップロードの上限は、何も保存していなければ既定値');
 	$field->('album_avif_quality', 65, 'AVIFの品質は、何も保存していなければ既定値');
 
@@ -354,11 +355,12 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	$app->insert_user('passmin');
 	$app->login('passmin');
 	# 書き戻すと行の順番が変わるので、この項目の行だけを比べる
-	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count_ip|fail_count|fail_minute|upload_max_mb|album_jpeg_quality|album_avif_quality)=/ } split(/\n/, read_file($sys))) };
+	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count_ip|fail_count|fail_minute|log_days|upload_max_mb|album_jpeg_quality|album_avif_quality)=/ } split(/\n/, read_file($sys))) };
 	my $before = $saved->();
 	foreach my $bad ([pass_min => 7], [pass_min => 65], [session_days => 0], [session_days => 366],
 		[fail_count_ip => 0], [fail_count_ip => 2], [fail_count_ip => 101],
 		[fail_count => 0], [fail_count => 2], [fail_count => 101], [fail_minute => 0], [fail_minute => 1441],
+		[log_days => 0], [log_days => 3651],
 		[upload_max_mb => 0], [upload_max_mb => 2049], [album_jpeg_quality => 0], [album_avif_quality => 101]) {
 		ok(!AppTest::is_reload($save->(@$bad)), "$bad->[0]=$bad->[1] は保存できない");
 	}
@@ -370,9 +372,11 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	is($saved->(), $before, '管理者でなければ保存できない');
 
 	# 値が効く
-	ok(AppTest::is_reload($save->(pass_min => 20, fail_count_ip => 4, fail_count => 3, fail_minute => 5, upload_max_mb => 1, album_avif_quality => 40, session_days => 30, all_logout => 1)), '保存できる');
+	ok(AppTest::is_reload($save->(pass_min => 20, fail_count_ip => 4, fail_count => 3, fail_minute => 5, upload_max_mb => 1, album_avif_quality => 40, session_days => 30, log_days => 90, all_logout => 1)), '保存できる');
 	$field->('pass_min', 20, '保存した値が欄に出る');
 	like(read_file($sys), qr/^session_days=30$/m, '保存した値がファイルに入る');
+	$field->('log_days', 90, '保存した値が欄に出る（操作の記録の保持日数）');
+	like(body($app->get('admin', 'user/log')), qr/90日より古い記録は消えます/, '操作の記録の画面に、保存した日数が出る');
 	like(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'ONにした項目が欄に出る');
 
 	# パスワードの最低文字数は、新しいパスワードに効く
@@ -409,10 +413,11 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	ok(!-e "$dir/pub/attachments/test/sysmax.txt", '保存した上限（1MB）を超えると受け付けない');
 
 	# 空にすると既定値に戻す
-	ok(AppTest::is_reload($save->(pass_min => '', fail_count_ip => '', fail_count => '', fail_minute => '', upload_max_mb => '', album_avif_quality => '', session_days => '', all_logout => 0)), '空で保存できる');
+	ok(AppTest::is_reload($save->(pass_min => '', fail_count_ip => '', fail_count => '', fail_minute => '', upload_max_mb => '', album_avif_quality => '', session_days => '', log_days => '', all_logout => 0)), '空で保存できる');
 	$field->('pass_min', 8, '空にすると既定値に戻る');
 	$field->('upload_max_mb', 64, '空にすると既定値に戻る（上限）');
 	$field->('fail_count_ip', 15, '空にすると既定値に戻る（同じIP）');
+	$field->('log_days', 365, '空にすると既定値に戻る（操作の記録の保持日数）');
 	unlike(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'OFFにできる');
 };
 
