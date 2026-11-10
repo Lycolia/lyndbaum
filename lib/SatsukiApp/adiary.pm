@@ -11,7 +11,7 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
 # 版はmajor.minor.patchの文字列。比べるときはversion_cmp()を使う
-our $VERSION    = '4.41.1';
+our $VERSION    = '4.42.0';
 # fix2、dev3、nightlyのような識別子を「-」なしで入れる。表示は「4.41.0-fix2」になる
 our $BRANCH_VERSION = '';
 our $OUTVERSION = $VERSION . ($BRANCH_VERSION ne '' ? "-$BRANCH_VERSION" : '');
