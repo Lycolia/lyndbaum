@@ -32,6 +32,7 @@ my $driver = File::Temp->new(SUFFIX => '.pl');
 print $driver <<'DRIVER';
 use lib 'lib';
 use Satsuki::Base ();
+use SatsukiApp::adiary::Startup ();
 my ($n, $calls_file) = @ARGV;
 $0 = 'lyndbaum.cgi';
 %ENV = (%ENV, REQUEST_METHOD=>'GET', REQUEST_URI=>'/', SCRIPT_NAME=>'/', DOCUMENT_URI=>'/', QUERY_STRING=>'',
@@ -43,7 +44,7 @@ sub request {
 	my $r = Satsuki::Base->new();
 	$r->{ModRewrite} = 1;
 	$r->init_for_fastcgi(bless({}, 'FakeRequest'));
-	$r->start_up();
+	$r->start_up(\&SatsukiApp::adiary::Startup::setup);
 	$r->finish();
 }
 request() foreach (1..3);

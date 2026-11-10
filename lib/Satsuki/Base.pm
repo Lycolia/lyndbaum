@@ -83,25 +83,49 @@ sub new {
 #-------------------------------------------------------------------------------
 # ●スタートアップ (起動スクリプトから最初に呼ばれる)
 #-------------------------------------------------------------------------------
+#
+# 組み立て（DB、ログイン、本体を作る）は、次のどちらかで行う。
+#   start_up()       設定ファイルで組み立てる。<名前>.env.cgi、<名前>.conf.cgi の順に読む
+#   start_up($setup) コードで組み立てる。$setup->($self) を呼び、続けて <名前>.user.cgi（無くてもよい）を読む
+# <名前>は、起動スクリプトの名前から拡張子を除いたもの。
+#
 sub start_up {
-	my $self = shift;
+	my $self  = shift;
+	my $setup = shift;
 
 	my $cgi = $0;
 
 	my $user;	# ユーザー設定（無くてもよい）
+	my $env;
+	my $conf;
 	if ($cgi =~ m!(?:^|/)([^/\.]*)[^/]*$!) {
-		$user  = $1 . '.user.cgi';
+		$user = $1 . '.user.cgi';
+		$env  = $1 .  '.env.cgi';
+		$conf = $1 . '.conf.cgi';
 	} else {
-		$user = '__(internal_error)__';
+		$user = $env = $conf = '__(internal_error)__';
 	}
 
-	# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
-	$self->setup_main();
-	if (-r $user) {
-		$self->_call($user);
+	if (ref($setup) eq 'CODE') {
+		# ユーザー設定で、既定値とパスや時刻の設定（Basepath、ENV.TZなど）を変えられるように、初期化は後に行う
+		$setup->($self);
+		if (-r $user) {
+			$self->_call($user);
+		}
+		$self->init_tm();
+		$self->init_path();
+	} else {
+		# .env があれば先に処理
+		if (-r $env) {
+			$self->_call($env);
+		}
+		$self->init_tm();
+		$self->init_path();
+
+		# conf解析
+		$self->{Conf_file}   = $conf;
+		$self->{Conf_result} = $self->_call($conf);
 	}
-	$self->init_tm();
-	$self->init_path();
 
 	# 致命的エラーがあった場合、表示して終了
 	if ($self->{Error_flag}) {
@@ -113,34 +137,23 @@ sub start_up {
 	# メインルーチンの実行
 	# ※Perlの側からredirect()などを呼ぶとdie("Break")で抜けてくるので、ここで受け止める。
 	#   受け止めないとfinish()が動かず、出力の後ろに500のエラーが付く
-	eval { $self->{Main}->main(); };
+	my $main = $self->{Main};
+	eval {
+		if (defined $main && $main->can('main')) {
+			$main->main();
+		} else {
+			$self->main();	# すぐ下のルーチン
+		}
+	};
 	if ($@ && $@ !~ /^Break\b/) { die $@; }
 }
 
 #-------------------------------------------------------------------------------
-# ●DB、ログイン、本体を作る
+# ●conf.cgi の中身をそのまま出力するだけのメインルーチン
 #-------------------------------------------------------------------------------
-# 既定値は、できるだけそれぞれのnewに持つ。
-sub setup_main {
+sub main {
 	my $self = shift;
-
-	$self->{Temp} = 'data/tmp/';
-	$self->{WDAY_name} = ['日', '月', '火', '水', '木', '金', '土'];
-	$self->{AMPM_name} = ['午前', '午後', '深夜'];
-
-	# wwwプロセスで実行されてるようならば0775,0664になるようにする
-	# ほかの人が書けるようにしない（__cache/のPerlはevalするので、書き換えられるとコードを実行される）
-	if ($self->{UID} ne '' && $self->{UID} < 101) { umask(002); }
-
-	$self->regist_skeleton('skel/');
-	$self->regist_skeleton('skel.local/', 2);
-	$self->load_language_file('info/lang/ja.utf8.txt');
-
-	my $db   = $self->{DB}   = $self->loadpm('DB_text', 'data/db/');
-	my $auth = $self->{Auth} = $self->loadpm('Auth', $db);
-	$auth->{table}    = '_users';
-
-	$self->{v} = $self->{Main} = $self->loadapp('adiary', $db, { admin_trust_mode => 1 });
+	$self->output($self->{Conf_result});
 }
 
 #-------------------------------------------------------------------------------

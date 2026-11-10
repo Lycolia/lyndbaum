@@ -35,7 +35,8 @@ eval {
 	my $ROBJ = Satsuki::Base->new();	# ルートオブジェクト生成
 	$ROBJ->{Timer} = $timer;		# タイマーの保存
 
-	$ROBJ->start_up();
+	require SatsukiApp::adiary::Startup;
+	$ROBJ->start_up(\&SatsukiApp::adiary::Startup::setup);
 	$ROBJ->finish();
 };
 

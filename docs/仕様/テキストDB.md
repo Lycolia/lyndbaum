@@ -4,7 +4,7 @@
 
 ## 概要
 
-- `Satsuki::Base`の`setup_main`で`loadpm('DB_text', 'data/db/')`として使う。`lib/Satsuki/DB_text.pm`は、`Satsuki::DB::text`を作って返すだけ。
+- `SatsukiApp::adiary::Startup`の`setup`で`loadpm('DB_text', 'data/db/')`として使う。`lib/Satsuki/DB_text.pm`は、`Satsuki::DB::text`を作って返すだけ。
 - 3つのファイルは同じパッケージ（`Satsuki::DB::text`）で、`Satsuki::AutoLoader`で必要になったときに読む。
 
 | ファイル    | 中身                                                                   |

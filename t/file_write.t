@@ -178,7 +178,8 @@ subtest 'wwwのプロセスでも、ほかの人が書けるファイルを作�
 	chdir("$FindBin::Bin/..") || die $!;
 	my $r = Satsuki::Base->new();
 	$r->{UID} = 33;
-	$r->setup_main();
+	require SatsukiApp::adiary::Startup;
+	SatsukiApp::adiary::Startup::setup($r);
 	chdir($cwd);
 	is(sprintf('%03o', umask()), '002', 'グループまで書ける');
 

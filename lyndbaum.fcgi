@@ -131,7 +131,8 @@ sub fcgi_main_loop {
 			#-------------------------------------------------------
 			# メイン
 			#-------------------------------------------------------
-			$ROBJ->start_up();
+			require SatsukiApp::adiary::Startup;	# ライブラリを読み直した後は、ここで読み直す
+			$ROBJ->start_up(\&SatsukiApp::adiary::Startup::setup);
 			$ROBJ->finish();
 
 			$shutdown = $ROBJ->{Shutdown};
