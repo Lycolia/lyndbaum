@@ -296,8 +296,10 @@ subtest '版の書式（major.minor.patch）' => sub {
 	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、知らせが出ない');
 	like(body($app->get('admin', 'system/check')), qr{Data version\t4\.41\.0\n}, 'システムチェックに、データの版がそのまま出る');
 	like(body($app->get('admin', 'system/setting')), qr{name="VERSION"[^>]*value="4\.41\.0"}, '設定の画面に、データの版がそのまま出る');
-	like(body($app->get('admin', 'system/check')), qr{<td>Version</td><td>4\.41\.0</td>}, 'システムチェックに、プログラムの版が出る');
-	like(body($app->get('guest', '')), qr{<meta name="generator" content="Lyndbaum 4\.41\.0">}, '公開画面のgeneratorに版が出る');
+	# プログラムの版は、バージョン上げのたびに変わるので決め打ちしない
+	my $ver = quotemeta($SatsukiApp::adiary::VERSION);
+	like(body($app->get('admin', 'system/check')), qr{<td>Version</td><td>$ver</td>}, 'システムチェックに、プログラムの版が出る');
+	like(body($app->get('guest', '')), qr{<meta name="generator" content="Lyndbaum $ver">}, '公開画面のgeneratorに版が出る');
 
 	my $plugins = body($app->get('admin', 'plugin/'));
 	like($plugins, qr{name="sitemap" value="1"}, 'プラグインの一覧に、ONとOFFの選択が出る');
