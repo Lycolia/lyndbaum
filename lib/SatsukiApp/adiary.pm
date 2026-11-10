@@ -561,7 +561,7 @@ sub save_blogset_sys {
 
 	if (!$h || !$h->{_update}) { return; }
 	delete $h->{_update};
-	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h);
+	$ROBJ->fwrite_hash($self->blog_dir() . 'setting.dat', $h, { atomic => 1 });
 }
 
 ################################################################################
@@ -1526,7 +1526,7 @@ sub save_sysdat {
 	my $sys = $self->{sys};
 	if (! $sys->{_update}) { return 0; }
 	delete $sys->{_update};
-	$ROBJ->fwrite_hash($self->{system_config_file}, $sys);
+	$ROBJ->fwrite_hash($self->{system_config_file}, $sys, { atomic => 1 });
 }
 
 #-------------------------------------------------------------------------------

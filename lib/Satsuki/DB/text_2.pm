@@ -188,7 +188,11 @@ sub update_match {
 	if ($updates) {
 		$self->{"$table.tbl"}=\@new_db;
 		foreach(@save_array) {
-			$self->write_rowfile($table, $_);
+			if ($self->write_rowfile($table, $_)) {
+				# 書けなかった行は元の中身のまま残る。indexは保存せず、メモリ上の編集結果も捨てる
+				$self->edit_index_exit($table);
+				return 0;	# 失敗
+			}
 		}
 		my $r = $self->save_index($table);	# 編集結果の保存
 		if ($r) { return 0; }	# 失敗
@@ -467,6 +471,7 @@ sub commit {
 
 	# 編集の書き込み
 	my $trans = $self->{transaction};
+	my $fail  = 0;
 	foreach my $table (keys(%$trans)) {
 		# トランザクションを後追い処理
 		my $trace = $self->load_trace_ary($table);
@@ -484,17 +489,25 @@ sub commit {
 			delete $write{$_};
 		}
 		# 書き込み処理
+		my $write_fail;
 		foreach(values(%write)) {
-			$self->write_rowfile($table, $_);
+			if ($self->write_rowfile($table, $_)) { $write_fail=1; last; }
 		}
-		foreach(keys(%del)) {
-			$self->delete_rowfile($table, $_);
-		}
+		if ($write_fail) {
+			# 書けなかった行は元の中身のまま残る。このテーブルは行を消さず、indexも保存せず、
+			# メモリ上の編集結果も捨てる（indexだけ新しくなると、行ファイルの無い行ができる）
+			$self->edit_index_exit($table);
+			$fail = 1;
+		} else {
+			foreach(keys(%del)) {
+				$self->delete_rowfile($table, $_);
+			}
 
-		if ($self->{"$table.lock"}) {
-			$ROBJ->write_lock($self->{"$table.lock"});
+			if ($self->{"$table.lock"}) {
+				$ROBJ->write_lock($self->{"$table.lock"});
+			}
+			if ($self->save_index($table)) { $fail = 1; }
 		}
-		$self->save_index($table);
 
 		# トランザクションlock を解く
 		if ($self->{"$table.lock-tr"}) {
@@ -504,7 +517,7 @@ sub commit {
 	}
 	$self->{transaction}={};
 	$self->{trace}={};
-	return 0;
+	return $fail;
 }
 #-------------------------------------------------------------------------------
 # ●トランザクショントレース
@@ -865,7 +878,8 @@ sub write_rowfile {
 	my $dir  = $self->{dir} . $table . '/';
 
 	delete $h->{'*'};	# ロード済フラグ
-	my $r = $ROBJ->fwrite_hash($dir . sprintf($FileNameFormat, $h->{pkey}). $ext, $h);
+	# 一時ファイルに書いてから置き換える。途中で失敗しても、行の元の中身は残る
+	my $r = $ROBJ->fwrite_hash($dir . sprintf($FileNameFormat, $h->{pkey}). $ext, $h, { atomic => 1 });
 	$h->{'*'}=1;		# ロード済フラグ再設定
 	return $r;
 }

@@ -191,6 +191,7 @@ __END_BLK_DATA
 
 - 挿入、更新、削除、カラムの操作は、`#index.dat`を編集用に開いて書き込みのロックをかけ（`fedit_readlines`）、indexを置き換えるまで持つ（`fedit_replace`）。そのため、同じテーブルへの書き込みは1つずつ行う。
 - indexは一時ファイルに書き終えてから`rename`で置き換える（`fwrite_atomic`）。書き込みに失敗したり途中で落ちたりしても、前のindexが残る。
+- 行ファイルも同じ方法で書く（`write_rowfile`が`fwrite_hash`に`atomic`を付ける）。書けなかったときは、行の前の中身が残る。`update_match`と`commit`はindexを保存せずに失敗を返す（`commit`は`1`）。
 - 置き換えるとファイルの実体が変わるので、ロックを取った後に、開いたものが今の`#index.dat`かを確かめ、違えば開き直す（`file_replaced`）。`generate_pkey`も同じ。
 - 途中でエラーになったときは、indexを書かずにロックを解き（`edit_index_exit`）、そのテーブルのキャッシュを消す。
 - `generate_pkey`は、`#index.dat`に書き込みのロックをかけて3行目だけを上書きする。

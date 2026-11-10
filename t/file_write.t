@@ -70,6 +70,56 @@ subtest 'fwrite_atomicは書き終えてから置き換える' => sub {
 };
 
 #-------------------------------------------------------------------------------
+# fwrite_hash
+#-------------------------------------------------------------------------------
+subtest 'fwrite_hashは、値の中のブロックの終わりの行で値を切らない' => sub {
+	my $file = "$dir/hash.dat";
+	my $END  = '__END_BLK_DATA';
+	foreach (
+		[ '途中に1行',           "a\n$END\nb",                       "a\n$END \nb" ],
+		[ '途中に続けて2行',     "a\n$END\n$END\nenable=1\nzz=inj", "a\n$END \n$END \nenable=1\nzz=inj" ],
+		[ '続けて3行',           "$END\n$END\n$END\nb",              "$END \n$END \n$END \nb" ],
+		[ '最後の行',            "a\n$END",                           "a\n$END " ],
+		[ '最後に続けて2行',     "a\n$END\n$END",                     "a\n$END \n$END " ],
+		[ '行の途中にあるだけ',  "a\nx$END\n${END}x\nb",             "a\nx$END\n${END}x\nb" ],
+	) {
+		my ($name, $text, $expect) = @$_;
+		is($ROBJ->fwrite_hash($file, { text => $text, title => 'T' }), 0, "$name：書ける");
+		my $h = $ROBJ->fread_hash($file);
+		is_deeply($h, { text => $expect, title => 'T' }, "$name：値は切れず、ほかのキーも増えない");
+	}
+};
+
+subtest 'fwrite_hashのatomicは、書き終えてから置き換える' => sub {
+	my $file = "$dir/hash_atomic.dat";
+	is($ROBJ->fwrite_hash($file, { a => 1, text => "x\ny" }, { atomic => 1 }), 0, '新しいファイルを作る');
+	is_deeply($ROBJ->fread_hash($file), { a => 1, text => "x\ny" }, '中身が入る');
+
+	my $before = (stat($file))[1];
+	is($ROBJ->fwrite_hash($file, { a => 2 }, { atomic => 1 }), 0, '書き直す');
+	is_deeply($ROBJ->fread_hash($file), { a => 2 }, '新しい中身になる');
+	isnt((stat($file))[1], $before, '別のファイルに置き換わる');
+
+	SKIP: {
+		skip 'rootでは書き込みを止められません', 4 if (is_root());
+		my $sub = "$dir/readonly_hash";
+		mkdir($sub) || die $!;
+		$ROBJ->fwrite_hash("$sub/f.dat", { keep => 1 }, { atomic => 1 });
+		chmod(0555, $sub);
+		is($ROBJ->fwrite_hash("$sub/f.dat", { new => 1 }, { atomic => 1 }), 1, '書けなければ失敗を返す');
+		$ROBJ->clear_error();
+		is_deeply($ROBJ->fread_hash("$sub/f.dat"), { keep => 1 }, '元のファイルは変わらない');
+		chmod(0755, $sub);
+
+		# フォルダに書けても、書き込みを禁じたファイルは置き換えない（上書きのときと同じ）
+		chmod(0444, "$sub/f.dat");
+		is($ROBJ->fwrite_hash("$sub/f.dat", { new => 1 }, { atomic => 1 }), 1, '書き込みを禁じたファイルは失敗を返す');
+		$ROBJ->clear_error();
+		is_deeply($ROBJ->fread_hash("$sub/f.dat"), { keep => 1 }, '元のファイルは変わらない');
+	}
+};
+
+#-------------------------------------------------------------------------------
 # 置き換えとロック
 #-------------------------------------------------------------------------------
 subtest 'ロックを待っている間に置き換わったら、新しいファイルを読む' => sub {
