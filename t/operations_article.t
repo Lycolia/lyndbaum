@@ -240,6 +240,37 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	is($coms->(), 2, 'ブログのコメント数に戻る');
 };
 
+subtest '新着コメントの通知メールを送れなくても、理由を画面に出さない' => sub {
+	# 今入っているプラグインはそのままにして、notify_mailを足す（送らなかった名前は外される）
+	my %on = map { /^([\w\-]+)=1$/ ? ($1 => 1) : () } split(/\n/, read_file("$dir/data/blog/plugins.dat"));
+	my $r = $app->post('admin', 'plugin/', { action => 'plugin/index', %on, notify_mail => 1 });
+	ok(AppTest::is_reload($r), 'notify_mailを入れられる');
+
+	# 閉じたポート。開いてすぐ閉じたポートの番号を使う
+	require IO::Socket::INET;
+	my $listener = IO::Socket::INET->new(Listen => 1, LocalAddr => '127.0.0.1', LocalPort => 0, Proto => 'tcp') || die "listen: $!";
+	my $port = $listener->sockport;
+	close($listener);
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'notify_mail',
+		host => '127.0.0.1', port => $port, subject => '%n notify', to => 'to@example.com' });
+	like($r->{body}, qr/^ret=0$/m, '送り先を設定できる');
+
+	my ($secure) = body($app->get('visitor', '/02')) =~ /data-secure="([^"]+)"/;
+	my @ary = split(/,/, $secure);
+	pop(@ary);
+	my $sid = join('', map { chr($_ ^ (2 & 255)) } @ary);
+	sleep(4);
+	$r = $app->post('visitor', '/02', { action => 'comment_post', a_pkey => 2, secure_id => $sid, name => '通知の人', comment_txt => '通知のコメント', website => '' });
+	like($r->{title}, qr/^処理結果/, '投稿できる');
+	like(body($app->get('guest', '/02')), qr{通知のコメント}, '記事のページに出る');
+	unlike(body($r), qr/Can't connect|Can&#39;t connect|SMTP|127\.0\.0\.1/, '送れなかった理由とSMTPサーバーの名前を、投稿した人の画面に出さない');
+	like($r->{stderr}, qr/^Satsuki::Base::Mail: Can't connect '127\.0\.0\.1'$/m, 'エラーログには書く');
+
+	delete $on{notify_mail};
+	$r = $app->post('admin', 'plugin/', { action => 'plugin/index', %on });
+	ok(AppTest::is_reload($r), 'notify_mailを外す');
+};
+
 #-------------------------------------------------------------------------------
 # NSFW
 #-------------------------------------------------------------------------------
