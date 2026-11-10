@@ -265,7 +265,56 @@ subtest '4.31より古いデータからのアップデート' => sub {
 	$set_version->('4.31');
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
+};
+
+subtest '版の書式（major.minor.patch）' => sub {
+	require SatsukiApp::adiary;
+	my $cmp = sub { return SatsukiApp::adiary->version_cmp(@_); };
+	is($cmp->('4.39',   '4.41.0'), -1, '古い書式の4.39は4.39.0として比べる');
+	is($cmp->('4.40',   '4.40.0'),  0, '4.40と4.40.0は同じ');
+	is($cmp->('4.41.0', '4.41.1'), -1, 'patchを比べる');
+	is($cmp->('4.9.0',  '4.41.0'), -1, '各部分は文字でなく数値で比べる');
+	is($cmp->('4.41.0-fix2', '4.41.0'), 0, '「-」より後ろは比べない');
+	is($cmp->('2.961',  '4.41.0'), -1, 'プラグインのadiary_version（2.961）');
+	is($cmp->('5.0.0',  '4.41.0'),  1, 'majorが大きい');
+
+	my $snap = $app->snapshot();
+	my $sys  = "$dir/data/system_config.dat";
+	my $set_version = sub {
+		my $conf = read_file($sys);
+		$conf =~ s/^VERSION=.*$/VERSION=$_[0]/m;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf;
+		close($fh);
+	};
+
+	$set_version->('4.40');
+	like(body($app->get('admin', 'menu')), qr{require-update}, '古い書式の4.40のデータは、アップデート処理が要る');
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '新しい書式の版になる');
+	unlike(body($app->get('admin', 'menu')), qr{require-update}, 'アップデート処理の後は、知らせが出ない');
+	like(body($app->get('admin', 'system/check')), qr{Data version\t4\.41\.0\n}, 'システムチェックに、データの版がそのまま出る');
+	like(body($app->get('admin', 'system/setting')), qr{name="VERSION"[^>]*value="4\.41\.0"}, '設定の画面に、データの版がそのまま出る');
+	like(body($app->get('admin', 'system/check')), qr{<td>Version</td><td>4\.41\.0</td>}, 'システムチェックに、プログラムの版が出る');
+	like(body($app->get('guest', '')), qr{<meta name="generator" content="Lyndbaum 4\.41\.0">}, '公開画面のgeneratorに版が出る');
+
+	my $plugins = body($app->get('admin', 'plugin/'));
+	like($plugins, qr{name="sitemap" value="1"}, 'プラグインの一覧に、ONとOFFの選択が出る');
+	unlike($plugins, qr{非対応}, 'プラグインの一覧に「非対応」が出ない');
+	unlike(body($app->get('admin', 'plugin/modules')), qr{以降で使用できます}, 'モジュールの一覧に「非対応」が出ない');
+	like(body($app->get('admin', 'design/edit')), qr{data-module-name="des_calendar-ja"}, 'デザインの編集に、モジュールが出る');
+
+	my $save = sub { return $app->post('admin', 'system/setting', { VERSION => $_[0], action => 'system/setting' }); };
+	ok(AppTest::is_reload($save->('4.39')), 'データの版を古い書式で書き換えられる');
+	like(read_file($sys), qr/^VERSION=4\.39$/m, '書いたとおりに保存する');
+	ok(AppTest::is_reload($save->('4.40.1')), 'データの版をpatch付きで書き換えられる');
+	like(read_file($sys), qr/^VERSION=4\.40\.1$/m, '書いたとおりに保存する');
+	foreach my $v ('4.42.0', '4.41.0-fix2', 'abc') {
+		ok(!AppTest::is_reload($save->($v)), "データの版に $v は保存できない");
+		like(read_file($sys), qr/^VERSION=4\.40\.1$/m, '版はそのまま');
+	}
+	$app->restore($snap);
 };
 
 #-------------------------------------------------------------------------------
@@ -440,7 +489,7 @@ subtest 'マルチサイトと複数ユーザーの列を消すアップデー�
 	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
 
 	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
 	foreach my $t (qw(art trash)) {
@@ -498,7 +547,7 @@ subtest '操作の記録の削除の記録を消すアップデート（4.34）'
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
 
 	is($count->('delete'), 0, 'delete の記録が消える');
 	foreach(qw(login logout regist update)) {
@@ -548,7 +597,7 @@ subtest '目次のある記事を作り直すアップデート（4.37）' => su
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
 
 	(undef, $arts) = $load->();
 	like($arts->{'目次の記事'}->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '目次のある記事は作り直す');
@@ -573,7 +622,7 @@ subtest '直前の保存のテーブルを作るアップデート（4.38）' =>
 	ok(!-e "$dir/data/db/lastrev", '処理の前には直前の保存を入れない');
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
 	ok(-e "$dir/data/db/lastrev/#index.dat", 'テーブルができる');
 
 	$app->post('admin', '', { %ART, edit_pkey_int => 1, title => '処理の後に直す', body_txt => "処理の後\n" });
@@ -619,7 +668,7 @@ subtest '注釈のある記事を作り直すアップデート（4.39）' => su
 	close($fh);
 
 	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=4\.39$/m, '版が上がる');
+	like(read_file($sys), qr/^VERSION=4\.41\.0$/m, '版が上がる');
 
 	(undef, $arts) = $load->();
 	like($arts->{'注釈の記事'}->{text}, $new_form, '注釈のある記事は作り直す');

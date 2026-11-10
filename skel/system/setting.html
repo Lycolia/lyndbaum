@@ -151,7 +151,7 @@
 	<tr>
 		<th>データVersion</th>
 		<td<@err.c_VERSION>>
-			Ver <input type="number" class="w60" name="VERSION" step="0.01" min="2.90" value="<@sprintf('%.2f', s.VERSION)>">
+			Ver <input type="text" class="w80" name="VERSION" pattern="[0-9]+\.[0-9]+(\.[0-9]+)?" value="<@s.VERSION>">
 			 <strong class="warning">※非常時以外書き換え禁止</strong>
 			 <span class="help-text">自動システムアップデートで参照するシステム内データVersionです。アップデート処理をどうしてもやり直したい時などに使用します。通常は書き換えないでください。</span>
 		</td>

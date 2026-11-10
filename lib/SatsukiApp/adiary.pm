@@ -10,12 +10,12 @@ use Fcntl;
 our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
-# データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.40;
-# -fix2, dev3, -nightlyみたいなのを入れる想定
+# 版はmajor.minor.patchの文字列。比べるときはversion_cmp()を使う
+our $VERSION    = '4.41.0';
+# fix2、dev3、nightlyのような識別子を「-」なしで入れる。表示は「4.41.0-fix2」になる
 our $BRANCH_VERSION = '';
-our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.39;
+our $OUTVERSION = $VERSION . ($BRANCH_VERSION ne '' ? "-$BRANCH_VERSION" : '');
+our $DATA_VERSION = '4.41.0';
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -1478,11 +1478,33 @@ sub load_sysdat {
 		$self->update_sysdat('Secret_word', $ROBJ->generate_nonce(40));
 	}
 	# Versionチェック
-	if ($sys->{VERSION} < $DATA_VERSION) {
+	if ($self->version_cmp($sys->{VERSION}, $DATA_VERSION) < 0) {
 		$self->{require_update} = 1;
 	}
 
 	return $sys;
+}
+
+#-------------------------------------------------------------------------------
+# ●版を比べる
+#-------------------------------------------------------------------------------
+# major.minor.patchを「.」で分けて、数値で順に比べる。足りない部分は0とみなし（4.39は4.39.0）、
+# 「-」より後ろ（4.41.0-fix2のfix2）は比べない。$a<$bなら-1、同じなら0、$a>$bなら1
+sub version_cmp {
+	my $self = shift;
+	my @a = &split_version(shift);
+	my @b = &split_version(shift);
+	foreach(0..2) {
+		my $c = $a[$_] <=> $b[$_];
+		if ($c) { return $c; }
+	}
+	return 0;
+}
+sub split_version {
+	my $v = shift;
+	$v =~ s/-.*//s;
+	my @v = map { int($_) } split(/\./, $v);
+	return map { $v[$_] || 0 } (0..2);
 }
 
 #-------------------------------------------------------------------------------

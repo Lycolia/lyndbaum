@@ -13,14 +13,15 @@ package SatsukiApp::adiary;
 ################################################################################
 # ■ワンライナーなサブルーチン等
 ################################################################################
-my $UPDATE_MIN_VERSION = 4.31;	# これより古いデータからのアップデートはできない
+my $UPDATE_MIN_VERSION = '4.31';	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.32, plugin=>1 },	# ブログが無いときの分岐を雛形とプラグインから消し、変数の名前をそろえた。デザインのスケルトンを作り直す
-	{ ver => 4.33, func => 'sys_update_433', system=>1, plugin=>1 },	# マルチサイトと複数ユーザーの残りの列を消した。記事情報モジュールの「投稿者の表示」を削除したので、デザインのスケルトンを作り直す
-	{ ver => 4.34, func => 'sys_update_434', system=>1 },	# 操作の記録のうち、削除の記録を消す
-	{ ver => 4.37, rebuild_cond => ['\[\*toc'] },	# 目次を「目次」の見出し付きの<nav>で囲んだので、目次のある記事を作り直す
-	{ ver => 4.38, func => 'sys_update_438' },	# 記事の直前の保存のテーブル（lastrev）を作る
-	{ ver => 4.39, rebuild_cond => ['\(\('] }	# 注釈の一覧を、書いた見出しの下に出すようにしたので、注釈のある記事を作り直す
+	{ ver => '4.32', plugin=>1 },	# ブログが無いときの分岐を雛形とプラグインから消し、変数の名前をそろえた。デザインのスケルトンを作り直す
+	{ ver => '4.33', func => 'sys_update_433', system=>1, plugin=>1 },	# マルチサイトと複数ユーザーの残りの列を消した。記事情報モジュールの「投稿者の表示」を削除したので、デザインのスケルトンを作り直す
+	{ ver => '4.34', func => 'sys_update_434', system=>1 },	# 操作の記録のうち、削除の記録を消す
+	{ ver => '4.37', rebuild_cond => ['\[\*toc'] },	# 目次を「目次」の見出し付きの<nav>で囲んだので、目次のある記事を作り直す
+	{ ver => '4.38', func => 'sys_update_438' },	# 記事の直前の保存のテーブル（lastrev）を作る
+	{ ver => '4.39', rebuild_cond => ['\(\('] },	# 注釈の一覧を、書いた見出しの下に出すようにしたので、注釈のある記事を作り直す
+	{ ver => '4.41.0' }	# 版の書式をmajor.minor.patchにした。データの版を新しい書式で書き直すだけ
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -43,8 +44,8 @@ sub system_update {
 	my $exists = $self->select_blog();
 
 	foreach my $h (@update_versions) {
-		if ($cur >= $h->{ver}) { next; }
-		$ROBJ->message("System update for Ver %.2f", $h->{ver});
+		if ($self->version_cmp($cur, $h->{ver}) >= 0) { next; }
+		$ROBJ->message("System update for Ver %s", $h->{ver});
 		$opt{rebuild} ||= $h->{rebuild};	# 全記事再構築
 		$opt{plugin}  ||= $h->{plugin};		# プラグイン更新
 		$opt{theme}   ||= $h->{theme};		# テーマカスタムCSS更新
@@ -115,7 +116,7 @@ sub system_update {
 #-------------------------------------------------------------------------------
 sub update_unsupported {
 	my $self = shift;
-	return $self->{sys}->{VERSION} < $UPDATE_MIN_VERSION ? 1 : 0;
+	return $self->version_cmp($self->{sys}->{VERSION}, $UPDATE_MIN_VERSION) < 0 ? 1 : 0;
 }
 
 #-------------------------------------------------------------------------------

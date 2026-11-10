@@ -29,7 +29,7 @@
 	<tbody>
 	<@forexec(t, v.load_plugins_info(1), begin)>
 	<tr>
-		<td><@ifexec(t.adiary_version <= v.VERSION, begin, begin)>
+		<td><@ifexec(v.version_cmp(t.adiary_version, v.VERSION) <= 0, begin, begin)>
 			<span class="plg-title"><@t.title></span>
 		<$else>
 			<span class="plg-title"><del><@t.title></del></span><span class="help-text">このプラグインは「adiary Version <@t.adiary_version>」以降で使用できます。</span>

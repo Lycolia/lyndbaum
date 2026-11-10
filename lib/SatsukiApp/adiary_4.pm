@@ -424,7 +424,7 @@ sub save_use_plugins {
 	foreach(@$ary) {
 		my $name = $_->{name};
 		my $inst = $form->{$name} ? 1 : 0;
-		if ($_->{adiary_version} > $self->{VERSION})  { $inst=0; }	# 非対応バージョン
+		if ($self->version_cmp($_->{adiary_version}, $self->{VERSION}) > 0) { $inst=0; }	# 非対応バージョン
 		if ($_->{trust_mode} && !$self->{trust_mode}) { $inst=0; }	# trust_mode専用
 		if ($pd->{$name} == $inst) { next; }				# 変化なし
 
