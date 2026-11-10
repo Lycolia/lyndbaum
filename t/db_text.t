@@ -303,6 +303,61 @@ SKIP: {
 	is(&read_index('ser/#index.dat')->[2], '00000201', 'コミットでシリアル値が残る');
 }
 
+#-------------------------------------------------------------------------------
+# 行ファイルを書けなかったとき
+#-------------------------------------------------------------------------------
+# 行ファイルは一時ファイルに書いてから置き換えるので、書けなくても元の中身が残る。
+# そのときはindexも保存せず、失敗を返す
+{
+	$DB->create_table('wf2', [ { name => 'title', type => 'text' }, { name => 'body', type => 'text' } ]);
+	$DB->add_index('wf2', 'title');
+	my $pkey = $DB->insert('wf2', { title => 'old', body => "line1\nline2" });
+	my $row_file = sprintf('wf2/%05d.dat', $pkey);
+	my $row      = join('', map { "$_\n" } @{ &read_index($row_file) });
+	my $index    = join("\n", @{ &read_index('wf2/#index.dat') }[2..100]);	# 2行目のランダム値より後
+
+	# 行ファイル（数字.dat）だけ書けなくする
+	my $orig = \&Satsuki::Base::fwrite_atomic;
+	my $deny = sub {
+		my ($self, $file) = @_;
+		if ($file =~ m|/\d+\.dat$|) { $self->error("File can't write '%s'", $file); return 1; }
+		return &$orig(@_);
+	};
+	my $unchanged = sub {
+		my $name = shift;
+		$ROBJ->clear_error();
+		is(join('', map { "$_\n" } @{ &read_index($row_file) }), $row, "$name：行ファイルは元の中身のまま");
+		is(join("\n", @{ &read_index('wf2/#index.dat') }[2..100]), $index, "$name：indexも変わらない");
+		my $h = $DB->select_match_limit1('wf2', 'pkey', $pkey);
+		is($h->{title}, 'old',          "$name：読み直すと元のtitle");
+		is($h->{body},  "line1\nline2", "$name：読み直すと元のbody");
+	};
+
+	{
+		no warnings 'redefine';
+		local *Satsuki::Base::fwrite_atomic = $deny;
+		is($DB->update_match('wf2', { title => 'new', body => 'new body' }, 'pkey', $pkey), 0, 'updateは失敗を返す');
+	}
+	&$unchanged('update');
+	is(&insert_with_timeout('wf2', { title => 'next' }), $pkey + 1, '失敗した後もロックが残らない');
+	$index = join("\n", @{ &read_index('wf2/#index.dat') }[2..100]);
+
+	{
+		no warnings 'redefine';
+		local *Satsuki::Base::fwrite_atomic = $deny;
+		$DB->begin();
+		$DB->update_match('wf2', { title => 'new', body => 'new body' }, 'pkey', $pkey);
+		$DB->insert('wf2', { title => 'in transaction' });
+		is($DB->commit(), 1, 'commitは失敗を返す');
+	}
+	&$unchanged('commit');
+	ok(!$DB->select_match_limit1('wf2', 'title', 'in transaction'), 'commit：足した行はindexに入らない');
+	is(&insert_with_timeout('wf2', { title => 'next2' }), $pkey + 2, 'commit：失敗した後もロックが残らない');
+
+	is($DB->update_match('wf2', { title => 'new', body => 'new body' }, 'pkey', $pkey), 1, '書けるようになれば更新できる');
+	is($DB->select_match_limit1('wf2', 'pkey', $pkey)->{body}, 'new body', '更新した中身を読める');
+}
+
 # ロックが残っていると、同じプロセスでも書き込みが止まるので、時間を切る
 sub insert_with_timeout {
 	my ($table, $h) = @_;
