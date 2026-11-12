@@ -28,6 +28,8 @@
 !/plugin/
 !/skel/
 !/t/
+!/tools/
+/tools/*/node_modules/
 
 #--------------------------------------
 # public directory
