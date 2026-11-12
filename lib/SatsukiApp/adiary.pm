@@ -9,7 +9,7 @@ use Fcntl;
 #-------------------------------------------------------------------------------
 our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
-our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
+our $SYSTEM_DESCRIPTION = 'The ultimate self-hosted library system for own use';
 # データ管理上数値しか解釈できないので文字列にしてはならない
 our $VERSION    = 4.42;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
