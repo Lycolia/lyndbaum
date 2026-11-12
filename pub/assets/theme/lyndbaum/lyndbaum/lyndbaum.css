@@ -397,10 +397,12 @@ div.ip-host-agent { display: none; color: var(--muted); font-size: .85rem; }
 --------------------------------------------------------------------*/
 .main > article.system div.body { margin: 0; padding: 0; border: 0; }
 .main > article.system input[type="search"] { max-width: 100%; }
-/* 検索の対象（タイトル/全文）の切り替え。ボタン（button）と同じ枠と余白にそろえる */
-#top-search-form .freeword { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
-#top-search-form .freeword input[type="search"] { flex: 0 1 300px; min-width: 0; }
-.search-type span { padding: .2rem .75rem; border-color: var(--border); background: var(--bg); color: var(--text); }
+/* 検索の対象（タイトル/全文）の切り替え。ボタン（button）と同じ枠と余白にそろえる
+   検索語の欄は、サイドバーの検索ボックス（#side-search）と同じく、高さをボタンにそろえて横に広げる */
+#top-search-form .freeword { display: flex; flex-wrap: wrap; gap: .25rem; }
+#top-search-form .freeword input[type="search"] { flex: 0 1 12rem; width: auto; min-width: 0; }	/* 狭いときは、欄とボタンが一緒に次の行へ落ちる幅 */
+.search-type label { display: flex; }
+.search-type span { display: flex; align-items: center; padding: .2rem .75rem; border-color: var(--border); background: var(--bg); color: var(--text); }
 .search-type label:hover span { border-color: var(--link); color: var(--link); }
 .search-type label:hover + label input:not(:checked) + span { border-left-color: var(--link); }
 .search-type input:checked + span,
