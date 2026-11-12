@@ -492,4 +492,53 @@ subtest '検索画面の検索の対象の切り替え' => sub {
 	is($app->get('guest', "$action?q=$w&all=1")->{status}, 200, '全文を選んだら、本文の語で見つかる');
 };
 
+#-------------------------------------------------------------------------------
+# 検索画面の「タグで絞り込み」。階層ごとに横に並べ、子のあるタグの子は並びの下の枠に出す
+#-------------------------------------------------------------------------------
+subtest '検索画面のタグの絞り込みの木' => sub {
+	my %art = (parser => 'markdown', enable => 1, com_ok => 1, ymd => '2026-10-02');
+	my @arts = (
+		[ '木の記事A', 'P::C1', 'Q::R::S' ],
+		[ '木の記事B', 'P::C2' ],
+		[ '木の記事C', 'P::C1', 'Z' ],
+	);
+	foreach (@arts) {
+		my ($title, @tags) = @$_;
+		my $r = $app->post('admin', '', [ %art, action => 'edit', title => $title, body_txt => "本文\n", map { (tag_ary => $_) } @tags ]);
+		ok(AppTest::is_reload($r), "$title を書ける");
+	}
+
+	my $narrow = sub { (body($_[0]) =~ m{(<div class="narrow narrow-tag" id="narrow-tag">.*?)\n\t<div class="(?:narrow |hits)}s)[0] // '' };
+	my $n = $narrow->($app->get('guest', '?q=' . AppTest::_uri_escape('木の記事')));
+
+	# Pは全件に付いているので出さず、子は根にそのままの名前で出す
+	unlike($n, qr{>P\(}, '全件に付いているタグは出さない');
+	like($n, qr{\n\t\t<a href="[^"]*t=P::C1">P::C1\(2\)</a>\n\t\t<a href="[^"]*t=P::C2">P::C2\(1\)</a>\n}, '親が出ないときは、子を根にそのままの名前で出す');
+	like($n, qr{\n\t\t<a href="[^"]*t=Z">Z\(1\)</a>\n}, '子のないタグはリンクだけ');
+
+	# 第1階層は1つの並びに出し、子のあるタグには、子の枠を開くボタンを付ける
+	my ($row) = $n =~ m{\n\t<span class="narrow-tag-row">\n(.*?)\n\t</span>\n}s;
+	like($row, qr{\t\t<span class="narrow-tag-node"><button type="button" class="narrow-tag-open" aria-controls="([\w-]+)" aria-expanded="false" aria-label="Qの下のタグ"></button><a href="[^"]*t=Q">Q\(1\)</a></span>}, '子のあるタグには、ボタンとリンクを並べる');
+	like($row, qr{t=P::C1.*t=Q".*t=Z}s, '第1階層は同じ並びに出す');
+
+	# ボタンのaria-controlsの枠に、子が残りの名前で出る。枠は並びの後に出す
+	my ($q_id) = $row =~ m{aria-controls="([\w-]+)" aria-expanded="false" aria-label="Qの下のタグ"};
+	my ($q_panel) = $n =~ m{\n\t<div class="narrow-tag-panel" id="\Q$q_id\E">\n(.*)\n\t</div>\n\t</div>$}s;
+	ok($q_panel, "Qの枠（$q_id）がある");
+	like($q_panel, qr{^\t<span class="narrow-tag-panel-title">Q</span>\n}, '枠の見出しはQ');
+	my ($r_id) = $q_panel =~ m{aria-controls="([\w-]+)" aria-expanded="false" aria-label="Q::Rの下のタグ"></button><a href="[^"]*t=Q::R" title="Q::R">R\(1\)</a>};
+	ok($r_id && $r_id ne $q_id, "Qの枠の中に、Rのボタン（$r_id）がある");
+	like($q_panel, qr{<div class="narrow-tag-panel" id="\Q$r_id\E">\n\t<span class="narrow-tag-panel-title">Q::R</span>\n\t<span class="narrow-tag-row">\n\t\t<a href="[^"]*t=Q::R::S" title="Q::R::S">S\(1\)</a>\n\t</span>\n\t</div>}, 'Rの枠はQの枠の中にあり、Sが出る');
+	unlike($n, qr{is-open|aria-expanded="true"}, '標準で閉じる');
+
+	# 画面が出したリンクを辿ると、そのタグで絞られる
+	my ($href) = $n =~ m{<a href="([^"]*)" title="Q::R::S">};
+	$href =~ s/&amp;/&/g;
+	$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	my $b = body($app->get('guest', $href));
+	like($b, qr{全<span>1</span>件}, "リンク（$href）を辿ると1件に絞られる");
+	like($b, qr{木の記事A}, '絞った記事が出る');
+	unlike($b, qr{木の記事B}, 'ほかの記事は出ない');
+};
+
 done_testing();

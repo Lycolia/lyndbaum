@@ -548,6 +548,30 @@ adiary.init_top_search = function(id, flag) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// ●検索画面の「タグで絞り込み」。子のあるタグのボタンで、並びの下の子の枠を開け閉めする
+////////////////////////////////////////////////////////////////////////////////
+// 同じ並び（階層）で開くのは1つ。ほかを開いたら、前に開いていたものは閉じる
+adiary.init_narrow_tag = function(id) {
+	const box = secure(id);
+	if (!box) return;
+	const set = function(btn, open) {
+		const panel = document.getElementById(btn.getAttribute('aria-controls'));
+		if (!panel) return;
+		btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+		panel.classList.toggle('is-open', open);
+	};
+	box.querySelectorAll('button.narrow-tag-open').forEach(function(btn) {
+		btn.addEventListener('click', function(){
+			const open = btn.getAttribute('aria-expanded') !== 'true';
+			if (open) btn.closest('.narrow-tag-row').querySelectorAll('button.narrow-tag-open[aria-expanded="true"]').forEach(function(x) {
+				if (x !== btn) set(x, false);
+			});
+			set(btn, open);
+		});
+	});
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // ●検索した語の強調
 ////////////////////////////////////////////////////////////////////////////////
 adiary.word_highlight = function(id) {

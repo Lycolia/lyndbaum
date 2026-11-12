@@ -1012,7 +1012,11 @@ sub load_articles {
 				if ($mon{$_} == $hits) { delete $mon{$_}; }
 			}
 			my %ymd = %year ? %year : %mon;
-			if (%tags)  { $ret{narrow_tags}  = \%tags;  $tags {_order} = [ sort(keys(%tags )) ]; }
+			if (%tags)  {
+				$ret{narrow_tags}     = \%tags;
+				$ret{narrow_tag_tree} = $self->make_narrow_tag_tree(\%tags);
+				$tags {_order} = [ sort(keys(%tags )) ];
+			}
 			if (%ctype) { $ret{narrow_ctype} = \%ctype; $ctype{_order} = [ sort(keys(%ctype)) ]; }
 			if (%ymd)   { $ret{narrow_ymd}   = \%ymd;   $ymd  {_order} = [ sort(keys(%ymd  )) ]; }
 		}
@@ -1108,6 +1112,36 @@ sub load_articles {
 	}
 
 	return wantarray ? ($logs, \%ret) : $logs;
+}
+
+#-------------------------------------------------------------------------------
+# ●絞り込みのタグを木にする
+#-------------------------------------------------------------------------------
+# 節は { name, sname, qt, children }。名前順に並べる。
+# 親が除かれている（全件に付いている）ときは、残っているいちばん近い先祖の下に付け、
+# なければ根に付ける。snameはその先祖からの残りの部分。
+sub make_narrow_tag_tree {
+	my $self = shift;
+	my $tags = shift;
+	my @root;
+	my %node;
+	foreach my $name (sort(keys(%$tags))) {
+		if ($name eq '_order') { next; }
+		my $n = { name => $name, sname => $name, qt => $tags->{$name}, children => [] };
+		$node{$name} = $n;
+
+		my $parent;
+		my @p = split('::', $name);
+		for(my $i=$#p-1; $i>=0; $i--) {
+			my $pname = join('::', @p[0..$i]);
+			if (!$node{$pname}) { next; }
+			$parent = $node{$pname};
+			$n->{sname} = join('::', @p[$i+1..$#p]);
+			last;
+		}
+		push(@{ $parent ? $parent->{children} : \@root }, $n);
+	}
+	return \@root;
 }
 
 #-------------------------------------------------------------------------------
