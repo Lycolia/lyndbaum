@@ -17,6 +17,7 @@
 !/lyndbaum.user.cgi.sample
 !/.git-hook/
 !/README.md
+!/CLAUDE.md
 !/docs/
 
 #--------------------------------------
@@ -27,6 +28,8 @@
 !/plugin/
 !/skel/
 !/t/
+!/tools/
+/tools/*/node_modules/
 
 #--------------------------------------
 # public directory

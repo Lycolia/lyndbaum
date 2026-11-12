@@ -1,6 +1,6 @@
 <@>$HEADER$--------------------------------------------------------------------
 <@7>
-<@local(ret,logs,s,t,t2,coms,q,url,permalink,x,page,page_offfset,ps,between,between_c,node)>
+<@local(ret,logs,narrow_tag,narrow_tag_id,s,t,t2,coms,q,url,permalink,x,page,page_offfset,ps,between,between_c,node)>
 <$s = v.blog>
 <$v.title = s.blog_name>
 
@@ -59,10 +59,11 @@
 	<form method="GET" action="<@v.myself>" id="top-search-form">
 	<@>### フリーワード ###
 	<div class="freeword">
-	<select name="all">
-		<option value="0"<@if(!Query.all, ' selected')>>タイトル</option>
-		<option value="1"<@if( Query.all, ' selected')>>全文</option>
-	</select>から <input type="search" class="w300" name="q" value="<@ret.q>">
+	<span class="search-type" role="radiogroup" aria-label="検索の対象">
+	<label><input type="radio" name="all" value="0"<@if(!Query.all, ' checked')>><span>タイトル</span></label>
+	<label><input type="radio" name="all" value="1"<@if( Query.all, ' checked')>><span>全文</span></label>
+	</span>
+	<input type="search" class="w300" name="q" value="<@ret.q>">
 	<button>絞り込み</button>
 	</div>
 
@@ -104,12 +105,32 @@
 	<$url = "<@v.myself>?<@q>">
 
 	<@>### タグ絞り込み ###
-	<@ifexec(ret.narrow_tags, begin)>
-	<div class="narrow narrow-tag">
+	<@ifexec(ret.narrow_tag_tree, begin)>
+	<@> 階層ごとに、横の並びと、子のあるタグの子の枠（並びの下）を出す。枠はボタンで開く（adiary.init_narrow_tag）
+	<$narrow_tag_id = 0>
+	<$narrow_tag = begin.function>
+	<@local(t, x)>
+	<span class="narrow-tag-row">
+	<@forexec(t, argv#0, begin.forexec)>
+	<@ifexec(t.children#0, begin.children, begin.children)>
+		<$narrow_tag_id = narrow_tag_id + 1><$t.id = "narrow-tag-<@narrow_tag_id>">
+		<span class="narrow-tag-node"><button type="button" class="narrow-tag-open" aria-controls="<@t.id>" aria-expanded="false" aria-label="<@t.name>の下のタグ"></button><a href="<@url>&amp;t=<@encode_uricom(x = t.name)>"<@if(t.name ne t.sname, " title=\"<@t.name>\"")>><@t.sname>(<@t.qt>)</a></span>
+	<$else.children>
+		<a href="<@url>&amp;t=<@encode_uricom(x = t.name)>"<@if(t.name ne t.sname, " title=\"<@t.name>\"")>><@if(t.name eq '', '(タグなし)', t.sname)>(<@t.qt>)</a>
+	<$end.children>
+	<$end.forexec>
+	</span>
+	<@forexec(t, argv#0, begin.forexec)>
+	<$ifnext(!t.children#0)>
+	<div class="narrow-tag-panel" id="<@t.id>">
+	<span class="narrow-tag-panel-title"><@t.name></span>
+	<@exec(narrow_tag, t.children)>
+	</div>
+	<$end.forexec>
+	<$end.function>
+	<div class="narrow narrow-tag" id="narrow-tag">
 	<span class="search-caption">タグで絞り込み</span>
-	<@foreach_hash(t,ret.narrow_tags,begin)>
-		<a href="<@url>&amp;t=<@encode_uricom(x = t.key)>"><@if(t.key eq '', '(タグなし)',t.key)>(<@t.val>)</a>
-	<$end>
+	<@exec(narrow_tag, ret.narrow_tag_tree)>
 	</div>
 	<$end>
 
@@ -144,6 +165,7 @@
 </article>
 <script-defer><!--
 	adiary.init_top_search('#top-search-form');
+	adiary.init_narrow_tag('#narrow-tag');
 --></script-defer>
 
 <$page_offfset = if(6<page, page-6, 0)>

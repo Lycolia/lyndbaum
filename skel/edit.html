@@ -1,5 +1,5 @@
 <@7>
-<@local(s,art,logs,t,edit_pkey)>
+<@local(s,art,logs,t,edit_pkey,tags)>
 <$s = v.blog>
 
 <@> システムモード
@@ -51,6 +51,8 @@
 <$ifjump_clear(edit_pkey && !v.check_editor(art), '_sub/error_message', '権限がありません')>
 
 <@> スクリプトをロード
+<$v.regist_jslib("<@v.script_dir>codemirror.min.js")>
+<$v.regist_js("<@v.script_dir>edit-cm.js")>
 <$v.regist_js("<@v.script_dir>edit.js")>
 <$v.regist_js("<@v.script_dir>edit-helper.js")>
 
@@ -185,7 +187,9 @@
 	</div>
 	</div>
 
-	<textarea name="body_txt" id="editarea" cols="60" rows="24" class="edit-article"><@tag_escape_amp( txt = art._text )></textarea>
+	<@> さつき記法のタグの名前（Markdownの色分けで、知っている名前だけをタグにする。edit-cm.js）
+	<$tags = join(' ', sort_str(grep('^[^&]', keys(call('_sub/satsuki_tags_parser').tags))))>
+	<textarea name="body_txt" id="editarea" cols="60" rows="24" class="edit-article" data-satsuki-tags="<@tag_escape(tags)>"><@tag_escape_amp( txt = art._text )></textarea>
 
 </div>
 

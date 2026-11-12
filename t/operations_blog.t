@@ -427,4 +427,118 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
+#-------------------------------------------------------------------------------
+# 検索ボックス（サイドバーのモジュール）。検索タイプのラジオを出さない設定
+#-------------------------------------------------------------------------------
+subtest 'des_searchboxの検索タイプの選択' => sub {
+	my $r = $app->post('admin', '', { action => 'design/edit', side_a_ary => 'des_searchbox' });
+	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
+
+	my $side = sub { (body($_[0]) =~ m{(<div class="hatena-module" id="side-search".*?</form>)}s)[0] // '' };
+	$r = $app->get('guest', '?q=x');
+	like($side->($r), qr/class="search-radio"/, '既定ではラジオを出す');
+	like($side->($r), qr{</button><br>\n<span class="search-radio">}, '既定のHTMLは今までどおり');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_searchbox', radio_none => 1, all => 0 });
+	like($r->{body}, qr/^ret=0$/m, '出さない設定にできる');
+	like(body($app->get('admin', 'plugin/plugin_setting&name=des_searchbox')), qr/name="radio_none" value="1" checked/, '設定の画面に保存した値が出る');
+
+	$r = $app->get('guest', '?q=x');
+	my $form = $side->($r);
+	unlike($form, qr/search-radio|type="radio"/, 'ラジオを出さない');
+	like($form,   qr{検索</button>\n<input type="hidden" name="all" value="0">}, '標準の検索タイプをhiddenで出す');
+
+	$r = $app->get('guest', '?q=x&all=%22%3E%3Cb%3Eprobe%3C%2Fb%3E');
+	like($side->($r),   qr/name="all" value="&quot;&gt;&lt;b&gt;probe/, 'エスケープして出す');
+	unlike($side->($r), qr/<b>probe/, 'タグのまま出さない');
+
+	# 画面のフォームのactionとhiddenで検索する。タイトルの検索なので、本文の語では見つからない
+	my ($action) = $form =~ /<form method="GET" action="([^"]*)">/;
+	my ($all)    = $form =~ /name="all" value="([^"]*)"/;
+	is($action, '/lyndbaum.cgi', 'フォームの送り先はスクリプト');	# AppTestはSCRIPT_NAMEを足して呼ぶので、後ろのPATH_INFOだけを渡す
+	$action =~ s{^/lyndbaum\.cgi}{};
+	my $url = "$action?q=" . AppTest::_uri_escape('本文2') . "&all=$all";
+	is($app->get('guest', $url)->{status}, 404, 'フォームの値で、タイトルだけを検索する');
+	$url = "$action?q=" . AppTest::_uri_escape('ownerの記事') . "&all=$all";
+	is($app->get('guest', $url)->{status}, 200, 'タイトルの語では見つかる');
+	$url = "$action?q=" . AppTest::_uri_escape('本文2') . "&all=1";
+	is($app->get('guest', $url)->{status}, 200, '（全文の検索なら、本文の語で見つかる）');
+
+	# 標準を全文にすると、hiddenも全文になる
+	$app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_searchbox', radio_none => 1, all => 1 });
+	like($side->($app->get('guest', '?q=x')), qr/name="all" value="1"/, '標準の検索タイプに合わせる');
+};
+
+#-------------------------------------------------------------------------------
+# 検索画面の検索条件の欄。検索の対象（タイトル/全文）を、ボタン風のラジオで選ぶ
+#-------------------------------------------------------------------------------
+subtest '検索画面の検索の対象の切り替え' => sub {
+	my $q    = AppTest::_uri_escape('ownerの記事');
+	my $form = sub { (body($_[0]) =~ m{(<form method="GET" action="[^"]*" id="top-search-form">.*?</form>)}s)[0] // '' };
+
+	my $f = $form->($app->get('guest', "?q=$q"));
+	unlike($f, qr/<select/, 'selectは出さない');
+	like($f, qr{<span class="search-type" role="radiogroup" aria-label="検索の対象">\n\t<label><input type="radio" name="all" value="0" checked><span>タイトル</span></label>\n\t<label><input type="radio" name="all" value="1"><span>全文</span></label>\n\t</span>\n\t<input type="search" class="w300" name="q" value="ownerの記事">\n\t<button>絞り込み</button>},
+		'既定はタイトル。検索語の欄と絞り込みのボタンが続く');
+	like($form->($app->get('guest', "?q=$q&all=1")), qr{value="0"><span>タイトル</span>.*value="1" checked><span>全文</span>}s, 'all=1なら全文');
+
+	# 画面のフォームのactionとラジオの値で検索する。タイトルの検索では、本文の語で見つからない
+	my ($action) = $f =~ /action="([^"]*)"/;
+	my %all      = map { $_ => 1 } $f =~ /type="radio" name="all" value="([^"]*)"/g;
+	is_deeply([sort keys %all], [0, 1], 'ラジオの値は0と1');
+	$action =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	my $w = AppTest::_uri_escape('本文2');
+	is($app->get('guest', "$action?q=$w&all=0")->{status}, 404, 'タイトルを選んだら、本文の語では見つからない');
+	is($app->get('guest', "$action?q=$w&all=1")->{status}, 200, '全文を選んだら、本文の語で見つかる');
+};
+
+#-------------------------------------------------------------------------------
+# 検索画面の「タグで絞り込み」。階層ごとに横に並べ、子のあるタグの子は並びの下の枠に出す
+#-------------------------------------------------------------------------------
+subtest '検索画面のタグの絞り込みの木' => sub {
+	my %art = (parser => 'markdown', enable => 1, com_ok => 1, ymd => '2026-10-02');
+	my @arts = (
+		[ '木の記事A', 'P::C1', 'Q::R::S' ],
+		[ '木の記事B', 'P::C2' ],
+		[ '木の記事C', 'P::C1', 'Z' ],
+	);
+	foreach (@arts) {
+		my ($title, @tags) = @$_;
+		my $r = $app->post('admin', '', [ %art, action => 'edit', title => $title, body_txt => "本文\n", map { (tag_ary => $_) } @tags ]);
+		ok(AppTest::is_reload($r), "$title を書ける");
+	}
+
+	my $narrow = sub { (body($_[0]) =~ m{(<div class="narrow narrow-tag" id="narrow-tag">.*?)\n\t<div class="(?:narrow |hits)}s)[0] // '' };
+	my $n = $narrow->($app->get('guest', '?q=' . AppTest::_uri_escape('木の記事')));
+
+	# Pは全件に付いているので出さず、子は根にそのままの名前で出す
+	unlike($n, qr{>P\(}, '全件に付いているタグは出さない');
+	like($n, qr{\n\t\t<a href="[^"]*t=P::C1">P::C1\(2\)</a>\n\t\t<a href="[^"]*t=P::C2">P::C2\(1\)</a>\n}, '親が出ないときは、子を根にそのままの名前で出す');
+	like($n, qr{\n\t\t<a href="[^"]*t=Z">Z\(1\)</a>\n}, '子のないタグはリンクだけ');
+
+	# 第1階層は1つの並びに出し、子のあるタグには、子の枠を開くボタンを付ける
+	my ($row) = $n =~ m{\n\t<span class="narrow-tag-row">\n(.*?)\n\t</span>\n}s;
+	like($row, qr{\t\t<span class="narrow-tag-node"><button type="button" class="narrow-tag-open" aria-controls="([\w-]+)" aria-expanded="false" aria-label="Qの下のタグ"></button><a href="[^"]*t=Q">Q\(1\)</a></span>}, '子のあるタグには、ボタンとリンクを並べる');
+	like($row, qr{t=P::C1.*t=Q".*t=Z}s, '第1階層は同じ並びに出す');
+
+	# ボタンのaria-controlsの枠に、子が残りの名前で出る。枠は並びの後に出す
+	my ($q_id) = $row =~ m{aria-controls="([\w-]+)" aria-expanded="false" aria-label="Qの下のタグ"};
+	my ($q_panel) = $n =~ m{\n\t<div class="narrow-tag-panel" id="\Q$q_id\E">\n(.*)\n\t</div>\n\t</div>$}s;
+	ok($q_panel, "Qの枠（$q_id）がある");
+	like($q_panel, qr{^\t<span class="narrow-tag-panel-title">Q</span>\n}, '枠の見出しはQ');
+	my ($r_id) = $q_panel =~ m{aria-controls="([\w-]+)" aria-expanded="false" aria-label="Q::Rの下のタグ"></button><a href="[^"]*t=Q::R" title="Q::R">R\(1\)</a>};
+	ok($r_id && $r_id ne $q_id, "Qの枠の中に、Rのボタン（$r_id）がある");
+	like($q_panel, qr{<div class="narrow-tag-panel" id="\Q$r_id\E">\n\t<span class="narrow-tag-panel-title">Q::R</span>\n\t<span class="narrow-tag-row">\n\t\t<a href="[^"]*t=Q::R::S" title="Q::R::S">S\(1\)</a>\n\t</span>\n\t</div>}, 'Rの枠はQの枠の中にあり、Sが出る');
+	unlike($n, qr{is-open|aria-expanded="true"}, '標準で閉じる');
+
+	# 画面が出したリンクを辿ると、そのタグで絞られる
+	my ($href) = $n =~ m{<a href="([^"]*)" title="Q::R::S">};
+	$href =~ s/&amp;/&/g;
+	$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	my $b = body($app->get('guest', $href));
+	like($b, qr{全<span>1</span>件}, "リンク（$href）を辿ると1件に絞られる");
+	like($b, qr{木の記事A}, '絞った記事が出る');
+	unlike($b, qr{木の記事B}, 'ほかの記事は出ない');
+};
+
 done_testing();

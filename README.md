@@ -2,24 +2,39 @@
   <img src="docs/assets/logo-vector.svg" height="64" width="64">
 </div>
 
-# Lyndbaum 4 - Neo-Modern High-performance CMS software
+# Lyndbaum 4 - The ultimate self-hosted library system for own use
 
-このプログラムは[nabe-abk/adiary](https://github.com/nabe-abk/adiary)のフォークです。
-原典となる著作権表記はオリジナルのREADMEである、[README.original.md](README.original.md)に記しています。
+本システムは個人用のブログやWikiとして特化したシステムを目指しています。
 
-フォーク後の改変箇所についてはGitのコミットログに記すものとします。
+レンタルサーバーや自宅サーバでホストでき、軽量で高速、モダンな機能を持ったものとして設計されています。
 
-このプロジェクトは本家の3.52devで追従を打ち切り、独自路線に転換しています。
+特に過去に書いた記事との連携を重視していて、タグやバックリンク、全文検索を駆使することで情報を探しやすくしています。検索したワードと関係がないものは一切出てこない古典的な検索システムを採用しています。
 
-主な変更点については[変更履歴](docs/変更履歴.md)に記載しています。
+## 主な機能
+
+- 日本人向けのMarkdown対応
+  - 改行のために余計なスペースを入れる必要はありません
+  - その他便利になるように構文を拡張しています
+  - [対応記法](docs/markdown-syntax.md)
+- CGI/組み込みのデーモン(FastCGI)
+- OGP、RSS2.0、IndexNowに対応しています
+- 記事中にリンクカードやYoutube、動画埋め込みが使えます
+- NSFWサイト・記事に対応し、年齢制限のあるコンテンツが作れます
+- 単一アカウント機能
+  - 管理者アカウントのみに制限したシンプルなシステムで、編集者や閲覧者などの機能は持ちません
+- 単一サイト機能
+  - マルチサイト機能を持たないため単一サイトのホスティングに特化しています
 
 # 動作環境
 
-- Linux（WSLを含む）またはFreeBSD
+- LinuxやFreeBSDなど、一般的なサーバー環境
 - Perl 5.14.0以降
-  - `crypt()`がbcrypt（`$2b$`）に対応していること（libxcryptを使うLinuxや、さくらのレンタルサーバーのFreeBSDなら対応している）
+  - `crypt()`がbcrypt（`$2b$`）に対応していること
 - Image::Magick
+  - AVIFが扱える場合、画像のサムネイルをAVIFで出すことができます
+- Net::SSLeay Ver1.92以降
 
+<!--WIP
 次のどれかの構成で動かします。
 
 | 置く場所                  | 構成                               | 必要なApacheのモジュール           | 設定の見本                                                                                             |
@@ -31,13 +46,9 @@
 さくらのレンタルサーバーのように常駐するプログラムを禁止しているサーバーでは、`lyndbaum.fcgi`は使えないのでCGIで動かします。
 
 Perl標準モジュールのほかに、使い方によって次のモジュールが必要です。
+-->
 
-| モジュール  | 要るとき                                                                                                       |
-| ----------- | -------------------------------------------------------------------------------------------------------------- |
-| FCGI        | FastCGIで動かすとき（`lyndbaum.fcgi`）。ソケットで待ち受けるときはスレッド（ithreads）に対応したPerlも必要     |
-| Net::SSLeay | 外部のサイトとhttpsで通信するとき（更新通知、`[&URL]`のタイトルの取得、記事の画像の取り込みなど）。Ver1.92以降 |
-
-httpsの通信では接続先の証明書を検証するので、サーバーにCA証明書（Debian系なら`ca-certificates`）が必要です。
+。
 
 # インストール方法
 
@@ -54,11 +65,22 @@ httpsの通信では接続先の証明書を検証するので、サーバーに
 # 著作権表示(Copyright)
 
 - Copyright (C)2013-2025 nabe@abk.
-- Copyright (C)2024-2026 Lycolia.
+- Copyright (C)2024-2026 Lycolia Rizzim.
 
 本プログラム（システム）はフリーソフトウェアです。
 
 AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージョンの下で本プログラム（システム）を再配布することが可能です。
+
+# 謝辞
+
+このプログラムは[nabe-abk/adiary](https://github.com/nabe-abk/adiary)のフォークです。
+原典となる著作権表記はオリジナルのREADMEである、[README.original.md](README.original.md)に記しています。
+
+フォーク後の改変箇所についてはGitのコミットログに記すものとします。
+
+このプロジェクトは本家の3.52devで追従を打ち切り、独自路線に転換しています。
+
+主な変更点については[変更履歴](docs/変更履歴.md)に記載しています。
 
 # 利用著作物
 

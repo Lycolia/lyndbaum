@@ -1125,17 +1125,21 @@ function ajax_upload( form_dom, files, option ) {
 //------------------------------------------------------------------------------
 // ●ドラッグ＆ドロップ
 //------------------------------------------------------------------------------
-$edit.on('dragover', function(evt) {
-	return false;
-});
-$edit.on("drop", function(evt) {
+// CodeMirrorのとき（edit-cm.js）は、その枠で受ける。CodeMirrorはファイルを文字として
+// 入れてしまうので、それより先に受けるよう捕捉の段階で受ける
+const edit_box = document.getElementById('editarea-cm') || $edit[0];
+edit_box.addEventListener('dragover', function(evt) {
+	evt.stopPropagation();
+	evt.preventDefault();
+}, true);
+edit_box.addEventListener('drop', function(evt) {
 	evt.stopPropagation();
 	evt.preventDefault();
 
 	if ($edit.prop('readonly')) return;
-	if (!evt.originalEvent.dataTransfer) return;
+	if (!evt.dataTransfer) return;
 
-	var files = evt.originalEvent.dataTransfer.files;
+	var files = evt.dataTransfer.files;
 	if (!files || !files.length) return;
 	if (!window.FormData) return;
 
@@ -1178,8 +1182,8 @@ const uploadFile = (file, successCb, errorCb) => {
 }
 
 window.onload = () => {
-	/** @type {HTMLTextAreaElement} */
-    const txt = document.getElementById('editarea');
+	/** @type {HTMLElement} */
+    const txt = edit_box;	// CodeMirrorのときはその枠（ドラッグ＆ドロップと同じ）
 	txt.onpaste = (e) => {
 		if (e.clipboardData.files.length) {
 			const pasteFile = e.clipboardData.files[0];

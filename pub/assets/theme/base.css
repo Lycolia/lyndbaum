@@ -528,10 +528,103 @@ span.highlight2	{ background-color: #9f9; }
 span.highlight3	{ background-color: #f99; }
 span.highlight4	{ background-color: #f6f; }
 
+/* 検索の対象（タイトル/全文）の切り替え。ラジオをボタン風に並べ、選んでいる方を塗る */
+.search-type {
+	display:	inline-flex;
+	vertical-align:	middle;
+}
+.search-type label {
+	position:	relative;
+	cursor:		pointer;
+}
+.search-type input {
+	position:	absolute;
+	opacity:	0;
+	margin:		0;
+	width:		1px;
+	height:		1px;
+}
+.search-type span {
+	display:	inline-block;
+	padding:	1px 10px;
+	border:		1px solid #999;
+	background-color: #fff;
+	color:		#333;
+}
+.search-type label + label span {
+	margin-left:	-1px;
+}
+.search-type input:checked + span {
+	background-color: #36c;
+	border-color:	#36c;
+	color:		#fff;
+	font-weight:	bold;
+}
+.search-type input:focus-visible + span {
+	outline:	2px solid #36c;
+	outline-offset:	1px;
+}
+
 /* 絞り込み項目 */
 .search div.narrow {
 	font-size:	9pt;
 	line-height:	150%;
+}
+/* タグは階層ごとに横に並べ、子のあるタグの子は並びの下の枠に出す（adiary.init_narrow_tag） */
+.search div.narrow-tag a {
+	white-space:	nowrap;
+}
+.narrow-tag-node {
+	white-space:	nowrap;
+}
+.narrow-tag-open {
+	display:	inline-flex;
+	align-items:	center;
+	justify-content: center;
+	min-width:	24px;
+	min-height:	24px;
+	margin:		1px 2px 1px 0;
+	padding:	0;
+	vertical-align:	middle;
+	border:		1px solid #999;
+	background-color: #fff;
+	color:		#333;
+	font-size:	10px;
+	line-height:	1;
+	cursor:		pointer;
+}
+.narrow-tag-open::before {
+	content:	'▶';
+}
+.narrow-tag-open[aria-expanded="true"] {
+	background-color: #36c;
+	border-color:	#36c;
+	color:		#fff;
+}
+.narrow-tag-open[aria-expanded="true"]::before {
+	content:	'▼';
+}
+.narrow-tag-open:focus-visible {
+	outline:	2px solid #36c;
+	outline-offset:	1px;
+}
+.narrow-tag-panel {
+	margin:		4px 0 4px 1em;
+	padding:	4px 8px;
+	border:		1px solid #ccc;
+	border-left:	3px solid #36c;
+	background-color: rgba(128,128,128,0.06);
+}
+.narrow-tag-panel-title {
+	display:	block;
+	font-weight:	bold;
+}
+/* JavaScriptが使えるときは、開いた枠だけを出す。使えないときは、ボタンを出さず、枠をすべて出す */
+html:not(.has-drawer) .narrow-tag-open {
+	display:	none;
+}
+.has-drawer .narrow-tag-panel:not(.is-open) {
+	display:	none;
 }
 .search-caption {
 	font-weight:	bold;

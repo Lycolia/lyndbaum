@@ -404,7 +404,7 @@ helper.prototype.insert_text_and_select = function(text) {
 	this._insert_text(text, true);
 }
 helper.prototype._insert_text = function(text, sel_flag) {
-	this.$edit.focus();
+	this.edit.focus();	// 要素のfocus()を呼ぶ（CodeMirrorのときはedit-cm.jsがつなぐ）
 
 	const edit = this.edit;
 	let   pos  = this.edit.selectionStart;
@@ -497,7 +497,7 @@ helper.prototype.fix_block_selection = function() {
 		end   = (y<0) ? edit.value.length : y;
 	}
 	edit.setSelectionRange(start, end);
-	this.$edit.focus();
+	this.edit.focus();	// 要素のfocus()を呼ぶ（CodeMirrorのときはedit-cm.jsがつなぐ）
 }
 
 //------------------------------------------------------------------------------

@@ -535,6 +535,40 @@ textarea.edit-article {
 	box-sizing:		border-box;
 	margin:			0;
 }
+/* 本文の編集欄をCodeMirrorにしたとき（edit-cm.js）。textarea#editareaと同じ見た目にする */
+#editarea-cm {
+	width:			100%;
+	box-sizing:		border-box;
+	margin:			0;
+	overflow:		hidden;		/* 縦の大きさを変えられるように（resize） */
+	font-size:		14px;
+	line-height:		1.6;
+	border:			1px solid #8c8f94;
+	background-color:	#fff;
+}
+#editarea-cm:focus-within {
+	border-color:		var(--admin-accent);
+	box-shadow:		0 0 0 1px var(--admin-accent);
+}
+#editarea-cm.readonly {
+	background-color:	#f0f0f1;
+}
+#editarea-cm .cm-editor {
+	height:			100%;
+}
+#editarea-cm .cm-editor.cm-focused {
+	outline:		none;
+}
+#editarea-cm .cm-scroller {
+	font-family:		inherit;
+	line-height:		inherit;
+}
+#editarea-cm .cm-content {
+	padding:		0.2em 0;
+}
+#editarea-cm .cm-line {
+	padding:		0 0.4em;
+}
 article .treebox,
 article:not(.edit) #editarea {
 	margin-top:		1em;
@@ -681,13 +715,15 @@ article#edit > div.body {
 }
 /* 横に広げると右の列に重なるので、大きさは縦だけ変えられるようにする */
 /* 高さは rows="24" ではなく画面に合わせて決め、中身に合わせては伸ばさない */
-#edit #editarea {
+#edit #editarea,
+#edit #editarea-cm {
 	resize:			vertical;
 	height:			max(16rem, calc(100vh - var(--admin-bar-height) - 30rem));
 }
 /* 狭い画面では、キーボードを出しても上のバーと道具の段の下に収まる高さにする */
 @media screen and (max-width: 782px) {
-	#edit #editarea {
+	#edit #editarea,
+	#edit #editarea-cm {
 		height:		10rem;
 	}
 }
