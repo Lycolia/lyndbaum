@@ -18,12 +18,18 @@
 <div class="hatena-modulebody">
 <form method="GET" action="<@v.myself>">
 <input type="search" class="search-box w80" name="q" value="<@tag_escape(x = Query.q)>" required>
-<button type="submit" class="search-btn">検索</button><br>
 <$ifset(exists(Query.all), all, Query.all, ps.all)>
+<@>	検索タイプのラジオを出さない設定（radio_none）のときは、標準の検索タイプをhiddenで送る
+<$ifexec(ps.radio_none, begin, begin)>
+<button type="submit" class="search-btn">検索</button>
+<input type="hidden" name="all" value="<@esc(if(all eq '', 1, all))>">
+<$else>
+<button type="submit" class="search-btn">検索</button><br>
 <span class="search-radio">
 <label><input class="search-title" type="radio" name="all" value="0" <@if(all eq '0', "checked")>>タイトル</label>
 <label><input class="search-text"  type="radio" name="all" value="1" <@if(all ne '0', "checked")>>全文</label>
 </span>
+<$end>
 </form>
 </div> <!-- hatena-modulebody -->
 </div> <!-- hatena-module -->

@@ -16,5 +16,12 @@
 			<label><input type="radio" name="all" value="1"<@if(ps.all ne '0',' checked')>>全文</label>
 		</td>
 	</tr>
+	<tr>
+		<th>検索タイプの選択</th>
+		<td>
+			<label><input type="checkbox" name="radio_none" value="1"<@if(ps.radio_none,' checked')>>表示しない</label>
+			<span class="help-text">表示しないときは、標準の検索タイプで検索します。</span>
+		</td>
+	</tr>
 	</tbody>
 	</table>

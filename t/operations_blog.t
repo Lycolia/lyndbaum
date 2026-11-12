@@ -427,4 +427,46 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
+#-------------------------------------------------------------------------------
+# 検索ボックス（サイドバーのモジュール）。検索タイプのラジオを出さない設定
+#-------------------------------------------------------------------------------
+subtest 'des_searchboxの検索タイプの選択' => sub {
+	my $r = $app->post('admin', '', { action => 'design/edit', side_a_ary => 'des_searchbox' });
+	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
+
+	my $side = sub { (body($_[0]) =~ m{(<div class="hatena-module" id="side-search".*?</form>)}s)[0] // '' };
+	$r = $app->get('guest', '?q=x');
+	like($side->($r), qr/class="search-radio"/, '既定ではラジオを出す');
+	like($side->($r), qr{</button><br>\n<span class="search-radio">}, '既定のHTMLは今までどおり');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_searchbox', radio_none => 1, all => 0 });
+	like($r->{body}, qr/^ret=0$/m, '出さない設定にできる');
+	like(body($app->get('admin', 'plugin/plugin_setting&name=des_searchbox')), qr/name="radio_none" value="1" checked/, '設定の画面に保存した値が出る');
+
+	$r = $app->get('guest', '?q=x');
+	my $form = $side->($r);
+	unlike($form, qr/search-radio|type="radio"/, 'ラジオを出さない');
+	like($form,   qr{検索</button>\n<input type="hidden" name="all" value="0">}, '標準の検索タイプをhiddenで出す');
+
+	$r = $app->get('guest', '?q=x&all=%22%3E%3Cb%3Eprobe%3C%2Fb%3E');
+	like($side->($r),   qr/name="all" value="&quot;&gt;&lt;b&gt;probe/, 'エスケープして出す');
+	unlike($side->($r), qr/<b>probe/, 'タグのまま出さない');
+
+	# 画面のフォームのactionとhiddenで検索する。タイトルの検索なので、本文の語では見つからない
+	my ($action) = $form =~ /<form method="GET" action="([^"]*)">/;
+	my ($all)    = $form =~ /name="all" value="([^"]*)"/;
+	is($action, '/lyndbaum.cgi', 'フォームの送り先はスクリプト');	# AppTestはSCRIPT_NAMEを足して呼ぶので、後ろのPATH_INFOだけを渡す
+	$action =~ s{^/lyndbaum\.cgi}{};
+	my $url = "$action?q=" . AppTest::_uri_escape('本文2') . "&all=$all";
+	is($app->get('guest', $url)->{status}, 404, 'フォームの値で、タイトルだけを検索する');
+	$url = "$action?q=" . AppTest::_uri_escape('ownerの記事') . "&all=$all";
+	is($app->get('guest', $url)->{status}, 200, 'タイトルの語では見つかる');
+	$url = "$action?q=" . AppTest::_uri_escape('本文2') . "&all=1";
+	is($app->get('guest', $url)->{status}, 200, '（全文の検索なら、本文の語で見つかる）');
+
+	# 標準を全文にすると、hiddenも全文になる
+	$app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_searchbox', radio_none => 1, all => 1 });
+	like($side->($app->get('guest', '?q=x')), qr/name="all" value="1"/, '標準の検索タイプに合わせる');
+};
+
 done_testing();
