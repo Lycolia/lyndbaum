@@ -397,6 +397,15 @@ div.ip-host-agent { display: none; color: var(--muted); font-size: .85rem; }
 --------------------------------------------------------------------*/
 .main > article.system div.body { margin: 0; padding: 0; border: 0; }
 .main > article.system input[type="search"] { max-width: 100%; }
+/* 検索の対象（タイトル/全文）の切り替え。ボタン（button）と同じ枠と余白にそろえる */
+#top-search-form .freeword { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem; }
+#top-search-form .freeword input[type="search"] { flex: 0 1 300px; min-width: 0; }
+.search-type span { padding: .2rem .75rem; border-color: var(--border); background: var(--bg); color: var(--text); }
+.search-type label:hover span { border-color: var(--link); color: var(--link); }
+.search-type label:hover + label input:not(:checked) + span { border-left-color: var(--link); }
+.search-type input:checked + span,
+.search-type label:hover input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.search-type input:focus-visible + span { outline-color: var(--link); }
 
 /*--------------------------------------------------------------------
 ■部品（ボタン、ポップアップ、ダイアログ）

@@ -469,4 +469,27 @@ subtest 'des_searchboxの検索タイプの選択' => sub {
 	like($side->($app->get('guest', '?q=x')), qr/name="all" value="1"/, '標準の検索タイプに合わせる');
 };
 
+#-------------------------------------------------------------------------------
+# 検索画面の検索条件の欄。検索の対象（タイトル/全文）を、ボタン風のラジオで選ぶ
+#-------------------------------------------------------------------------------
+subtest '検索画面の検索の対象の切り替え' => sub {
+	my $q    = AppTest::_uri_escape('ownerの記事');
+	my $form = sub { (body($_[0]) =~ m{(<form method="GET" action="[^"]*" id="top-search-form">.*?</form>)}s)[0] // '' };
+
+	my $f = $form->($app->get('guest', "?q=$q"));
+	unlike($f, qr/<select/, 'selectは出さない');
+	like($f, qr{<span class="search-type" role="radiogroup" aria-label="検索の対象">\n\t<label><input type="radio" name="all" value="0" checked><span>タイトル</span></label>\n\t<label><input type="radio" name="all" value="1"><span>全文</span></label>\n\t</span>\n\t<input type="search" class="w300" name="q" value="ownerの記事">\n\t<button>絞り込み</button>},
+		'既定はタイトル。検索語の欄と絞り込みのボタンが続く');
+	like($form->($app->get('guest', "?q=$q&all=1")), qr{value="0"><span>タイトル</span>.*value="1" checked><span>全文</span>}s, 'all=1なら全文');
+
+	# 画面のフォームのactionとラジオの値で検索する。タイトルの検索では、本文の語で見つからない
+	my ($action) = $f =~ /action="([^"]*)"/;
+	my %all      = map { $_ => 1 } $f =~ /type="radio" name="all" value="([^"]*)"/g;
+	is_deeply([sort keys %all], [0, 1], 'ラジオの値は0と1');
+	$action =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	my $w = AppTest::_uri_escape('本文2');
+	is($app->get('guest', "$action?q=$w&all=0")->{status}, 404, 'タイトルを選んだら、本文の語では見つからない');
+	is($app->get('guest', "$action?q=$w&all=1")->{status}, 200, '全文を選んだら、本文の語で見つかる');
+};
+
 done_testing();

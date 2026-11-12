@@ -528,6 +528,43 @@ span.highlight2	{ background-color: #9f9; }
 span.highlight3	{ background-color: #f99; }
 span.highlight4	{ background-color: #f6f; }
 
+/* 検索の対象（タイトル/全文）の切り替え。ラジオをボタン風に並べ、選んでいる方を塗る */
+.search-type {
+	display:	inline-flex;
+	vertical-align:	middle;
+}
+.search-type label {
+	position:	relative;
+	cursor:		pointer;
+}
+.search-type input {
+	position:	absolute;
+	opacity:	0;
+	margin:		0;
+	width:		1px;
+	height:		1px;
+}
+.search-type span {
+	display:	inline-block;
+	padding:	1px 10px;
+	border:		1px solid #999;
+	background-color: #fff;
+	color:		#333;
+}
+.search-type label + label span {
+	margin-left:	-1px;
+}
+.search-type input:checked + span {
+	background-color: #36c;
+	border-color:	#36c;
+	color:		#fff;
+	font-weight:	bold;
+}
+.search-type input:focus-visible + span {
+	outline:	2px solid #36c;
+	outline-offset:	1px;
+}
+
 /* 絞り込み項目 */
 .search div.narrow {
 	font-size:	9pt;

@@ -59,10 +59,11 @@
 	<form method="GET" action="<@v.myself>" id="top-search-form">
 	<@>### フリーワード ###
 	<div class="freeword">
-	<select name="all">
-		<option value="0"<@if(!Query.all, ' selected')>>タイトル</option>
-		<option value="1"<@if( Query.all, ' selected')>>全文</option>
-	</select>から <input type="search" class="w300" name="q" value="<@ret.q>">
+	<span class="search-type" role="radiogroup" aria-label="検索の対象">
+	<label><input type="radio" name="all" value="0"<@if(!Query.all, ' checked')>><span>タイトル</span></label>
+	<label><input type="radio" name="all" value="1"<@if( Query.all, ' checked')>><span>全文</span></label>
+	</span>
+	<input type="search" class="w300" name="q" value="<@ret.q>">
 	<button>絞り込み</button>
 	</div>
 

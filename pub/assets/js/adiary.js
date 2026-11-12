@@ -539,6 +539,12 @@ adiary.init_top_search = function(id, flag) {
 		});
 		dom.appendChild(del);
 	});
+	// 検索の対象（タイトル/全文）を切り替えたら、今の条件のまま検索し直す
+	if (!flag) form.querySelectorAll('.search-type input[name="all"]').forEach(function(radio) {
+		radio.addEventListener('change', function(){
+			form.submit();
+		});
+	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
