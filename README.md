@@ -2,7 +2,7 @@
   <img src="docs/assets/logo-vector.svg" height="64" width="64">
 </div>
 
-# Lyndbaum 4 - The ultimate self-hosted library system for own use
+# Lyndbaum 4 - The ultimate lightweight self-hosted Knowledge Base Management System for Japanese
 
 本システムは個人用のブログやWikiとして特化したシステムを目指しています。
 
