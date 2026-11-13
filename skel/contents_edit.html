@@ -4,7 +4,7 @@
 <$err=FormError>
 
 <@> システムモード
-<$v.system_mode("コンテンツの表示順設定")>
+<$v.system_mode("固定ページの表示順")>
 
 <$v.regist_csslib("<@v.script_dir>dynatree/skin/ui.dynatree.css")>
 <$v.regist_jslib ("<@v.script_dir>jquery-ui.min.js")>
@@ -19,13 +19,13 @@
 <article class="system setting">
 <h2><@v.title></h2>
 <div class="body">
-	<p class="error" id="load-error" style="display: none"><strong class="error">コンテンツが存在しないか情報をロードできません。</strong></p>
+	<p class="error" id="load-error" style="display: none"><strong class="error">固定ページが存在しないか情報をロードできません。</strong></p>
 
 	<form action="<@v.myself>?<@v.skeleton>" method="POST" id="form">
 	<input type="hidden" name="action" value="<@v.skeleton>">
 	<div id="div-in-form"></div>
 
-	<p>コンテンツkeyを編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。</p>
+	<p>パーマリンクを編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。</p>
 
 	<div><button id="close-button" type="button">ノードを閉じる</button></div>
 

@@ -60,10 +60,10 @@ our @PUBLIC = (
 	[ '/01'                    , 200 ],	# 記事（コメントあり）
 	[ '/02'                    , 200 ],	# 記事
 	[ '/04'                    , 200 ],	# NSFWの記事
-	[ '/page1'                 , 200 ],	# コンテンツ（ページ）
+	[ '/page1'                 , 200 ],	# 固定ページ
 	[ '/0099'                  , 404 ],	# 無い記事
-	[ '/no-such-page'          , 404 ],	# 無いコンテンツ
-	[ '/99'                    , 404 ],	# 数字だけのURL（コンテンツの名前として探す）
+	[ '/no-such-page'          , 404 ],	# 無い固定ページ
+	[ '/99'                    , 404 ],	# 数字だけのURL（固定ページのパーマリンクとして探す）
 	[ '&p=2'                   , 404 ],	# 無いページ
 	[ '&t=' . esc('タグ1')     , 200 ],	# タグ
 	[ '&q=' . esc('記事')      , 200 ],	# 検索（題名）
@@ -142,7 +142,7 @@ sub check_listed {
 sub new_app {
 	my $app = AppTest->new(develop => 1)->setup()->seed();
 
-	# NSFWの記事（pkey=4）とコンテンツ（pkey=5）を足す
+	# NSFWの記事（pkey=4）と固定ページ（pkey=5）を足す
 	my %art = (action => 'edit', parser => 'markdown', enable => 1, body_txt => "本文\n", ymd => '2026-10-05');
 	AppTest::is_reload($app->post('admin', '', { %art, title => 'NSFWの記事', nsfw => 1 })) or die 'nsfw article';
 	AppTest::is_reload($app->post('admin', '', { %art, title => 'ページ', wiki => 1, link_key_txt => 'page1' })) or die 'content';

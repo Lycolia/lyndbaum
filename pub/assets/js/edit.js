@@ -508,7 +508,7 @@ function render_diff(diff, $body) {
 let submitting = false;
 {
 	const form = $('form[name="edit"]')[0];
-	// コンテンツ一覧を読み込んだ後に決まる欄（親を選び、コンテンツkeyを補う）
+	// 固定ページの一覧を読み込んだ後に決まる欄（親を選び、パーマリンクを補う）
 	const late = { upnode: true, link_key_txt: true };
 
 	// 名前のある欄の値を並べたもの。編集ロックで無効にした欄も比べる。

@@ -916,7 +916,7 @@ sub load_articles {
 		$ret{title_tag} = $title_tag;
 
 	#-------------------------------------------------------------
-	# コンテンツ指定
+	# 固定ページの指定
 	#-------------------------------------------------------------
 	} elsif ($mode =~ /^[^&]/) {
 		$ret{mode} = 'wiki';
@@ -1166,7 +1166,7 @@ sub post_process_article {
 	# 更新日の表示制御フラグ
 	$art->{shown_upd_date} = "$year$mon$day" != "$art->{upd_year}$art->{upd_mon}$art->{upd_day}";
 
-	# コンテンツkey関連
+	# パーマリンク関連
 	my $key = $art->{link_key};
 	$art->{elink_key} = $key;
 	$self->link_key_encode( $art->{elink_key} );
@@ -1634,7 +1634,7 @@ sub load_arts_postprocessor {
 }
 
 #-------------------------------------------------------------------------------
-# ●記事情報キャッシュのロード（コンテンツ）
+# ●記事情報キャッシュのロード（固定ページ）
 #-------------------------------------------------------------------------------
 sub load_content_node {
 	my ($self, $pkey) = @_;

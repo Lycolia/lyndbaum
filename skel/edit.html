@@ -219,17 +219,17 @@
 	</span>
 	</section>
 
-	<!--コンテンツページ=====================================================-->
+	<!--固定ページ=========================================================-->
 	<section class="edit-box" id="edit-content">
-	<h3>コンテンツページ</h3>
+	<h3>固定ページ</h3>
 	<ul class="checkbox">
-		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>コンテンツページにする</label>
+		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>固定ページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
 		<ul id="content-block" style="display: none">
 			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>">
 				<option value="0">*トップ(root)</option>
 			</select></li>
-			<li>コンテンツkey<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"><span class="help-text">"FrontPage", "top", "index"のいずれかを指定するとブログトップの固定記事になります。</span></li>
+			<li>パーマリンク<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"><span class="help-text">"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
 		</ul>
 		</li>
 	</ul>

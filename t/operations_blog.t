@@ -260,9 +260,9 @@ subtest 'タグの削除' => sub {
 	like(body($app->get('guest', '&t=' . AppTest::_uri_escape('タグ2'))), qr{ownerの記事}, 'ほかのタグはそのまま');
 };
 
-subtest 'タグとページの表示順の画面（ナビから開く）' => sub {
+subtest 'タグと固定ページの表示順の画面（ナビから開く）' => sub {
 	my $menu = body($app->get('admin', 'menu'));
-	foreach ([ 'タグ', 'tag_edit', 'タグの編集' ], [ 'ページの表示順', 'contents_edit', 'コンテンツの表示順設定' ]) {
+	foreach ([ 'タグ', 'tag_edit', 'タグの編集' ], [ '固定ページの表示順', 'contents_edit', '固定ページの表示順' ]) {
 		my ($label, $skel, $title) = @$_;
 		# 画面が出したナビのリンクを辿る
 		my ($href) = $menu =~ m{\n\t<li><a href="([^"]*)">\Q$label\E</a></li>\n};
@@ -280,7 +280,7 @@ subtest 'タグとページの表示順の画面（ナビから開く）' => sub
 		like($b, qr{<input type="hidden" name="action" value="\Q$skel\E">}, "$label：保存のactionは新しい名前");
 	}
 
-	# 「その他の設定」には、タグとページの表示順が残っていない
+	# 「その他の設定」には、タグと固定ページの表示順が残っていない
 	my $b = body($app->get('admin', 'set2/'));
 	unlike($b, qr{set2/(?:tag_edit|contents_edit)|タグの編集|コンテンツツリーの編集}, '「その他の設定」から外れている');
 	is($app->get('admin', 'set2/tag_edit')->{status}, 302, '旧URLはトップへ送る（スケルトンが無い）');

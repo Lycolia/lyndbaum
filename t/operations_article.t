@@ -406,8 +406,8 @@ subtest 'リンクカードは編集のたびに取得しない' => sub {
 subtest 'ダッシュボード' => sub {
 	my $r = $app->post('admin', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
 	ok(AppTest::is_reload($r), '記事の下書きを保存できる');
-	$r = $app->post('admin', '', { %ART, title => 'ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
-	ok(AppTest::is_reload($r), 'ページの下書きを保存できる');
+	$r = $app->post('admin', '', { %ART, title => '固定ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
+	ok(AppTest::is_reload($r), '固定ページの下書きを保存できる');
 
 	my $b = body($app->get('admin', 'menu'));
 	unlike($b, qr{<p>ユーザー }, 'ユーザーのカードを出さない');
@@ -419,7 +419,7 @@ subtest 'ダッシュボード' => sub {
 		push(@rows, { query => $query =~ s/&amp;/&/gr, label => $label, count => $count });
 	}
 	is_deeply([ map { $_->{label} } @rows ], [qw(
-		記事の下書き 公開中の記事 非公開の記事 ページの下書き 公開中のページ 非公開のページ
+		記事の下書き 公開中の記事 非公開の記事 固定ページの下書き 公開中の固定ページ 非公開の固定ページ
 		ゴミ箱 承認待ちのコメント 承認済みのコメント
 	)], '概要の項目と順番');
 
@@ -431,22 +431,22 @@ subtest 'ダッシュボード' => sub {
 		is($_->{count}, $n, "$_->{label}の件数は、一覧（?$_->{query}）と同じ");
 	}
 	is($count{'記事の下書き'},   1, '記事の下書きを数える');
-	is($count{'ページの下書き'}, 1, 'ページの下書きを数える');
+	is($count{'固定ページの下書き'}, 1, '固定ページの下書きを数える');
 
 	# 記事一覧の「下書き」には、下書きだけが出る
 	my $drafts = body($app->get('admin', 'artlist&enable=draft'));
 	like($drafts, qr{記事の下書き}, '記事一覧の下書きに、記事の下書きが出る');
-	like($drafts, qr{ページの下書き}, '記事一覧の下書きに、ページの下書きが出る');
+	like($drafts, qr{固定ページの下書き}, '記事一覧の下書きに、固定ページの下書きが出る');
 	unlike($drafts, qr{editorの記事}, '記事一覧の下書きに、公開の記事は出ない');
 	my $all = body($app->get('admin', 'artlist'));
 	like($all, qr{記事の下書き}, '記事一覧の「すべて」には、下書きも出る');
-	like($all, qr{ページの下書き}, '記事一覧の「すべて」には、ページの下書きも出る');
+	like($all, qr{固定ページの下書き}, '記事一覧の「すべて」には、固定ページの下書きも出る');
 	like($all, qr{ownerの記事}, '記事一覧の「すべて」には、公開の記事も出る');
 
 	# 公開列は、下書き・公開・非公開を文字で出す
 	my %state = $all =~ m{>([^<]+)</a></td>\s*<td class="c"><label[^>]*>[^<]*</label></td>\s*<td class="c"><label[^>]*>([^<]*)</label></td>}g;
 	is($state{'記事の下書き'}, '下書き', '下書きの公開状態は「下書き」');
-	is($state{'ページの下書き'}, '下書き', 'ページの下書きの公開状態も「下書き」');
+	is($state{'固定ページの下書き'}, '下書き', '固定ページの下書きの公開状態も「下書き」');
 	is($state{'ownerの記事'}, '公開', '公開の記事の公開状態は「公開」');
 	is($state{'下書きの記事'}, '非公開', '非公開の記事の公開状態は「非公開」');	# インポートした下書きは非公開になる
 	unlike(body($app->get('admin', 'artlist&enable=0')), qr{記事の下書き}, '記事一覧の「非公開」には、下書きは出ない');

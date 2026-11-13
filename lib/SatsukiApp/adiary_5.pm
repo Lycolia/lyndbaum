@@ -831,7 +831,7 @@ sub import_events {
 # $art->{ctype}		コンテンツタイプ
 # $art->{priority}	優先度, 重要度（整数値）
 # $art->{upnode}	親記事
-# $art->{link_key}	コンテンツキー
+# $art->{link_key}	パーマリンク
 #
 #
 # $c = $coms->[$n]	$n 番目の書き込み

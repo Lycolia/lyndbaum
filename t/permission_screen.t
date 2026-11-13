@@ -46,7 +46,7 @@ my @SCREENS = (
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
 	[ 'media/'              , 'admin', 'メディア' ],
 	[ 'tag_edit'            , 'admin', 'タグの編集' ],
-	[ 'contents_edit'       , 'admin', 'コンテンツの表示順設定' ],
+	[ 'contents_edit'       , 'admin', '固定ページの表示順' ],
 
 	# ブログの設定
 	[ 'set/'                , 'admin' , 'ブログの基本設定' ],

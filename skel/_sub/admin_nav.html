@@ -37,7 +37,7 @@
 	<li<@if(cur.album,   ' class="current"')>><a href="<@v.myself>?media/">メディア</a></li>
 	<li<@if(cur.comlist, ' class="current"')>><a href="<@v.myself>?comlist">コメント一覧<@if(s.newcom_flag, ' <span class="admin-nav-new">新着</span>')></a></li>
 	<li<@if(cur.tag,     ' class="current"')>><a href="<@v.myself>?tag_edit">タグ</a></li>
-	<li<@if(cur.contents, ' class="current"')>><a href="<@v.myself>?contents_edit">ページの表示順</a></li>
+	<li<@if(cur.contents, ' class="current"')>><a href="<@v.myself>?contents_edit">固定ページの表示順</a></li>
 <$end>
 	<li class="admin-nav-group<@if(setting, ' open')>">
 	<a class="admin-nav-caption" href="<@v.myself>?<@first>">設定</a>

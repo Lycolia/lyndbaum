@@ -58,16 +58,16 @@
 		</select>
 		</td>
 	</tr>
-	<tr><th>コンテンツページの扱い</th>
+	<tr><th>固定ページの扱い</th>
 		<td>
-			<label><input type="checkbox" name="separate_blog" value="1"<@if(s.separate_blog, ' checked')>>通常記事とコンテンツページを分離して扱う</label><span class="help-text">この設定を行うとコンテンツページは「ページ送り」「RSS」等で表示されなくなります。検索では表示されますが、コンテンツは日付を持たないものとして扱われます。</span>
+			<label><input type="checkbox" name="separate_blog" value="1"<@if(s.separate_blog, ' checked')>>通常記事と固定ページを分離して扱う</label><span class="help-text">この設定を行うと固定ページは「ページ送り」「RSS」等で表示されなくなります。検索では表示されますが、固定ページは日付を持たないものとして扱われます。</span>
 
 		</td>
 	</tr>
 	<tr><th>FrontPageのタイトル</th>
 		<td>
 		<input type="text" name="fp_title" class="w400"  value="<@s.fp_title>">
-		<span class="help-text">コンテンツのFrontPage機能を使ってトップページを固定したときに、HTMLタイトルに出力する文字列を設定します。CMSとして使用したときのサイトトップのタイトルになります。</span>
+		<span class="help-text">固定ページのFrontPage機能を使ってトップページを固定したときに、HTMLタイトルに出力する文字列を設定します。CMSとして使用したときのサイトトップのタイトルになります。</span>
 		</td>
 	</tr>
 	<tr><th>コメント許可対象</th>

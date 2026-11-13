@@ -74,7 +74,7 @@
 		種類<select name="type">
 			<option value="">すべて</option>
 			<option value="art" <@if(ret.type eq 'art',  ' selected')>>記事</option>
-			<option value="page"<@if(ret.type eq 'page', ' selected')>>ページ</option>
+			<option value="page"<@if(ret.type eq 'page', ' selected')>>固定ページ</option>
 		</select>
 		</div>
 		<div class="element">
@@ -125,7 +125,7 @@
 		<td class="c"><input type="checkbox" name="pkey_ary" value="<@t.pkey>" class="pkey-ary" id="art-<@t.pkey>"></td>
 		<@> 題名は編集画面へのリンク
 		<td class="list-wide"><a href="<@v.myself2><@if(v.check_editor(t), '0' . t.pkey . '?edit', t.elink_key)>" title="<@t.pkey>"><@t.title></a></td>
-		<td class="c"><label for="art-<@t.pkey>"><@if(t.ctype, 'ページ', '記事')></label></td>
+		<td class="c"><label for="art-<@t.pkey>"><@if(t.ctype, '固定ページ', '記事')></label></td>
 		<td class="c"><label for="art-<@t.pkey>"><@if(!t.tm, '下書き', if(t.enable, '公開', '非公開'))></label></td>
 		<td class="c"><label for="art-<@t.pkey>"><@v.format_ymd(t.yyyymmdd)></label></td>
 		<td class="c"><label for="art-<@t.pkey>"><@print_tmf('%Y-%m-%d', t.update_tm)></label></td>
