@@ -2,7 +2,7 @@
   <img src="docs/assets/logo-vector.svg" height="64" width="64">
 </div>
 
-# Lyndbaum 4 - The ultimate lightweight self-hosted Knowledge Base Management System for Japanese
+# Lyndbaum - The ultimate lightweight self-hosted Knowledge Base Management System for Japanese
 
 本システムは個人用のブログやWikiとして特化したシステムを目指しています。
 
@@ -94,6 +94,7 @@ AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージ�
   - Color Picker (MIT / GPL)
 - [Lythumb-viewer](https://github.com/Lycolia/lythumb-viewer) (AGPLv3)
 - [Prism.js](https://prismjs.com/) (MIT)
+- [CodeMirror](https://codemirror.net/) (MIT)
 
 ## Perl
 
