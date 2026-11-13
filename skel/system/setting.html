@@ -76,7 +76,7 @@
 <$else>
 			<input type="number" name="pass_min" min="8" max="64" class="w50" value="<@pm>">文字（8-64）
 <$end>
-			<span class="help-text">新しく決めるパスワードに効きます。今のパスワードはそのまま使えます。</span>
+			<span class="help-text">今後新たに設定するパスワードに適用されます。</span>
 		</td>
 	</tr>
 	<tr>
@@ -90,28 +90,45 @@
 		</td>
 	</tr>
 	<tr>
-		<th>多重ログイン</th>
+		<th>ログアウト時にすべてのセッションをクリア</th>
 		<td>
-			<label><input type="checkbox" name="all_logout" value="1"<@if(if(s.all_logout ne '', s.all_logout, Auth.all_logout), ' checked')>>ログアウトするとき、ほかの端末のログインもすべて切る</label>
+			<label><input type="checkbox" name="all_logout" value="1"<@if(if(s.all_logout ne '', s.all_logout, Auth.all_logout), ' checked')>>ログアウト時にすべてのセッションからログアウトするようにする</label>
+		</td>
+	</tr>
+	</tbody>
+	</table>
+
+	<h3>ログインの制限</h3>
+	同一IDから同一IDに対し何回までログイン試行を許容するか。制限に達したとき、どの程度の時間ログインを制限するか。
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>同一IPからの試行回数</th>
+		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
+<@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
+			<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="fail_count_ip" min="3" max="100" class="w50" value="<@fi>">回（3-100）
+<$end>
 		</td>
 	</tr>
 	<tr>
-		<th>ログインの失敗</th>
-		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
-<@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
-			同じIPから<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）、
-<$else>
-			同じIPから<input type="number" name="fail_count_ip" min="3" max="100" class="w50" value="<@fi>">回（3-100）、
-<$end>
+		<th>同一IDへの試行回数</th>
+		<td>
 <@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
-			1つのアカウントで<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）失敗したら、
+			<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
-			1つのアカウントで<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）失敗したら、
+			<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）
 <$end>
+		</td>
+	</tr>
+	<tr>
+		<th>ログインを制限する時間</th>
+		<td>
 <@ifexec(!POST && (fm < 1 || fm > 1440), begin, begin)>
 			<input type="number" class="w60" value="<@fm>" disabled>分（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
-			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）ログインできなくする
+			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）
 <$end>
 		</td>
 	</tr>
@@ -130,7 +147,7 @@
 <$else>
 			<input type="number" name="upload_max_mb" min="1" max="2048" class="w60" value="<@mb>">MB（1-2048）
 <$end>
-			<span class="help-text">1回に送る合計の上限です。Webサーバーの設定（nginxのclient_max_body_sizeなど）にも上限があり、低いほうが効きます。</span>
+			<span class="help-text">一度にアップロードできるファイルの上限です。</span>
 		</td>
 	</tr>
 	<tr>
@@ -138,7 +155,6 @@
 		<td<@err.c_album_jpeg_quality><@err.c_album_avif_quality>>
 			JPEG <input type="number" name="album_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.album_jpeg_quality ne '', s.album_jpeg_quality, v.album_jpeg_quality)>">
 			AVIF <input type="number" name="album_avif_quality" min="1" max="100" class="w50" value="<@if(s.album_avif_quality ne '', s.album_avif_quality, v.album_avif_quality)>">（1-100）
-			<span class="help-text">これから作るサムネイルに効きます。今あるサムネイルは変わりません。</span>
 		</td>
 	</tr>
 	</tbody>
