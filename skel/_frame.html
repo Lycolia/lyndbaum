@@ -75,10 +75,7 @@
 <@> jQuery（asys.js）と admin.js は、システムモード（デザイン編集など）とログイン中（記事のページのコメントの管理など）だけ読む。
 <@> ログインしていない人の公開画面は、adiary.js だけで動く
 <$use_asys = v.system_mode || Auth.ok>
-<@ifexec(use_asys && DevelopJS, begin)>
-<@_call("<@v.script_dir>asys-js-load.html", v.script_dir . 'src/')>
-<$end>
-<@ifexec(use_asys && !DevelopJS, begin)>
+<@ifexec(use_asys, begin)>
 <script defer src="<@Basepath><@v.script_dir>asys.min.js?<@get_lastmodified(v.script_dir . 'asys.min.js')>"></script>
 <$end>
 <script defer src="<@Basepath><@v.script_dir>adiary.js?<@get_lastmodified(v.script_dir . 'adiary.js')>"></script>

@@ -34,11 +34,7 @@
 <link rel="icon" href="<@Basepath><@if(s.iconfile, s.iconfile, #'<@v.pubdist_dir>default-icon.png')>">
 <@>
 <!--JavaScript===========================================-->
-<@ifexec(DevelopJS, begin, begin)>
-<@_call("<@v.script_dir>asys-js-load.html", v.script_dir . 'src/')>
-<$else>
 <script defer src="<@Basepath><@v.script_dir>asys.min.js?<@get_lastmodified(v.script_dir . 'asys.min.js')>"></script>
-<$end>
 <script defer src="<@Basepath><@v.script_dir>adiary.js?<@get_lastmodified(v.script_dir . 'adiary.js')>"></script>
 <script defer src="<@Basepath><@v.script_dir>admin.js?<@get_lastmodified(v.script_dir . 'admin.js')>"></script>
 <@forexec(t, v.load_jscss('jslib'), begin)>

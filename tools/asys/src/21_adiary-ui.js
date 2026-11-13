@@ -311,10 +311,11 @@ $.fn.adiaryDraggable = function(opt) {
 		return;
 	});
 
+	// mouseupではpreventDefaultしない。ダイアログの中の数値入力の矢印を押して離したとき、
+	// 値が増え（減り）続けてしまうため（Chromeでは、離したときの既定の動作で繰り返しを止める）
 	this.on('mouseup', function(evt){
 		$('iframe').css('pointer-events', 'auto');
 		document.removeEventListener('mousemove', move);
-		evt.preventDefault();
 	});
 
 	function move(evt) {

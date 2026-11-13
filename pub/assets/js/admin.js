@@ -10,56 +10,6 @@
 // 公開画面の処理（adiary.js）。asys.js を読んだページでは、adiary は asys.js（$$）になる
 const adiary_public = window.adiary_public;
 
-//##############################################################################
-// ■ダイアログのドラッグ（asys.js の $.fn.adiaryDraggable を置き換える）
-//##############################################################################
-// asys.js の版は、ダイアログの中のすべての mouseup で preventDefault する。
-// そのため、ダイアログの中の数値入力の矢印を押して離しても、値が増え（減り）続ける
-// （Chromeでは、離したときの既定の動作で繰り返しを止めるため）。
-// asys.min.js は元のソースがリポジトリに無いので、ここで mouseup の preventDefault だけを除いた版にする。
-// ダイアログは asys.js の初期化（DOMContentLoaded）より後に開くので、ここで置き換えれば足りる
-$.fn.adiaryDraggable = function(opt) {
-	let sx;
-	let sy;
-	let $obj;
-	this.addClass('aui-draggable');
-
-	this.on('mousedown', function(evt){
-		$('iframe').css('pointer-events', 'none');
-		const $tar = $(evt.target);
-		$obj = $tar.hasClass('aui-draggable') ? $tar : $tar.parentsOne('.aui-draggable');
-
-		if (opt) {
-			const $o = $tar;
-			if ($tar != $obj) $o.add($tar.parentsUntil('.aui-draggable'));
-			if (opt.cancel &&  $o.filter(opt.cancel).length) return;
-			if (opt.handle && !$o.filter(opt.handle).length) return;
-		}
-		const p = $obj.offset();
-		sx = p.left - evt.pageX;
-		sy = p.top  - evt.pageY;
-		document.addEventListener('mousemove', move);
-		evt.preventDefault();
-		return;
-	});
-
-	this.on('mouseup', function(evt){
-		$('iframe').css('pointer-events', 'auto');
-		document.removeEventListener('mousemove', move);
-	});
-
-	function move(evt) {
-		const x = sx + evt.pageX;
-		const y = sy + evt.pageY;
-		$obj.css({
-			position:	'absolute',
-			left:		x + 'px',
-			top:		y + 'px'
-		});
-		evt.preventDefault();
-	}
-};
-
 $(function(){
 //##############################################################################
 // ■initalize
