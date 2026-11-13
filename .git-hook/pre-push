@@ -55,6 +55,15 @@ if [ -n "$errors" ]; then
   print_exit "構文エラーがあります。" 4 "$errors"
 fi
 
+# 自作JSのソース（tools/js/src/）と、minifyしたもの（pub/assets/js/*.min.js）が食い違っていないか
+if [ -d tools/js/node_modules ]; then
+  build_out=$( (cd tools/js && npm run --silent build) 2>&1 ) || print_exit "tools/jsのビルドに失敗しました。" 5 "$build_out"
+  change_files=$(git status --short -- pub/assets/js)
+  if [ -n "$change_files" ]; then
+    print_exit "tools/js/src/からビルドし直したものがコミットされていません。" 5 "$change_files"
+  fi
+fi
+
 # テストはそれぞれ別の一時ディレクトリで動くので、並べて動かす
 prove -lr -j"$jobs" t
 if [ $? != 0 ]; then

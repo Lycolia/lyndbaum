@@ -1,0 +1,11 @@
+{
+  "name": "lyndbaum-js",
+  "private": true,
+  "description": "pub/assets/js/の自作JS（*.min.js）を作る",
+  "scripts": {
+    "build": "node build.js"
+  },
+  "devDependencies": {
+    "terser": "5.51.2"
+  }
+}

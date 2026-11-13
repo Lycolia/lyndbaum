@@ -206,8 +206,8 @@ sub check_jquery {
 	my ($r, $who, $name) = @_;
 	my $body = $r->{body} // '';
 	my $asys = $body =~ m{/asys\.min\.js} ? 1 : 0;
-	my $adm  = $body =~ m{/admin\.js} ? 1 : 0;
-	ok($body =~ m{/adiary\.js}, "$name を $who で開くと adiary.js を読む");
+	my $adm  = $body =~ m{/admin\.min\.js} ? 1 : 0;
+	ok($body =~ m{/adiary\.min\.js}, "$name を $who で開くと adiary.js を読む");
 	if ($who eq 'guest') {
 		ok(!$asys && !$adm, "$name を $who で開くと asys.js と admin.js を読まない");
 	} else {
