@@ -630,6 +630,37 @@ subtest '注釈のある記事を作り直すアップデート（4.39）' => su
 	$app->restore($snap);
 };
 
+subtest '同時編集の確認の残りを消すアップデート（4.43）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $lock = "$dir/data/blog/lock";
+	my $update = sub {	# 4.42のデータにして、アップデート処理を行う
+		my $add = shift // '';
+		my $conf = read_file($sys);
+		$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf . $add;
+		close($fh);
+		return $app->post('admin', 'system/update', { action => 'system/update' });
+	};
+
+	my $snap = $app->snapshot();
+	mkdir($lock) || die "$lock: $!";
+	open(my $fh, '>', "$lock/1") || die "$lock/1: $!";
+	print $fh "admin\t2026/11/13 10:00:00\t1700000000\n";
+	close($fh);
+	ok(AppTest::is_reload($update->("edit_lock_interval=30\n")), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+	unlike(read_file($sys), qr/^edit_lock_interval=/m, 'システム設定の間隔を消す');
+	ok(!-e $lock, 'ブログのlock/を消す');
+	$app->restore($snap);
+
+	$snap = $app->snapshot();
+	ok(!-e $lock, '作った状態の確認：lock/が無い');
+	ok(AppTest::is_reload($update->()), 'lock/も間隔も無いときも、アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+	$app->restore($snap);
+};
+
 subtest 'RSSと書き出しの投稿者は管理者の表示名' => sub {
 	my $snap = $app->snapshot();
 	ok(json_ok($app->post('admin', '', { action => '_ajax_self_change_name', name => 'A&B 管理者' })), '管理者の名前を変える');
