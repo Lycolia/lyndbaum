@@ -12,7 +12,7 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.post_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
 <$end>
 
 <@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
@@ -22,6 +22,7 @@
 <$fc = if(s.fail_count   ne '', s.fail_count,   Auth.fail_count)>
 <$fm = if(s.fail_minute  ne '', s.fail_minute,  Auth.fail_minute)>
 <$mb = if(s.upload_max_mb ne '', s.upload_max_mb, v.uplaod_files_max / 1048576)>
+<$pb = if(s.post_max_mb   ne '', s.post_max_mb,   v.form_post_max    / 1048576)>
 
 <!--=========================================================================-->
 <article class="system setting">
@@ -132,6 +133,17 @@
 
 	<table class="blog-setting">
 	<tbody>
+	<tr>
+		<th>投稿の上限</th>
+		<td<@err.c_post_max_mb>>
+<@ifexec(!POST && (pb != int(pb) || pb < 1 || pb > 64), begin, begin)>
+			<input type="number" class="w60" value="<@pb>" disabled>MB（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="post_max_mb" min="1" max="64" class="w60" value="<@pb>">MB（1-64）
+<$end>
+			<span class="help-text">記事の保存など、一度に送るフォームの上限です。日本語はURLエンコードされて1文字9バイトになります（8MBで約93万字）。</span>
+		</td>
+	</tr>
 	<tr>
 		<th>アップロードの上限</th>
 		<td<@err.c_upload_max_mb>>

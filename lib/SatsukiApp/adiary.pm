@@ -103,6 +103,7 @@ rss_skeleton	=> '_format/rss20',		# RSS 2.0（コメント含む）
 words_separator	=> '\s　',			# 検索時のスペース類文字（正規表現）
 # アップロードと画像アルバム。ユーザー設定で変えられる
 uplaod_files_max   => 64 * 1048576,		# 1回あたりの合計の上限
+form_post_max      => 8 * 1048576,		# 1回の投稿（フォームのPOST、URLエンコード後）の上限
 album_jpeg_quality => 80,			# JPEGサムネイルの品質
 album_avif_quality => 65,			# AVIFサムネイルの品質
 album_image_ext    => { map { $_ => 1 } qw(jpg jpeg gif png apng webp avif) },	# 許可する画像の拡張子
@@ -1540,6 +1541,7 @@ sub apply_sys_settings {
 		if ($sys->{$_} ne '') { $self->{$_} = $sys->{$_}; }
 	}
 	if ($sys->{upload_max_mb} ne '') { $self->{uplaod_files_max} = $sys->{upload_max_mb} * 1048576; }
+	if ($sys->{post_max_mb}   ne '') { $self->{form_post_max}    = $sys->{post_max_mb}   * 1048576; }
 }
 
 #-------------------------------------------------------------------------------
