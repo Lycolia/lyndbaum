@@ -13,7 +13,7 @@
 // 字下げやリストの記号を足さない。URLを貼っても、リンクの記法にしない。
 // codemirror.min.jsが読めないときは、textareaのまま。
 'use strict';
-$(function(){
+adiary_public.ready(function(){
 	const CM = window.CM6;
 	const ta = document.getElementById('editarea');
 	if (!CM || !ta) return;
@@ -22,19 +22,22 @@ $(function(){
 	const ta_value    = Object.getOwnPropertyDescriptor(proto, 'value');
 	const ta_readonly = Object.getOwnPropertyDescriptor(proto, 'readOnly');
 
-	const $box = $('<div>').attr('id', 'editarea-cm').addClass('edit-article');
-	$(ta).after($box).hide();
+	const box = document.createElement('div');
+	box.id        = 'editarea-cm';
+	box.className = 'edit-article';
+	ta.after(box);
+	ta.style.display = 'none';
 
 	//----------------------------------------------------------------------
 	// ●記法の色分け（edit-helper.jsのHelpersと同じ判定）
 	//----------------------------------------------------------------------
 	// Markdownは、Lyndbaumの記法に合わせて読む（tools/codemirror/lyndbaum-markdown.js）。
 	// さつき記法のタグは、サーバーのタグ定義にある名前だけをタグとして色分けする（data-satsuki-tags）
-	const $parsel = $('#select-parser');
+	const parsel  = adiary.secure('#select-parser');
 	const lang    = new CM.Compartment();
 	const tag_names = (ta.getAttribute('data-satsuki-tags') || '').split(/\s+/).filter(Boolean);
 	function lang_ext() {
-		const parser = $parsel.val() || '';
+		const parser = parsel && parsel.value || '';
 		if (parser.match(/^markdown/i))      return CM.markdown( CM.lyndbaumMarkdown(tag_names) );
 		if (parser.match(/^(?:simple|html)/i)) return CM.html({ autoCloseTags: false });
 		return [];
@@ -66,7 +69,7 @@ $(function(){
 	//----------------------------------------------------------------------
 	const readonly = new CM.Compartment();
 	const view = new CM.EditorView({
-		parent: $box[0],
+		parent: box,
 		state:  CM.EditorState.create({
 			doc: ta_value.get.call(ta),
 			extensions: [
@@ -86,9 +89,9 @@ $(function(){
 			]
 		})
 	});
-	$box.toggleClass('readonly', ta_readonly.get.call(ta));
+	box.classList.toggle('readonly', ta_readonly.get.call(ta));
 
-	$parsel.on('change', function(){
+	if (parsel) parsel.addEventListener('change', function(){
 		view.dispatch({ effects: lang.reconfigure( lang_ext() ) });
 	});
 
@@ -136,7 +139,7 @@ $(function(){
 			set: function(flag) {
 				flag = !!flag;
 				ta_readonly.set.call(ta, flag);
-				$box.toggleClass('readonly', flag);
+				box.classList.toggle('readonly', flag);
 				view.dispatch({ effects: readonly.reconfigure( CM.EditorState.readOnly.of(flag) ) });
 			}
 		}

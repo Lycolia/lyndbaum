@@ -40,8 +40,9 @@ $(function(){
 ////////////////////////////////////////////////////////////////////////////////
 // ●公開画面の処理（adiary.js）を adiary.〜 で呼べるようにする
 ////////////////////////////////////////////////////////////////////////////////
-// テンプレートの <script-defer> と、デザインのテーマ選択（プレビューの css_init）から呼ぶ
-for(const name of ['css_init', 'get_value_from_css', 'init_top_search', 'init_narrow_tag', 'word_highlight']) {
+// テンプレートの <script-defer> と、デザインのテーマ選択（プレビューの css_init）と、
+// jQueryを使わずに書いた画面のJS（secure）から呼ぶ
+for(const name of ['css_init', 'get_value_from_css', 'init_top_search', 'init_narrow_tag', 'word_highlight', 'secure']) {
 	$$[name] = function() {
 		return adiary_public[name].apply(adiary_public, arguments);
 	};

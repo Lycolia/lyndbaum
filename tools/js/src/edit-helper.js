@@ -24,7 +24,7 @@ insert_image( data )
 	]
   }
 */
-$(function(){
+adiary_public.ready(function(){
 //##############################################################################
 // ■記法ヘルパー機能
 //##############################################################################
@@ -107,17 +107,20 @@ Helpers.push({
 });
 
 //##############################################################################
+function text_of(id) {
+	const dom = adiary.secure(id);
+	return dom ? dom.textContent : '';
+}
 function helper(edit) {
-	this.$edit   = $(edit);
-	this.edit    = this.$edit[0];
-	this.$div    = $secure('#edit-helper');
-	this.$other  = $secure('#other-helper');
-	this.$parsel = $('#select-parser');
+	this.edit   = adiary.secure(edit);
+	this.div    = adiary.secure('#edit-helper');
+	this.other  = adiary.secure('#other-helper');
+	this.parsel = adiary.secure('#select-parser');
 
 	// 画像関連
-	this.image_dir  = $('#image-dir').text();
-	this.image_attr = $('#image-attr').text();
-	this.exif_tag   = $('#exif-tag').text();
+	this.image_dir  = text_of('#image-dir');
+	this.image_attr = text_of('#image-attr');
+	this.exif_tag   = text_of('#exif-tag');
 
 	this.helper  = {};
 	this.escape  = false;
@@ -129,21 +132,24 @@ function helper(edit) {
 //------------------------------------------------------------------------------
 helper.prototype.init = function() {
 	const self = this;
-	self.$div.find("select.helper").change(function(evt){
-		var $obj = $(evt.target);
-		if ($obj.val() == '') return;
-		self.call(evt);
-		$obj.val('');
+	self.div.querySelectorAll('select.helper').forEach(function(dom){
+		dom.addEventListener('change', function(evt){
+			if (dom.value == '') return;
+			self.call(evt);
+			dom.value = '';
+		});
 	});
-	self.$div.find("button.helper").click(function(evt){
-		self.call(evt);
+	self.div.querySelectorAll('button.helper').forEach(function(dom){
+		dom.addEventListener('click', function(evt){
+			self.call(evt);
+		});
 	});
-	self.$other.change(function(evt){
-		self.call(evt, self.$other.children(':selected'))
-		$(evt.target).val('');
+	self.other.addEventListener('change', function(evt){
+		self.call(evt, self.other.selectedOptions[0]);
+		self.other.value = '';
 	});
 
-	self.$parsel.change(function(){
+	self.parsel.addEventListener('change', function(){
 		self.load();
 	});
 	self.load();
@@ -152,7 +158,7 @@ helper.prototype.init = function() {
 // ●helper情報のロード
 //------------------------------------------------------------------------------
 helper.prototype.load = function() {
-	const parser = this.$parsel.val();
+	const parser = this.parsel.value;
 	this.helper  = {};
 	for(var key in Helpers) {
 		var reg = Helpers[key].regexp;
@@ -161,23 +167,24 @@ helper.prototype.load = function() {
 		this.helper = Helpers[key];
 		break;
 	}
-	const $obj = this.$div.find(".helper");
-	for(var i=0; i<$obj.length; i++) {
-		const $x = $( $obj[i] );
-		const type = $x.data('type');
-		$x.prop('disabled', this.helper[type] ? false : true)
+	const self = this;
+	this.div.querySelectorAll('.helper').forEach(function(dom){
+		const type = dom.dataset.type;
+		dom.disabled = self.helper[type] ? false : true;
+	});
+
+	const link = adiary.secure('#parser-help-link');
+	const url  = this.helper.url;
+	if (link) {
+		if (url) {
+			link.setAttribute('href', url);
+			link.style.display = '';
+		} else	link.style.display = 'none';
 	}
 
-	const $link = $('#parser-help-link');
-	const url   = this.helper.url;
-	if (url) {
-		$link.attr('href', url);
-		$link.show();
-	} else  $link.hide();
-
 	// その他
-	const opt = this.$other.children(':enabled');
-	this.$other.prop('disabled', opt.length<2 ? true : false);
+	const opt = Array.from(this.other.options).filter(function(o){ return !o.disabled });
+	this.other.disabled = opt.length<2 ? true : false;
 
 	// save vars
 	this.escape = this.helper['escape'];
@@ -186,13 +193,13 @@ helper.prototype.load = function() {
 //------------------------------------------------------------------------------
 // ●機能呼び出し
 //------------------------------------------------------------------------------
-helper.prototype.call = function(evt, $_obj) {
-	const $obj = $_obj || $(evt.target);
-	const type = $obj.data('type');
+helper.prototype.call = function(evt, _obj) {
+	const obj = _obj || evt.target;
+	const type = obj.dataset.type;
 	const help = this.helper[type];
 	if (!type || !help) return;
 
-	this[help['func']].call(this, help, $obj);
+	this[help['func']].call(this, help, obj);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -201,23 +208,23 @@ helper.prototype.call = function(evt, $_obj) {
 //------------------------------------------------------------------------------
 // ●テキスト挿入
 //------------------------------------------------------------------------------
-helper.prototype.insert = function(help, $obj) {
+helper.prototype.insert = function(help, obj) {
 	this.insert_text_and_select( help['tag'] );
 }
 
 //------------------------------------------------------------------------------
 // ●インラインタグ
 //------------------------------------------------------------------------------
-helper.prototype.inline = function(help, $obj) {
-	if ($obj.data('msg1')) return this.ex_inline(help, $obj);
+helper.prototype.inline = function(help, obj) {
+	if (obj.dataset.msg1) return this.ex_inline(help, obj);
 
 	// 色・サイズのセレクトは呼び出し後すぐ空に戻るので、ダイアログを開く前に値を取っておく
-	const arg = $obj.val();
+	const arg = obj.value;
 	if (this.selected()) return this._inline(help, arg);
 
 	const self = this;
 	adiary.form_dialog({
-		title: $obj.data('msg'),
+		title: obj.dataset.msg,
 		callback: function (h) {
 			if (h.str == '' || h.str.match(/^\s*$/)) return;
 			self.insert_text_and_select(h.str);
@@ -232,7 +239,7 @@ helper.prototype._inline = function(help, arg) {
 //------------------------------------------------------------------------------
 // ●インラインタグ（拡張）
 //------------------------------------------------------------------------------
-helper.prototype.ex_inline = function(help, $obj) {
+helper.prototype.ex_inline = function(help, obj) {
 
 	let sel = this.get_selection();
 	if (sel && 0 <= sel.indexOf("\n"))	// 複数行は処理しない
@@ -241,15 +248,15 @@ helper.prototype.ex_inline = function(help, $obj) {
 	let elements = [];
 	let i=0;
 	let info = [];
-	while($obj.data('msg' + i)) {
-		let val = $obj.data('val' + i) || '';
-		let reg = $obj.data('match' + i);
+	while(obj.dataset['msg' + i]) {
+		let val = obj.dataset['val' + i] || '';
+		let reg = obj.dataset['match' + i];
 		if (reg != '') reg = RegExp(reg);
 		if (sel !='' && (reg =='' || reg.test(sel))) {
 			val=sel;
 			sel='';
 		}
-		elements.push( $obj.data('msg' + i) );
+		elements.push( obj.dataset['msg' + i] );
 		elements.push( {type:'text', name:'str' + i, val:val } );
 
 		info.push({
@@ -261,7 +268,7 @@ helper.prototype.ex_inline = function(help, $obj) {
 
 	const self = this;
 	adiary.form_dialog({
-		title: $obj.data('msg'),
+		title: obj.dataset.msg,
 		elements: elements,
 		callback: function (h) {
 			let ary = [];
@@ -275,13 +282,13 @@ helper.prototype.ex_inline = function(help, $obj) {
 
 			if (ary[0] == '') return;
 			self.replace_selection(ary[0]);
-			self._ex_inline(help, $obj, ary[1]);
+			self._ex_inline(help, obj, ary[1]);
 			return;
 		}
 	});
 }
 
-helper.prototype._ex_inline = function(help, $obj, arg) {
+helper.prototype._ex_inline = function(help, obj, arg) {
 	if (arg && arg != '' && help['arg_format']) {
 		let x = help['arg_format'];
 		arg   = x.replace(/\$1/g, arg);
@@ -293,14 +300,14 @@ helper.prototype._ex_inline = function(help, $obj, arg) {
 //------------------------------------------------------------------------------
 // ●ブロックタグ
 //------------------------------------------------------------------------------
-helper.prototype.block = function(help, $obj) {
+helper.prototype.block = function(help, obj) {
 	if (this.selected()) {
-		return this._block(help, $obj);
+		return this._block(help, obj);
 	}
 
 	const self = this;
 	adiary.form_dialog({
-		title: $obj.data('msg'),
+		title: obj.dataset.msg,
 		elements: {
 			type: help['form_type'] || 'textarea',
 			name:'str'
@@ -310,23 +317,23 @@ helper.prototype.block = function(help, $obj) {
 			if (text == '' || text.match(/^\s*$/)) return;
 			text = text.replace(/^\n*/, "\n").replace(/\n*$/, "\n");
 			self.insert_text_and_select(text);
-			self._block(help, $obj)
+			self._block(help, obj)
 		}
 	});
 }
-helper.prototype._block = function(help, $obj) {
+helper.prototype._block = function(help, obj) {
 	this.fix_block_selection();	// 選択範囲調整
-	if (!help['sp']) return this._block2(help, $obj);
+	if (!help['sp']) return this._block2(help, obj);
 
 	// block quoteの引用元URL等
 
 	const self   = this;
-	const sp_val = $obj.data('sp-val');
-	const sp_reg = $obj.data('sp-match');
+	const sp_val = obj.dataset.spVal;
+	const sp_reg = obj.dataset.spMatch;
 	adiary.form_dialog({
-		title: $obj.data('msg'),
+		title: obj.dataset.msg,
 		elements: [
-			{type:'p', html: $obj.data('sp-msg') },
+			{type:'p', html: obj.dataset.spMsg },
 			{type:'text', name: 'arg', val: sp_val }
 		],
 		callback: function(h) {
@@ -339,22 +346,22 @@ helper.prototype._block = function(help, $obj) {
 				let x = help['arg_format'];
 				h.arg = x.replace(/\$1/g, h.arg);
 			}
-			self._block2(help, $obj, h.arg);
+			self._block2(help, obj, h.arg);
 		},
 		cancel: function() {
-			self._block2(help, $obj, '');
+			self._block2(help, obj, '');
 		}
 	});
 }
-helper.prototype._block2 = function(help, $obj, arg) {
+helper.prototype._block2 = function(help, obj, arg) {
 	this.replace(help, arg);
 }
 
 //------------------------------------------------------------------------------
 // ■画像アルバムを開く
 //------------------------------------------------------------------------------
-helper.prototype.album = function(help, $obj) {
-	var url = $obj.data('url');
+helper.prototype.album = function(help, obj) {
+	var url = obj.dataset.url;
 	var win = window.open(url, 'album', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
 	win.focus();
 };
@@ -635,11 +642,11 @@ helper.prototype.insert_image = function(data) {
 //------------------------------------------------------------------------------
 // ●paste処理
 //------------------------------------------------------------------------------
-	const txt = $('#paste-txt');
-	if (txt.length && $('#editarea').val() == "") {
+	const txt = adiary.secure('#paste-txt');
+	if (txt && help.edit && help.edit.value == "") {
 		let data;
 		try {
-			data = JSON.parse(txt.text());
+			data = JSON.parse(txt.textContent);
 		} catch(e) {
 			console.error(e);
 		}

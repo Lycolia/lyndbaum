@@ -27,6 +27,17 @@ function init(func) {
 	inits.push(func);
 }
 
+// 画面ごとのJS（edit-helper.jsなど）を動かす。jQueryを使わずに書いたものは、$(func)の代わりに
+// adiary_public.ready(func) を使う。asys.jsを読んだページでは、今までの$(func)と同じ時と順番
+// （asysの初期化の後）にする。jQuery 3のreadyは非同期なので、DOMContentLoadedではasysの初期化より先に動いてしまう。
+// adiary.ready と書かないのは、asysの初期化が、後ろのdeferのファイルの読み込みを待たずに動くことがあり、
+// そのときは window.adiary がもう asys.js（$$）に置き換わっているため。
+// jQueryを外し終えたら、initと同じにする
+adiary.ready = function(func) {
+	if (with_asys) return window.jQuery(function(){ func.call(window.adiary) });
+	init(func);
+};
+
 //##############################################################################
 // ■基本の関数
 //##############################################################################
@@ -42,6 +53,7 @@ function secure(sel) {
 	}
 	return list[0] || null;
 }
+adiary.secure = secure;
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●スクリプトの読み込み
