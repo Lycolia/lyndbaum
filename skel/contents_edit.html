@@ -1,14 +1,15 @@
 <@7>
 <@local(s,err)>
+<$ifbreak(!v.blog_admin)>
 <$err=FormError>
 
 <@> システムモード
-<$v.system_mode("タグの編集")>
+<$v.system_mode("コンテンツの表示順設定")>
 
 <$v.regist_csslib("<@v.script_dir>dynatree/skin/ui.dynatree.css")>
 <$v.regist_jslib ("<@v.script_dir>jquery-ui.min.js")>
 <$v.regist_jslib ("<@v.script_dir>dynatree/jquery.dynatree.min.js")>
-<$v.regist_js    ("<@v.script_dir>tag-edit.js")>
+<$v.regist_js    ("<@v.script_dir>contents-edit.js")>
 
 <!--=========================================================================-->
 <@> 階層ツリー
@@ -18,27 +19,21 @@
 <article class="system setting">
 <h2><@v.title></h2>
 <div class="body">
-	<p class="error" id="load-error" style="display: none"><strong class="error">タグが存在しないか情報をロードできません。</strong></p>
+	<p class="error" id="load-error" style="display: none"><strong class="error">コンテンツが存在しないか情報をロードできません。</strong></p>
 
-	<form data-="" method="POST" id="form">
+	<form action="<@v.myself>?<@v.skeleton>" method="POST" id="form">
 	<input type="hidden" name="action" value="<@v.skeleton>">
 	<div id="div-in-form"></div>
 
-	<p>タグ名を編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。</p>
+	<p>コンテンツkeyを編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。</p>
 
 	<div><button id="close-button" type="button">ノードを閉じる</button></div>
 
-	<div class="treebox" id="tree" data-url="<@Basepath><@v.pub_dir>taglist.json?<@v.blog.json_tm>"></div>
+	<div class="treebox" id="tree" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>"></div>
 
-	<button type="button" id="join-children">選択タグに子要素を結合</button>
-	<button type="button" id="delete">選択タグを削除</button>
 	<button type="submit" id="submit">変更を保存する</button>
 	<button type="button" id="reset">リセット</button><br>
 	</form>
 
 </div>
 </article>
-
-<div style="display: none">
-<span id="tag-name-error">タグ名が正しくありません。「,」や「::」は使えません。</span>
-</div>

@@ -45,6 +45,8 @@ my @SCREENS = (
 	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
 	[ 'media/'              , 'admin', 'メディア' ],
+	[ 'tag_edit'            , 'admin', 'タグの編集' ],
+	[ 'contents_edit'       , 'admin', 'コンテンツの表示順設定' ],
 
 	# ブログの設定
 	[ 'set/'                , 'admin' , 'ブログの基本設定' ],
@@ -53,8 +55,6 @@ my @SCREENS = (
 
 	# その他の設定
 	[ 'set2/'               , 'admin', 'その他の設定' ],
-	[ 'set2/tag_edit'       , 'admin', 'タグの編集' ],
-	[ 'set2/contents_edit'  , 'admin', 'コンテンツの表示順設定' ],
 	[ 'set2/usertag'        , 'admin', '記法タグのカスタマイズ' ],
 	[ 'set2/header'         , 'admin' , 'ヘッダ設定' ],
 

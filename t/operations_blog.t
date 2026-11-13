@@ -254,10 +254,36 @@ subtest 'メンテナンス中のログイン画面' => sub {
 
 subtest 'タグの削除' => sub {
 	# seed() のタグ1（pkey=1）は記事1に付いている
-	my $r = $app->post('admin', 'set2/tag_edit', { action => 'set2/tag_edit', del_ary => 1 });
+	my $r = $app->post('admin', 'tag_edit', { action => 'tag_edit', del_ary => 1 });
 	ok(AppTest::is_reload($r), '削除できる');
 	is($app->get('guest', '&t=' . AppTest::_uri_escape('タグ1'))->{status}, 404, 'タグの一覧に記事が出ない');
 	like(body($app->get('guest', '&t=' . AppTest::_uri_escape('タグ2'))), qr{ownerの記事}, 'ほかのタグはそのまま');
+};
+
+subtest 'タグとページの表示順の画面（ナビから開く）' => sub {
+	my $menu = body($app->get('admin', 'menu'));
+	foreach ([ 'タグ', 'tag_edit', 'タグの編集' ], [ 'ページの表示順', 'contents_edit', 'コンテンツの表示順設定' ]) {
+		my ($label, $skel, $title) = @$_;
+		# 画面が出したナビのリンクを辿る
+		my ($href) = $menu =~ m{\n\t<li><a href="([^"]*)">\Q$label\E</a></li>\n};
+		ok($href, "ナビに「$label」がある");
+		$href =~ s/&amp;/&/g;
+		$href =~ s{^/lyndbaum\.cgi\?}{};	# AppTestはSCRIPT_NAMEと?を足して呼ぶ
+		is($href, $skel, "「$label」のリンク先");
+		my $r = $app->get('admin', $href);
+		is($r->{status}, 200, "$label：開ける");
+		like($r->{title} // '', qr{^\Q$title\E}, "$label：題名");
+		my $b = body($r);
+		like($b, qr{\n\t<li class="current"><a href="[^"]*\?\Q$skel\E">\Q$label\E</a></li>\n}, "$label：ナビの項目にcurrentが付く");
+		unlike($b, qr{<li class="current"><a href="[^"]*\?set2/">}, "$label：「その他の設定」にはcurrentが付かない");
+		unlike($b, qr{admin-tabs}, "$label：タブは出ない");
+		like($b, qr{<input type="hidden" name="action" value="\Q$skel\E">}, "$label：保存のactionは新しい名前");
+	}
+
+	# 「その他の設定」には、タグとページの表示順が残っていない
+	my $b = body($app->get('admin', 'set2/'));
+	unlike($b, qr{set2/(?:tag_edit|contents_edit)|タグの編集|コンテンツツリーの編集}, '「その他の設定」から外れている');
+	is($app->get('admin', 'set2/tag_edit')->{status}, 302, '旧URLはトップへ送る（スケルトンが無い）');
 };
 
 #-------------------------------------------------------------------------------

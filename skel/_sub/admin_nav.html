@@ -5,7 +5,7 @@
 <$dir  = v.skel_dir>
 <@>
 <@> 管理画面のグローバルナビ（_frame_admin から呼ばれる）
-<@> 今のページの項目には current を付ける。タグは set2/ の中にあるが、別の項目にする
+<@> 今のページの項目には current を付ける
 <@>
 <$cur = {}>
 <$cur.menu    = (skel eq 'menu')>
@@ -13,9 +13,10 @@
 <$cur.trash   = (skel eq 'trash')>
 <$cur.album   = (dir eq 'media/')>
 <$cur.comlist = (skel eq 'comlist')>
-<$cur.tag     = (skel eq 'set2/tag_edit')>
+<$cur.tag     = (skel eq 'tag_edit')>
+<$cur.contents = (skel eq 'contents_edit')>
 <$cur.set      = (dir eq 'set/')>
-<$cur.set2     = (dir eq 'set2/' && !cur.tag)>
+<$cur.set2     = (dir eq 'set2/')>
 <$cur.plugin   = (dir eq 'plugin/')>
 <$cur.design   = (0 == index(dir, 'design/'))>
 <$cur.mainte   = (dir eq 'mainte/')>
@@ -35,7 +36,8 @@
 	<li<@if(cur.trash,   ' class="current"')>><a href="<@v.myself>?trash">ゴミ箱</a></li>
 	<li<@if(cur.album,   ' class="current"')>><a href="<@v.myself>?media/">メディア</a></li>
 	<li<@if(cur.comlist, ' class="current"')>><a href="<@v.myself>?comlist">コメント一覧<@if(s.newcom_flag, ' <span class="admin-nav-new">新着</span>')></a></li>
-	<li<@if(cur.tag,     ' class="current"')>><a href="<@v.myself>?set2/tag_edit">タグ</a></li>
+	<li<@if(cur.tag,     ' class="current"')>><a href="<@v.myself>?tag_edit">タグ</a></li>
+	<li<@if(cur.contents, ' class="current"')>><a href="<@v.myself>?contents_edit">ページの表示順</a></li>
 <$end>
 	<li class="admin-nav-group<@if(setting, ' open')>">
 	<a class="admin-nav-caption" href="<@v.myself>?<@first>">設定</a>

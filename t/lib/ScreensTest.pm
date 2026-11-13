@@ -20,9 +20,9 @@ sub esc { AppTest::_uri_escape(shift) }
 #-------------------------------------------------------------------------------
 # 引数が要る画面は、画面の中のリンクと同じ引数を付ける
 our @ADMIN = qw(
-	menu personal/ edit /01?edit trash artlist comlist media/
+	menu personal/ edit /01?edit trash artlist comlist media/ tag_edit contents_edit
 	set/ set/detail set/editor
-	set2/ set2/tag_edit set2/contents_edit set2/usertag set2/header
+	set2/ set2/usertag set2/header
 	design/ design/theme design/edit design/reset design/usercss design/art_sample
 	design/theme_colors&name=satsuki2/chie design/theme_readme&name=satsuki2/chie
 	plugin/ plugin/modules plugin/mainte
