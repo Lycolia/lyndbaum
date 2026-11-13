@@ -75,8 +75,6 @@ my @ACTIONS = (
 	  form => { mode => 'purge', pkey_ary => 3 } },
 	{ action => 'trash', min => 'admin', label => 'trash（空にする）',
 	  form => { mode => 'purge_all' } },
-	{ action => 'ajax_lock', min => 'admin', ok => \&json_any,
-	  form => { pkey => 1, sid => 'test' } },
 	{ action => 'ajax_revision', min => 'admin', ok => \&json_any,
 	  form => { pkey => 1 } },
 

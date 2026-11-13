@@ -83,12 +83,6 @@
 	album_avif_quality:min = 1
 	album_avif_quality:max = 100
 
-	edit_lock_interval = 同時編集の確認間隔
-	edit_lock_interval:type = int
-	edit_lock_interval:default = 60
-	edit_lock_interval:min = 0
-	edit_lock_interval:max = 300
-
 	clip_append = 文末省略時の付加文字列
 	clip_append:default   = ...
 	clip_append:max_chars = 20
@@ -97,8 +91,6 @@
 
 <$end>
 <$ifbreak(form_error())>
-
-<$ifset(h.edit_lock_interval < 10, h.edit_lock_interval, 0)>
 
 <@> IndexNowの鍵。有効にして鍵が無いときと、作り直すときだけ作る
 <$v.set_indexnow_key(h)>

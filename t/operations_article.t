@@ -82,6 +82,40 @@ subtest '直前の保存' => sub {
 	is($app->post('admin', '', { action => 'ajax_revision', last => 99999 })->{status}, 404, '無い記事は404');
 };
 
+subtest 'ほかの画面で先に保存されていたら保存しない' => sub {
+	my $app = AppTest->new()->setup()->seed();
+	my $digest = sub { (body($app->get('admin', '/01?edit')) =~ m{<input type="hidden" name="edit_digest" value="([0-9a-f]+)" id="edit-digest">})[0] // '' };
+	my $text   = sub { (body($app->get('guest', '/01')) =~ /(画面[AB]の本文|本文1)/)[0] // '' };
+	my %edit   = (%ART, edit_pkey_int => 1, ymd => '2026-10-01');
+
+	my $digest_a = $digest->();	# 画面Aで開く
+	my $digest_b = $digest->();	# 画面Bで開く
+	like($digest_a, qr/^[0-9a-f]{32}$/, '編集画面に今の記事の要約が入る');
+	is($digest_b, $digest_a, '保存する前に開き直しても、要約は変わらない');
+
+	my $r = $app->post('admin', '', { %edit, edit_digest => $digest_b, title => '画面Bの題名', body_txt => "画面Bの本文\n" });
+	ok(AppTest::is_reload($r), '画面Bは保存できる');
+	isnt($digest->(), $digest_a, '保存すると要約が変わる');
+
+	$r = $app->post('admin', '', { %edit, edit_digest => $digest_a, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(!AppTest::is_reload($r), '画面Aは、開いた後に画面Bで保存されたので保存しない');
+	like(body($r), qr{ほかの画面（別のタブや端末）で先に保存されていたため、保存しませんでした}, 'そのことを知らせる');
+	is($text->(), '画面Bの本文', '記事は画面Bで保存したまま');
+
+	# 画面のJS（edit.js）は、保存の前に今の記事の要約をajax_revisionで取り、編集画面の要約と比べる
+	my $now = $app->post('admin', '', { action => 'ajax_revision', now => 1 })->{json};
+	is($now->{digest}, $digest->(), 'ajax_revisionの要約は、編集画面を開き直したときの要約と同じ');
+	isnt($now->{digest}, $digest_a, '画面Aの要約とは違う（画面で知らせられる）');
+
+	# 「上書きして保存」は、今の記事の要約に差し替えて送る
+	$r = $app->post('admin', '', { %edit, edit_digest => $now->{digest}, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(AppTest::is_reload($r), '今の記事の要約を付けると、上書きして保存できる');
+	is($text->(), '画面Aの本文', '画面Aの内容になる');
+
+	$r = $app->post('admin', '', { %edit, title => 'digestなし', body_txt => "本文1\n" });
+	ok(AppTest::is_reload($r), '要約を付けないときは確かめない');
+};
+
 subtest 'ゴミ箱' => sub {
 	my $r = $app->post('admin', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
 	ok(AppTest::is_reload($r), 'ゴミ箱へ移せる');

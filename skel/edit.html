@@ -90,15 +90,6 @@
 <$end>
 <$end>
 
-<@><!--下書きのロード=======================================================-->
-<article class="system notice" id="edit-lock-notice" style="display: none;">
-<h2>この記事を編集中の人が他にもいます</h2>
-<div class="body">
-	<ul id="edit-lockers"></ul>
-<button id="force-lock-check">確認</button> <span id="check-time"></span>
-</div>
-</article>
-
 <!--記事の編集===============================================================-->
 <@> 左に本文、右に公開などの枠を置く（WordPressと同じ並び）。
 <@> 右の枠は記事のフォームの中にある。削除のフォームと投稿情報はフォームの外なので、CSSで本文の下に置く
@@ -300,7 +291,7 @@
 	<input type="hidden" name="action" value="delete">
 	<input type="hidden" name="delete_pkey_ary" value="<@edit_pkey>">
 	<input type="hidden" name="title" value="<@art.title>">
-	<button type="submit" name="delete" id="del-submit" class="no-disable">この記事を削除する</button>
+	<button type="submit" name="delete" id="del-submit">この記事を削除する</button>
 </form>
 <$end>
 </div>
@@ -315,14 +306,12 @@
 <span id="new-tag-create">「%t」を新規タグとして追加</span>
 <span id="eyecatch-note-chosen">選んだ画像を使います。</span>
 <span id="eyecatch-note-blog">ブログの画像を使います。</span>
-<span id="edit-confirm">他にこの記事を編集している人がいますが、編集を継続しますか？%u</span>
 <span id="msg-multiline">複数行を一度に処理できません。</span>
 <span id="msg-upload-error">アップロードに失敗しました。</span>
 <span id="msg-upload-fail">%n 個中 %f 個のアップロードに失敗しました。</span>
 <span id="image-dir"><@v.blogimg_dir()></span>
 <span id="image-attr"><$edit_pkey ||= 0><@replace_dest(s.image_attr, '%k', edit_pkey)></span>
 <span id="exif-tag"><@if(v.blog.exif_tag, ":#[exif:%d:%f:<@v.blog.exif_tag>]", ':#[exif:%d:%f:%271 %272 / %37386mm F%33437 %33434sec ISO%34855]')></span>
-<span id="edit-lock-interval"><@v.sys.edit_lock_interval || 0></span>
 
 <@> タグ追加フォーム
 <form id="tag-select-form">
