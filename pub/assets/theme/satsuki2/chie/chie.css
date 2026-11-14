@@ -868,11 +868,6 @@ hr#com-form-separator {
     width:                  calc(100%);
     height:                 120px;
 }
-.comment .help {
-    font-size:              16px;
-    line-height:            16px;
-}
-
 /* --------------------------------------------------------- */
 /* ■ サイドバー */
 /* --------------------------------------------------------- */
@@ -1162,30 +1157,6 @@ article.edit textarea {
 
 article.edit ul {
     list-style-type:        none;
-}
-
-/* ◆ ヘルプ */
-/* --------------------------------------------------------- */
-/* [?]文字 */
-.help, .btn-help:after {
-    font-weight:            bold;
-    cursor:                 pointer;
-    
-}
-
-table th .help {
-}
-
-div.popup-help {
-    min-width:              100px;
-    max-width:              720px;
-    padding:                10px;
-    background-color:       #dbfaf4;
-    border-width:           0px;
-    margin:                 0 8px 8px 0;
-    border:                 none;
-    font-size:              14px;
-    line-height:            20px;
 }
 
 /* ◆ ナビゲーション */

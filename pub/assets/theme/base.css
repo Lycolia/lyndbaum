@@ -411,22 +411,6 @@ textarea {
 	white-space:	pre-line;
 	opacity:	0.75;
 }
-.help {
-	font-weight:	bold;
-	margin:		0 4px;
-	cursor:		pointer;
-}
-.help:before {
-	content:	'[';
-}
-.help:after {
-	content:	']';
-}
-.btn-help:after {
-	margin-left:	2px;
-	content:	'[?]';
-}
-
 div.popup-block {
 	display:	none;
 	position:	absolute;
@@ -444,7 +428,7 @@ div.popup-block {
 		animation:	none;
 	}
 }
-div.popup-help, #popup-com {
+#popup-com {
 	background-color:	#eee;
 	padding:		6px;
 	font-size:		11pt;

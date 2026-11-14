@@ -863,24 +863,11 @@ div.messages:empty {
 }
 
 /*--------------------------------------------------------------------
-■ポップアップヘルプ
+■ヘルプの文字、コメントのポップアップ
 --------------------------------------------------------------------*/
-.help, .btn-help:after {
-	color:			var(--admin-link);
-}
 .help-text {
 	color:			var(--admin-muted);
 	opacity:		1;
-}
-div.popup-help {
-	min-width:		100px;
-	max-width:		360px;
-	padding:		0.5em 0.9em;
-	font-size:		13px;
-	color:			var(--admin-fg);
-	background-color:	#fff;
-	border:			1px solid var(--admin-border);
-	box-shadow:		0 3px 8px rgba(0,0,0,0.2);
 }
 #popup-com {
 	background-color:	#fff;
