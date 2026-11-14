@@ -24,7 +24,7 @@
 	<input type="hidden" name="action" value="<@v.skeleton>">
 	<div id="div-in-form"></div>
 
-	<p>パーマリンクを編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。</p>
+	<p>パーマリンクは「親のパーマリンク/名前」になります。名前を編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。名前に「/」は使えません。</p>
 
 	<div><button id="close-button" type="button">ノードを閉じる</button></div>
 
@@ -36,3 +36,7 @@
 
 </div>
 </article>
+
+<div style="display: none">
+<span id="name-error">パーマリンクの名前に「/」は使えません。</span>
+</div>

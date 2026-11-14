@@ -40,6 +40,7 @@ dtree = new AdiaryTree(tree, {
 		},
 		onDrop: function(node, sourceNode, hitMode) {
 			sourceNode.move(node, hitMode);
+			rebuild_link_key(sourceNode);	// 親が変わるとパーマリンクも変わる
 		},
 	},
 	onPostInit: function(isReloading, isError) {
@@ -114,11 +115,34 @@ if (close_btn) close_btn.addEventListener('click', function(evt) {
 });
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●パーマリンクの編集
+// ●パーマリンクは「親のパーマリンク/名前」
+////////////////////////////////////////////////////////////////////////////////
+// 名前はパーマリンクの最後の部分（/の後ろ）
+function key_name(link_key) {
+	return (link_key || '').replace(/^.*\//, '');
+}
+function parent_key(node) {
+	var par = node.getParent();
+	return par && par.data.link_key;	// 根のノードにはない
+}
+// ノードと子孫のパーマリンクとリンク先を、親に合わせて作り直す（保存するときはサーバーも作り直す）
+function rebuild_link_key(node) {
+	var pk = parent_key(node);
+	var data = node.data;
+	data.link_key = (pk ? pk + '/' : '') + key_name(data.link_key);
+	data.href = adiary.myself2 + link_key_encode( data.link_key );
+	node.setTitle( data.title );
+	var ch = node.getChildren();
+	if (ch) ch.forEach(rebuild_link_key);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// ●パーマリンクの名前の編集
 ////////////////////////////////////////////////////////////////////////////////
 function editNode( node ) {
 	var link_key = node.data.link_key;
 	var title = node.data.title;
+	var pk    = parent_key(node);
 
 	// Disable dynatree mouse and key handling
 	node.tree.disable();
@@ -126,7 +150,7 @@ function editNode( node ) {
 	// Replace node with <input>
 	var inp = document.createElement('input');
 	inp.setAttribute('type',  'text');
-	inp.setAttribute('value', adiary.tag_decode(link_key));
+	inp.setAttribute('value', adiary.tag_decode(key_name(link_key)));
 
 	// ノードの選択中表示を解除する
 	var span = node.span;
@@ -140,6 +164,7 @@ function editNode( node ) {
 	// 不可思議な動作をするので、span に置き換える。
 	var box = document.createElement('span');
 	box.className = item.getAttribute('class');
+	if (pk) box.appendChild( document.createTextNode(adiary.tag_decode(pk) + '/') );	// 親のパーマリンクは変えられない
 	box.appendChild( inp );
 	item.replaceWith( box );
 
@@ -151,8 +176,13 @@ function editNode( node ) {
 				inp.blur();
 				break;
 			case 13: // [enter]
-				node.data.link_key = inp.value;
+				if (inp.value.indexOf('/') >= 0) {	// 親との間に階層を挟めない
+					adiary.show_error('#name-error');
+					break;
+				}
+				node.data.link_key = (pk ? pk + '/' : '') + inp.value;
 				inp.blur();
+				rebuild_link_key(node);
 				break;
 		}
 	});
@@ -188,7 +218,7 @@ form.addEventListener('submit', function(){
 		var ch = node.getChildren();
 		for(var i=0; i<ch.length; i++) {
 			var data = ch[i].data;
-			var val = data.key + ',' + upnode + ',' + cnt + ',' + data.link_key;
+			var val = data.key + ',' + upnode + ',' + cnt + ',' + key_name(data.link_key);	// 名前を送る
 			cnt += contents_priority_step;
 			var inp = document.createElement('input');
 			inp.setAttribute('type',  'hidden');

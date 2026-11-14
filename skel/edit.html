@@ -1,5 +1,5 @@
 <@7>
-<@local(s,art,logs,t,edit_pkey,tags)>
+<@local(s,art,logs,t,edit_pkey,tags,up)>
 <$s = v.blog>
 
 <@> システムモード
@@ -216,10 +216,12 @@
 		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>固定ページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
 		<ul id="content-block" style="display: none">
-			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>">
+			<@> 親の選択肢は公開中の固定ページだけなので、今の親が非公開のときは、edit.jsが足す
+			<$up = v.load_content_parent(art.upnode)>
+			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>" data-parent-title="<@up.title>" data-parent-link_key="<@esc(up.link_key)>">
 				<option value="0">*トップ(root)</option>
 			</select></li>
-			<li>パーマリンク<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"><span class="help-text">"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
+			<li>パーマリンク<span id="link-key-prefix"><@if(up, esc(up.link_key) . '/')></span><input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(replace(art.link_key, '^.*/', '')))>"><span class="help-text">名前に「/」は使えません。トップの"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
 		</ul>
 		</li>
 	</ul>

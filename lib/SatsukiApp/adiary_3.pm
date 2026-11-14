@@ -1213,6 +1213,14 @@ sub edit_articles {
 	}
 	$keylist = [ map { int($_) } @$keylist ];
 
+	# 固定ページの親子。公開中のページの親は、いつも公開中にする
+	if ($mode eq 'delete' || $mode eq 'enable' || $mode eq 'disable') {
+		$keylist = $self->filter_content_keylist($mode, $keylist);
+		if (!@$keylist) {
+			return wantarray ? (($mode eq 'delete' ? 1 : 0), 0) : ($mode eq 'delete' ? 1 : 0);
+		}
+	}
+
 	# IndexNow。公開をやめる記事（削除、非公開）は公開していたもの、公開する記事は下書きでないものを、変える前に集める
 	my %indexnow;
 	if ($mode ne 'tagset' && $self->{sys}->{indexnow}) {
@@ -1364,6 +1372,49 @@ sub edit_articles {
 	return wantarray ? (0, $cnt) : 0;
 }
 
+#-------------------------------------------------------------------------------
+# ●一括操作の対象を、固定ページの親子に合わせる
+#-------------------------------------------------------------------------------
+# delete  : 子のある固定ページは、子孫も全部一緒に消すときだけ、ゴミ箱へ移す
+# enable  : 親が非公開の固定ページは、親も一緒に公開するときだけ公開する
+# disable : 非公開にする固定ページの、公開中の子孫も非公開にする
+sub filter_content_keylist {
+	my ($self, $mode, $keylist) = @_;
+	my $ROBJ  = $self->{ROBJ};
+	my $nodes = $self->load_content_nodes();
+	my %in    = map { $_ => 1 } @$keylist;
+
+	if ($mode eq 'delete') {
+		return [ grep {
+			my $n = $nodes->{$_};
+			my $ok = !$n || !grep { !$in{$_} } @{ $self->content_descendants($nodes, $_) };
+			if (!$ok) { $ROBJ->message('"%s" has child pages, so it can not be moved to the trash', $n->{title}); }
+			$ok;
+		} @$keylist ];
+	}
+	if ($mode eq 'enable') {
+		# 公開されるか：公開中か、下書きでなく一緒に公開する
+		my $on = sub { my $n = shift; $n->{enable} || ($in{ $n->{pkey} } && $n->{tm} ne '') };
+		return [ grep {
+			my $n  = $nodes->{$_};
+			my $ok = 1;
+			my %seen;
+			for(my $up = $n && $nodes->{ $n->{upnode} }; $up && !$seen{ $up->{pkey} }++; $up = $nodes->{ $up->{upnode} }) {
+				if (!&$on($up)) { $ok = 0; last; }
+			}
+			if (!$ok) { $ROBJ->message('The parent page of "%s" is not published, so it can not be published', $n->{title}); }
+			$ok;
+		} @$keylist ];
+	}
+	# disable
+	my @add;
+	foreach(@$keylist) {
+		if (!$nodes->{$_}) { next; }
+		push(@add, grep { $nodes->{$_}->{enable} && !$in{$_}++ } @{ $self->content_descendants($nodes, $_) });
+	}
+	return [ @$keylist, @add ];
+}
+
 ################################################################################
 # ■ゴミ箱
 ################################################################################
@@ -1449,6 +1500,21 @@ sub restore_articles {
 	my $com_cols = $self->table_info_cols( $self->com_table_info() );
 	my $arts = $DB->select_match("trash", 'pkey', $keylist, '*cols', $art_cols);
 
+	# 固定ページは、親を先に戻す（親子を一緒に戻すとき）
+	{
+		my %in = map { $_->{pkey} => $_ } @$arts;
+		my %depth;
+		my $depth;
+		$depth = sub {
+			my $t = shift;
+			if (exists $depth{ $t->{pkey} }) { return $depth{ $t->{pkey} }; }
+			$depth{ $t->{pkey} } = 0;	# 循環しないように
+			my $up = $t->{ctype} ne '' && $in{ $t->{upnode} };
+			return ($depth{ $t->{pkey} } = $up ? &$depth($up) + 1 : 0);
+		};
+		$arts = [ sort { &$depth($a) <=> &$depth($b) } @$arts ];
+	}
+
 	my @restored;
 	my $com_cnt = 0;
 	foreach my $art (@$arts) {
@@ -1457,8 +1523,25 @@ sub restore_articles {
 			$ROBJ->message("Article already exists: %s", $art->{title});
 			next;
 		}
+		# 親のない固定ページは戻さない（パーマリンクが、ない親のパスで始まってしまう）。
+		# 親があれば、パーマリンクを「親の今のパーマリンク/名前」にする（ゴミ箱にある間に親が変わっていることがある）
+		if ($art->{ctype} ne '' && $art->{upnode}) {
+			my $up = $DB->select_match_limit1("art", 'pkey', $art->{upnode}, '-ctype', '', '*cols', ['pkey', 'link_key', 'enable']);
+			if (!$up) {
+				$ROBJ->message('The parent page of "%s" is not found, so it can not be restored', $art->{title});
+				next;
+			}
+			my $name = $art->{link_key} =~ m|([^/]*)$| ? $1 : $art->{link_key};
+			$art->{link_key} = "$up->{link_key}/$name";
+			if (!$up->{enable}) { $art->{enable} = 0; }	# 公開中のページの親は、いつも公開中
+		}
 		# content keyが他の記事に使われていたら既定のkeyにする
 		if ($DB->select_match_limit1("art", 'link_key', $art->{link_key}, '*cols', ['pkey'])) {
+			if ($art->{ctype} ne '' && $art->{upnode}) {	# 子の固定ページは、親のパスで始まらないkeyにできない
+				$ROBJ->message('Content key "%s" is already used', $art->{link_key});
+				$ROBJ->message("Can't restore: %s", $art->{title});
+				next;
+			}
 			$ROBJ->message("Content key '%s' is already used. Changed to '%s'.", $art->{link_key}, "0$pkey");
 			$art->{link_key} = "0$pkey";
 		}
@@ -1762,46 +1845,91 @@ sub contents_edit {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 
-	# タグリスト
-	my %cons;
-	{
-		my $ary = $DB->select_match("art",
-			'enable', 1,
-			'-ctype', '',
-			'*cols', ['pkey', 'title', 'link_key', 'priority', 'upnode', 'coms_all']
-		);
-		%cons = map { $_->{pkey} => $_ } @$ary;
+	# 固定ページ。ツリーに出るのは公開中のものだけ
+	my $nodes = $self->load_content_nodes();
+	my %cons  = map { $_->{pkey} => $_ } grep { $_->{enable} } values(%$nodes);
+
+	# 送られたもの（pkey,upnode,priority,名前）。親が先に来る（contents-edit.jsのsearch_nodes）
+	my @edits;
+	my %new_up;
+	foreach(@{ $form->{contents_txt_ary} || [] }) {
+		my ($pkey,$upnode,$priority,$name) = split(',',$_,4);
+		$pkey = int($pkey);
+		if (!$cons{$pkey}) { next; }
+		$upnode = int($upnode);
+		if ($upnode && !$cons{$upnode}) {	# 親は公開中の固定ページか根
+			$upnode = int($cons{$pkey}->{upnode});
+		}
+		push(@edits, [$pkey, $upnode, int($priority), $name]);
+		$new_up{$pkey} = $upnode;
+	}
+	# 親を辿って自分に戻るもの（ツリーではできない）があれば、保存しない
+	foreach my $pkey (keys(%new_up)) {
+		my %seen;
+		for(my $up = $new_up{$pkey}; $up; $up = exists $new_up{$up} ? $new_up{$up} : $cons{$up} && $cons{$up}->{upnode}) {
+			if ($up == $pkey || $seen{$up}++) {
+				$ROBJ->message('The tree of pages is broken, so it was not saved');
+				return 1;
+			}
+		}
 	}
 
-	# タグの編集
-	my $edits = $form->{contents_txt_ary};
+	# 使われているパーマリンク（ブログ記事の0付きの番号も含む）
+	my %used = map { $_->{link_key} => $_->{pkey} } @{ $DB->select_match("art", '*cols', ['pkey', 'link_key']) };
+
+	# 親から順に、親のパーマリンクと名前からパーマリンクを作る
+	my @changed;	# パーマリンクを変えたpkey
+	my @urls;	# IndexNowに知らせるURL
 	my $com_edit;
-	foreach(@$edits) {
-		my ($pkey,$upnode,$priority,$link_key) = split(',',$_,4);
-		$ROBJ->normalize_string($link_key);
-		if ($link_key =~ /^[\"\',]/ || $link_key =~ /^\s*$/ || $link_key =~ m|^[\d&]| || $self->check_link_key_path($link_key)) {
-			$link_key = '';
+	foreach(@edits) {
+		my ($pkey,$upnode,$priority,$name) = @$_;
+		my $org    = $cons{$pkey};
+		my $parent = $upnode ? $cons{$upnode} : undef;
+		my ($link_key, @err) = $self->make_content_link_key($parent, $name);
+		if (!@err && exists($used{$link_key}) && $used{$link_key} != $pkey) {
+			@err = ('Content key "%s" is already used', $link_key);
 		}
-		my $org = $cons{ $pkey };
+		if (@err) {
+			# このページは、親も名前もパーマリンクも変えない（並び順だけ保存する）
+			$ROBJ->message('The content key of "%s" was not saved', $org->{title});
+			$ROBJ->message(@err);
+			($upnode, $link_key) = (int($org->{upnode}), $org->{link_key});
+		}
+
 		my %h;
-		if ($upnode != $org->{upnode} && ($cons{$upnode} || $upnode==0)) {
-			$h{upnode} = $upnode;
-		}
-		if ($link_key ne '' && $link_key ne $org->{link_key}) {
-			$h{link_key} = $link_key;
-		}
-		if ($priority != $org->{priority}) {
-			$h{priority} = $priority;
-		}
+		if ($upnode != int($org->{upnode})) { $h{upnode}   = $upnode;   }
+		if ($link_key ne $org->{link_key})  { $h{link_key} = $link_key; }
+		if ($priority != $org->{priority})  { $h{priority} = $priority; }
 		if (!%h) { next; }
 
-		$DB->update_match("art", \%h, 'pkey', $pkey);
-		if (exists($h{link_key}) && $cons{$pkey}->{coms_all}) {
-			my $elkey = $h{link_key};
-			$self->link_key_encode($elkey);
-			my $r = $DB->update_match("com", { a_elink_key=>$elkey }, 'a_pkey', $pkey);
-			if ($r) { $com_edit=1; }
+		if (!$DB->update_match("art", \%h, 'pkey', $pkey)) {
+			$ROBJ->message('The content key of "%s" was not saved', $org->{title});
+			next;
 		}
+		$org->{upnode}   = $upnode;
+		$org->{priority} = $priority;
+		if (!exists($h{link_key})) { next; }
+
+		delete $used{ $org->{link_key} };
+		$used{$link_key} = $pkey;
+		my $old = $org->{link_key};
+		$org->{link_key} = $link_key;
+		push(@changed, $pkey);
+
+		my $elkey = $link_key;
+		$self->link_key_encode($elkey);
+		if ($org->{coms_all} && $DB->update_match("com", { a_elink_key=>$elkey }, 'a_pkey', $pkey)) {
+			$com_edit = 1;
+		}
+		$self->link_key_encode($old);
+		push(@urls, map { $ROBJ->{ServerURL} . $self->{myself2} . $_ } ($old, $elkey));
+	}
+
+	# ツリーに出ない非公開の子孫も、親のパーマリンクに合わせる
+	if (@changed) {
+		my $r = $self->update_descendant_link_keys(\@changed);
+		push(@urls, @{ $r->{urls} });
+		if ($r->{com}) { $com_edit = 1; }
 	}
 
 	# イベント処理
@@ -1811,6 +1939,7 @@ sub contents_edit {
 		$self->call_event('COMMENT_STATE_CHANGE', $a_pkeys);
 	}
 	$self->call_event('ARTCOM_STATE_CHANGE', $a_pkeys);
+	$self->send_indexnow(\@urls);
 
 	return 0;
 }

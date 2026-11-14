@@ -200,6 +200,12 @@ Content key can not be only numbers=数字だけのパーマリンクは使え�
 Content key can not start with "%s"=パーマリンクを「%s」で始めることはできません（Webサーバーがアクセスを拒否するため）
 Content key can not end with "%s"=パーマリンクを「%s」で終えることはできません（Webサーバーがアクセスを拒否するため）
 "%s" is used by the system and can not be the top of a content key=「%s」はシステムのファイルやフォルダと同じ名前なので、パーマリンクの先頭の階層にはできません
+Can not use character "%s" in the name of content key=パーマリンクの名前に文字「%s」は使えません（親との間に階層を挟めないため）
+The parent page is not found=親の固定ページが見つかりません
+This page or its child page can not be the parent=このページと、その子孫のページは親にできません
+The parent page is not published, so this page can not be published=親の固定ページが非公開なので、公開できません
+This page has child pages, so it can not be changed to an article=子の固定ページがあるので、ブログ記事にはできません
+Content key "%s" is already used, so "%s" was not changed=パーマリンク「%s」がほかで使われているので、「%s」のパーマリンクは変えませんでした
 Load parser '%s' failed=パーサーのロードに失敗しました : %s
 
 Ping sending=更新通知を送信します
@@ -226,6 +232,13 @@ Invalid IP address rule '%s'=IPアドレスの書き方が正しくありませ�
 ###############################################################################
 Design save failed : %s=デザインの保存に失敗しました : %s
 Tag edit error '%s' to '%s' (same tag name exist?)=タグ編集エラー「%s」→「%s」（同じタグ名が存在しませんか？）
+# 固定ページ
+The tree of pages is broken, so it was not saved=固定ページのツリーが正しくないので、保存しませんでした
+The content key of "%s" was not saved=「%s」のパーマリンクは保存しませんでした
+Content key "%s" is already used=パーマリンク「%s」は、ほかで使われています
+"%s" has child pages, so it can not be moved to the trash=「%s」には子の固定ページがあるので、ゴミ箱へ移せません（子も一緒に選んでください）
+The parent page of "%s" is not published, so it can not be published=「%s」の親の固定ページが非公開なので、公開できません
+The parent page of "%s" is not found, so it can not be restored=「%s」の親の固定ページがないので、ゴミ箱から戻せません
 # media
 File name error : %s=ファイル名が不正です : %s
 File extension error : %s=許可されない拡張子です : %s

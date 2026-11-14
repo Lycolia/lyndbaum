@@ -956,6 +956,7 @@ sub save_article {
 		my %op;
 		$op{save_pkey} = $pkey;
 		$op{tm} = $art->{tm};
+		$op{import} = 1;	# 固定ページのパーマリンクは、元のまま受ける
 		my $ret = $self->regist_article( $art, \%op );
 		if (!ref($ret)) {
 			$session && $session->msg("Save article failed(%d) : %s", $ret, $art->{title} );

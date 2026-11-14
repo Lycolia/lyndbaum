@@ -92,7 +92,20 @@ adiary.load_tags_list(tagsel, function(data){
 	r_func(data, '');
 });
 // 読み込んで、optionを足してchangeを起こした後に終わる（失敗しても終わる）
-const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catch(function(){});
+// 選択肢は公開中の固定ページだけなので、今の親（非公開）がなければ足す（足さないと、保存したときに親が外れる）
+const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catch(function(){}).then(function(){
+	if (!upsel) return;
+	const def = upsel.dataset.default;
+	if (!def || def == '0' || Array.from(upsel.options).some(function(o){ return o.value == def })) return;
+	if (upsel.dataset.parentLink_key === undefined || upsel.dataset.parentLink_key === '') return;
+	const opt = document.createElement('option');
+	opt.value = def;
+	opt.innerHTML = '(非公開) ' + upsel.dataset.parentTitle;
+	opt.setAttribute('data-link_key', upsel.dataset.parentLink_key);
+	upsel.appendChild(opt);
+	opt.selected = true;
+	upsel.dispatchEvent(new Event('change'));
+});
 
 //##############################################################################
 // ■下書きを開く
@@ -788,28 +801,15 @@ let submitting = false;
 }
 
 //##############################################################################
-// ■upnodeの変更 / link_keyの設定
+// ■upnodeの変更：パーマリンクの前に、親のパーマリンクを出す
 //##############################################################################
+// パーマリンクは「親のパーマリンク/名前」で、欄には名前だけを書く
 {
-	const lkey = document.getElementById('link-key');
-	let   lkey_set;	// 補った値（そのままなら、親を選び直したときに補い直す）
-
-	// data-suggest は "1" か "0" か ""。今までの jQuery の .data() は "0" を数の0（偽）にしていた
-	const suggest = lkey && !/^(?:|0|false|null)$/.test(lkey.dataset.suggest || '');
-
-	if (upsel && lkey) upsel.addEventListener('change', function(){
-		if (! suggest) return;	// 機能がoff
-		var val = lkey.value;
-		if (val != '' && val != lkey_set) return;
-
+	const prefix = document.getElementById('link-key-prefix');
+	if (upsel && prefix) upsel.addEventListener('change', function(){
 		const opt = upsel.selectedOptions[0];
-		if (!opt) return;
-
-		var set = opt.dataset.link_key;
-		if (set == undefined) return;
-		if (set.substr(-1) != '/') set += '/';
-		lkey.value = set;
-		lkey_set   = set;
+		const key = opt && opt.dataset.link_key;
+		prefix.textContent = key ? key + '/' : '';
 	});
 }
 
