@@ -2,30 +2,31 @@
 // タグ編集用JavaScript
 //							(C)2013 nabe@abk
 //##############################################################################
-//[TAB=8]  require jQuery
+//[TAB=8]
 'use strict';
-$( function(){
-	var form = $secure('#form');
-	var tree = $secure('#tree');
-	var join = $('#join-children');
-	var del  = $('#delete');
-	var submit = $('#submit');
-	var reset  = $('#reset');
+adiary.ready(function(){
+	var form = adiary.secure('#form');
+	var tree = adiary.secure('#tree');
+	var join = document.getElementById('join-children');
+	var del  = document.getElementById('delete');
+	var submit = document.getElementById('submit');
+	var reset  = document.getElementById('reset');
 	var base_url = adiary.myself + '?&amp;t=';
+	if (!tree) return;
 
 	var select_node;
 	var dels = [];
 	var tag_priority_step = 10;
 
 	var isMac = /Mac/.test(navigator.platform);
+	var dtree;
 ////////////////////////////////////////////////////////////////////////////////
 // ●初期化処理
 ////////////////////////////////////////////////////////////////////////////////
-tree.dynatree({
-	initAjax: { url: tree.data('url') },
+dtree = new AdiaryTree(tree, {
+	url: tree.dataset.url,
 	dnd: {
 		onDragStart: function(node) {
-			logMsg("tree.onDragStart(%o)", node);
 			return true;	// Return false to cancel dragging of node.
 		},
 		autoExpandMS: 1000,
@@ -40,23 +41,24 @@ tree.dynatree({
 			if( !node.data.isFolder && hitMode === "over" )
 				return "after";
 		},
-		onDrop: function(node, sourceNode, hitMode, ui, draggable) {
+		onDrop: function(node, sourceNode, hitMode) {
 			sourceNode.move(node, hitMode);
 			if (select_node) {
-				join.prop('disabled', select_node.getChildren() ? false : true);
+				join.disabled = select_node.getChildren() ? false : true;
 			}
 		},
 	},
 	onPostInit: function(isReloading, isError) {
 		if (isError) {
-			join.prop  ('disabled', true);
-			del.prop   ('disabled', true);
-			submit.prop('disabled', true);
-			reset.prop ('disabled', true);
-			$('#load-error').show();
+			join.disabled   = true;
+			del.disabled    = true;
+			submit.disabled = true;
+			reset.disabled  = true;
+			const err = document.getElementById('load-error');
+			if (err) err.style.display = '';
 			return;
 		}
-		var rootNode = tree.dynatree("getRoot");
+		var rootNode = dtree.getRoot();
 		rootNode.visit(function(node){
 			var par   = node.getParent();
 			var path  = (par && par != rootNode) ? par.data.full + '::' : '';
@@ -68,22 +70,23 @@ tree.dynatree({
 			set_node_title(node);
 
 			// ダブルタップで編集
-			$(node.span).on("mydbltap", function(evt) {
+			if (node.span) AdiaryTree.dbltap(node.span, function(evt) {
 				editNode(node);
 			});
-			
+
 			// ノードを開く
 			node.expand(true);
 		});
+		// 最初の子は、まだ「Loading…」の行（読み込み後に消える）なので、ch[1] が最初のノード
 		var ch = rootNode.getChildren();
 		if (ch && ch.length>0) ch[1].activate();
-		submit.prop('disabled', false);
-		reset.prop ('disabled', false);
+		submit.disabled = false;
+		reset.disabled  = false;
 	},
 	onActivate: function(node) {
 		select_node = node;
-		del.prop('disabled', false);
-		join.prop('disabled', node.getChildren() ? false : true);
+		del.disabled  = false;
+		join.disabled = node.getChildren() ? false : true;
 	},
 	// ノードの編集
 	onClick: function(node, event) {
@@ -108,15 +111,19 @@ tree.dynatree({
 ////////////////////////////////////////////////////////////////////////////////
 // ●リンクの動作を停止
 ////////////////////////////////////////////////////////////////////////////////
-tree.on('click dblclick', 'a', function(evt) {
-	evt.preventDefault();
+['click', 'dblclick'].forEach(function(type){
+	tree.addEventListener(type, function(evt) {
+		const a = evt.target.closest('a');
+		if (a && tree.contains(a)) evt.preventDefault();
+	});
 });
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●ツリーを閉じる
 ////////////////////////////////////////////////////////////////////////////////
-$('#close-button').click(function(evt) {
-	tree.dynatree("getRoot").visit(function(dtnode){
+const close_btn = document.getElementById('close-button');
+if (close_btn) close_btn.addEventListener('click', function(evt) {
+	dtree.getRoot().visit(function(dtnode){
 		dtnode.expand(false);
 	});
 });
@@ -136,41 +143,40 @@ function set_node_title(node) {
 ////////////////////////////////////////////////////////////////////////////////
 function editNode( node ) {
 	// Disable dynatree mouse and key handling
-	node.tree.$widget.unbind();
+	node.tree.disable();
 
 	// Replace node with <input>
-	var inp = $('<input>').attr({
-		type:  'text',
-		value: adiary.tag_decode_amp(node.data.name)
-	});
+	var inp = document.createElement('input');
+	inp.setAttribute('type',  'text');
+	inp.setAttribute('value', adiary.tag_decode_amp(node.data.name));
 
 	// ノードの選択中表示を解除する
-	var span = $(node.span);
-	span.removeClass('dynatree-active');
+	var span = node.span;
+	span.classList.remove('dynatree-active');
 
 	// <a>タグが消える瞬間にイベントを拾ってしまうので対策
-	var item = span.find( ".dynatree-title" );	// aタグ
-	item.removeAttr('href');
+	var item = span.querySelector( ".dynatree-title" );	// aタグ
+	item.removeAttribute('href');
 
 	// aタグ内にinputを入れるとマウスクリックに対して
 	// 不可思議な動作をするので、span に置き換える。
-	var box = $('<span>');
-	box.addClass( item.attr('class') );
-	box.append( inp );
+	var box = document.createElement('span');
+	box.className = item.getAttribute('class');
+	box.appendChild( inp );
 	item.replaceWith( box );
 
 	// Focus <input> and bind keyboard handler
 	inp.focus();
 	inp.select();
-	inp.keydown(function(evt){
+	inp.addEventListener('keydown', function(evt){
 		switch( evt.which ) {
 			case 27: // [esc]
-				$(this).blur();
+				inp.blur();
 				break;
 			case 13: // [enter]
-				var name = adiary.tag_esc_amp( inp.val() );
+				var name = adiary.tag_esc_amp( inp.value );
 				if (name.match(/^\s*$/)) {
-					$(this).blur();
+					inp.blur();
 					break;
 				}
 				if (name.match(/[,]|::/)) {
@@ -178,21 +184,21 @@ function editNode( node ) {
 					break;
 				}
 				node.data.name = name;
-				$(this).blur();
+				inp.blur();
 				break;
 		}
 	});
 
 	var tree_click = function(evt){
-		if (inp[0] == evt.target) return;
+		if (inp == evt.target) return;
 		inp.blur();
 	};
-	tree.click(tree_click);
+	tree.addEventListener('click', tree_click);
 
-	inp.blur(function(evt){
-		tree.unbind('click', tree_click);
+	inp.addEventListener('blur', function(evt){
+		tree.removeEventListener('click', tree_click);
 		set_node_title(node);
-		node.tree.$widget.bind();
+		node.tree.enable();
 		node.focus();
 	});
 }
@@ -200,10 +206,11 @@ function editNode( node ) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●タグの統合
 ////////////////////////////////////////////////////////////////////////////////
-join.click(function(){
+join.addEventListener('click', join_children);
+function join_children(){
 	var pkey = select_node.data.key;
 	var ary  = select_node.data.joinkeys || [];
-	join.prop('disabled', true);
+	join.disabled = true;
 
 	var qt=0;
 	function search_nodes(node) {
@@ -221,13 +228,13 @@ join.click(function(){
 	select_node.data.joinkeys = ary;
 	select_node.data.qt      += qt;
 	set_node_title( select_node );
-});
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●タグの削除
 ////////////////////////////////////////////////////////////////////////////////
-del.click(function(){
-	if (select_node.getChildren()) join.click();
+del.addEventListener('click', function(){
+	if (select_node.getChildren()) join_children();
 
 	var pkey = select_node.data.key;
 	var ary  = select_node.data.joinkeys;
@@ -237,25 +244,27 @@ del.click(function(){
 	select_node.remove();
 
 	select_node = undefined;
-	del.prop('disabled', true);
+	del.disabled = true;
 });
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●送信前のデータ整形
 ////////////////////////////////////////////////////////////////////////////////
-form.submit(function(){
-	var rootNode = tree.dynatree("getRoot");
-	var div = $secure('#div-in-form');
-	div.empty();
+function hidden(name, value) {
+	const inp = document.createElement('input');
+	inp.setAttribute('type',  'hidden');
+	inp.setAttribute('name',  name);
+	inp.setAttribute('value', value);
+	return inp;
+}
+form.addEventListener('submit', function(){
+	var rootNode = dtree.getRoot();
+	var div = adiary.secure('#div-in-form');
+	div.innerHTML = '';
 
 	// タグの削除
 	for(var i=0; i<dels.length; i++) {
-		var inp = $('<input>').attr({
-			type: 'hidden',
-			name: 'del_ary',
-			value: dels[i]
-		});
-		div.append(inp);
+		div.appendChild( hidden('del_ary', dels[i]) );
 	}
 
 	// treeと順序の情報
@@ -266,23 +275,12 @@ form.submit(function(){
 			var data = ch[i].data;
 			var val = data.key + ',' + upnode + ',' + cnt + ',' + data.name;
 			cnt += tag_priority_step;
-			var inp = $('<input>').attr({
-				type: 'hidden',
-				name: 'tag_ary',
-				value: adiary.tag_decode_amp(val)
-			});
-			div.append(inp);
+			div.appendChild( hidden('tag_ary', adiary.tag_decode_amp(val)) );
 			// join情報
 			if (data.joinkeys) {
 				var ary = data.joinkeys;
 				ary.unshift( data.key );
-				var val = ary.join(',');
-				var inp = $('<input>').attr({
-					type: 'hidden',
-					name: 'join_ary',
-					value: val
-				});
-				div.append(inp);
+				div.appendChild( hidden('join_ary', ary.join(',')) );
 			}
 			// 再帰呼び出し
 			if (ch[i].getChildren()) search_nodes(ch[i], data.key);
@@ -296,8 +294,8 @@ form.submit(function(){
 ////////////////////////////////////////////////////////////////////////////////
 // ●キャンセル（リロード）
 ////////////////////////////////////////////////////////////////////////////////
-reset.click(function(){
-	tree.dynatree("getTree").reload();
+reset.addEventListener('click', function(){
+	dtree.reload();
 });
 
 //##############################################################################
