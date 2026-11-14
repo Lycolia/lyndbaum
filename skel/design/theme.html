@@ -68,41 +68,14 @@ select {
 .color-box .colorbox {
 	margin-left:		2px;
 }
-.color-box input {
+.color-box input.color-picker {
 	font-size:		13px;
 	width:			50px;
 	font-family:		monospace;
 }
-.ui-slider {
-	position:		relative;
-	display:		inline-block;
-	height:			6px;
-	border:			1px solid #aaaaaa;
-	background-color:	#ffffff;
-}
-.ui-slider-range {
-	position:		absolute;
-	z-index:		1;
-
-	top:			0;
-	left:			0;
-	height:			100%;
-	display:		block;
-
-	background-color:	#cccccc;
-}
-.ui-slider .ui-slider-handle {
-	position:		absolute;
-	top:			-4px;
-	z-index:		2;
-	touch-action:		none;
-
-	height:			16px;
-	width:			8px;
-	margin-top:		-2px;
-	margin-left:		-4px;
-	border-color:		#66c;
-	background-color:	#aaf;
+#h-slider, #s-slider, #v-slider {
+	vertical-align:		middle;
+	margin:			0;
 }
 #h-slider {
 	width:			160px;
@@ -141,9 +114,9 @@ div.iblk {
 <div id="custom-color-bar">
 <button type="button" id="btn-reset">リセット</button>
 <button type="button" id="btn-super-reset">テーマ初期値</button>
-<div class="iblk">【色調整】H <div id="h-slider" class="silder"></div></div>
-<div class="iblk">S <div id="s-slider" class="silder"></div></div>
-<div class="iblk">V <div id="v-slider" class="silder"></div></div>
+<div class="iblk">【色調整】H <input type="range" id="h-slider" min="0" max="360" value="0"></div>
+<div class="iblk">S <input type="range" id="s-slider" min="0" max="512" value="160"></div>
+<div class="iblk">V <input type="range" id="v-slider" min="0" max="512" value="256"></div>
 <label><input type="checkbox" class="js-switch" data-target="#custom-colors, #colors-detail-button">色個別</label>
 <label id="colors-detail-button"><input type="checkbox" class="js-switch" data-target="#custom-colors-detail">色詳細</label>
 </div><!-- custom-color-bar -->

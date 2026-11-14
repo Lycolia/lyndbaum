@@ -2,46 +2,62 @@
 // adiaryテーマカスタマイズ用JavaScript
 //							(C)2015 nabe@abk
 //##############################################################################
-//[TAB=8]  require jQuery
+//[TAB=8]
 'use strict';
 ////////////////////////////////////////////////////////////////////////////////
 // ●初期設定
 ////////////////////////////////////////////////////////////////////////////////
-$(function(){
-	var body = $('#body');
-	var form = $('#form');
-	var iframe = $('#iframe');
+adiary_public.ready(function(){
+	var body = document.getElementById('body');
+	var iframe = document.getElementById('iframe');
 	var if_css;
-	var readme = $('#readme-button');
-	var submit_btn = $('#submit-btn');
+	var readme = document.getElementById('readme-button');
+	var submit_btn = document.getElementById('submit-btn');
 
-	var sel = $('#theme-select');
+	var sel = document.getElementById('theme-select');
 	var theme_query='';
 
-	var theme_dir = sel.data('theme_dir');
+	var theme_dir = sel.dataset.theme_dir;
+
+	function create(tag) {
+		return document.createElement(tag);
+	}
+	// 欄に持たせる値（テーマ初期値、現在の設定値など）
+	const vals = new WeakMap();
+	function store(obj, key, val) {
+		let h = vals.get(obj);
+		if (!h) vals.set(obj, h = {});
+		if (arguments.length > 2) h[key] = val;
+		return h[key];
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●iframeの自動リサイズ
 ////////////////////////////////////////////////////////////////////////////////
+	// jQueryの $(body).height()、$(iframe).position().top と同じ値を求める
+	function body_height() {
+		const cs = getComputedStyle(body);
+		let h = parseFloat(cs.height) || 0;
+		if (cs.boxSizing === 'border-box')
+			for(const s of ['Top', 'Bottom'])
+				h -= (parseFloat(cs['padding' + s]) || 0) + (parseFloat(cs['border' + s + 'Width']) || 0);
+		return h;
+	}
+	function iframe_top() {
+		// 親（offsetParent）の枠の内側からの位置。端数も出す（offsetTop は整数になる）
+		const op = iframe.offsetParent || document.documentElement;
+		const pr = op.getBoundingClientRect();
+		const pt = pr.top + (parseFloat(getComputedStyle(op).borderTopWidth) || 0);
+		return iframe.getBoundingClientRect().top - pt - (parseFloat(getComputedStyle(iframe).marginTop) || 0);
+	}
 	function iframe_resize() {
-		var h = body.height() - iframe.position().top;
-		$('#debug-msg').html(body.height() + ' / ' + iframe.position().top);
-		iframe.css('height', h);
+		var h = body_height() - iframe_top();
+		const dbg = document.getElementById('debug-msg');
+		if (dbg) dbg.innerHTML = body_height() + ' / ' + iframe_top();
+		iframe.style.height = h + 'px';
 	}
 	iframe_resize();
-	$(window).resize( iframe_resize );
-
-	var detail = $('#detail-mode');
-	function detail_click(evt) {
-		var obj = detail;
-		var tar = $(obj.data('target'));
-		if (obj.prop('checked'))
-			tar.showDelay(iframe_resize);
-		else
-			tar.hideDelay(iframe_resize);
-	}
-	detail.click( detail_click );
-	detail_click( );
+	window.addEventListener('resize', iframe_resize);
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●テーマ変更時の処理
@@ -49,36 +65,37 @@ $(function(){
 {
 var timer;
 var current_theme;
-sel.change(function(evt){
-	var theme = sel.val();
+function theme_change(){
+	var theme = sel.value;
 	if (timer || current_theme == theme) return;
 	current_theme = theme;
 
 	theme_query = '&_theme=' + theme;
-	iframe.attr('src', adiary.myself + '?' + theme_query ); 
-	var opt = sel.children(':selected');
-	if (opt.data('readme')) {
-		readme.data('url', adiary.myself + '?design/theme_readme&name=' + theme);
-		readme.removeAttr('disabled');
+	iframe.setAttribute('src', adiary.myself + '?' + theme_query );
+	var opt = sel.selectedOptions[0];
+	if (opt && opt.dataset.readme) {
+		readme.setAttribute('data-url', adiary.myself + '?design/theme_readme&name=' + theme);
+		readme.disabled = false;
 	} else {
-		readme.data('url', '');
-		readme.attr('disabled', true);
+		readme.setAttribute('data-url', '');
+		readme.disabled = true;
 	}
 	// カスタマイズ機能の初期化
 	init_custmize(theme);
-});
-sel.change();
+}
+sel.addEventListener('change', theme_change);
+theme_change();
 // ↑↓キーでめくる
-sel.keyup( function(evt){
+sel.addEventListener('keyup', function(evt){
 	if (evt.keyCode != 38 && evt.keyCode != 40) return;
 	if (timer) clearTimeout(timer);
 	timer = setTimeout( function(){
 		timer = null;
-		sel.change();
+		theme_change();
 	}, 300 );
 });
 // GCで標準でめくる動作（changeイベント発生）を止める
-sel.keydown( function(evt){
+sel.addEventListener('keydown', function(evt){
 	if (evt.keyCode != 38 && evt.keyCode != 40) return;
 	if (!timer) timer = setTimeout( function(){}, 100 );	// dummy
 });
@@ -87,38 +104,41 @@ sel.keydown( function(evt){
 ////////////////////////////////////////////////////////////////////////////////
 // ●iframe内ロード（CSS欄追加。リンク書き換え）
 ////////////////////////////////////////////////////////////////////////////////
-iframe.on('load', function(){
+iframe.addEventListener('load', function(){
+	const doc = iframe.contentDocument;
+	if (!doc) return;
 	// 選択中テーマがちゃんとロードされているか確認
-	var ftheme = iframe.contents().find('#theme-css').attr('href');
+	const theme_css = doc.getElementById('theme-css');
+	var ftheme = theme_css && theme_css.getAttribute('href');
 	if (!ftheme) return;
 	ftheme = ftheme.replace(/^.*\/([\w\-]+\/[\w\-]+)\/[\w\-]+\.css(?:\?.*)?$/, "$1");
 	if (ftheme != current_theme) return;
 
-	if_css = $('<style>').attr('type','text/css', 'id', 'theme-realtime-custom-css');
-	iframe.contents().find('head').append(if_css);
+	if_css = doc.createElement('style');
+	if_css.setAttribute('type', 'text/css');
+	doc.head.appendChild(if_css);
 
 	if (!theme_query) return;
-	iframe.contents().find('a').each(function(idx,dom) {
-		var obj = $(dom);
-		var url = obj.attr('href');
+	doc.querySelectorAll('a').forEach(function(obj) {
+		var url = obj.getAttribute('href');
 		if (! url) return;
 		if (url.indexOf(adiary.myself)!=0) return;
 		if (url.match(/\?(.+&)?_\w+=/)) return;	// すでに特殊Queryがある
 
 		// デザイン画面では解除
 		if (url.match(/\?design\//)) {
-			obj.attr('target', '_top');
+			obj.setAttribute('target', '_top');
 			return;
 		}
 
 		var ma =  url.match(/^(.*?)(\?.*?)?(#.*)?$/);
 		if (!ma) return;
 		url = ma[1] + (ma[2] ? ma[2] : '?') + theme_query + (ma[3] ? ma[3] : '');
-		obj.attr('href', url);
+		obj.setAttribute('href', url);
 	});
 
 	if (css_text) {
-		iframe.contents().find('#theme-custom-css').remove();
+		doc.querySelectorAll('#theme-custom-css').forEach(function(x){ x.remove() });
 		update_css();
 	}
 });
@@ -127,21 +147,25 @@ iframe.on('load', function(){
 ////////////////////////////////////////////////////////////////////////////////
 // ●カスタマイズ機能
 ////////////////////////////////////////////////////////////////////////////////
-	var custom_form  = $('#custom-form');
-	var color_bar    = $('#custom-color-bar');
-	var custom_opts  = $('#custom-options');
-	var custom_cols  = $('#custom-colors-base');
-	var custom_detail= $('#custom-colors-detail');
-	var detail_mode  = $('#detail-mode');
+	var custom_form  = document.getElementById('custom-form');
+	var color_bar    = document.getElementById('custom-color-bar');
+	var custom_opts  = document.getElementById('custom-options');
+	var custom_cols  = document.getElementById('custom-colors-base');
+	var custom_detail= document.getElementById('custom-colors-detail');
 
-	var input_cols  = $;
-	var select_opts = $;
+	var input_cols  = [];
+	var select_opts = [];
 	var rel_col;
 	var rel_pol;
 
 	var cols;
 	var opts;
 	var css_text;
+
+	function show(dom, flag) {
+		dom.style.display = flag ? '' : 'none';
+		if (flag && getComputedStyle(dom).display === 'none') dom.style.display = 'block';
+	}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●カスタマイズ情報のロード
@@ -150,37 +174,38 @@ function init_custmize(name) {
   cols = undefined;
   opts = undefined;
   css_text = '';
-  submit_btn.prop('disabled', true);
-  $.ajax({
-	url: adiary.myself + '?design/theme_colors&name=' + name,
-	dataType: 'json',
-	success: function(data){
-		if (data.error || !data._css_text)
-			return custom_form_empty();
-		// 値保存
-		css_text = data._css_text;
-		delete data['_css_text'];
-		var data2 = data._options;
-		delete data['_options'];
-		$('#custom-flag').val('1');
+  submit_btn.disabled = true;
+  // 読めないときと、JSONでないときは、カスタマイズ無し（今までの $.ajax の error と同じ）
+  fetch(adiary.myself + '?design/theme_colors&name=' + name).then(function(res){
+	if (!res.ok) throw res.status;
+	return res.json();
+  }).then(function(data){
+	if (!data || data.error || !data._css_text)
+		return custom_form_empty();
+	// 値保存
+	css_text = data._css_text;
+	delete data['_css_text'];
+	var data2 = data._options;
+	delete data['_options'];
+	document.getElementById('custom-flag').value = '1';
 
-		// フォーム初期化
-		init_custom_form(data, data2);
-		submit_btn.prop('disabled', false);
-	},
-	error: custom_form_empty
-        });
+	// フォーム初期化
+	init_custom_form(data, data2);
+	submit_btn.disabled = false;
+  }, function(){
+	custom_form_empty();
+  });
 }
 function custom_form_empty() {
-	custom_form.hide();
-	custom_opts.empty();
-	custom_cols.empty();
-	custom_detail.empty();
-	input_cols  = $;
-	select_opts = $;
+	show(custom_form, false);
+	custom_opts.innerHTML   = '';
+	custom_cols.innerHTML   = '';
+	custom_detail.innerHTML = '';
+	input_cols  = [];
+	select_opts = [];
 	iframe_resize();
-	$('#custom-flag').val('');
-	submit_btn.prop('disabled', false);
+	document.getElementById('custom-flag').value = '';
+	submit_btn.disabled = false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -225,9 +250,9 @@ function init_custom_form(data, data2) {
 	});
 
 	// フォームの生成
-	custom_opts.empty();
-	custom_cols.empty();
-	custom_detail.empty();
+	custom_opts.innerHTML   = '';
+	custom_cols.innerHTML   = '';
+	custom_detail.innerHTML = '';
 	input_cols = [];
 	rel_col = [];
 	rel_pol = [];
@@ -238,33 +263,28 @@ function init_custom_form(data, data2) {
 		var rel  = data[name+'-rel'];		// 他に連動
 		var msg  = name2msg(name);
 
-		var span = $('<span>').addClass('color-box');
-		span.text(msg);
-		var inp = $('<input>').addClass('color-picker no-enter-submit').attr({
-			type: 'text',
-			id: 'inp-' + name,
-			name: 'c_' + name,
-			value: cval
-		});
-		inp.data('original', val);	// テーマ初期値
-		inp.data('default_',cval);	// 現在の設定値（保存用）
-		inp.data('default', cval);	// 現在の設定値
-		inp.change( function(evt){
-			update_css();
-			var obj = $(evt.target);
-			obj.ColorPickerSetColor( obj.val() );
-		});
+		var span = create('span');
+		span.className = 'color-box';
+		span.textContent = msg;
+		var inp = create('input');
+		inp.className = 'color-picker no-enter-submit';
+		inp.setAttribute('type',  'text');
+		inp.setAttribute('id',    'inp-' + name);
+		inp.setAttribute('name',  'c_' + name);
+		inp.setAttribute('value', cval);
+		store(inp, 'original', val);	// テーマ初期値
+		store(inp, 'default_', cval);	// 現在の設定値（保存用）
+		store(inp, 'default',  cval);	// 現在の設定値
+		inp.addEventListener('change', update_css);
 		(function(){
-			var iobj = inp;		// クロージャ
-			var n = name;
-			iobj.data('onChange', function(hsb, hex, rgb) {
-				iobj.data('val', '#' + hex);
+			var n = name;		// クロージャ
+			// 色の窓で選んでいる間（admin.js）
+			inp.addEventListener('color-input', function() {
 				relation_colors(n);
 				update_css();
-				iobj.removeData('val');
 			});
 		})();
-		span.append(inp);
+		span.appendChild(inp);
 		input_cols.push(inp);
 		if (rel) rel_col[name] = rel;
 
@@ -273,9 +293,8 @@ function init_custom_form(data, data2) {
 		if (name.substr(0,3) == 'fix'
 		 && name != 'fixbg' && name != 'fixmain' && name != 'fixartbg' && name != 'fixfont')
 			div = custom_detail;
-		div.append(span);
+		div.appendChild(span);
 	}
-	input_cols = $(input_cols);
 
 	// color picker init
 	adiary.dom_init( custom_form );
@@ -296,44 +315,44 @@ function init_custom_form(data, data2) {
 			var name = opts[i].name;
 			if (name.match(/-\w+$/)) continue;
 
-			var sel = $('<select>').attr('name', name);
+			var osel = create('select');
+			osel.setAttribute('name', name);
 			var title = data2[name + '-title'] || 'option';
-			sel.append($('<option>').attr('value','').text( name2msg(title) ));
-			sel.change( function(evt){
-				update_css();
-			});
+			var o0 = create('option');
+			o0.setAttribute('value', '');
+			o0.textContent = name2msg(title);
+			osel.appendChild(o0);
+			osel.addEventListener('change', update_css);
 			var list = opts[i].list;
 			var val  = opts[i].val || '';
-			sel.data('default',  val);
-			sel.data('original', data2[name + '-default'] || '');
+			store(osel, 'default',  val);
+			store(osel, 'original', data2[name + '-default'] || '');
 			var h = {};
 			for(var j=0; j<list.length; j++) {
 				if (h[list[j]]) continue;	// 重複チェック
 				h[list[j]]=1;
 
 				var n = name2msg( list[j] );	// 翻訳
-				var o = $('<option>')
-					.attr('value', list[j])
-					.text(n);
-				if (list[j] == val) o.prop('selected', true);
-				sel.append(o);
+				var o = create('option');
+				o.setAttribute('value', list[j]);
+				o.textContent = n;
+				if (list[j] == val) o.selected = true;
+				osel.appendChild(o);
 			}
-			custom_opts.append( sel );
-			select_opts.push( sel );
+			custom_opts.appendChild( osel );
+			select_opts.push( osel );
 		}
-		select_opts = $(select_opts);
 	}
-	if (cols.length < 1) color_bar.hide();
-			else color_bar.show();
-	custom_form.show();
+	show(color_bar, cols.length >= 1);
+	show(custom_form, true);
 	iframe_resize();
 
 	// すべてロードされる前に送信されることがある。
-	custom_form.append($('<input>').attr({
-		type:	'hidden',
-		name:	'custom_flag',
-		value:	1
-	}));
+	var flag = create('input');
+	flag.setAttribute('type',  'hidden');
+	flag.setAttribute('name',  'custom_flag');
+	flag.setAttribute('value', 1);
+	custom_form.appendChild(flag);
 
 	// 色式デバッグ用（テーマ開発者向け）
 	relation_colors('', 1);
@@ -343,23 +362,22 @@ function init_custom_form(data, data2) {
 // ●値連動処理
 ////////////////////////////////////////////////////////////////////////////////
 function relation_colors(name, test) {
-	if (!test && detail_mode.prop('checked')) return;
 	for(var k in rel_col) {
 		var col = rel_col[k];
 		var v;
 		if (col.substr(0,5) == 'auto:')
 			v = automatic(k, col.substr(5));
 		else {
-			var src = $('#inp-' + col);
-			v = src.data('val') || src.val();
+			var src = document.getElementById('inp-' + col);
+			v = src ? src.value : undefined;
 		}
 		// console.log(k + ' = ' + v + ' = ' + col );
 		if (!v) {
 			adiary.show_error('#css-exp-error', {s: rel_col[k]});
 			continue;
 		}
-		var obj = $('#inp-' + k);
-		set_color(obj, v);
+		var obj = document.getElementById('inp-' + k);
+		if (obj) set_color(obj, v);
 	}
 }
 
@@ -370,21 +388,19 @@ var CSS_ReInit;
 setInterval(function(){
 	if (!CSS_ReInit) return;
 	CSS_ReInit = false;
-	iframe[0].contentWindow.adiary.css_init();
+	iframe.contentWindow.adiary.css_init();
 },300);
 
 function update_css() {
 	var col = {};
-	input_cols.each(function(idx,dom){
-		var obj = $(dom);
-		var val = obj.data('val') || obj.val();
+	input_cols.forEach(function(obj){
+		var val = obj.value;
 		if (val.match(/#[0-9A-Fa-f]{6}/))
-			col[ obj.attr('name').substr(2) ] = val;
+			col[ obj.getAttribute('name').substr(2) ] = val;
 	});
 	var opt = {};
-	select_opts.each(function(idx,dom){
-		var obj = $(dom);
-		opt[ obj.attr('name') ] = obj.val();
+	select_opts.forEach(function(obj){
+		opt[ obj.getAttribute('name') ] = obj.value;
 	});
 	var lines = css_text.split("\n");
 	var in_opt;
@@ -426,10 +442,10 @@ function update_css() {
 		            .replace(/rgba\(\d+,\d+,\d+/, RGBtoRGBA( col[ ma[1] ] ));
 	}
 	var new_css = lines.join("\n");
-	if_css.html( new_css );
+	if (if_css) if_css.textContent = new_css;
 
 	// CSSによる設定反映
-	// iframe[0].contentWindow.adiary.css_init();
+	// iframe.contentWindow.adiary.css_init();
 	CSS_ReInit = true;
 }
 
@@ -446,17 +462,14 @@ function RGBtoRGBA(rgb) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●リセット
 ////////////////////////////////////////////////////////////////////////////////
-$('#btn-reset').click( function() {
-	var col = {};
-	input_cols.each(function(idx,dom){
-		var obj = $(dom)
-		var col = obj.data('default_');
-		obj.data('default', col);
+document.getElementById('btn-reset').addEventListener('click', function() {
+	input_cols.forEach(function(obj){
+		var col = store(obj, 'default_');
+		store(obj, 'default', col);
 		set_color(obj, col);
 	});
-	select_opts.each(function(idx,dom){
-		var obj = $(dom)
-		obj.val( obj.data('default') );
+	select_opts.forEach(function(obj){
+		obj.value = store(obj, 'default');
 	});
 	form_reset();
 	update_css();
@@ -465,17 +478,14 @@ $('#btn-reset').click( function() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●テーマ初期値リセット
 ////////////////////////////////////////////////////////////////////////////////
-$('#btn-super-reset').click( function() {
-	var col = {};
-	input_cols.each(function(idx,dom){
-		var obj = $(dom)
-		var col = obj.data('original');
-		obj.data('default', col);
+document.getElementById('btn-super-reset').addEventListener('click', function() {
+	input_cols.forEach(function(obj){
+		var col = store(obj, 'original');
+		store(obj, 'default', col);
 		set_color(obj, col);
 	});
-	select_opts.each(function(idx,dom){
-		var obj = $(dom)
-		obj.val( obj.data('original') );
+	select_opts.forEach(function(obj){
+		obj.value = store(obj, 'original');
 	});
 	form_reset();
 	update_css();
@@ -485,36 +495,35 @@ $('#btn-super-reset').click( function() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●色を設定
 ////////////////////////////////////////////////////////////////////////////////
+// 文字の欄と、前の色の窓（admin.js）に入れる。イベントは起こさない
 function set_color(obj, rgb) {
-	obj.val( rgb );
-	if (obj.ColorPickerSetColor) {
-		var prev = obj.prev();
-		if (prev.hasClass('colorbox'))
-			prev.css('background-color', rgb);
-		obj.ColorPickerSetColor( rgb );
+	obj.value = rgb;
+	var prev = obj.previousElementSibling;
+	if (prev && prev.classList.contains('colorbox')) {
+		const v = adiary.color_value(rgb);
+		if (v) prev.value = v;
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●色一括変更機能
 ////////////////////////////////////////////////////////////////////////////////
-var h_slider = $('#h-slider');
-var s_slider = $('#s-slider');
-var v_slider = $('#v-slider');
+var h_slider = document.getElementById('h-slider');
+var s_slider = document.getElementById('s-slider');
+var v_slider = document.getElementById('v-slider');
 function change_hsv() {
 	if (!if_css) return;
-	var h = h_slider.slider( "value" );
-	var s = s_slider.slider( "value" );
-	var v = v_slider.slider( "value" );
+	var h = Number( h_slider.value );
+	var s = Number( s_slider.value );
+	var v = Number( v_slider.value );
 
-	var d = new Date();
 	var cols = input_cols;
 	for(var i=0; i<cols.length; i++) {
-		var obj = $(cols[i]);
-		var name=obj.attr('name');
+		var obj = cols[i];
+		var name=obj.getAttribute('name');
 		if (name.indexOf('c_fix') == 0) continue;
 
-		var hsv = RGBtoHSV( obj.data('default') );
+		var hsv = RGBtoHSV( store(obj, 'default') );
 		if (!hsv) return;
 		// 色変換
 		hsv.h += h;
@@ -525,20 +534,15 @@ function change_hsv() {
 	}
 	update_css();
 }
-$('#h-slider, #s-slider, #v-slider').slider({
-	range: "min",
-	max: 512,
-	value: 160,
-//	change: change_hsv,
-	slide: change_hsv
+[h_slider, s_slider, v_slider].forEach(function(x){
+	x.addEventListener('input', change_hsv);
 });
-h_slider.slider('option', 'max', 360);
 form_reset();
 
 function form_reset() {
-	h_slider.slider('value', 0);
-	s_slider.slider('value', 160);
-	v_slider.slider('value', 256);
+	h_slider.value = 0;
+	s_slider.value = 160;
+	v_slider.value = 256;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -595,7 +599,7 @@ function HSVtoRGB( hsv ) {
 	var n2msg = {};
 {
 	// 色名の翻訳テキスト
-	var ary =$('#attr-msg').html().split("\n");
+	var ary = document.getElementById('attr-msg').innerHTML.split("\n");
 	for(var i=0; i<ary.length; i++) {
 		var line = ary[i];
 		var ma = line.match(/(.*?)\s*=\s*([^\s]*)/);
@@ -614,11 +618,12 @@ function name2msg(name) {
 // ●値の自動連動
 ////////////////////////////////////////////////////////////////////////////////
 function automatic(des_name, src_name) {
-	var des = $('#inp-' + des_name);
-	var src = $('#inp-' + src_name);
-	var c_des = des.data('original');
-	var c_src = src.data('original')
-	var c_cur = src.data('val') || src.val();
+	var des = document.getElementById('inp-' + des_name);
+	var src = document.getElementById('inp-' + src_name);
+	if (!des || !src) return;
+	var c_des = store(des, 'original');
+	var c_src = store(src, 'original');
+	var c_cur = src.value;
 	if (!c_des || !c_src || !c_cur) return;
 	if (c_src == c_cur) return c_des;
 
@@ -630,7 +635,7 @@ function automatic(des_name, src_name) {
 	diff.s = h_des.s - h_src.s;
 	diff.v = h_des.v - h_src.v;
 /*	// 比では黒をうまく扱えない
-	diff.s = h_des.s / (h_src.s || 0.0000001);	// 
+	diff.s = h_des.s / (h_src.s || 0.0000001);	//
 	diff.v = h_des.v / (h_src.v || 0.0000001);	// 0除算防止
 */
 

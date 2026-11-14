@@ -88,21 +88,23 @@ $$.init( function(){
 		if (evt.target == prev) return;	// 連続クリック防止
 		prev = evt.target;
 
+		// 値は、そのときの属性から読む（jQueryの .data() は1回読んだ値を覚えていて、
+		// theme-custom.js が data-url を書き換えても前の値を読むため）
 		const $obj = $(evt.target);
 		const $div = $('<div>');
 		const $div2= $('<div>');	// 直接 div にクラスを設定すると表示が崩れる
 
-		$div.attr('title', $obj.data("title") || "Infomataion" );
-		$div2.addClass($obj.data("class"));
+		$div.attr('title', $obj.attr("data-title") || "Infomataion" );
+		$div2.addClass($obj.attr("data-class"));
 		$div.empty();
 		$div.append($div2);
-		if ($obj.data('info')) {
-			const text = self.tag_esc_br( $obj.data("info") );
+		if ($obj.attr('data-info')) {
+			const text = self.tag_esc_br( $obj.attr("data-info") );
 			$div2.html( text );
 			$div.adiaryDialog({ width: self.DialogWidth, close: close_func });
 			return;
 		}
-		var url = $obj.data("url");
+		var url = $obj.attr("data-url");
 		$div2.load( url, function(){
 			$div2.text( $div2.text().replace(/\n*$/, "\n\n") );
 			$div.adiaryDialog({ width: self.DialogWidth, height: 320, close: close_func });
@@ -180,59 +182,47 @@ $$.init( function(){
 ////////////////////////////////////////////////////////////////////////////////
 //●色選択ボックスを表示。 ※input[type=text] のリサイズより先に行うこと
 ////////////////////////////////////////////////////////////////////////////////
-$$._load_picker = false;
+// 文字の欄（input.color-picker）の前に、ブラウザーの色の窓（input[type=color].colorbox）を置く。
+//	・色の窓で選んでいる間は、文字の欄に値を入れて「color-input」のイベントを起こす
+//	・決めたときは、文字の欄に値を入れて change を起こす
+//	・文字の欄に色を入れたら、色の窓も合わせる（#rgb、#rrggbb のときだけ）
+// 中の処理はjQueryを使わない。color_value() は theme-custom.js も使う
+const color_boxed = new WeakSet();	// 色の窓を付けた欄（dom_init は、同じ部分にもう一度呼ばれることがある）
+$$.color_value = function(val) {
+	const ma = String(val || '').match(/^#([\dA-Fa-f]{3}|[\dA-Fa-f]{6})$/);
+	if (!ma) return;
+	let x = ma[1];
+	if (x.length == 3) x = x[0]+x[0] + x[1]+x[1] + x[2]+x[2];
+	return '#' + x.toLowerCase();
+};
 $$.dom_init( function($R){
-	const $cp = $R.findx('input.color-picker');
-	if (!$cp.length) return;
+	const self = this;
+	$R.findx('input.color-picker').each(function(i, inp){
+		if (color_boxed.has(inp)) return;
+		color_boxed.add(inp);
 
-	$cp.each(function(i,dom){
-		const $obj = $(dom);
-		const $box = $('<span>').addClass('colorbox');
-		$obj.before($box);
-		const color = $obj.val();
-		if (color.match(/^#[\dA-Fa-f]{6}$/))
-			$box.css('background-color', color);
-	});
+		const box = document.createElement('input');
+		box.setAttribute('type', 'color');
+		box.className = 'colorbox';
+		box.tabIndex  = -1;
+		inp.before(box);
 
-	// color pickerのロード
-	var dir = this.ScriptDir + 'colorpicker/';
-	this.prepend_css(dir + 'css/colorpicker.css');
-	this.load_script(dir + "colorpicker.js", function(){
+		function from_text() {
+			const v = self.color_value(inp.value);
+			if (v) box.value = v;
+		}
+		from_text();
+		inp.addEventListener('input',  from_text);
+		inp.addEventListener('change', from_text);
 
-		$cp.each(function(idx,dom){
-			var $obj = $(dom);
-			$obj.ColorPicker({
-				onSubmit: function(hsb, hex, rgb, _el) {
-					var $el = $(_el);
-					$el.val('#' + hex);
-					$el.ColorPickerHide();
-					var $prev = $el.prev();
-					if (! $prev.hasClass('colorbox')) return;
-					$prev.css('background-color', '#' + hex);
-					$obj.change();
-				},
-				onChange: function(hsb, hex, rgb) {
-					var $prev = $obj.prev();
-					if (! $prev.hasClass('colorbox')) return;
-					$prev.css('background-color', '#' + hex);
-					var func = $obj.data('onChange');
-					if (func) func(hsb, hex, rgb);
-				}
-			});
-			$obj.ColorPickerSetColor( $obj.val() );
+		box.addEventListener('input', function(){
+			inp.value = box.value;
+			inp.dispatchEvent(new Event('color-input', { bubbles: true }));
 		});
-		$cp.on('keyup', function(evt){
-			$(evt.target).ColorPickerSetColor(evt.target.value);
+		box.addEventListener('change', function(){
+			inp.value = box.value;
+			inp.dispatchEvent(new Event('change', { bubbles: true }));
 		});
-		$cp.on('keydown', function(evt){
-			if (evt.keyCode != 27) return;
-			$(evt.target).ColorPickerHide();
-		});
-
-		// if loaded jQuery UI, color picker draggable
-		$R.rootfind('.colorpicker').adiaryDraggable({
-			cancel: ".colorpicker_color, .colorpicker_hue, .colorpicker_submit, input, span"
-		})
 	});
 });
 
