@@ -1865,27 +1865,31 @@ sub contents_edit {
 		$new_up{$pkey} = $upnode;
 	}
 	# 親を辿って自分に戻るもの（ツリーではできない）があれば、保存しない
-	foreach my $pkey (keys(%new_up)) {
-		my %seen;
-		for(my $up = $new_up{$pkey}; $up; $up = exists $new_up{$up} ? $new_up{$up} : $cons{$up} && $cons{$up}->{upnode}) {
-			if ($up == $pkey || $seen{$up}++) {
-				$ROBJ->message('The tree of pages is broken, so it was not saved');
-				return 1;
+	my $broken = sub {
+		my $new_up = shift;
+		foreach my $pkey (keys(%$new_up)) {
+			my %seen;
+			for(my $up = $new_up->{$pkey}; $up; $up = exists $new_up->{$up} ? $new_up->{$up} : $cons{$up} && $cons{$up}->{upnode}) {
+				if ($up == $pkey || $seen{$up}++) { return 1; }
 			}
 		}
+		return 0;
+	};
+	if (&$broken(\%new_up)) {
+		$ROBJ->message('The tree of pages is broken, so it was not saved');
+		return 1;
 	}
 
 	# 使われているパーマリンク（記事の0付きの番号も含む）
 	my %used = map { $_->{link_key} => $_->{pkey} } @{ $DB->select_match("art", '*cols', ['pkey', 'link_key']) };
 
-	# 親から順に、親のパーマリンクと名前からパーマリンクを作る
-	my @changed;	# パーマリンクを変えたpkey
-	my @urls;	# IndexNowに知らせるURL
-	my $com_edit;
+	# 親から順に、親のパーマリンクと名前からパーマリンクを作る。
+	# 断ったページは元の親に残るので、全部を決めた後のツリーをもう一度確かめてから保存する
+	my %next_key;	# pkey => 新しいパーマリンク
 	foreach(@edits) {
 		my ($pkey,$upnode,$priority,$name) = @$_;
 		my $org    = $cons{$pkey};
-		my $parent = $upnode ? $cons{$upnode} : undef;
+		my $parent = $upnode ? { link_key => exists($next_key{$upnode}) ? $next_key{$upnode} : $cons{$upnode}->{link_key} } : undef;
 		my ($link_key, @err) = $self->make_content_link_key($parent, $name);
 		if (!@err && exists($used{$link_key}) && $used{$link_key} != $pkey) {
 			@err = ('Content key "%s" is already used', $link_key);
@@ -1895,7 +1899,27 @@ sub contents_edit {
 			$ROBJ->message('The content key of "%s" was not saved', $org->{title});
 			$ROBJ->message(@err);
 			($upnode, $link_key) = (int($org->{upnode}), $org->{link_key});
+			$_->[1] = $upnode;
 		}
+		$new_up{$pkey} = $upnode;
+		if ($link_key ne $org->{link_key}) {
+			delete $used{ $org->{link_key} };
+			$used{$link_key} = $pkey;
+		}
+		$next_key{$pkey} = $link_key;
+	}
+	if (&$broken(\%new_up)) {
+		$ROBJ->message('The tree of pages is broken, so it was not saved');
+		return 1;
+	}
+
+	my @changed;	# パーマリンクを変えたpkey
+	my @urls;	# IndexNowに知らせるURL
+	my $com_edit;
+	foreach(@edits) {
+		my ($pkey,$upnode,$priority) = @$_;
+		my $org      = $cons{$pkey};
+		my $link_key = $next_key{$pkey};
 
 		my %h;
 		if ($upnode != int($org->{upnode})) { $h{upnode}   = $upnode;   }
@@ -1911,8 +1935,6 @@ sub contents_edit {
 		$org->{priority} = $priority;
 		if (!exists($h{link_key})) { next; }
 
-		delete $used{ $org->{link_key} };
-		$used{$link_key} = $pkey;
 		my $old = $org->{link_key};
 		$org->{link_key} = $link_key;
 		push(@changed, $pkey);
