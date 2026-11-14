@@ -174,7 +174,7 @@ sub dynamic_css_dir {
 	my $self = shift;
 	return $self->{blog_dir} . 'css.d/';
 }
-# このブログ用に作ったCSS（dynamic.css、テーマの色の調整の theme.css）の置き場所
+# このサイト用に作ったCSS（dynamic.css、テーマの色の調整の theme.css）の置き場所
 sub custom_css_dir {
 	my $self  = shift;
 	my $mkdir = shift;
@@ -995,7 +995,7 @@ sub save_design {
 	my ($ret, $fail) = $self->save_use_modules(\%use_f);
 	if ($ret) { return $ret; }	# error
 
-	# そのブログ専用のスケルトンとして保存する準備
+	# そのサイト専用のスケルトンとして保存する準備
 	my $dir = $self->{blog_dir} . 'skel/';
 	$ROBJ->mkdir($dir);
 
@@ -1611,7 +1611,7 @@ sub load_theme_info {
 	my ($col, $opt, $css) = $self->load_theme_colors($theme);
 	if (!$css) { return ($col, $opt); }
 
-	# カスタマイズ情報のロード（ブログの設定）
+	# カスタマイズ情報のロード（サイトの設定）
 	my ($c, $o) = $self->load_theme_custom_values($theme);
 	foreach(keys(%$o)) {
 		$opt->{"$_$append"} = $o->{$_};
@@ -1623,7 +1623,7 @@ sub load_theme_info {
 }
 
 #-------------------------------------------------------------------------------
-# ●テーマの色の調整の値（ブログの設定）
+# ●テーマの色の調整の値（サイトの設定）
 #-------------------------------------------------------------------------------
 # テーマごとに theme_custom:テンプレート/テーマ に、「選択肢=値」と「色の名前=#色」の行で保存する。
 # テーマを切り替えて戻しても、前の調整が残る

@@ -3,12 +3,12 @@
 <$ifbreak(! v.blog_admin)>
 
 <$h = validator(begin_hash, Form)>
-	blog_name = ブログ名
+	blog_name = サイト名
 	blog_name:min_chars =  1
 	blog_name:max_chars = 48
 	blog_name:filter0 = tag
 
-	description_txt = ブログ名の説明
+	description_txt = サイト名の説明
 	description_txt:max_chars = 140
 	description_txt:filter0     = reg_rep:\r?\n
 	description_txt:filter0_opt = <br>
@@ -16,6 +16,15 @@
 	description_txt:filter1_opt = <@v.trust_mode>
 
 	ping = flag
+	noindex = flag
+
+	com_ok_force = コメント強制OFF
+	com_ok_force:default = 
+	com_ok_force:enum = ,0
+
+	nsfw_force = サイト全体をNSFWにする
+	nsfw_force:default = 
+	nsfw_force:enum = ,1
 
 	ga4id = Google Analytics 4 ID
 	ga4id:filter0 = reg_del:[^\w\-]
@@ -57,7 +66,7 @@
 POST成功時の処理
 <$ifexec(action_return eq '0', begin)>
 	<$v.call_event('BLOG_SETTING')>
-	<@>RSS再生成（ブログ名と紹介はRSSにも出る）
+	<@>RSS再生成（サイト名と紹介はRSSにも出る。サイト全体のNSFWを変えたときも、RSSに本文を出すかが変わる）
 	<$v.generate_rss()>
 
 	<$message("設定を保存しました")>

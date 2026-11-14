@@ -169,83 +169,83 @@
 </div><!-- body -->
 
 <script>
-$(function(){
+(function(){
 // デフォルト値を設定する
-var obj   = $f('#nav-header');
-var body  = $f('#body');
-var abody = $f('#adiary-body');
-var head  = $f('#header');
-if (!  obj.length) return;
-if (! body.length) return;
-if (!abody.length) return;
-if (! head.length) return;
+var obj   = frame_find('#nav-header');
+var body  = frame_find('#body');
+var abody = frame_find('#adiary-body');
+var head  = frame_find('#header');
+if (!obj) return;
+if (!body) return;
+if (!abody) return;
+if (!head) return;
 
 // 文字
 if ('<@ps.font_c>' == '') {
-	var col = parse_color( obj.css('color') );
-	if (col) $('#font-c').val(col);
-	var col = parse_color( obj.find('a:not(.welcome-prefix)').css('color') );
-	if (col) $('#font-ca').val(col);
+	var col = parse_color( css(obj, 'color') );
+	if (col) set_value('#font-c', col);
+	var col = parse_color( css(obj.querySelector(':scope a:not(.welcome-prefix)'), 'color') );
+	if (col) set_value('#font-ca', col);
 }
 
 // 全体の横幅
 if ('<@ps.width>' == '') {
-	$('#width').val( abody.width() );
+	set_value('#width', width(abody) );
 }
 if ('<@ps.bg>' == '') {
-	var col = parse_color( body.css('background-color') );
-	if (col) $('#bg').val(col);
+	var col = parse_color( css(body, 'background-color') );
+	if (col) set_value('#bg', col);
 }
 if ('<@ps.nav_bg>' == '') {
-	var col = parse_color( obj.css('background-color') );
-	if (col) $('#nav-bg').val(col);
+	var col = parse_color( css(obj, 'background-color') );
+	if (col) set_value('#nav-bg', col);
 }
 
 if ('<@ps.body_bg>' == '') {
-	var col = parse_color( abody.css('background-color') );
-	if (col) $('#body-bg').val(col);
+	var col = parse_color( css(abody, 'background-color') );
+	if (col) set_value('#body-bg', col);
 }
 if ('<@ps.head_bg>' == '') {
-	var col = parse_color( head.css('background-color') );
-	if (col) $('#head-bg').val(col);
+	var col = parse_color( css(head, 'background-color') );
+	if (col) set_value('#head-bg', col);
 }
 
 // マージンとpadding
 if ('<@ps.margin0>' == '')
-	$('#margin0').val( parse_px( obj.css('margin-top') ) );
+	set_value('#margin0', parse_px( css(obj, 'margin-top') ) );
 if ('<@ps.margin1>' == '')
-	$('#margin1').val( parse_px( obj.css('margin-right') ) );
+	set_value('#margin1', parse_px( css(obj, 'margin-right') ) );
 if ('<@ps.margin2>' == '')
-	$('#margin2').val( parse_px( obj.css('margin-bottom') ) );
+	set_value('#margin2', parse_px( css(obj, 'margin-bottom') ) );
 if ('<@ps.margin3>' == '')
-	$('#margin3').val( parse_px( obj.css('margin-left') ) );
+	set_value('#margin3', parse_px( css(obj, 'margin-left') ) );
 if ('<@ps.padding0>' == '')
-	$('#padding0').val( parse_px( obj.css('padding-top') ) );
+	set_value('#padding0', parse_px( css(obj, 'padding-top') ) );
 if ('<@ps.padding1>' == '')
-	$('#padding1').val( parse_px( obj.css('padding-right') ) );
+	set_value('#padding1', parse_px( css(obj, 'padding-right') ) );
 if ('<@ps.padding2>' == '')
-	$('#padding2').val( parse_px( obj.css('padding-bottom') ) );
+	set_value('#padding2', parse_px( css(obj, 'padding-bottom') ) );
 if ('<@ps.padding3>' == '')
-	$('#padding3').val( parse_px( obj.css('padding-left') ) );
+	set_value('#padding3', parse_px( css(obj, 'padding-left') ) );
 
 // ヘッダのマージンとpadding
 if ('<@ps.margin4>' == '')
-	$('#margin4').val( parse_px( head.css('margin-top') ) );
+	set_value('#margin4', parse_px( css(head, 'margin-top') ) );
 if ('<@ps.margin5>' == '')
-	$('#margin5').val( parse_px( head.css('margin-right') ) );
+	set_value('#margin5', parse_px( css(head, 'margin-right') ) );
 if ('<@ps.margin6>' == '')
-	$('#margin6').val( parse_px( head.css('margin-bottom') ) );
+	set_value('#margin6', parse_px( css(head, 'margin-bottom') ) );
 if ('<@ps.margin7>' == '')
-	$('#margin7').val( parse_px( head.css('margin-left') ) );
+	set_value('#margin7', parse_px( css(head, 'margin-left') ) );
 if ('<@ps.padding4>' == '')
-	$('#padding4').val( parse_px( head.css('padding-top') ) );
+	set_value('#padding4', parse_px( css(head, 'padding-top') ) );
 if ('<@ps.padding5>' == '')
-	$('#padding5').val( parse_px( head.css('padding-right') ) );
+	set_value('#padding5', parse_px( css(head, 'padding-right') ) );
 if ('<@ps.padding6>' == '')
-	$('#padding6').val( parse_px( head.css('padding-bottom') ) );
+	set_value('#padding6', parse_px( css(head, 'padding-bottom') ) );
 if ('<@ps.padding7>' == '')
-	$('#padding7').val( parse_px( head.css('padding-left') ) );
+	set_value('#padding7', parse_px( css(head, 'padding-left') ) );
 
 //==============================================================================
-});
+})();
 </script>

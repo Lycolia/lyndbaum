@@ -131,77 +131,77 @@
 	</table>
 
 <script>
-$(function(){
+(function(){
 // デフォルト値を設定する
-var  obj = $f('#page-title');
-var aobj = obj.children('a');
-if (!obj.length || !aobj.length) return;
+var  obj = frame_find('#page-title');
+var aobj = obj && obj.querySelector(':scope > a');
+if (!obj || !aobj) return;
 
 // フォント設定
 if ('<@ps.font_c>' == '') {
-	var col = parse_color( obj.css('color') );
-	if (col) $('#font-c').val(col);
-	var px  = parse_px( aobj.css('font-size') );
-	if (px)  $('#font-s').val(px);
+	var col = parse_color( css(obj, 'color') );
+	if (col) set_value('#font-c', col);
+	var px  = parse_px( css(aobj, 'font-size') );
+	if (px)  set_value('#font-s', px);
 }
 if (1) { //'<@ps.font_bf>' == '') {
-	var bold = (400 < aobj.css('font-weight'));
-	$('#font-bf').prop('checked', bold);
+	var bold = (400 < css(aobj, 'font-weight'));
+	document.getElementById('font-bf').checked = bold;
 }
 /*	// フォントの種類
 if ('<@ps.font_f>' == '') {
-	var fam = aobj.css('font-family');
-	if (fam) $('#font-f').val( fam );
+	var fam = css(aobj, 'font-family');
+	if (fam) set_value('#font-f', fam );
 }
 */
 
 // 文字の位置
 if ('<@ps.top>' == '') {
-	var px = parse_px(obj.css('padding-top')) + parse_px(obj.css('top'));
-	if (px) $('#top').val(px);
+	var px = parse_px(css(obj, 'padding-top')) + parse_px(css(obj, 'top'));
+	if (px) set_value('#top', px);
 }
 if ('<@ps.left>' == '') {
-	var px = parse_px(obj.css('padding-left')) + parse_px(obj.css('left'));
-	if (px) $('#left').val(px);
+	var px = parse_px(css(obj, 'padding-left')) + parse_px(css(obj, 'left'));
+	if (px) set_value('#left', px);
 }
 // 高さ
 if ('<@ps.height>' == '') {
-	$('#height').val( obj.height() );
+	set_value('#height', height(obj) );
 }
 // 背景色
 if ('<@ps.bg>' == '') {
-	obj.addClass('hoverstop');
+	obj.classList.add('hoverstop');
 	delay_color_setting('#bg', obj, 'background-color', 'hoverstop');
 }
 // borderの色
 if ('<@ps.border_c>' == '') {
 	var col = get_border_color( obj );
-	if (col) $('#border-c').val(col);
+	if (col) set_value('#border-c', col);
 }
 if ('<@ps.border_r>' == '') {
-	var px  = parse_px( obj.css('border-top-left-radius') );
-	if (px)  $('#border-r').val(px);
+	var px  = parse_px( css(obj, 'border-top-left-radius') );
+	if (px)  set_value('#border-r', px);
 }
 
 // border
 if ('<@ps.border0>' == '')
-	$('#border0').val(  parse_px( obj.css('border-top-width')    ) );
+	set_value('#border0', parse_px( css(obj, 'border-top-width')    ) );
 if ('<@ps.border1>' == '')
-	$('#border1').val(  parse_px( obj.css('border-right-width')  ) );
+	set_value('#border1', parse_px( css(obj, 'border-right-width')  ) );
 if ('<@ps.border2>' == '')
-	$('#border2').val(  parse_px( obj.css('border-bottom-width') ) );
+	set_value('#border2', parse_px( css(obj, 'border-bottom-width') ) );
 if ('<@ps.border3>' == '')
-	$('#border3').val(  parse_px( obj.css('border-left-width')   ) );
+	set_value('#border3', parse_px( css(obj, 'border-left-width')   ) );
 // マージンとpadding
 if ('<@ps.margin0>' == '')
-	$('#margin0').val(  parse_px( obj.css('margin-top')    ) );
+	set_value('#margin0', parse_px( css(obj, 'margin-top')    ) );
 if ('<@ps.margin1>' == '')
-	$('#margin1').val(  parse_px( obj.css('margin-right')  ) );
+	set_value('#margin1', parse_px( css(obj, 'margin-right')  ) );
 if ('<@ps.margin2>' == '')
-	$('#margin2').val(  parse_px( obj.css('margin-bottom') ) );
+	set_value('#margin2', parse_px( css(obj, 'margin-bottom') ) );
 if ('<@ps.margin3>' == '')
-	$('#margin3').val(  parse_px( obj.css('margin-left')   ) );
+	set_value('#margin3', parse_px( css(obj, 'margin-left')   ) );
 
 //==============================================================================
-});
+})();
 </script>

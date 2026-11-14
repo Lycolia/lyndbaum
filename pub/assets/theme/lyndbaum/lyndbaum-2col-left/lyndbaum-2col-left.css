@@ -1,0 +1,43 @@
+@charset "UTF-8";
+/*******************************************************************************
+  lyndbaum（2カラム・左サイドバー）
+	共通の部分（theme/lyndbaum/lyndbaum.css）を読み込み、カラムの並べ方と引き出しを足したもの
+*******************************************************************************/
+@import url("../lyndbaum.css");
+
+/*--------------------------------------------------------------------
+■カラム（2カラム・左サイドバー）
+--------------------------------------------------------------------*/
+/* サイドバーAとBの包み（#sidebars）を1本のサイドバーにし、Aの下にBを重ねる。
+   広い画面では本文の左に置く。72rem未満の画面では、本文、サイドバーの順に縦に並べる */
+@media (min-width: 72rem) {
+	#hatena-body > div {
+		grid-template-columns: 22.5rem minmax(0, 1fr);
+		grid-template-areas: "side main";
+		column-gap: 1rem;
+	}
+	.main { grid-area: main; }
+	.site-sidebars { grid-area: side; }
+}
+
+/* 72rem未満の画面では、サイドバーを左から出る引き出しにし、左の角の三本線のボタン（.sidebar-toggle-both）で開く
+   開け閉めはadiary.js（docs/仕様/引き出し.md）。JavaScriptが使えるとき、_frame.htmlがhas-drawerを付ける。付かなければ上の並び。
+   暗幕とスクロールの停止はbase.css。引き出しになっている間は--drawer: 1を付ける。
+   ボタンの形は共通の部分。ヘッダーの中身がボタンの下に入らないよう、ボタンのある側を空ける */
+@media (max-width: 71.99rem) {
+	.has-drawer .site-header { padding-left: 3.25rem; }
+	.has-drawer .sidebar-toggle-both { display: inline-flex; left: .5rem; }
+	.has-drawer .site-sidebars {
+		--drawer: 1;
+		position: fixed; top: var(--admin-bar-h, 0px); bottom: 0; left: 0; z-index: 210; width: min(22.5rem, 85vw);
+		overflow-y: auto; overscroll-behavior: contain; padding: 1rem;
+		background: var(--page-bg); border-right: 1px solid var(--border);
+		transform: translateX(-100%); visibility: hidden;
+	}
+	/* 動きはボタンで開け閉めするときだけ。adiary.jsが、読み込んだ直後と幅を変えているあいだはdrawer-animateを外す */
+	.drawer-animate .site-sidebars { transition: transform .2s ease, visibility .2s; }
+	.has-drawer .site-sidebars.is-open { transform: none; visibility: visible; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.drawer-animate .site-sidebars { transition: none; }
+}

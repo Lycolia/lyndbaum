@@ -15,7 +15,7 @@ package SatsukiApp::adiary;
 # ■ユーザー管理
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●初期セットアップ（最初の管理者とブログ名）
+# ●初期セットアップ（最初の管理者とサイト名）
 #-------------------------------------------------------------------------------
 # ユーザーは管理者1人だけ。管理者がいないときだけ作り、そのままログインする。
 # ログインしていなくても呼べるので（do_ajax_function）、管理者がいないことをここで確かめる。
@@ -58,15 +58,15 @@ sub do_setup {
 		pass2 => $form->{pass2}
 	);
 
-	# ブログ名（基本設定の画面と同じ決まり。skel/set/_action/index.html）
+	# サイト名（基本設定の画面と同じ決まり。skel/set/_action/index.html）
 	my $blog = $self->{blog};
 	my $blog_name = $form->{blog_name};
 	$blog_name =~ s/[\r\n\0]//g;
 	$ROBJ->trim($blog_name);
 	my $jcode = $ROBJ->load_codepm_if_needs( $blog_name );
 	my $len   = $jcode ? $jcode->jlength($blog_name) : length($blog_name);
-	my @name_err = $blog_name eq '' ? ("'%s' is empty", 'ブログ名')
-		     : $len > 48        ? ("'%s' is too long. (maximum %d chars)", 'ブログ名', 48)
+	my @name_err = $blog_name eq '' ? ("'%s' is empty", 'サイト名')
+		     : $len > 48        ? ("'%s' is too long. (maximum %d chars)", 'サイト名', 48)
 		     : ();
 	if (@name_err) {
 		# 管理者の欄の誤りも、まとめて知らせる（check_user_data()はフォームのエラーを消してから調べる）
@@ -95,12 +95,12 @@ sub do_setup {
 		sid => $login->{sid}
 	}, $auth->{expires});
 
-	# ブログ名を保存する。アップデートの処理の前でブログがまだ無いときは、保存しない
+	# サイト名を保存する。アップデートの処理の前でサイトがまだ無いときは、保存しない
 	if ($blog) {
 		local($self->{blog_admin}) = 1;
 		$self->save_blogset({ blog_name => $blog_name });
 		$self->call_event('BLOG_SETTING');
-		$self->generate_rss();		# ブログ名はRSSにも出る
+		$self->generate_rss();		# サイト名はRSSにも出る
 	}
 	return { ret=>0, _no_debug=>1 };
 }
@@ -120,12 +120,12 @@ sub _ajax_self_change_pass {
 }
 
 ################################################################################
-# ■ブログの作成と削除
+# ■サイトの作成と削除
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログが無ければ作る
+# ●サイトが無ければ作る
 #-------------------------------------------------------------------------------
-# リクエストの最初に、権限によらず呼ばれる。失敗してもブログが無いまま返り、呼び出し元が503にする。
+# リクエストの最初に、権限によらず呼ばれる。失敗してもサイトが無いまま返り、呼び出し元が503にする。
 # 残っているものを消さないよう、テーブルや設定の一部だけがあるときは作らず、失敗しても消さない
 sub blog_auto_create {
 	my $self = shift;
@@ -203,7 +203,7 @@ sub blog_clear {
 # ■再構築機能
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログの全記事の再構築
+# ●サイトの全記事の再構築
 #-------------------------------------------------------------------------------
 sub rebuild_blog {
 	my $self = shift;
@@ -228,7 +228,7 @@ sub rebuild_blog {
 			$r++;
 			next;
 		}
-		# プリプロセッサはブログ環境で処理内容が異なることはないので
+		# プリプロセッサはサイト環境で処理内容が異なることはないので
 		# 再構築時は実行しない。
 
 		# パース準備
@@ -463,7 +463,7 @@ sub parse_design_dat {
 #-------------------------------------------------------------------------------
 # ●テーマカスタム情報の再生成
 #-------------------------------------------------------------------------------
-# 色の調整の値（ブログの設定）と今のテーマのCSSから、pub/custom/theme.css を作り直す
+# 色の調整の値（サイトの設定）と今のテーマのCSSから、pub/custom/theme.css を作り直す
 sub remake_theme_custom_css {
 	my $self  = shift;
 	my $theme = $self->{blog}->{theme};
@@ -475,7 +475,7 @@ sub remake_theme_custom_css {
 # ■データベースがらみサブルーチン
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログテーブルの作成
+# ●サイトテーブルの作成
 #-------------------------------------------------------------------------------
 sub create_tables {
 	my $self = shift;
@@ -538,7 +538,7 @@ sub create_tables {
 # ●記事テーブル、コメントテーブルの定義
 #-------------------------------------------------------------------------------
 # ※ゴミ箱テーブルも同じ定義から作る。
-#   既存ブログにカラムを追加するとき（sys_update_* の add_column）は、
+#   既存サイトにカラムを追加するとき（sys_update_* の add_column）は、
 #   ゴミ箱テーブル（_trash, _trashcom）にも同じカラムを追加すること。
 sub art_table_info {
 	my $self = shift;
@@ -831,7 +831,7 @@ sub import_events {
 # $art->{ctype}		コンテンツタイプ
 # $art->{priority}	優先度, 重要度（整数値）
 # $art->{upnode}	親記事
-# $art->{link_key}	コンテンツキー
+# $art->{link_key}	パーマリンク
 #
 #
 # $c = $coms->[$n]	$n 番目の書き込み
@@ -926,7 +926,8 @@ sub save_article {
 		my $ctype    = $art->{ctype};
 		my $priority = int( $art->{priority} );
 		my $upnode   = $art->{upnode};
-		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='wiki'; }
+		if ($ctype eq 'wiki') { $art->{ctype}=$ctype='page'; }	# 4.42までのエクスポートは、固定ページをwikiで書き出している
+		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='page'; }
 
 		# save pkey
 		$pkey = ($pkey<1 || ($pkeys->{$pkey} && $opt->{avoid_pkey_collision})) ? 0 : $pkey;
@@ -956,6 +957,7 @@ sub save_article {
 		my %op;
 		$op{save_pkey} = $pkey;
 		$op{tm} = $art->{tm};
+		$op{import} = 1;	# 固定ページのパーマリンクは、元のまま受ける
 		my $ret = $self->regist_article( $art, \%op );
 		if (!ref($ret)) {
 			$session && $session->msg("Save article failed(%d) : %s", $ret, $art->{title} );
@@ -1195,7 +1197,7 @@ sub import_img {
 		$fname =~ s/%([0-9A-Fa-f][0-9A-Fa-f])/$1/g;
 
 		if (!$img_l) { next; }
-		my ($r, $saved) = $self->save_image_to_album($dir, $fname, $img_l);
+		my ($r, $saved) = $self->save_image_to_media($dir, $fname, $img_l);
 		if ($r) {
 			$msg  .= "  Save '$fname' fail!\n";
 			next;	# save fail
@@ -1219,7 +1221,7 @@ sub import_img {
 				my $img = $self->load_image_magick();
 				eval {
 					$self->read_image( $img, $file );
-					$img->Set( quality => ($self->{album_jpeg_quality} || 80) );
+					$img->Set( quality => ($self->{media_jpeg_quality} || 80) );
 					$img->Write( $thumb_file );
 				};
 				if ($@) { last; }
@@ -1295,9 +1297,9 @@ sub get_imgdata {
 }
 
 #-------------------------------------------------------------------------------
-# ●画像データをアルバムに保存
+# ●画像データをメディア管理に保存
 #-------------------------------------------------------------------------------
-sub save_image_to_album {
+sub save_image_to_media {
 	my $self = shift;
 	my $dir  = shift;
 	my $name = shift;

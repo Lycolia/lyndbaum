@@ -13,15 +13,9 @@ package SatsukiApp::adiary;
 ################################################################################
 # ■ワンライナーなサブルーチン等
 ################################################################################
-my $UPDATE_MIN_VERSION = 4.31;	# これより古いデータからのアップデートはできない
+my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.32, plugin=>1 },	# ブログが無いときの分岐を雛形とプラグインから消し、変数の名前をそろえた。デザインのスケルトンを作り直す
-	{ ver => 4.33, func => 'sys_update_433', system=>1, plugin=>1 },	# マルチサイトと複数ユーザーの残りの列を消した。記事情報モジュールの「投稿者の表示」を削除したので、デザインのスケルトンを作り直す
-	{ ver => 4.34, func => 'sys_update_434', system=>1 },	# 操作の記録のうち、削除の記録を消す
-	{ ver => 4.37, rebuild_cond => ['\[\*toc'] },	# 目次を「目次」の見出し付きの<nav>で囲んだので、目次のある記事を作り直す
-	{ ver => 4.38, func => 'sys_update_438' },	# 記事の直前の保存のテーブル（lastrev）を作る
-	{ ver => 4.39, rebuild_cond => ['\(\('] },	# 注釈の一覧を、書いた見出しの下に出すようにしたので、注釈のある記事を作り直す
-	{ ver => 4.42, plugin=>1 }	# 検索画面の検索条件の欄とタグで絞り込みを変えたので、デザインのスケルトンを作り直す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとサイトのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとサイトの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -49,7 +43,7 @@ sub system_update {
 		$opt{rebuild} ||= $h->{rebuild};	# 全記事再構築
 		$opt{plugin}  ||= $h->{plugin};		# プラグイン更新
 		$opt{theme}   ||= $h->{theme};		# テーマカスタムCSS更新
-		$opt{info}    ||= $h->{info};		# ブログ付加情報更新
+		$opt{info}    ||= $h->{info};		# サイト付加情報更新
 
 		# 条件付きリビルド
 		if ($h->{rebuild_cond}) {
@@ -64,7 +58,7 @@ sub system_update {
 		$cur = $h->{ver};
 	}
 	$self->select_blog();
-	if (!$exists) { %opt = (); }	# ブログが無ければ再構築などは不要
+	if (!$exists) { %opt = (); }	# サイトが無ければ再構築などは不要
 
 	# 再構築
 	if ($opt{rebuild}) {
@@ -101,7 +95,7 @@ sub system_update {
 		$ROBJ->message("Remake all custom css");
 		$self->remake_theme_custom_css();
 	}
-	# ブログ付加情報の再構築
+	# サイト付加情報の再構築
 	if ($opt{info}) {
 		$ROBJ->message("Rebuild blog infomation");
 		$self->blog_info_rebuild();
@@ -120,51 +114,107 @@ sub update_unsupported {
 }
 
 #-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.33
+# ●システムアップデート for Ver4.43
 #-------------------------------------------------------------------------------
-# マルチサイトと複数ユーザーの残りの列を消す。書いた人は管理者だけなので、記事ごとに持たない
-sub sys_update_433 {
+# 同時編集の確認を削除したので、システム設定の間隔と、サイトのロックのファイルを置いたディレクトリを消す
+# 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
+# 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、サイトの設定と記事に保存したパスを移す
+# 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、サイトの設定を移す
+# 記事ヘッダの日時の設定（tmdate、wiki_tm）を消す
+# satsuki2系のテーマの色の調整の、前のポップアップのヘルプの色（fixhelpfont）を、ヘルプの文字の色（helpfont）にしたので、保存した値を移す
+sub sys_update_443 {
 	my $self = shift;
-	my $auth = $self->{ROBJ}->{Auth};
+	my $ROBJ = $self->{ROBJ};
+	$self->update_sysdat('edit_lock_interval', undef);	# 値が空のキーは保存しない
+	foreach(qw(jpeg avif)) {
+		my $old = $self->{sys}->{"album_${_}_quality"};
+		if ($old eq '') { next; }
+		if ($self->{sys}->{"media_${_}_quality"} eq '') { $self->update_sysdat("media_${_}_quality", $old); }
+		$self->update_sysdat("album_${_}_quality", undef);
+	}
 
-	$self->drop_columns_433($auth->{DB}, $auth->{table}, qw(isadmin disable));
+	my $old_img = $self->{pub_dir} . 'attachments/';
+	my $img     = $self->blogimg_dir();
+	if (-d $old_img) {
+		if (-e $img) {
+			$ROBJ->message("Already exists '%s'", $img);
+		} else {
+			rename($old_img, $img) || $ROBJ->message("Rename '%s' failed", $old_img);
+		}
+	}
 
 	my $blog = $self->{blog};
 	if (!$blog) { return; }
-	my @author = qw(name id ip host agent);
-	$self->drop_columns_433($self->{DB}, 'art',   @author);
-	$self->drop_columns_433($self->{DB}, 'trash', @author, 'deleted_id');
-	$self->update_blogset($blog, 'p:dea_art-info:author', undef);
-}
-sub drop_columns_433 {
-	my ($self, $DB, $table, @cols) = @_;
-	foreach(@cols) {
-		if ($DB->drop_column($table, $_)) {
-			$self->{ROBJ}->message("Blog database error(%s)", "$table.$_");
-		}
+	my $dir = $self->{blog_dir} . 'lock/';
+	if (-d $dir) { $ROBJ->dir_delete($dir); }
+
+	# サイトの設定（サイトの画像、アイコン、プラグインの画像など）のパス
+	my $old_path = qr|pub/attachments/|;
+	my $new_path = 'pub/attach/';
+	my %up;
+	foreach(keys(%$blog)) {
+		if (ref($blog->{$_}) || $blog->{$_} !~ $old_path) { next; }
+		($up{$_} = $blog->{$_}) =~ s/$old_path/$new_path/g;
 	}
-}
+	if (%up) { $self->update_blogset($blog, \%up); }
 
-#-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.34
-#-------------------------------------------------------------------------------
-# 操作の記録のうち、削除の記録を消す。ユーザーの削除はもう記録しない
-sub sys_update_434 {
-	my $self = shift;
-	my $auth = $self->{ROBJ}->{Auth};
+	# 固定ページの内部の名前をwikiからpageにしたので、サイトの設定（編集画面の既定、テーマの色の調整）を移す
+	# 記事ヘッダ（dea_art-info）の日時の設定（tmdate、wiki_tm）は、#70から効いておらず、意味の違う設定にしたので、移さずに消す
+	{
+		my %up = map { ("p:dea_art-info:$_" => undef) } grep { exists($blog->{"p:dea_art-info:$_"}) } qw(tmdate wiki_tm page_tm);
+		# 編集画面の設定suggest_link_key（親のパーマリンクから自動設定する）は、パーマリンクを「親のパーマリンク/名前」に決めたので消す
+		if (exists($blog->{suggest_link_key})) { $up{suggest_link_key} = undef; }
+		my %rename = ('wiki' => 'page');
+		foreach(keys(%rename)) {
+			if (!exists($blog->{$_})) { next; }
+			if ($blog->{ $rename{$_} } eq '') { $up{ $rename{$_} } = $blog->{$_}; }
+			$up{$_} = undef;
+		}
+		# satsuki2系のテーマの色の調整の、前のポップアップのヘルプの色fixhelpfontを、ヘルプの文字（.help-text）の色helpfontにした
+		foreach(keys(%$blog)) {
+			if ($_ !~ /^theme_custom:/ || $blog->{$_} !~ /^(?:wikibg|fixhelpfont)=/m) { next; }
+			my $v = $blog->{$_};
+			$v =~ s/^wikibg=/pagebg=/mg;
+			$v =~ s/^fixhelpfont=/helpfont=/mg;
+			$up{$_} = $v;
+		}
 
-	$auth->{DB}->delete_match($auth->{table} . '_log', 'type', 'delete');
-}
+		if (%up) { $self->update_blogset($blog, \%up); }
+	}
 
-#-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.38
-#-------------------------------------------------------------------------------
-# 記事の直前の保存のテーブルを作る
-sub sys_update_438 {
-	my $self = shift;
-	if ($self->{DB}->find_table('lastrev')) { return; }
-	if ($self->create_lastrev_table()) {
-		$self->{ROBJ}->message("Blog database error(%s)", 'lastrev');
+	# 固定ページのctypeをwikiからpageにする。rev、lastrevにはctypeの列が無い
+	foreach my $table (qw(art trash)) {
+		if (!$self->{DB}->find_table($table)) { next; }
+		my $ary = $self->{DB}->select_match($table, 'ctype', 'wiki', '*cols', ['pkey']);
+		if (!@$ary) { next; }
+		$self->{DB}->begin();
+		foreach(@$ary) {
+			$self->{DB}->update_match($table, { ctype => 'page' }, 'pkey', $_->{pkey});
+		}
+		if ($self->{DB}->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
+	}
+
+	# 記事の原文（HTML、Markdownで書いたパス）とパースしたもの。artのtextは作り直すが、ゴミ箱は作り直さない
+	my $DB = $self->{DB};
+	my %cols = (
+		art     => [qw(_text text text_s)],
+		trash   => [qw(_text text text_s)],
+		rev     => [qw(_text)],
+		lastrev => [qw(_text)]
+	);
+	foreach my $table (sort keys(%cols)) {
+		if (!$DB->find_table($table)) { next; }
+		my $ary = $DB->select_match($table, '*cols', ['pkey', @{ $cols{$table} }]);
+		$DB->begin();
+		foreach my $h (@$ary) {
+			my %up;
+			foreach(@{ $cols{$table} }) {
+				my $v = $h->{$_};
+				if ($v =~ s/$old_path/$new_path/g) { $up{$_} = $v; }
+			}
+			if (%up) { $DB->update_match($table, \%up, 'pkey', $h->{pkey}); }
+		}
+		if ($DB->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
 	}
 }
 

@@ -15,9 +15,7 @@ BEGIN {
 use FCGI;
 use Satsuki::Base ();
 use Satsuki::AutoReload ();
-BEGIN {
-	if ($ENV{SatsukiTimer}) { require Satsuki::Timer; }
-}
+use Satsuki::Timer ();
 
 $SIG{CHLD} = 'IGNORE';	# for fork()
 
@@ -106,17 +104,17 @@ sub fcgi_main_loop {
 			if ($flag) {
 				$Satsuki::Base::RELOAD = 1;	# Base.pmコンパイルエラー時
 				require Satsuki::Base;		# 次回、強制RELOADさせる。
+				# Timerも外されている（Satsuki::で始まるものは全部外す）。
+				# 読み込み直さないと、下のSatsuki::Timer->new()が毎回失敗する
+				require Satsuki::Timer;
 				$Satsuki::Base::RELOAD = 0;
 			}
 
 			#-------------------------------------------------------
 			# 時間計測開始
 			#-------------------------------------------------------
-			my $timer;
-			if ($ENV{SatsukiTimer} ne '0' && $Satsuki::Timer::VERSION) {
-				$timer = Satsuki::Timer->new();
-				$timer->start();
-			}
+			my $timer = Satsuki::Timer->new();
+			$timer->start();
 
 			#-------------------------------------------------------
 			# FastCGI環境初期化

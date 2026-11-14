@@ -18,23 +18,23 @@
 <$rtime = if(reload_stop, 0, v.sys.reload_time)>
 
 <script-defer><!--
-	var stop=$('#reload-stop');
-	var msgs=$('#reload-msg');
+	var stop=document.getElementById('reload-stop');
+	var msgs=document.getElementById('reload-msg');
 	function reload() {
 		location.href = "<@url>";
 	};
-	$('#body').keydown(function(evt) {
+	document.getElementById('body').addEventListener('keydown', function(evt) {
 		if (evt.keyCode == 13) reload();	// Enterでリロード
-		if (evt.keyCode == 27) stop.click();	// ESCでストップ
+		if (evt.keyCode == 27 && stop) stop.click();	// ESCでストップ
 	});
 
 	// Auto reload
-	if (stop.length) {
+	if (stop) {
 		var reload_timer = setTimeout(reload, <@rtime>000);
-		stop.click( function() {
+		stop.addEventListener('click', function() {
 			clearTimeout(reload_timer);
-			stop.css('display','none');
-			msgs.html('クリックするとリロードします');
+			stop.style.display = 'none';
+			msgs.innerHTML = 'クリックするとリロードします';
 		});
 	}
 --></script-defer>

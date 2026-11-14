@@ -1,6 +1,6 @@
 ######################################################################
 title=記事ヘッダ
-version=1.01
+version=1.02
 #					(C)2015 nabe@abk
 ######################################################################
 author=nabe@abk
@@ -9,6 +9,9 @@ license=WTFPL
 
 adiary_version=4.16
 module_type=article
+
+# デザイナで設定を保存したら、見本の記事で作り直す（design/_action/load_module）
+load_module_html_in_edit=1
 
 *sample_html=<<HTML
 	<div class="art-info" data-fix="1">

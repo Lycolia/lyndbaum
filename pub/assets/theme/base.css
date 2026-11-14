@@ -348,23 +348,35 @@ button + button
 	margin-left:	0;
 }
 
-/* 色選択ボックス */
-span.colorbox {
+/* 色選択ボックス（ブラウザーの色の窓。admin.js が input.color-picker の前に置く） */
+input.colorbox {
 	height:		1em;
 	width:		1em;
 	border:		1px solid #000;
 	display:	inline-block;
+	padding:	0;
+	box-sizing:	content-box;
+	background:	none;
+	cursor:		pointer;
 
 	vertical-align: 	middle;
 	border-radius:		4px;
 	margin-right:		4px;
 }
+input.colorbox::-webkit-color-swatch-wrapper {
+	padding:	0;
+}
+input.colorbox::-webkit-color-swatch {
+	border:		none;
+	border-radius:	3px;
+}
+input.colorbox::-moz-color-swatch {
+	border:		none;
+	border-radius:	3px;
+}
 .color-picker {
 	width:		70px;
 	vertical-align: middle;
-}
-.colorpicker {
-	z-index:	10000;
 }
 
 option:disabled {
@@ -399,28 +411,24 @@ textarea {
 	white-space:	pre-line;
 	opacity:	0.75;
 }
-.help {
-	font-weight:	bold;
-	margin:		0 4px;
-	cursor:		pointer;
-}
-.help:before {
-	content:	'[';
-}
-.help:after {
-	content:	']';
-}
-.btn-help:after {
-	margin-left:	2px;
-	content:	'[?]';
-}
-
 div.popup-block {
 	display:	none;
 	position:	absolute;
 	z-index:	1100;
 }
-div.popup-help, #popup-com {
+/* adiary.fade_show()で出すときのフェード（asys.js。時間は--aui-fade-timeで渡す） */
+.aui-fade-in {
+	animation:	aui-fade-in var(--aui-fade-time, .15s) ease-out;
+}
+@keyframes aui-fade-in {
+	from	{ opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.aui-fade-in {
+		animation:	none;
+	}
+}
+#popup-com {
 	background-color:	#eee;
 	padding:		6px;
 	font-size:		11pt;
@@ -903,7 +911,7 @@ html:has(.admin-bar) {
 --------------------------------------------------------------------*/
 /* 年齢確認を済ませるまで、中身をぼかして年齢確認を重ねる。ぼかす中身は、
      NSFWの記事        .nsfw の中の .nsfw-content（本文）
-     ブログ全体        画面全体。年齢確認を画面全体に重ね、その下を backdrop-filter でぼかす。
+     サイト全体        画面全体。年齢確認を画面全体に重ね、その下を backdrop-filter でぼかす。
                        中身に filter をかけると、中の position: fixed（テーマの引き出しのサイドバーなど）が
                        画面でなく中身に付いてはみ出し、スマホで画面の幅が広がるため、中身はそのままにする
    済ませたところには nsfw-open が付く。確認を覚えていると、html に nsfw-ok が付く（_frame.html、adiary.js） */

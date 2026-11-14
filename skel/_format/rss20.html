@@ -19,8 +19,8 @@
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
 <$(logs, h) = v.load_arts_for_rss( opt )>
 <$title = esc_xml(s.blog_name)>
-<@> チャンネルの画像は、ブログの画像、サイトアイコン、既定のアイコンの順に使う
-<@> ブログの画像とサイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
+<@> チャンネルの画像は、サイトの画像、サイトアイコン、既定のアイコンの順に使う
+<@> サイトの画像とサイトアイコンは、設定でGIF/JPEG/PNGに限っている（RSS 2.0の <image> で使える形式）
 <$icon = v.pubdist_dir . 'default-icon.png'>
 <$ifexec(s.blog_image, begin, begin)>
 	<$icon = s.blog_image>
@@ -72,7 +72,7 @@
 		<media:content url="<@t.main_image_url>" medium="image"<@if(t.main_image_type, #' type="<@t.main_image_type>"')><@if(t.main_image_w && t.main_image_h, #' width="<@t.main_image_w>" height="<@t.main_image_h>"')> />
 <$end>
 <@>		NSFWの記事は、本文とコメントを出さない（RSSリーダーでは年齢確認を出せないため）
-		<description><![CDATA[<@if(t.nsfw, '<p>この記事には年齢確認があります。続きはブログで読んでください。</p>', t.description)>
+		<description><![CDATA[<@if(t.nsfw, '<p>この記事には年齢確認があります。続きはサイトで読んでください。</p>', t.description)>
 <@ifexec(!opt.no_comment && t.coms && !t.nsfw, begin.comment)>
 <hr>
 <h4><a href="<@url>#com">■コメント（<@t.coms>件）</a><@if(5 < t.coms, ' - 古いコメントが省略されています')></h4>

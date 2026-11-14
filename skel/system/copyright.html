@@ -44,11 +44,11 @@ along with this program.  If not, see <a href="http://www.gnu.org/licenses/">htt
 
 
 <script-defer><!--
-	var mail = $('#mailto');
+	var mail = document.getElementById('mailto');
 	var text1 = "nabe";
 	var x     = Math.floor(5*7/15);
 	var text2 = "abk.nu";
 	var text = text1 + x + decodeURIComponent('%40') + text2;
-	mail.text( text );
-	mail.attr('href', 'mailto:' + text);
+	mail.textContent = text;
+	mail.setAttribute('href', 'mailto:' + text);
 --></script-defer>

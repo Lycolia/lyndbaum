@@ -13,7 +13,7 @@
 <article class="system setting">
 <h2><@v.title></h2>
 <div class="body">
-	<p>記事に使用されている外部の画像をメディアにコピーします。<em>ブログの引っ越し</em>に便利な機能です。</p>
+	<p>記事に使用されている外部の画像をメディア管理にコピーします。<em>ブログの引っ越し</em>に便利な機能です。</p>
 	<ul>
 		<li>HTML解析をしていますので、異常なHTMLでは期待した動作をしないかも知れません。</li>
 		<li><a href="https://adiary.org/tools.html#mixi_export">mixi export</a>で出力した記事の画像も取り込めます。</li>
@@ -38,7 +38,7 @@
 				<option value="">（すべて）</option>
 			</select>
 		</li>
-		<li>保存フォルダ<input type="text" class="w160" name="folder" value="<@v.blog.edit_upload || 'posts/%y/'>"> %y=年, %m=月<span class="help-text">メディアのどのフォルダに保存するか指定します。</span></li>
+		<li>保存フォルダ<input type="text" class="w160" name="folder" value="<@v.blog.edit_upload || 'posts/%y/'>"> %y=年, %m=月<span class="help-text">メディア管理のどのフォルダに保存するか指定します。</span></li>
 		<li>補完するURL<input type="text" class="w300" name="base" value=""><span class="help-text">画像URLが http:// 等で始まらない場合、取り込みに失敗しますが、元サイトのURLを入力することでURL情報を補完することができます。<br>画像が問題なく表示されている時、よく分からない時は入力しないでください。</span></li>
 		<li><label><input type="checkbox" name="html_only" value="1" checked>HTML以外の入力方法を無視する</label><span class="help-text">チェックを外すと標準のさつき記法やMarkdown中のHTMLの記述も解析しますが、記法を解釈するわけではないので書式が壊れることがあります。</span></li>
 		<li><label><input type="checkbox" name="enable_only" value="1">非公開記事を処理しない</label></li>
@@ -66,15 +66,18 @@
 <script-defer><!--
 //==============================================================================
 adiary.load_tags_list( '#tag-select');
-$('#start').prop('disabled', false);
-$('#stop') .prop('disabled', false);
+var start_btn = document.getElementById('start');
+var stop_btn  = document.getElementById('stop');
+start_btn.disabled = false;
+stop_btn .disabled = false;
 
 var posturl = adiary.myself + '?etc/ajax_dummy';
-var $msg  = $secure('#session-msg');
-var $log  = $secure('#session-log');
-var $form = $secure('#import-form');
-var $pkey = $secure('#pkey');
-var $prog = $('#progress');
+var msg   = adiary.secure('#session-msg');
+var logta = adiary.secure('#session-log');
+var form  = adiary.secure('#import-form');
+var pkey  = adiary.secure('#pkey');
+var prog  = document.getElementById('progress');
+var bar;
 
 var act = '<@v.skeleton>';
 var stop;
@@ -84,8 +87,16 @@ function log() {
 	for(var i=0; i<arguments.length; i++)
 		text += arguments[i];
 	text = adiary.tag_decode(text);
-	$log.val( $log.val() + text + "\n" );
-	$log.scrollTop( $log.prop('scrollHeight') );
+	logta.value = logta.value + text + "\n";
+	logta.scrollTop = logta.scrollHeight;
+}
+
+// フォームの中身（今までのjQueryの.serialize()と同じく、ファイルは送らない）
+function serialize() {
+	var data = new URLSearchParams();
+	for(var [k, v] of new FormData(form))
+		if (typeof(v) === 'string') data.append(k, v);
+	return data;
 }
 
 function import_img_rec(arts, i) {
@@ -93,15 +104,15 @@ function import_img_rec(arts, i) {
 	var ymd   = arts[i].yyyymmdd.toString();
 	var title = arts[i].title;
 	ymd = ymd.substr(0,4) + '-' + ymd.substr(4,2) + '-' + ymd.substr(6,2);
-	$msg.html(ymd + ' ' + title);
-	$pkey.val( arts[i].pkey );
+	msg.innerHTML = ymd + ' ' + title;
+	pkey.value = arts[i].pkey;
 	post(posturl,
-		$form.serialize(),
+		serialize(),
 		function(text) {
 			log(title);
 			if (text != '') log(text + "\n");
 			var par = Math.floor(num*100/arts.length + 0.5);
-			$prog.adiaryProgressbar({ value: par });
+			bar.set(par);
 
 			if (num == arts.length) {
 				log('*** Finish ***');
@@ -128,7 +139,7 @@ function import_img_start(arts) {
 		import_img_stop();
 		return;
 	}
-	$('#action').val(act);
+	document.getElementById('action').value = act;
 	stop = false;
 	init_progressbar();
 	import_img_rec(arts, 0);
@@ -136,52 +147,57 @@ function import_img_start(arts) {
 
 function import_img_stop() {
 	stop=true;
-	$('#start').prop('disabled', false);
-	$('#stop') .prop('disabled', true);
+	start_btn.disabled = false;
+	stop_btn .disabled = true;
 }
-$('#stop').click( import_img_stop );
+stop_btn.addEventListener('click', import_img_stop);
 
-$('#start').click(function(){
-	$('#start').prop('disabled', true);
-	$('#stop') .prop('disabled', false);
-	$('#stop').show();
-	$('#log').showDelay();
-	$log.val('');
-	$('#action').val(act + '_init');
+start_btn.addEventListener('click', function(){
+	start_btn.disabled = true;
+	stop_btn .disabled = false;
+	adiary.show(stop_btn);
+	adiary.show_delay( document.getElementById('log') );
+	logta.value = '';
+	document.getElementById('action').value = act + '_init';
 	post(posturl,
-		$form.serialize(),
+		serialize(),
 		import_img_start,
 		'json'
 	);
 });
 
+// 送って、textかjsonで受け取る。失敗したら今までと同じく「HTTP ERROR : 状態の文言」を出す
+// （つながらないときは空、JSONでないときはSyntaxErrorの文言。今までの$.ajaxと同じ）
 function post(url, data, success, dataType) {
-  $.ajax({
-	type: 'POST',
-	url: url,
-	data: data,
-	success: success,
-	dataType: dataType,
-	error: http_error
-  });
+	fetch(url, { method: 'POST', body: data }).then(function(res){
+		if (!res.ok) throw res.statusText;
+		return res.text();
+	}, function(){
+		throw '';
+	}).then(function(text){
+		return (dataType == 'json') ? JSON.parse(text) : text;
+	}).then(success, http_error);
 }
 
-function http_error(jqXHR, err, errTh){
-	log('HTTP ERROR : ', errTh);
+function http_error(err){
+	log('HTTP ERROR : ', err);
 	import_img_stop();
 }
 //==============================================================================
+// 2回目からは作り直さずに値を入れる（今までのadiaryProgressbarと同じ）
 function init_progressbar() {
-	var label = $prog.find('.label');
-	$prog.adiaryProgressbar({
+	var label = prog.querySelector('.label');
+	var opt = {
 		value: 0,
 		change: function(value) {
-			label.text( value + "%" );
+			label.textContent = value + "%";
 		},
 		complete: function() {
-			label.text( "complete!" );
+			label.textContent = "complete!";
 		}
-	})
+	};
+	if (bar) bar.set(opt);
+	    else bar = adiary.progressbar(prog, opt);
 }
 //==============================================================================
 --></script-defer>

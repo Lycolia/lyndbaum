@@ -14,6 +14,7 @@
 <@>	記事のページでは、投稿日やタグの下の行に、参照元（#backlinks）とコメント欄（#com）へ飛ぶリンクも出す（長い記事で下まで送らずに済むように）
 <@>	コメント欄は、_article と同じく、受け付けているか、コメントがあるときに出る
 <@>	参照元は、置いた先（テーマの雛形か、dea_backlinks）が無ければ adiary.js が消す
+<@>	投稿は記事の日付。更新日は、設定（通常記事はart_upd、固定ページはpage_upd）で出すときに、記事の日付と違えば出す
 <@>
 <$permalink = if(t.link_key eq v.blog.frontpage, v.myself, "<@v.myself2><@t.elink_key>")>
 <$url = ServerURL . permalink>
@@ -26,7 +27,7 @@
 		<$end>
 		<div>
 			<span>投稿：<time class="write-date" datetime="<@t.year>-<@t.mon>-<@t.day>"><@t.year>/<@t.mon>/<@t.day></time></span>
-			<@ifexec(t.shown_upd_date==1, begin)><span>更新：<time class="update-date" datetime="<@t.upd_year>-<@t.upd_mon>-<@t.upd_day>"><@t.upd_year>/<@t.upd_mon>/<@t.upd_day></time></span><br><$end>
+			<@ifexec(t.shown_upd_date && if(t.priority, ps.page_upd, ps.art_upd), begin)><span>更新：<time class="update-date" datetime="<@t.upd_year>-<@t.upd_mon>-<@t.upd_day>"><@t.upd_year>/<@t.upd_mon>/<@t.upd_day></time></span><br><$end>
 		</div>
 		<div>
 			<@ifexec(t.tags, begin)><span class="tags"><@v.make_taglinks(t.tags)></span><$end>

@@ -24,9 +24,9 @@
 
 === Markdownのリンクは、サイト内の画像を指していても画像ビューアーで開かない
 --- input
-[画像](pub/attachments/posts/2026/a.png)
+[画像](pub/attach/posts/2026/a.png)
 --- expected
-<p><a href="pub/attachments/posts/2026/a.png">画像</a></p>
+<p><a href="pub/attach/posts/2026/a.png">画像</a></p>
 
 === ビューアーのリンクの文字は、強調などを処理した後の文字をキャプションにする
 --- input

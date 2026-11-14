@@ -1,5 +1,5 @@
 ######################################################################
-title=コンテンツリスト
+title=固定ページの一覧
 version=1.01
 #					(C)2013 nabe@abk
 ######################################################################
@@ -13,7 +13,7 @@ load_module_html_in_edit=1
 
 *sample_html=<<HTML
 <div class="hatena-module side-contents-list">
-<div class="hatena-moduletitle">コンテンツ</div>
+<div class="hatena-moduletitle">固定ページ</div>
 <div class="hatena-modulebody">
 <ul class="hatena-section">
 	<li><details open><summary><a href="#">adiary</a> <span class="qt">(<span>414</span>)</span></summary>
@@ -34,7 +34,7 @@ load_module_html_in_edit=1
 HTML
 
 *module_html=<<HTML
-<!--コンテンツリスト=====================================-->
+<!--固定ページの一覧=================================-->
 <div class="hatena-module side-contents-list" data-module-name="<@this>" id="<@id>">
 <@v.load_plgset('<@this>', 'html')>
 </div> <!-- hatena-module -->

@@ -7,8 +7,13 @@
 <@>$PASTE=<$ifcontinue(v.system_mode)>
 
 <!--ヘッダ部=================================================================-->
-<@> サイドバーを引き出しにして開くボタン（開け閉めは adiary.js、docs/仕様/引き出し.md。出すかどうかは lyndbaum.css。JavaScriptが無いときは出さない）
+<@> サイドバーを引き出しにして開くボタン（開け閉めはadiary.js、docs/仕様/引き出し.md。出すかどうかはテーマごとのCSS。JavaScriptが無いときは出さない）
 <@> スクロールしても使えるよう、ヘッダーの外に置き、画面の上の左右の角に貼り付ける（lyndbaum.css）
+<@> 3カラムのテーマは、AとBを左右のボタン（sidebar-toggle-left、-right）で別々に開く。
+<@> 2カラムのテーマは、AとBの包み（#sidebars、_sidebar.html）を、サイドバーのある側の角の三本線のボタン（sidebar-toggle-both）で開く
+<button type="button" class="sidebar-toggle sidebar-toggle-both" aria-controls="sidebars" aria-expanded="false" aria-label="サイドバー">
+	<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
 <button type="button" class="sidebar-toggle sidebar-toggle-left" aria-controls="sidebar-left" aria-expanded="false" aria-label="サイドバーA">
 	<svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><circle cx="10" cy="10" r="6"/><path d="M14.5 14.5 20 20"/></svg>
 </button>

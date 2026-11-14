@@ -19,6 +19,7 @@ License: AGPLv3
 ・ログアウト中は、タイトルの行の右端にログインのリンクを出し、幅が足りなければ下の行に落とします。
 
 ChangeLog
+2026/11/14 2カラム版（lyndbaum-2col-left、lyndbaum-2col-right）を足し、共通のCSSをtheme/lyndbaum/lyndbaum.cssに、toc.jsをtheme/lyndbaum/に移した
 2026/11/13 検索画面の「タグで絞り込み」を、タグの階層の木にした
 2026/11/13 検索画面の検索の対象（タイトル/全文）の切り替えを、ボタンの見た目にそろえた
 2026/11/07 記事の題名の頭に線を引いた

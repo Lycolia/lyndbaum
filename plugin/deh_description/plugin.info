@@ -1,5 +1,5 @@
 ######################################################################
-title=ブログの説明
+title=サイトの説明
 version=1.00
 #					(C)2015 nabe@abk
 ######################################################################
@@ -15,13 +15,13 @@ load_module_html_in_edit=1
 
 *sample_html=<<HTML
 <div class="dem-module" id="<@id>">
-ブログの説明が入ります。
+サイトの説明が入ります。
 </div>
 HTML
 
 
 *module_html=<<HTML
 <div class="dem-module" data-module-name="<@this>" id="<@id>">
-<@s.description_txt || '（ブログの説明が設定されていません。）'>
+<@s.description_txt || '（サイトの説明が設定されていません。）'>
 </div> <!-- End of module -->
 HTML

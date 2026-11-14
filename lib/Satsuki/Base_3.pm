@@ -99,6 +99,66 @@ sub check_cmd {
 	return 0;
 }
 
+#-------------------------------------------------------------------------------
+# ●ディレクトリ使用量
+#-------------------------------------------------------------------------------
+# get_dir_size("dir/", $depth, @split);
+#	ファイルの大きさ（statの7番目）の合計を数える。duのブロック単位の値とは少しずれる
+#	シンボリックリンクは辿らず、リンクそのものも数えない。無いフォルダは0になる
+#
+#	$depth	内訳を出す深さ。listにその深さのフォルダごとの値を返す
+#		それより浅いところにあるファイルは、そのフォルダの行に入る（直下のファイルはnameが''）
+#	@split	別に数えるフォルダの名前（'.thumbnail'など）
+#		その名前のフォルダの中身はsplitに入れ、listには入れない
+#
+#	返り値	{ size, files, errors, list => [{ name, size, files }, ...（使用量の大きい順）],
+#		  split => { 名前 => { size, files } } }
+#
+sub get_dir_size {
+	my $self  = shift;
+	my $dir   = shift;
+	my $depth = int(shift);
+	my %split = map { $_ => { size => 0, files => 0 } } @_;
+	$dir =~ s|/*$|/|;
+
+	my %list;
+	my %r = ( size => 0, files => 0, errors => 0 );
+
+	# [ディレクトリ（$dirからの相対）, 内訳の行の名前, 別に数えるフォルダの名前]
+	my @stack = ([ '', '', '' ]);
+	while(@stack) {
+		my ($rel, $name, $sp) = @{ pop(@stack) };
+		# 無いフォルダ（キャッシュを作る前など）は0とし、読めないものだけerrorsに数える
+		opendir(my $fh, "$dir$rel") || do { if (-e "$dir$rel") { $r{errors}++; } next; };
+		my @files = readdir($fh);
+		closedir($fh);
+
+		my $lv = ($rel =~ tr|/||);
+		foreach(@files) {
+			if ($_ eq '.' || $_ eq '..') { next; }
+			my $path = "$rel$_";
+			my @st   = lstat("$dir$path");
+			if (!@st || -l _) { next; }
+			if (-d _) {
+				my $s = $sp || ($split{$_} ? $_ : '');
+				my $n = (!$s && $lv < $depth) ? "$path/" : $name;
+				push(@stack, [ "$path/", $n, $s ]);
+				next;
+			}
+			$r{size} += $st[7];
+			$r{files}++;
+			my $h = $sp ? $split{$sp} : $depth ? ($list{$name} ||= { name => $name, size => 0, files => 0 }) : undef;
+			if ($h) {
+				$h->{size} += $st[7];
+				$h->{files}++;
+			}
+		}
+	}
+	$r{split} = \%split;
+	$r{list}  = [ sort { $b->{size} <=> $a->{size} || $a->{name} cmp $b->{name} } values(%list) ];
+	return \%r;
+}
+
 ################################################################################
 # ■データダンプ
 ################################################################################

@@ -96,8 +96,8 @@ sub import_arts {
 	}
 
 	# 引数設定
-	my $import_static = $form->{import_static};	# 静的ページをインポート
-	my $tags4static   = $form->{tags_for_static};	# 静的ページに付加するタグ
+	my $import_static = $form->{import_static};	# 固定ページをインポート
+	my $tags4static   = $form->{tags_for_static};	# 固定ページに付加するタグ
 	my $no_auth_com   = $form->{no_auth};		# 非承認コメントをインポートしない
 	#-----------------------------------------------------------------------
 	# ログの解析と保存

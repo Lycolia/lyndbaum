@@ -142,7 +142,7 @@ subtest 'プラグインの設定は、変更と追加と削除をすぐ読め�
 	$v->update_plgset('mod', { c => 30 });
 	is($v->load_plgset('mod')->{c}, 30, 'ハッシュで追加');
 	$v->update_blogset($blog, 'p:mod:d', 40);
-	is($v->load_plgset('mod')->{d}, 40, 'ブログの設定の変更から追加');
+	is($v->load_plgset('mod')->{d}, 40, 'サイトの設定の変更から追加');
 	$v->update_plgset('mod', 'b', undef);
 	ok(!defined $v->load_plgset('mod')->{b}, 'undefで消す');
 
@@ -150,7 +150,7 @@ subtest 'プラグインの設定は、変更と追加と削除をすぐ読め�
 	is($v->load_plgset('mod')->{a}, 10, '戻り値を書き換えても設定は変わらない');
 
 	$v->{blog} = { 'p:mod:z' => 5 };
-	is_deeply($v->load_plgset('mod'), { z => 5 }, 'ブログの設定を差し替えると、そちらを読む');
+	is_deeply($v->load_plgset('mod'), { z => 5 }, 'サイトの設定を差し替えると、そちらを読む');
 };
 
 #-------------------------------------------------------------------------------

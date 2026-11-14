@@ -3,7 +3,7 @@
 <$ifbreak(! v.blog_admin)>
 
 <$h = validator(begin_hash, Form)>
-	load_items = ブログトップの記事表示件数
+	load_items = サイトトップの記事表示件数
 	load_items:type = int
 	load_items:min  =  1
 	load_items:max  = 10
@@ -96,11 +96,11 @@
 <@> ファイル無効化
 <$v.void_plugin_images(h, Form)>
 
-<@> ブログの画像は、RSSの<image>にも使うので、RSS 2.0で使える形式（GIF/JPEG/PNG）に限る
+<@> サイトの画像は、RSSの<image>にも使うので、RSS 2.0で使える形式（GIF/JPEG/PNG）に限る
 <@> match() の前に ! を付けると =~ より先に効くので、いったん変数に入れる
 <$image_ok = is_hash(Form.blog_image) && match(Form.blog_image.name, '(?i)\.(?:png|jpe?g|gif)$')>
 <$ifexec(is_hash(Form.blog_image) && Form.blog_image.size && !image_ok, begin)>
-	<$form_error('blog_image', 'ブログの画像にはPNG・JPEG・GIFの画像を指定してください')>
+	<$form_error('blog_image', 'サイトの画像にはPNG・JPEG・GIFの画像を指定してください')>
 <$end>
 <$ifbreak(form_error())>
 

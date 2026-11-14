@@ -32,7 +32,7 @@ my $json  = sub { my $r = shift; $r->{status} == 200 && $r->{json} && !$r->{json
 
 my @SCREENS = (
 	# 公開画面
-	[ ''                    , 'guest' , 'テストのブログ' ],
+	[ ''                    , 'guest' , 'テストのサイト' ],
 	[ '/01'                 , 'guest' , 'editorの記事' ],
 
 	# ログインと共通
@@ -44,17 +44,17 @@ my @SCREENS = (
 	[ 'artlist'             , 'admin', '記事一覧' ],
 	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
-	[ 'media/'              , 'admin', 'メディア' ],
+	[ 'media/'              , 'admin', 'メディア管理' ],
+	[ 'tag_edit'            , 'admin', 'タグの編集' ],
+	[ 'contents_edit'       , 'admin', '固定ページの表示順' ],
 
-	# ブログの設定
-	[ 'set/'                , 'admin' , 'ブログの基本設定' ],
+	# サイトの設定
+	[ 'set/'                , 'admin' , 'サイトの基本設定' ],
 	[ 'set/detail'          , 'admin' , '詳細/コメント設定' ],
 	[ 'set/editor'          , 'admin' , '編集画面の設定' ],
 
 	# その他の設定
 	[ 'set2/'               , 'admin', 'その他の設定' ],
-	[ 'set2/tag_edit'       , 'admin', 'タグの編集' ],
-	[ 'set2/contents_edit'  , 'admin', 'コンテンツの表示順設定' ],
 	[ 'set2/usertag'        , 'admin', '記法タグのカスタマイズ' ],
 	[ 'set2/header'         , 'admin' , 'ヘッダ設定' ],
 
@@ -75,8 +75,8 @@ my @SCREENS = (
 	[ 'plugin/plugin_setting&name=des_clock', 'admin', sub { $_[0]->{status} == 200 && $_[0]->{body} =~ /\S/ } ],
 	[ 'plugin/plugin_readme&name=des_clock' , 'admin' , $text ],
 
-	# ブログのメンテナンス
-	[ 'mainte/'             , 'admin' , 'ブログの再構築' ],
+	# サイトのメンテナンス
+	[ 'mainte/'             , 'admin' , 'サイトの再構築' ],
 	[ 'mainte/blog_clear'   , 'admin' , '全記事の削除' ],
 	[ 'mainte/import'       , 'admin' , '記事のインポート' ],
 	[ 'mainte/import_img'   , 'admin' , '外部画像の取り込み' ],
@@ -87,6 +87,7 @@ my @SCREENS = (
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
 	[ 'system/check'        , 'admin' , 'システム管理メニュー' ],
+	[ 'system/disk'         , 'admin' , 'ディレクトリ使用量' ],
 	[ 'system/copyright'    , 'admin' , '著作権表示' ],
 
 	# 補助の画面
@@ -141,6 +142,11 @@ foreach my $s (@SCREENS) {
 		ok(($ok->($r) ? 1 : 0) == $expect, $name)
 			or diag("status=$r->{status} title=" . ($r->{title} // '') . " location=" . ($r->{headers}->{location} // ''));
 	}
+}
+
+# skel/の直下にあって、set2/の_items.htmlの確認を通らない画面も、ログインしていなければ403
+foreach my $query (qw(tag_edit contents_edit)) {
+	is($app->get('guest', $query)->{status}, 403, "?$query をguestが開くと403");
 }
 
 done_testing();

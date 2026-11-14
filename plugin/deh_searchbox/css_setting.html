@@ -103,65 +103,65 @@
 
 
 <!--JavaScript===============================================================-->
-<script>$(function(){
+<script>(function(){
 // 設定中のモジュールを探し、デフォルト値を設定する
-var obj = $f('#<@id>');
-if (!obj.length) return;
+var obj = frame_find('#<@id>');
+if (!obj) return;
 
 if ('<@ps.bg>' == '') {
-	obj.addClass('hoverstop');
+	obj.classList.add('hoverstop');
 	delay_color_setting('#bg', obj, 'background-color', 'hoverstop');
 }
 if ('<@ps.font_c>' == '') {
-	var col = parse_color( obj.css('color') );
-	if (col) $('#font-c').val(col);
-	var px  = parse_px( obj.css('font-size') );
+	var col = parse_color( css(obj, 'color') );
+	if (col) set_value('#font-c', col);
+	var px  = parse_px( css(obj, 'font-size') );
 	if (px) {
-		$('#font-s').val(px);
-		var lh  = parse_px_float( obj.css('line-height') );
+		set_value('#font-s', px);
+		var lh  = parse_px_float( css(obj, 'line-height') );
 		var par = Math.round(100*lh/px);
-		if (par)  $('#line-h').val(par);
+		if (par)  set_value('#line-h', par);
 	}
 }
 if ('<@ps.border_c>' == '') {
 	var col = get_border_color( obj );
-	if (col) $('#border-c').val(col);
+	if (col) set_value('#border-c', col);
 }
 
 // 固定位置
-var pos = obj.position();
+var pos = position(obj);
 if (pos) {
-	$('#abs-x').val( Math.round(pos.left) );
-	$('#abs-y').val( Math.round(pos.top ) );
+	set_value('#abs-x', Math.round(pos.left) );
+	set_value('#abs-y', Math.round(pos.top ) );
 }
 
 // 幅と高さ
 if ('<@ps.width>' == '')
-	$('#width').val(  obj.outerWidth()  );
+	set_value('#width', outer_width(obj)  );
 if ('<@ps.height>' == '')
-	$('#height').val( obj.outerHeight() );
+	set_value('#height', outer_height(obj) );
 if ('<@ps.box_w>' == '') {
-	var box = obj.find('input.search');
-	if (box.length) $('#box-w').val( box.widtht() );
+	var box = obj.querySelector(':scope input.search');
+	if (box) set_value('#box-w', width(box) );
 }
 
 // マージンとpadding
 if ('<@ps.margin0>' == '')
-	$('#margin0').val( parse_px( obj.css('margin-top') ) );
+	set_value('#margin0', parse_px( css(obj, 'margin-top') ) );
 if ('<@ps.margin1>' == '')
-	$('#margin1').val( parse_px( obj.css('margin-right') ) );
+	set_value('#margin1', parse_px( css(obj, 'margin-right') ) );
 if ('<@ps.margin2>' == '')
-	$('#margin2').val( parse_px( obj.css('margin-bottom') ) );
+	set_value('#margin2', parse_px( css(obj, 'margin-bottom') ) );
 if ('<@ps.margin3>' == '')
-	$('#margin3').val( parse_px( obj.css('margin-left') ) );
+	set_value('#margin3', parse_px( css(obj, 'margin-left') ) );
 if ('<@ps.padding0>' == '')
-	$('#padding0').val( parse_px( obj.css('padding-top') ) );
+	set_value('#padding0', parse_px( css(obj, 'padding-top') ) );
 if ('<@ps.padding1>' == '')
-	$('#padding1').val( parse_px( obj.css('padding-right') ) );
+	set_value('#padding1', parse_px( css(obj, 'padding-right') ) );
 if ('<@ps.padding2>' == '')
-	$('#padding2').val( parse_px( obj.css('padding-bottom') ) );
+	set_value('#padding2', parse_px( css(obj, 'padding-bottom') ) );
 if ('<@ps.padding3>' == '')
-	$('#padding3').val( parse_px( obj.css('padding-left') ) );
+	set_value('#padding3', parse_px( css(obj, 'padding-left') ) );
 
 //==============================================================================
-});</script>
+})();</script>

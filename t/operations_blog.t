@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 主な操作の中身のテスト（ブログの設定、画像アルバム）
+# 主な操作の中身のテスト（サイトの設定、メディア管理）
 #-------------------------------------------------------------------------------
 # 実行: prove t/operations_blog.t
 #
@@ -23,19 +23,78 @@ my $app = AppTest->new()->setup()->seed();
 my $dir = $app->dir;
 
 #-------------------------------------------------------------------------------
-# ブログの設定
+# サイトの設定
 #-------------------------------------------------------------------------------
-subtest 'ブログの基本設定' => sub {
-	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明' });
+subtest 'サイトの基本設定' => sub {
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明' });
 	ok(AppTest::is_reload($r), '保存できる');
 	$r = $app->get('guest', '');
-	is($r->{title}, 'テストのブログ', 'トップの題名が変わる');
-	like(body($r), qr{ブログの説明}, '説明が出る');
-	like(read_file("$dir/pub/rss.xml"), qr{テストのブログ}, 'RSSの題名も変わる');
+	is($r->{title}, 'テストのサイト', 'トップの題名が変わる');
+	like(body($r), qr{サイトの説明}, '説明が出る');
+	like(read_file("$dir/pub/rss.xml"), qr{テストのサイト}, 'RSSの題名も変わる');
+};
+
+subtest '検索エンジンに掲載しない（noindex）' => sub {
+	my %base   = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
+	my $robots = sub { scalar(() = body($_[0]) =~ m{<meta name="robots" content="noindex,nofollow">\n}g) };
+	my $rss_of = sub { my $x = read_file("$dir/pub/rss.xml"); $x =~ s{<lastBuildDate>.*?</lastBuildDate>}{}s; $x };	# 保存するたびに今の時刻になる
+	my $rss    = $rss_of->();
+	my $q      = AppTest::_uri_escape('記事');
+
+	my $r = $app->post('admin', 'set/', { %base, noindex => 1 });
+	ok(AppTest::is_reload($r), 'オンで保存できる');
+	like(body($app->get('admin', 'set/')), qr{<input type="checkbox" name="noindex" value="1" checked>}, '設定画面でチェックが入っている');
+
+	# トップに出た記事のリンクを辿る
+	$r = $app->get('guest', '');
+	is($robots->($r), 1, 'トップに1つ付く');
+	my ($art) = body($r) =~ m{<a href="[^"]*?(/\d+)" class="title">};
+	ok($art, "記事のリンクが取れる（$art）");
+	is($robots->($app->get('guest', $art)), 1, '記事に1つ付く');
+	is($robots->($app->get('guest', "?q=$q")), 1, 'もとから付く検索画面でも1つだけ');
+	is($rss_of->(), $rss, 'RSSは変わらない');
+
+	$r = $app->post('admin', 'set/', \%base);
+	ok(AppTest::is_reload($r), 'オフに戻せる');
+	unlike(body($app->get('admin', 'set/')), qr{name="noindex" value="1" checked}, '設定画面でチェックが外れている');
+	is($robots->($app->get('guest', '')),  0, 'トップには付かない');
+	is($robots->($app->get('guest', $art)), 0, '記事には付かない');
+	is($robots->($app->get('guest', "?q=$q")), 1, '検索画面にはもとのとおり付く');
+};
+
+subtest 'コメントの強制OFFとサイト全体のNSFWは基本設定で選ぶ' => sub {
+	my %base    = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
+	my $setting = "$dir/data/blog/setting.dat";
+	my $rating  = sub { body($app->get('guest', '')) =~ m{<meta name="rating" content="adult">} ? 1 : 0 };
+
+	my $r = $app->post('admin', 'set/', { %base, com_ok_force => 0, nsfw_force => 1 });
+	ok(AppTest::is_reload($r), 'オンで保存できる');
+	like(read_file($setting), qr/^com_ok_force=0$/m, 'コメントの強制OFFが設定に入る');
+	like(read_file($setting), qr/^nsfw_force=1$/m, 'サイト全体のNSFWが設定に入る');
+	my $b = body($app->get('admin', 'set/'));
+	like($b, qr{<input type="checkbox" name="com_ok_force" value="0" checked>すべての記事でコメントを受け付けない</label>}, '基本設定でコメントの強制OFFにチェックが入る');
+	like($b, qr{<input type="checkbox" name="nsfw_force" value="1" checked>サイト全体をNSFWにする</label>}, '基本設定でNSFWにチェックが入る');
+	is($rating->(), 1, 'トップにratingのmetaが出る');
+	like(read_file("$dir/pub/rss.xml"), qr{年齢確認}, 'RSSを書き出し直し、本文の代わりに年齢確認の文を出す');
+
+	$b = body($app->get('admin', 'set/editor'));
+	unlike($b, qr{name="(?:com_ok_force|nsfw_force)"|すべての記事}, '編集画面の設定には出さない');
+
+	# 古い編集画面の設定のフォームから送られても変わらない
+	$r = $app->post('admin', 'set/editor', { action => 'set/editor', com_ok_force => '', nsfw_force => '' });
+	ok(AppTest::is_reload($r), '編集画面の設定を保存できる');
+	like(read_file($setting), qr/^nsfw_force=1$/m, '編集画面の設定からはNSFWが変わらない');
+	like(read_file($setting), qr/^com_ok_force=0$/m, '編集画面の設定からはコメントの強制OFFが変わらない');
+
+	$r = $app->post('admin', 'set/', \%base);
+	ok(AppTest::is_reload($r), 'オフに戻せる');
+	unlike(read_file($setting), qr/^(?:com_ok_force|nsfw_force)=./m, '設定から外れる');
+	is($rating->(), 0, 'トップにratingのmetaが出ない');
+	unlike(read_file("$dir/pub/rss.xml"), qr{年齢確認}, 'RSSにも年齢確認の文を出さない');
 };
 
 #-------------------------------------------------------------------------------
-# 公開画面のメタ情報（PageSpeed Insights の指摘）。ブログの説明を入れた後、記事を書き足す前に確かめる
+# 公開画面のメタ情報（PageSpeed Insights の指摘）。サイトの説明を入れた後、記事を書き足す前に確かめる
 #-------------------------------------------------------------------------------
 subtest 'メタディスクリプション' => sub {
 	# 記事は、トップに出ている最初の記事（ほかのテストで公開の状態が変わるため）
@@ -65,11 +124,11 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d{2}">}, 'generatorの版は小数2桁（4.30が4.3にならない）');
 	like($b, qr{</a> v\d+\.\d{2} }, 'フッターの版は小数2桁');
 
-	# ブログの画像を設定していないページは、既定のアイコン（正方形）なので小さいカード
+	# サイトの画像を設定していないページは、既定のアイコン（正方形）なので小さいカード
 	like($b, qr{<meta property="og:image" content="[^"]*/default-icon\.png">}, 'og:imageは既定のアイコン');
 	like($b, qr{<meta name="twitter:card" content="summary">}, '既定のアイコンのtwitter:cardはsummary');
 
-	# ブログの画像（バナーを想定）は大きいカード
+	# サイトの画像（バナーを想定）は大きいカード
 	my $setting = "$dir/data/blog/setting.dat";
 	my $org = read_file($setting);
 	my $write = sub {
@@ -77,10 +136,10 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 		print $fh shift;
 		close($fh);
 	};
-	$write->($org . "blog_image=pub/attachments/\@system/sys-blog_image.png\n");
+	$write->($org . "blog_image=pub/attach/\@system/sys-blog_image.png\n");
 	$b = body($app->get('guest', ''));
-	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはブログの画像');
-	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'ブログの画像のtwitter:cardはsummary_large_image');
+	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはサイトの画像');
+	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'サイトの画像のtwitter:cardはsummary_large_image');
 	$write->($org);
 };
 
@@ -94,29 +153,29 @@ subtest 'RSSのチャンネルの画像' => sub {
 	my $big   = $file->('default-icon.png');	# 192x192（RSSの上限の幅144を超える）
 	my $small = $file->('rss-icon.png');		# 80x15
 	my $image = sub { (read_file("$dir/pub/rss.xml") =~ m{<image>(.*?)</image>}s)[0] // '' };
-	my %base  = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+	my %base  = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
 
 	my $r = $app->post('admin', 'set/', [ %base, iconfile => { filename => 'icon.png', content => $small, type => 'image/png' } ]);
 	ok(AppTest::is_reload($r), 'サイトアイコンを上げられる');
 	my $img = $image->();
-	like($img, qr{<url>[^<]*/sys-iconfile\.png</url>}, 'ブログの画像がなければ、サイトアイコンを使う');
+	like($img, qr{<url>[^<]*/sys-iconfile\.png</url>}, 'サイトの画像がなければ、サイトアイコンを使う');
 	like($img, qr{<width>80</width>\s*<height>15</height>}, '上限以内なので幅と高さを書く');
 
 	$r = $app->post('admin', 'set/detail', [ action => 'set/detail', blog_image => { filename => 'banner.bmp', content => $big, type => 'image/bmp' } ]);
-	ok(!AppTest::is_reload($r), 'ブログの画像にPNG・JPEG・GIF以外は上げられない');
+	ok(!AppTest::is_reload($r), 'サイトの画像にPNG・JPEG・GIF以外は上げられない');
 	unlike(read_file($setting), qr/^blog_image=/m, '設定に入らない');
 
 	$r = $app->post('admin', 'set/detail', [ action => 'set/detail', blog_image => { filename => 'banner.png', content => $big, type => 'image/png' } ]);
-	ok(AppTest::is_reload($r), 'ブログの画像を上げられる');
+	ok(AppTest::is_reload($r), 'サイトの画像を上げられる');
 	like(read_file($setting), qr/^blog_image_w=192$/m, '幅を設定に保存する');
 	like(read_file($setting), qr/^blog_image_h=192$/m, '高さを設定に保存する');
 	$img = $image->();
-	like($img, qr{<url>[^<]*/sys-blog_image\.png</url>}, 'ブログの画像を使う');
+	like($img, qr{<url>[^<]*/sys-blog_image\.png</url>}, 'サイトの画像を使う');
 	unlike($img, qr{<width>|<height>}, '上限を超えるので幅と高さを書かない');
 	like(body($app->get('guest', '')), qr{<meta name="twitter:card" content="summary_large_image">}, 'twitter:cardはsummary_large_image');
 
 	$r = $app->post('admin', 'set/detail', { action => 'set/detail', blog_image_void => 1 });
-	ok(AppTest::is_reload($r), 'ブログの画像を消せる');
+	ok(AppTest::is_reload($r), 'サイトの画像を消せる');
 	unlike(read_file($setting), qr/^blog_image_[wh]=./m, '幅と高さも消える');
 	like($image->(), qr{<url>[^<]*/sys-iconfile\.png</url>}, 'サイトアイコンに戻る');
 
@@ -144,7 +203,7 @@ subtest 'コメントできる人' => sub {
 subtest 'プライベートモードの削除' => sub {
 	# 古い画面からPOSTされても、設定に入らず、閉じない
 	my $setting = "$dir/data/blog/setting.dat";
-	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 1 });
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明', private => 1 });
 	ok(AppTest::is_reload($r), '基本設定を保存できる');
 	unlike(read_file($setting), qr/^(?:private=1|viewers=|view_pass=)/m, 'プライベートモード、閲覧者、表示パスワードは設定に入らない');
 	is($app->get('guest', '/02')->{status}, 200, 'ログインしていない人も記事を見られる');
@@ -154,7 +213,7 @@ subtest 'プライベートモードの削除' => sub {
 	}
 };
 
-subtest 'ブログの自動作成' => sub {
+subtest 'サイトの自動作成' => sub {
 	# 空のデータを初めて開く
 	my $fresh = AppTest->new();
 	my $r = $fresh->get('guest', '');
@@ -191,7 +250,7 @@ subtest 'ブログの自動作成' => sub {
 	system('rm', '-rf', "$part->{dir}/data/db/art") == 0 || die;
 	$r = $part->get('guest', '');
 	is($r->{status}, 503, 'artだけが無いと503');
-	like(body($r), qr{ブログのデータを読めない}, '読めないことを知らせる');
+	like(body($r), qr{サイトのデータを読めない}, '読めないことを知らせる');
 	ok(!-e "$part->{dir}/data/db/art", '作らない');
 	ok(-e "$part->{dir}/data/db/com/00001.dat", 'ほかのテーブルは消えない');
 	ok(-e "$part->{dir}/data/blog/setting.dat", '設定は消えない');
@@ -206,12 +265,12 @@ subtest 'ブログの自動作成' => sub {
 	chmod(0755, "$ro->{dir}/data/db");
 	is($ro->get('guest', 'setup')->{status}, 200, '直せば作る');
 
-	# ブログが無いままアップデートが要るとき
+	# サイトが無いままアップデートが要るとき
 	my $old = AppTest->new()->setup();
 	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev lastrev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
 	open(my $fh, '>:utf8', $sys) || die;
 	print $fh $conf;
 	close($fh);
@@ -254,21 +313,47 @@ subtest 'メンテナンス中のログイン画面' => sub {
 
 subtest 'タグの削除' => sub {
 	# seed() のタグ1（pkey=1）は記事1に付いている
-	my $r = $app->post('admin', 'set2/tag_edit', { action => 'set2/tag_edit', del_ary => 1 });
+	my $r = $app->post('admin', 'tag_edit', { action => 'tag_edit', del_ary => 1 });
 	ok(AppTest::is_reload($r), '削除できる');
 	is($app->get('guest', '&t=' . AppTest::_uri_escape('タグ1'))->{status}, 404, 'タグの一覧に記事が出ない');
 	like(body($app->get('guest', '&t=' . AppTest::_uri_escape('タグ2'))), qr{ownerの記事}, 'ほかのタグはそのまま');
 };
 
+subtest 'タグと固定ページの表示順の画面（ナビから開く）' => sub {
+	my $menu = body($app->get('admin', 'menu'));
+	foreach ([ 'タグ', 'tag_edit', 'タグの編集' ], [ '固定ページの表示順', 'contents_edit', '固定ページの表示順' ]) {
+		my ($label, $skel, $title) = @$_;
+		# 画面が出したナビのリンクを辿る
+		my ($href) = $menu =~ m{\n\t<li><a href="([^"]*)">\Q$label\E</a></li>\n};
+		ok($href, "ナビに「$label」がある");
+		$href =~ s/&amp;/&/g;
+		$href =~ s{^/lyndbaum\.cgi\?}{};	# AppTestはSCRIPT_NAMEと?を足して呼ぶ
+		is($href, $skel, "「$label」のリンク先");
+		my $r = $app->get('admin', $href);
+		is($r->{status}, 200, "$label：開ける");
+		like($r->{title} // '', qr{^\Q$title\E}, "$label：題名");
+		my $b = body($r);
+		like($b, qr{\n\t<li class="current"><a href="[^"]*\?\Q$skel\E">\Q$label\E</a></li>\n}, "$label：ナビの項目にcurrentが付く");
+		unlike($b, qr{<li class="current"><a href="[^"]*\?set2/">}, "$label：「その他の設定」にはcurrentが付かない");
+		unlike($b, qr{admin-tabs}, "$label：タブは出ない");
+		like($b, qr{<input type="hidden" name="action" value="\Q$skel\E">}, "$label：保存のactionは新しい名前");
+	}
+
+	# 「その他の設定」には、タグと固定ページの表示順が残っていない
+	my $b = body($app->get('admin', 'set2/'));
+	unlike($b, qr{set2/(?:tag_edit|contents_edit)|タグの編集|コンテンツツリーの編集}, '「その他の設定」から外れている');
+	is($app->get('admin', 'set2/tag_edit')->{status}, 302, '旧URLはトップへ送る（スケルトンが無い）');
+};
+
 #-------------------------------------------------------------------------------
-# 画像アルバム
+# メディア管理
 #-------------------------------------------------------------------------------
-subtest '画像アルバム' => sub {
+subtest 'メディア管理' => sub {
 	my $png = do {
 		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
 		local $/; <$fh>;
 	};
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	require Satsuki::ImageFormat;
 	my $ext = Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';	# 画像のサムネイルの形式
 
@@ -297,13 +382,13 @@ subtest '画像アルバム' => sub {
 	ok(json_ok($r), 'フォルダを作れる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '移せる');
-	ok(!-e "$img/renamed.png" && -f "$dir/pub/attachments/other/renamed.png", 'ファイルが移る');
-	ok(-f "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
+	ok(!-e "$img/renamed.png" && -f "$dir/pub/attach/other/renamed.png", 'ファイルが移る');
+	ok(-f "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
 
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '削除できる');
-	ok(!-e "$dir/pub/attachments/other/renamed.png", 'フォルダから消える');
-	ok(!-e "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
+	ok(!-e "$dir/pub/attach/other/renamed.png", 'フォルダから消える');
+	ok(!-e "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
 };
 
 subtest 'アップロードした画像のメタ情報' => sub {
@@ -316,7 +401,7 @@ subtest 'アップロードした画像のメタ情報' => sub {
 	my $xmp  = "http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x='adobe:ns:meta/'/>";
 	my $seg  = sub { "\xFF" . chr($_[0]) . pack('n', length($_[1]) + 2) . $_[1] };
 	$jpeg = "\xFF\xD8" . $seg->(0xE1, $exif) . $seg->(0xE1, $xmp) . $seg->(0xE5, 'x' x 100) . substr($jpeg, 2);
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	my $read = sub { open(my $fh, '<:raw', shift) || return ''; local $/; <$fh> };
 
 	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
@@ -355,7 +440,7 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	my $post = sub { return $post_data->( $image->(@_) ) };
 	# 画像のサムネイルと同じく、AVIFを書けるならAVIF、書けなければJPEG
 	my ($ext, $format) = Satsuki::ImageFormat::can_write_avif() ? ('avif', 'avif') : ('jpg', 'jpeg');
-	my $th     = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
+	my $th     = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
 	my $poster = "$th.poster.$ext";
 	my $thumb  = "$th.$ext";
 
@@ -415,16 +500,16 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	}
 
 	# 名前の変更、移動、削除で、記事用のサムネイルもついて行く
-	my $tdir = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail";
+	my $tdir = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail";
 	$r = $app->post('admin', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
 	ok(json_ok($r), '動画の名前を変えられる');
 	ok(-e "$tdir/v2.mp4.poster.$ext" && -e "$tdir/v2.mp4.$ext" && !-e $poster, 'サムネイルの名前も変わる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を移せる');
-	ok(-e "$dir/pub/attachments/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
+	ok(-e "$dir/pub/attach/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を削除できる');
-	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
+	ok(!glob("$dir/pub/attach/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
 #-------------------------------------------------------------------------------

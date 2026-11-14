@@ -1,0 +1,46 @@
+<@40.is_function>
+<@local(h,t,ret,logs,dummy)>
+<@>
+<@> デザイナの見本に使う記事を選ぶ
+<@>	呼び出し元：design/art_sample（見本の画面）、design/_action/load_module（設定を保存した後に、モジュールを作り直す）
+<@>	両方で同じ記事を使い、作り直したモジュールが見本の画面と同じ記事のものになるようにする
+<@>
+<@>	フロントページ、無ければ最新の記事、無ければダミー
+<@>	戻り値	t	見本の記事（コメントを受け付けることにする）
+<@>		ret	記事を読んだときの戻り値
+<@>		dummy	ダミーの記事（見本の画面の複数記事モードにも使う）
+<@>
+<$dummy = v.post_process_article(begin_hash)>
+pkey  = 1
+title = ダミー
+yyyymmdd = 20141231
+text  = <section>果物のリスト。<br><ul><li>りんご</li><li>バナナ</li><li>パイナップル</li></ul>この記事はダミーです。<br></section>
+priority=0
+ip=192.168.1.1
+parser=markdown
+tm=1423150095
+update_tm=1423150095
+id=test
+enable=1
+com_ok=1
+coms=0
+name=owner
+host=localhost
+coms_all=0
+link_key=<@'01'>
+agent=Mozilla/5.0 (Windows NT 6.1; WOW64; rv:35.0) Gecko/20100101 Firefox/35.0
+<$end>
+<$(t,ret) = v.load_article_current_blog(v.blog.frontpage)>
+<$ifexec(!t, begin)>
+	<$(logs,ret) = v.load_articles_current_blog('',{}, { load_items => 1 })>
+	<$t = logs#0>
+	<$ifset(!t, t, dummy)>
+<$end>
+<$t.com_ok=1>
+
+<$h = begin_hash>
+<$end>
+<$h.t     = t>
+<$h.ret   = ret>
+<$h.dummy = dummy>
+<$return(h)>

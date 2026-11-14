@@ -199,7 +199,7 @@ h1 img, h1 a img {
 	border:			none;
 }
 
-/* ブログの説明 */
+/* サイトの説明 */
 #head-description {
 	position:		absolute;
 	top:			54px;
@@ -339,7 +339,7 @@ article {
 	border:			1px solid #ddd;		/* $c=border2 = auto:border */
 	background-color:	#fff;			/* $c=artbg */
 }
-article.wiki {
+article.page {
 	border:			2px solid #bbb;		/* $c=border */
 }
 
@@ -925,48 +925,11 @@ article.system table {
 }
 
 /*--------------------------------------------------------------------
-●ポップアップヘルプ, info
+●ヘルプの文字
 --------------------------------------------------------------------*/
-.help, .btn-help:after {
-	color:			#c3c;
+.help-text {
+	color:			#6b75b8;		/* $c=helpfont */
 }
-
-div.popup-help {
-	min-width:		100px;
-	max-width:		360px;
-	padding:		0.5em 1em;
-
-	background-color:	#fff;
-	color:			#6b75b8;		/* $c=fixhelpfont */
-
-	font-size:		11pt;
-	/* font-weight:		bold; */
-
-	border:			2px solid #e88;
-	border-radius:		10px;
-	box-shadow:		6px 6px 4px 2px rgba(60,60,60,0.75);
-}
-div.popup-help:before {
-	content:		"HELP";
-	color:			#fff;
-	background-color:	#c33;
-	border-radius:		6px;
-
-	font-weight:		bold;
-	font-size:		8pt;
-	padding:		4px;
-	margin:			-2px 4px 0 0px;
-
-	display:		inline-block;
-	line-height:		100%;
-	vertical-align:		middle;
-}
-/*
-div.popup-help div.additional {
-	color:			#000;
-	font-weight:		normal;
-}
-*/
 
 /*--------------------------------------------------------------------
 ●jQuery UI, popup-info/dialog（テーマREADME/記事のタグヘルパー等）

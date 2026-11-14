@@ -687,6 +687,8 @@ sub set_form_options {
 	my $opt  = $self->{Form_options} ||= {};
 
 	$opt->{str_max_chars} = 80;	# 文字数
+	# 通常のフォーム（URLエンコード）の最大サイズ。記事の保存など
+	$opt->{total_max_size} = $self->{Main}->{form_post_max};
 
 	# マルチパート用の設定。データインポートや画像アップロードの最大サイズ
 	$opt->{allow_multipart} = $self->{Auth}->{ok};
@@ -723,8 +725,7 @@ sub _read_form {
 	}
 	### データサイズの確認
 	my $length = $ENV{CONTENT_LENGTH};
-	# 初期値262144を倍にしている
-	my $max = 524288; # $options->{total_max_size};	# 1MB
+	my $max = $options->{total_max_size};	# 未設定なら上限なし
 	if ($max && $length > $max) {
 		return $self->POST_ERR_exit('Too large form data (max %.1fMB)', $max/1048576);
 	}

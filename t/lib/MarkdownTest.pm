@@ -38,7 +38,7 @@ sub new_parser {
 			pubdist  => 'pub/assets/dist/',
 			myself   => '/',
 			myself2  => '/',
-			image    => 'pub/attachments/',
+			image    => 'pub/attach/',
 		};
 		$SATSUKI->{image_attr}  = 'data-lythumb="k%k"';
 	}

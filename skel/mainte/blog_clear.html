@@ -13,11 +13,11 @@
 <article class="system">
 <h2><@v.title></h2>
 <div class="body">
-	<p>このブログの記事とコメントをすべて削除します。設定、デザイン、画像は残ります。</p>
+	<p>このサイトの記事とコメントをすべて削除します。設定、デザイン、画像は残ります。</p>
 
 	<table>
 	<tbody>
-	<tr><th>ブログ名</th>  <td><@v.blog.blog_name></td></tr>
+	<tr><th>サイト名</th>  <td><@v.blog.blog_name></td></tr>
 	<tr><th>公開記事</th>  <td><@v.blog.arts || 0>件</td>
 	<tr><th>非公開記事</th><td><@v.blog.darts || 0>件</td>
 	<tr><th>コメント</th>  <td><@v.blog.coms || 0>件</td>
@@ -37,14 +37,13 @@
 </article>
 
 <script-defer><!--
-	var yesbox = $('#yes-box');
-	var submit = $('#submit-btn');
-	yesbox.change(function(evt) {
-		var yes = yesbox.val().toLowerCase();
-		submit.prop('disabled', (yes != 'yes'));
-	});
-	yesbox.keyup(function(evt) {
-		yesbox.change();
-	});
-	yesbox.change();
+	var yesbox = document.getElementById('yes-box');
+	var submit = document.getElementById('submit-btn');
+	function yes_change() {
+		var yes = yesbox.value.toLowerCase();
+		submit.disabled = (yes != 'yes');
+	}
+	yesbox.addEventListener('change', yes_change);
+	yesbox.addEventListener('keyup',  yes_change);
+	yes_change();
 --></script-defer>

@@ -3,7 +3,7 @@
 <$err=FormError>
 
 <@> システムモード
-<$v.system_mode("ブログの基本設定")>
+<$v.system_mode("サイトの基本設定")>
 
 <!--=========================================================================-->
 <@> 階層ツリー、初期処理
@@ -24,16 +24,34 @@
 	<table class="blog-setting blog-setting-stack">
 	<tbody>
 	<tr>
-		<th>ブログ名</th><td<@err.c_blog_name>><input type="text" name="blog_name" class="w280" value="<@s.blog_name>" required></td>
+		<th>サイト名</th><td<@err.c_blog_name>><input type="text" name="blog_name" class="w280" value="<@s.blog_name>" required></td>
 	</tr>
 	<tr>
-		<th>ブログの紹介<br>（RSSにも出力）<br><a href="<@v.myself>?etc/allow_tags&amp;n=description" target="_blank">使用可能なHTMLタグ</a></th><td><textarea name="description_txt" class="description w400" cols="50" rows="3" wrap="soft"><@replace(x = s.description_txt, "<br>", "\n")></textarea>
+		<th>サイトの紹介<br>（RSSにも出力）<br><a href="<@v.myself>?etc/allow_tags&amp;n=description" target="_blank">使用可能なHTMLタグ</a></th><td><textarea name="description_txt" class="description w400" cols="50" rows="3" wrap="soft"><@replace(x = s.description_txt, "<br>", "\n")></textarea>
 		改行有効。タグ非推奨。紹介文以外は<a href="<@v.myself>?design/edit">デザイン編集</a>を。</td>
 	</tr>
 	<tr><th>更新通知</th>
 		<td>
 		<label><input type="checkbox" name="ping" value="1"<@if(s.ping, ' checked')>>更新通知Pingを送信する</label>
 		<span class="help-text">新しい記事を書いたことを、pingサーバに通知し公開します。</span>
+		</td>
+	</tr>
+	<tr><th>検索エンジン</th>
+		<td>
+		<label><input type="checkbox" name="noindex" value="1"<@if(s.noindex, ' checked')>>検索エンジンに掲載しない</label>
+		<span class="help-text">公開ページに、検索エンジンにインデックスさせない設定（noindex,nofollow）を付与します。サイトマップとRSSは通常通り出ます。</span>
+		</td>
+	</tr>
+	<tr><th>コメント</th>
+		<td>
+		<label><input type="checkbox" name="com_ok_force" value="0"<@if(s.com_ok_force eq '0', ' checked')>>すべての記事でコメントを受け付けない</label>
+		<span class="help-text">記事ごとの設定によらず、コメントの投稿を受け付けません。</span>
+		</td>
+	</tr>
+	<tr><th>NSFW</th>
+		<td>
+		<label><input type="checkbox" name="nsfw_force" value="1"<@if(s.nsfw_force, ' checked')>>サイト全体をNSFWにする</label>
+		<span class="help-text">サイト全体を成人向けサイトとして扱い、年齢確認を出すようにします。RSSには本文が出ず、OGPは部分的に設定されます。</span>
 		</td>
 	</tr>
 	<tr><th>サイトアイコン</th>
@@ -69,11 +87,11 @@
 </article>
 
 <script-defer><!--
-$('#ga4id-setting').click(function(evt){
-	adiary.textarea_dialog(evt.target, function(data){
+document.getElementById('ga4id-setting').addEventListener('click', function(evt){
+	adiary.textarea_dialog(evt.currentTarget, function(data){
 		var x;
 		if (x = data.match(/\?id=([\w\-]+)/)) {
-			$('#ga4id').val( x[1] );
+			document.getElementById('ga4id').value = x[1];
 		}
 	});
 });

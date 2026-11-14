@@ -4,7 +4,7 @@
 <@>
 <$ifset(v.title eq '', v.title, v.SYSTEM_NAME)>
 <$s = v.blog>
-<@> ブログ全体がNSFWなら、年齢確認（_sub/nsfw_gate）を画面全体に出す
+<@> サイト全体がNSFWなら、年齢確認（_sub/nsfw_gate）を画面全体に出す
 <$ifset(!v.system_mode && s.nsfw_force, nsfw_site, 1)>
 <@>
 <!DOCTYPE html>
@@ -14,10 +14,11 @@
 <meta http-equiv="Content-Type" content="text/html; charset=<@SystemCode>">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="generator" content="<@v.SYSTEM_NAME> <@v.OUTVERSION>">
-<@if(no_robots, #'<meta name="robots" content="noindex,nofollow">\n')>
-<@> NSFWの記事があるページ（_sub/nsfw_gate）と、ブログ全体がNSFWのときは、検索エンジンに成人向けと伝える
+<@> 基本設定の「検索エンジンに掲載しない」（noindex）のときは、すべての公開ページに付ける
+<@if(no_robots || s.noindex, #'<meta name="robots" content="noindex,nofollow">\n')>
+<@> NSFWの記事があるページ（_sub/nsfw_gate）と、サイト全体がNSFWのときは、検索エンジンに成人向けと伝える
 <@> 確認を覚えているブラウザーでは、本文を描く前にぼかしを外す（ちらつかないように、ここで先に行う）
-<@> 「今後確認しない」はlocalStorage、ブログ全体の確認はブラウザーを閉じるまでsessionStorageに覚える（adiary.js）
+<@> 「今後確認しない」はlocalStorage、サイト全体の確認はブラウザーを閉じるまでsessionStorageに覚える（adiary.js）
 <@ifexec(!v.system_mode && (nsfw_page || nsfw_site), begin)>
 <meta name="rating" content="adult">
 <script>try { if (localStorage.getItem('adiary-nsfw-ok') || sessionStorage.getItem('adiary-nsfw-ok')) document.documentElement.classList.add('nsfw-ok'); } catch(e) {}</script>
@@ -44,7 +45,7 @@
 <link rel="stylesheet" href="<@Basepath><@v.theme_dir><@v.theme>/<@v.theme_name>.css?<@get_lastmodified("<@v.theme_dir><@v.theme>/<@v.theme_name>.css")>" id="theme-css">
 <$end>
 <@>
-<@> このブログ用に作ったCSS（pub/custom/）。テーマの色の調整（get_theme_custom_css）と、動的CSS（dynamic_css_url_file）
+<@> このサイト用に作ったCSS（pub/custom/）。テーマの色の調整（get_theme_custom_css）と、動的CSS（dynamic_css_url_file）
 <$file = "<@v.pub_dir>custom/theme.css">
 <@ifexec(!v.system_theme && s.theme_custom && s.theme eq v.theme && file_size(file), begin)>
 <link rel="stylesheet" href="<@Basepath><@file>?<@get_lastmodified(file)>" id="theme-custom-css">
@@ -75,15 +76,12 @@
 <@> jQuery（asys.js）と admin.js は、システムモード（デザイン編集など）とログイン中（記事のページのコメントの管理など）だけ読む。
 <@> ログインしていない人の公開画面は、adiary.js だけで動く
 <$use_asys = v.system_mode || Auth.ok>
-<@ifexec(use_asys && DevelopJS, begin)>
-<@_call("<@v.script_dir>asys-js-load.html", v.script_dir . 'src/')>
-<$end>
-<@ifexec(use_asys && !DevelopJS, begin)>
+<@ifexec(use_asys, begin)>
 <script defer src="<@Basepath><@v.script_dir>asys.min.js?<@get_lastmodified(v.script_dir . 'asys.min.js')>"></script>
 <$end>
-<script defer src="<@Basepath><@v.script_dir>adiary.js?<@get_lastmodified(v.script_dir . 'adiary.js')>"></script>
+<script defer src="<@Basepath><@v.script_dir>adiary.min.js?<@get_lastmodified(v.script_dir . 'adiary.min.js')>"></script>
 <@ifexec(use_asys, begin)>
-<script defer src="<@Basepath><@v.script_dir>admin.js?<@get_lastmodified(v.script_dir . 'admin.js')>"></script>
+<script defer src="<@Basepath><@v.script_dir>admin.min.js?<@get_lastmodified(v.script_dir . 'admin.min.js')>"></script>
 <$end>
 <@forexec(t, v.load_jscss('jslib'), begin)>
 <script defer src="<@t>"></script>

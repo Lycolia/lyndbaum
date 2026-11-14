@@ -82,6 +82,40 @@ subtest '直前の保存' => sub {
 	is($app->post('admin', '', { action => 'ajax_revision', last => 99999 })->{status}, 404, '無い記事は404');
 };
 
+subtest 'ほかの画面で先に保存されていたら保存しない' => sub {
+	my $app = AppTest->new()->setup()->seed();
+	my $digest = sub { (body($app->get('admin', '/01?edit')) =~ m{<input type="hidden" name="edit_digest" value="([0-9a-f]+)" id="edit-digest">})[0] // '' };
+	my $text   = sub { (body($app->get('guest', '/01')) =~ /(画面[AB]の本文|本文1)/)[0] // '' };
+	my %edit   = (%ART, edit_pkey_int => 1, ymd => '2026-10-01');
+
+	my $digest_a = $digest->();	# 画面Aで開く
+	my $digest_b = $digest->();	# 画面Bで開く
+	like($digest_a, qr/^[0-9a-f]{32}$/, '編集画面に今の記事の要約が入る');
+	is($digest_b, $digest_a, '保存する前に開き直しても、要約は変わらない');
+
+	my $r = $app->post('admin', '', { %edit, edit_digest => $digest_b, title => '画面Bの題名', body_txt => "画面Bの本文\n" });
+	ok(AppTest::is_reload($r), '画面Bは保存できる');
+	isnt($digest->(), $digest_a, '保存すると要約が変わる');
+
+	$r = $app->post('admin', '', { %edit, edit_digest => $digest_a, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(!AppTest::is_reload($r), '画面Aは、開いた後に画面Bで保存されたので保存しない');
+	like(body($r), qr{ほかの画面（別のタブや端末）で先に保存されていたため、保存しませんでした}, 'そのことを知らせる');
+	is($text->(), '画面Bの本文', '記事は画面Bで保存したまま');
+
+	# 画面のJS（edit.js）は、保存の前に今の記事の要約をajax_revisionで取り、編集画面の要約と比べる
+	my $now = $app->post('admin', '', { action => 'ajax_revision', now => 1 })->{json};
+	is($now->{digest}, $digest->(), 'ajax_revisionの要約は、編集画面を開き直したときの要約と同じ');
+	isnt($now->{digest}, $digest_a, '画面Aの要約とは違う（画面で知らせられる）');
+
+	# 「上書きして保存」は、今の記事の要約に差し替えて送る
+	$r = $app->post('admin', '', { %edit, edit_digest => $now->{digest}, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(AppTest::is_reload($r), '今の記事の要約を付けると、上書きして保存できる');
+	is($text->(), '画面Aの本文', '画面Aの内容になる');
+
+	$r = $app->post('admin', '', { %edit, title => 'digestなし', body_txt => "本文1\n" });
+	ok(AppTest::is_reload($r), '要約を付けないときは確かめない');
+};
+
 subtest 'ゴミ箱' => sub {
 	my $r = $app->post('admin', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
 	ok(AppTest::is_reload($r), 'ゴミ箱へ移せる');
@@ -99,7 +133,7 @@ subtest 'ゴミ箱' => sub {
 };
 
 subtest 'ゴミ箱を空にすると直前の保存も消える' => sub {
-	# 記事の番号を後のテストとずらさないよう、別のブログで行う
+	# 記事の番号を後のテストとずらさないよう、別のサイトで行う
 	my $app  = AppTest->new()->setup()->seed();
 	my $file = $app->dir . '/data/db/lastrev/#index.dat';
 	$app->post('admin', '', { %ART, edit_pkey_int => 1, title => '直した題名', body_txt => "直した本文\n" });
@@ -181,7 +215,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 		return $b // '';
 	};
 	my $coms = sub {
-		# ブログのコメント数（v.blog.coms）。ダッシュボードには出さないので、全記事の削除の画面で見る
+		# サイトのコメント数（v.blog.coms）。ダッシュボードには出さないので、全記事の削除の画面で見る
 		my ($n) = body($app->get('admin', 'mainte/blog_clear')) =~ m{<th>コメント</th>\s*<td>(\d+)件}s;
 		return $n;
 	};
@@ -200,7 +234,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	is($state->('保留のコメント', '&hold=1'), '承認待ち', '承認待ちで絞り込むと出る');
 	is($state->('ゲストのコメント', '&hold=1'), '', '承認待ちで絞り込むと、承認済みは出ない');
 	is($state->('保留のコメント', '&hold=0'), '', '承認済みで絞り込むと、承認待ちは出ない');
-	is($coms->(), 1, 'ブログのコメント数に入らない');
+	is($coms->(), 1, 'サイトのコメント数に入らない');
 
 	my ($pkey) = body($app->get('admin', 'comlist')) =~ m{value="(\d+)" class="pkey-ary" id="com-\d+">.*?保留の人}s;
 	$r = $app->post('admin', 'comlist', { action => 'comments_edit', enable => 1, pkey_ary => $pkey, from_comlist => 1 });
@@ -208,7 +242,7 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	like(body($app->get('guest', '/02')), qr{保留のコメント}, '承認すると記事のページに出る');
 	is($state->('保留のコメント'), '承認済み', '承認済みになる');
 	like($recent->(), qr{保留の人}, '最近のコメントに出る');
-	is($coms->(), 2, 'ブログのコメント数に入る');
+	is($coms->(), 2, 'サイトのコメント数に入る');
 
 	# 記事を非公開にしても、承認したことは残る。公開に戻すと、承認済みのコメントだけまた出る
 	$r = $app->post('admin', '', { action => 'comments_edit', disable => 1, pkey_ary => $pkey });
@@ -218,14 +252,14 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	ok(AppTest::is_reload($r), '記事を非公開にできる');
 	is($state->('ゲストのコメント'), '承認済み', '記事を非公開にしても承認済みのまま');
 	unlike($recent->(), qr{通りすがり}, '非公開の記事のコメントは最近のコメントに出ない');
-	is($coms->(), 0, '非公開の記事のコメントはブログのコメント数に入らない');
+	is($coms->(), 0, '非公開の記事のコメントはサイトのコメント数に入らない');
 
 	$r = $app->post('admin', 'artlist', [ action => 'articles_edit', mode => 'enable', pkey_ary => 2 ]);
 	ok(AppTest::is_reload($r), '記事を公開に戻せる');
 	like(body($app->get('guest', '/02')), qr{ゲストのコメント}, '承認済みのコメントがまた出る');
 	unlike(body($app->get('guest', '/02')), qr{保留のコメント}, '承認待ちのコメントは出ない');
 	like($recent->(), qr{通りすがり}, '最近のコメントに戻る');
-	is($coms->(), 1, 'ブログのコメント数に戻る');
+	is($coms->(), 1, 'サイトのコメント数に戻る');
 
 	# 非公開の記事のコメントも承認できる。記事を公開したときに出る
 	$r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 0 });
@@ -233,11 +267,11 @@ subtest 'コメントの承認待ちと記事の公開・非公開' => sub {
 	$r = $app->post('admin', '', { action => 'comments_edit', enable => 1, pkey_ary => $pkey });
 	ok(AppTest::is_reload($r), '非公開の記事のコメントを承認できる');
 	is($state->('保留のコメント'), '承認済み', '承認済みになる');
-	is($coms->(), 0, '記事が非公開なので、ブログのコメント数には入らない');
+	is($coms->(), 0, '記事が非公開なので、サイトのコメント数には入らない');
 	$r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'ownerの記事', body_txt => "本文2\n", tag_ary => 'タグ2', enable => 1 });
 	ok(AppTest::is_reload($r), '編集画面で記事を公開にできる');
 	like(body($app->get('guest', '/02')), qr{保留のコメント}, '承認したコメントが出る');
-	is($coms->(), 2, 'ブログのコメント数に戻る');
+	is($coms->(), 2, 'サイトのコメント数に戻る');
 };
 
 subtest '新着コメントの通知メールを送れなくても、理由を画面に出さない' => sub {
@@ -295,14 +329,14 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 
 	my $r = $app->post('admin', '', \%EYE);
 	ok(AppTest::is_reload($r), '選ばずに保存できる');
-	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、ブログの画像（設定していないので既定の画像）になる');
+	like($og->(), qr{/default-icon\.png$}, 'og:imageは本文の画像にならず、サイトの画像（設定していないので既定の画像）になる');
 	like(body($app->get('guest', '/07')), qr{<meta name="twitter:card" content="summary">}, '記事の画像が無ければtwitter:cardはsummary');
 	like(read_file("$dir/pub/rss.xml"), qr{<generator>[^<]*#\d+\.\d{2}</generator>}, 'RSSのgeneratorの版は小数2桁');
 	unlike($rss->(), qr{<media:content}, 'RSSにアイキャッチを出さない');
 	is($ogp->(), '', '編集画面の欄は空');
 
 	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
-	ok(AppTest::is_reload($r), 'ブログを再構築できる');
+	ok(AppTest::is_reload($r), 'サイトを再構築できる');
 	is($ogp->(), '', '再構築しても本文の画像を拾わない');
 
 	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => $img });
@@ -313,7 +347,7 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 	is($ogp->(), $img, '編集画面の欄に選んだ画像が入る');
 
 	$r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
-	ok(AppTest::is_reload($r), 'ブログを再構築できる');
+	ok(AppTest::is_reload($r), 'サイトを再構築できる');
 	is($ogp->(), $img, '再構築しても選んだ画像が残る');
 
 	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => $img, body_txt => "[image:S:$AppTest::IMAGE_FOLDER:other.jpg]\n\n$EYE{body_txt}" });
@@ -322,7 +356,7 @@ subtest 'アイキャッチ画像は選んだものだけを使う' => sub {
 
 	$r = $app->post('admin', '', { %EYE, edit_pkey_int => 7, ogp => '' });
 	ok(AppTest::is_reload($r), '選んだ画像を外して保存できる');
-	like($og->(), qr{/default-icon\.png$}, 'ブログの画像に戻る');
+	like($og->(), qr{/default-icon\.png$}, 'サイトの画像に戻る');
 	is($ogp->(), '', '編集画面の欄が空に戻る');
 };
 
@@ -355,7 +389,7 @@ subtest 'エクスポートとインポート' => sub {
 subtest '再構築' => sub {
 	unlink("$dir/pub/rss.xml");
 	my $r = $app->post('admin', '', { action => 'mainte/blog_rebuild' });
-	ok(AppTest::is_reload($r), 'ブログを再構築できる');
+	ok(AppTest::is_reload($r), 'サイトを再構築できる');
 	ok(-s "$dir/pub/rss.xml", 'RSSが書き出し直される');
 };
 
@@ -406,8 +440,8 @@ subtest 'リンクカードは編集のたびに取得しない' => sub {
 subtest 'ダッシュボード' => sub {
 	my $r = $app->post('admin', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
 	ok(AppTest::is_reload($r), '記事の下書きを保存できる');
-	$r = $app->post('admin', '', { %ART, title => 'ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
-	ok(AppTest::is_reload($r), 'ページの下書きを保存できる');
+	$r = $app->post('admin', '', { %ART, title => '固定ページの下書き', body_txt => "下書き\n", draft => 1, page => 1, link_key_txt => 'draft-page' });
+	ok(AppTest::is_reload($r), '固定ページの下書きを保存できる');
 
 	my $b = body($app->get('admin', 'menu'));
 	unlike($b, qr{<p>ユーザー }, 'ユーザーのカードを出さない');
@@ -419,7 +453,7 @@ subtest 'ダッシュボード' => sub {
 		push(@rows, { query => $query =~ s/&amp;/&/gr, label => $label, count => $count });
 	}
 	is_deeply([ map { $_->{label} } @rows ], [qw(
-		記事の下書き 公開中の記事 非公開の記事 ページの下書き 公開中のページ 非公開のページ
+		記事の下書き 公開中の記事 非公開の記事 固定ページの下書き 公開中の固定ページ 非公開の固定ページ
 		ゴミ箱 承認待ちのコメント 承認済みのコメント
 	)], '概要の項目と順番');
 
@@ -431,22 +465,22 @@ subtest 'ダッシュボード' => sub {
 		is($_->{count}, $n, "$_->{label}の件数は、一覧（?$_->{query}）と同じ");
 	}
 	is($count{'記事の下書き'},   1, '記事の下書きを数える');
-	is($count{'ページの下書き'}, 1, 'ページの下書きを数える');
+	is($count{'固定ページの下書き'}, 1, '固定ページの下書きを数える');
 
 	# 記事一覧の「下書き」には、下書きだけが出る
 	my $drafts = body($app->get('admin', 'artlist&enable=draft'));
 	like($drafts, qr{記事の下書き}, '記事一覧の下書きに、記事の下書きが出る');
-	like($drafts, qr{ページの下書き}, '記事一覧の下書きに、ページの下書きが出る');
+	like($drafts, qr{固定ページの下書き}, '記事一覧の下書きに、固定ページの下書きが出る');
 	unlike($drafts, qr{editorの記事}, '記事一覧の下書きに、公開の記事は出ない');
 	my $all = body($app->get('admin', 'artlist'));
 	like($all, qr{記事の下書き}, '記事一覧の「すべて」には、下書きも出る');
-	like($all, qr{ページの下書き}, '記事一覧の「すべて」には、ページの下書きも出る');
+	like($all, qr{固定ページの下書き}, '記事一覧の「すべて」には、固定ページの下書きも出る');
 	like($all, qr{ownerの記事}, '記事一覧の「すべて」には、公開の記事も出る');
 
 	# 公開列は、下書き・公開・非公開を文字で出す
 	my %state = $all =~ m{>([^<]+)</a></td>\s*<td class="c"><label[^>]*>[^<]*</label></td>\s*<td class="c"><label[^>]*>([^<]*)</label></td>}g;
 	is($state{'記事の下書き'}, '下書き', '下書きの公開状態は「下書き」');
-	is($state{'ページの下書き'}, '下書き', 'ページの下書きの公開状態も「下書き」');
+	is($state{'固定ページの下書き'}, '下書き', '固定ページの下書きの公開状態も「下書き」');
 	is($state{'ownerの記事'}, '公開', '公開の記事の公開状態は「公開」');
 	is($state{'下書きの記事'}, '非公開', '非公開の記事の公開状態は「非公開」');	# インポートした下書きは非公開になる
 	unlike(body($app->get('admin', 'artlist&enable=0')), qr{記事の下書き}, '記事一覧の「非公開」には、下書きは出ない');
@@ -455,6 +489,20 @@ subtest 'ダッシュボード' => sub {
 	my @write = $b =~ m{<a class="button-primary" href="([^"]*)">}g;
 	is(scalar(@write), 1, '書くのボタンは1つ');
 	like($write[0] // '', qr{\?edit$}, '書くの行き先は編集画面');
+};
+
+#-------------------------------------------------------------------------------
+# 投稿の上限（既定8MB。URLエンコードした後の大きさにかかる）
+#-------------------------------------------------------------------------------
+subtest '長い本文の記事' => sub {
+	# 日本語10万字はURLエンコードで約900KB。前の上限（512KB）では保存できなかった
+	my $body = ('長い本文' x 25000) . "\n";
+	my $r = $app->post('admin', '', { %ART, title => '長い本文の記事', body_txt => $body });
+	ok(AppTest::is_reload($r), '512KBを超える本文でも保存できる');
+	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{title="(\d+)">長い本文の記事<};
+	ok($pkey, '記事一覧に出る');
+	my $n = () = body($app->get('guest', '/0' . ($pkey // ''))) =~ /長い本文/g;
+	cmp_ok($n, '>=', 25000, '本文が切れずに出る');
 };
 
 done_testing();

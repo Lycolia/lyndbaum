@@ -75,13 +75,11 @@ my @ACTIONS = (
 	  form => { mode => 'purge', pkey_ary => 3 } },
 	{ action => 'trash', min => 'admin', label => 'trash（空にする）',
 	  form => { mode => 'purge_all' } },
-	{ action => 'ajax_lock', min => 'admin', ok => \&json_any,
-	  form => { pkey => 1, sid => 'test' } },
 	{ action => 'ajax_revision', min => 'admin', ok => \&json_any,
 	  form => { pkey => 1 } },
 
 	#---------------------------------------------------------------
-	# 画像アルバム
+	# メディア管理
 	#---------------------------------------------------------------
 	{ action => 'media/upload_form', min => 'admin', ok => \&text_ret0,
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up.png', content => $PNG, type => 'image/png' } ] },
@@ -114,7 +112,7 @@ my @ACTIONS = (
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up2.png', content => $PNG, type => 'image/png' } ] },
 
 	#---------------------------------------------------------------
-	# ブログの設定
+	# サイトの設定
 	#---------------------------------------------------------------
 	{ action => 'set/index', min => 'admin',
 	  form => { blog_name => '新しい名前', description_txt => '' } },
@@ -122,9 +120,9 @@ my @ACTIONS = (
 	  form => { load_items => 3 } },
 	{ action => 'set/editor', min => 'admin',
 	  form => { enable => 0 } },
-	{ action => 'set2/tag_edit', min => 'admin',
+	{ action => 'tag_edit', min => 'admin',
 	  form => { del_ary => 1 } },
-	{ action => 'set2/contents_edit', min => 'admin',
+	{ action => 'contents_edit', min => 'admin',
 	  form => { contents_txt_ary => '1,0,1,new-key' } },
 	{ action => 'set2/usertag', min => 'admin',
 	  form => { usertag_txt => "[mytag]\nhtml = <b>\$1</b>\n" } },
@@ -196,7 +194,7 @@ my @ACTIONS = (
 my %SKIP = (
 	'_ajax_login'       => '誰でも',
 	'_ajax_setup'       => '管理者がいないときだけ（t/operations_user.t）',
-	'comment_post'      => '誰でも（ブログの設定で、コメントできる人を決める）',
+	'comment_post'      => '誰でも（サイトの設定で、コメントできる人を決める）',
 	'etc/dummy'         => '誰でも（何もしない）',
 );
 

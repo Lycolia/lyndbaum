@@ -6,7 +6,7 @@
 	今までの見た目のまま、テーマ（satsuki2/satsuki2）に頼らないよう、
 	satsuki2.css から、この画面で使う部分を写したもの。
 	画面の配置は、それぞれのスケルトン（design/*.html）の中に書く。
-	プレビュー（iframe）は公開画面なので、ブログのテーマで表示する。
+	プレビュー（iframe）は公開画面なので、サイトのテーマで表示する。
 *******************************************************************************/
 /*--------------------------------------------------------------------
 ■全体配置
@@ -144,43 +144,6 @@ input[type="email"]:focus,
 input[type="password"]:focus,
 .setting textarea:focus {
 	background-color:	#ffeeee;
-}
-
-/*--------------------------------------------------------------------
-●ポップアップヘルプ, info
---------------------------------------------------------------------*/
-.help, .btn-help:after {
-	color:			#c3c;
-}
-
-div.popup-help {
-	min-width:		100px;
-	max-width:		360px;
-	padding:		0.5em 1em;
-
-	background-color:	#fff;
-	color:			#6b75b8;
-
-	font-size:		11pt;
-
-	border:			2px solid #6b75b8;
-	border-radius:		10px;
-	box-shadow:		2px 2px 2px 2px rgba(60,60,60,0.75);
-}
-div.popup-help:before {
-	content:		"HELP";
-	color:			#fff;
-	background-color:	#c33;
-	border-radius:		6px;
-
-	font-weight:		bold;
-	font-size:		8pt;
-	padding:		4px;
-	margin:			-2px 4px 0 0px;
-
-	display:		inline-block;
-	line-height:		100%;
-	vertical-align:		middle;
 }
 
 /*--------------------------------------------------------------------

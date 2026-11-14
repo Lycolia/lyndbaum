@@ -1,6 +1,6 @@
 use strict;
 #-------------------------------------------------------------------------------
-# ブログシステム - adiary
+# サイト構築システム - adiary
 #						(C)2006-2024 nabe@abk
 #-------------------------------------------------------------------------------
 package SatsukiApp::adiary;
@@ -9,13 +9,13 @@ use Fcntl;
 #-------------------------------------------------------------------------------
 our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
-our $SYSTEM_DESCRIPTION = 'Neo-Modern High-performance CMS software';
+our $SYSTEM_DESCRIPTION = 'The ultimate lightweight self-hosted Knowledge Base Management System for Japanese';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.42;
+our $VERSION    = 4.43;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.42;
+our $DATA_VERSION = 4.43;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -58,11 +58,6 @@ sub new {
 	$self->SetDefaultValue();
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
 
-	# Cache環境向け Timer のロード
-	if ($ROBJ->{CGI_cache} && $ENV{SatsukiTimer} ne '0' && !$Satsuki::Timer::VERSION) {
-		require Satsuki::Timer;
-	}
-
 	return $self;
 }
 
@@ -101,22 +96,23 @@ parsers		=> {
 },
 rss_skeleton	=> '_format/rss20',		# RSS 2.0（コメント含む）
 words_separator	=> '\s　',			# 検索時のスペース類文字（正規表現）
-# アップロードと画像アルバム。ユーザー設定で変えられる
+# アップロードとメディア管理。ユーザー設定で変えられる
 uplaod_files_max   => 64 * 1048576,		# 1回あたりの合計の上限
-album_jpeg_quality => 80,			# JPEGサムネイルの品質
-album_avif_quality => 65,			# AVIFサムネイルの品質
-album_image_ext    => { map { $_ => 1 } qw(jpg jpeg gif png apng webp avif) },	# 許可する画像の拡張子
+form_post_max      => 8 * 1048576,		# 1回の投稿（フォームのPOST、URLエンコード後）の上限
+media_jpeg_quality => 80,			# JPEGサムネイルの品質
+media_avif_quality => 65,			# AVIFサムネイルの品質
+media_image_ext    => { map { $_ => 1 } qw(jpg jpeg gif png apng webp avif) },	# 許可する画像の拡張子
 # 画像以外をアップロードしたときのアイコンと、サムネイルに埋め込むファイル情報のフォント
-album_icons	=> 'pub/assets/dist/album-icon/',
-album_font	=> 'pub/assets/dist/VL-PGothic-Regular.ttf',
-album_font_size	=> 11,
+media_icons	=> 'pub/assets/dist/media-icon/',
+media_font	=> 'pub/assets/dist/VL-PGothic-Regular.ttf',
+media_font_size	=> 11,
 # 内部の設定
-blog_cache_unit  => 100,	# ブログ記事キャッシュ保存時の分割単位
+blog_cache_unit  => 100,	# 記事キャッシュ保存時の分割単位
 theme_skeleton_level => 10,
 user_skeleton_level  => 20,
 theme_design_skeleton_level => 21,	# テンプレート別に生成したデザイン
 default_tag_priority => 100000,
-default_wiki_priority=> 100000,
+default_page_priority=> 100000,
 main_skeleton	=> '_main',
 article_skeleton=> '_article',
 frame_skeleton	=> '_frame',
@@ -166,7 +162,7 @@ sub main {
 	# 外部HTTPリクエストのUser-Agent
 	$ROBJ->{HttpAgent} = "$SYSTEM_NAME v$OUTVERSION" . ($sys->{ServerURL} ? " ($sys->{ServerURL})" : '');
 
-	# pinfoとブログの選択。テーマ選択
+	# pinfoとサイトの選択。テーマ選択
 	$self->select_blog_and_pinfo();
 
 	# Query/Form処理  ※テーマ選択より後に処理
@@ -175,7 +171,7 @@ sub main {
 	# 表示スケルトン選択
 	$self->select_skeleton( $ROBJ->{Query}->{_} || $self->{query0} );
 
-	# ブログを読めないときは、何も処理せず知らせるだけ
+	# サイトを読めないときは、何も処理せず知らせるだけ
 	if ($self->{blog_error}) {
 		$ROBJ->{POST} = 0;
 		$ROBJ->set_status(503);
@@ -296,7 +292,7 @@ sub is_same_origin_post {
 }
 
 #-------------------------------------------------------------------------------
-# ●pinfoとブログ選択処理
+# ●pinfoとサイト選択処理
 #-------------------------------------------------------------------------------
 sub select_blog_and_pinfo {
 	my $self = shift;
@@ -304,7 +300,7 @@ sub select_blog_and_pinfo {
 
 	my @pinfo   = @{ $ROBJ->read_path_info() };	# PATH_INFO
 
-	# ブログは1つだけ。無ければ作る。アップデートが要るときは、処理の後に作る
+	# サイトは1つだけ。無ければ作る。アップデートが要るときは、処理の後に作る
 	if (!$self->{require_update} && !$self->exists_blog()) {
 		$self->blog_auto_create();
 	}
@@ -314,7 +310,7 @@ sub select_blog_and_pinfo {
 		print STDERR "$self->{SYSTEM_NAME}: blog is not available. Check " . $self->blog_dir() . " and the blog tables.\n";
 	}
 
-	# テーマの設定（$self->{blog}->{theme} と書くと、ブログが無いときに空のハッシュができる）
+	# テーマの設定（$self->{blog}->{theme} と書くと、サイトが無いときに空のハッシュができる）
 	my $theme = ($self->{blog} || {})->{theme};
 	if (!$theme || $self->load_theme($theme)) {
 		$self->load_theme( $self->{default_theme} );
@@ -343,7 +339,7 @@ sub read_query_form {
 	# 特殊Queryの処理
 	foreach(qw(_theme)) {
 		if (!$q->{$_}) { next; }
-		# テーマ指定は、デザイン編集のテーマのプレビュー用。ブログの管理者のみ
+		# テーマ指定は、デザイン編集のテーマのプレビュー用。サイトの管理者のみ
 		if (!$self->{blog_admin}) { delete $q->{$_}; next; }
 		my $v = $q->{$_};
 		$v =~ s|[^\w\-/]||g;
@@ -447,10 +443,10 @@ sub output_html {
 }
 
 ################################################################################
-# ■ブログの存在確認と設定ロード
+# ■サイトの存在確認と設定ロード
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●ブログが作られているか
+# ●サイトが作られているか
 #-------------------------------------------------------------------------------
 sub exists_blog {
 	my $self = shift;
@@ -459,7 +455,7 @@ sub exists_blog {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの設定ロード
+# ●サイトの設定ロード
 #-------------------------------------------------------------------------------
 # ※書き換えは瞬時に反映され、$blog->{_update}=1 ならばプログラム終了時に保存される。
 sub load_blogset {
@@ -482,10 +478,10 @@ sub load_blogset {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの権限と初期設定
+# ●サイトの権限と初期設定
 #-------------------------------------------------------------------------------
-# ブログを選択し、内部変数に権限を設定する。
-# ブログがみつからないときは undef が返る
+# サイトを選択し、内部変数に権限を設定する。
+# サイトがみつからないときは undef が返る
 sub select_blog {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -504,14 +500,14 @@ sub select_blog {
 	$self->delete_blog_skeleton();
 
 	my $blog = $self->load_blogset();
-	if (!$blog || !%$blog) { return; }	# ブログが無い
+	if (!$blog || !%$blog) { return; }	# サイトが無い
 
 	$self->set_blog_permission($blog);
 
-	# ブログ情報設定
+	# サイト情報設定
 	$self->{blog}        = $blog;
-	$self->{allow_view}  = 1;	# ブログを選べた。アップデート前でブログが無いときは立たない
-	# ブログ個別スケルトンの登録（プラグイン等で生成される）
+	$self->{allow_view}  = 1;	# サイトを選べた。アップデート前でサイトが無いときは立たない
+	# サイト個別スケルトンの登録（プラグイン等で生成される）
 	if (!$self->{stop_all_plugins}) {
 		$ROBJ->regist_skeleton($self->{blog_dir} . 'skel/', $self->{user_skeleton_level});
 	}
@@ -527,7 +523,7 @@ sub select_blog {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログ用に登録したスケルトンを外す
+# ●サイト用に登録したスケルトンを外す
 #-------------------------------------------------------------------------------
 sub delete_blog_skeleton {
 	my $self = shift;
@@ -537,7 +533,7 @@ sub delete_blog_skeleton {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの権限設定
+# ●サイトの権限設定
 #-------------------------------------------------------------------------------
 sub set_blog_permission {
 	my ($self, $blog) = @_;
@@ -552,7 +548,7 @@ sub set_blog_permission {
 }
 
 #-------------------------------------------------------------------------------
-# ●ブログの設定保存	※Finish()から呼ばれる
+# ●サイトの設定保存	※Finish()から呼ばれる
 #-------------------------------------------------------------------------------
 sub save_blogset_sys {
 	my $self = shift;
@@ -691,7 +687,7 @@ sub load_article_current_blog {
 sub load_article {
 	my $self = shift;
 	my ($art, $ret) = $self->load_articles(@_);
-	if (($ret->{mode} ne 'pkey' && $ret->{mode} ne 'wiki') || $#$art != 0) {
+	if (($ret->{mode} ne 'pkey' && $ret->{mode} ne 'page') || $#$art != 0) {
 		return undef;
 	}
 	$art = $art->[0];
@@ -705,7 +701,7 @@ sub load_article {
 # opt.loads		loadする記事数(max)
 # opt.pagemode		ページ処理する
 # opt.no_override	公開フラグ等をオーバーライドしない
-# opt.blog_only		ブログ記事のみをロードします
+# opt.blog_only		記事のみをロードします
 #
 #Ret:
 #	ret.mode	判別したモード
@@ -718,7 +714,7 @@ sub load_articles {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 
-	# ブログが無い
+	# サイトが無い
 	my $blog = $self->{blog};
 
 	#-------------------------------------------------------------
@@ -916,10 +912,10 @@ sub load_articles {
 		$ret{title_tag} = $title_tag;
 
 	#-------------------------------------------------------------
-	# コンテンツ指定
+	# 固定ページの指定
 	#-------------------------------------------------------------
 	} elsif ($mode =~ /^[^&]/) {
-		$ret{mode} = 'wiki';
+		$ret{mode} = 'page';
 		$q{match} = {link_key => $mode};
 
 	#-------------------------------------------------------------
@@ -1059,7 +1055,7 @@ sub load_articles {
 
 	# 単一記事ページ送り
 	if ($opt->{pagemode} && exists $blog->{keylist} && $logs->[0]
-	 && ($ret{mode} eq 'pkey' || $ret{mode} eq 'wiki')) {
+	 && ($ret{mode} eq 'pkey' || $ret{mode} eq 'page')) {
 		my $key = $logs->[0]->{link_key} || $logs->[0]->{pkey};
 		my $keylist = $blog->{keylist};
 		if ($opt->{load_hidden}) { $keylist = $blog->{keylist_all}; }
@@ -1102,7 +1098,7 @@ sub load_articles {
 	#-------------------------------------------------------------
 	# 記事指定時の日付処理
 	#-------------------------------------------------------------
-	if ($logs->[0] && ($ret{mode} eq 'pkey' || $ret{mode} eq 'wiki')) {
+	if ($logs->[0] && ($ret{mode} eq 'pkey' || $ret{mode} eq 'page')) {
 		$ret{year} = $logs->[0]->{year};
 		$ret{mon}  = $logs->[0]->{mon};
 		$ret{day}  = $logs->[0]->{day};
@@ -1157,16 +1153,19 @@ sub post_process_article {
 	my $mon  = $art->{mon}  = substr($yyyymmdd, 4, 2);
 	my $day  = $art->{day}  = substr($yyyymmdd, 6, 2);
 
-	# 更新日をテンプレートに出す用の処理
-	my $update_ymd = $ROBJ->time2timehash($art->{update_tm});
-	$art->{upd_year} = $update_ymd->{year};
-	$art->{upd_mon}  = $update_ymd->{mon};
-	$art->{upd_day}  = $update_ymd->{day};
+	# 更新日（記事ヘッダ、_sub/art_info）。update_tmが空ならtmを使う。time2timehashは空を今の時刻として扱うので、両方空なら作らない
+	my $update_tm = $art->{update_tm} || $art->{tm};
+	if ($update_tm) {
+		my $update_ymd = $ROBJ->time2timehash($update_tm);
+		$art->{upd_year} = $update_ymd->{year};
+		$art->{upd_mon}  = $update_ymd->{mon};
+		$art->{upd_day}  = $update_ymd->{day};
 
-	# 更新日の表示制御フラグ
-	$art->{shown_upd_date} = "$year$mon$day" != "$art->{upd_year}$art->{upd_mon}$art->{upd_day}";
+		# 記事の日付と違うときだけ出す
+		$art->{shown_upd_date} = "$year$mon$day" != "$art->{upd_year}$art->{upd_mon}$art->{upd_day}";
+	}
 
-	# コンテンツkey関連
+	# パーマリンク関連
 	my $key = $art->{link_key};
 	$art->{elink_key} = $key;
 	$self->link_key_encode( $art->{elink_key} );
@@ -1474,7 +1473,7 @@ sub load_plgset {
 		return $blog->{"p:$name:$key"};
 	}
 
-	# ブログの設定は項目が多いので、全項目を毎回見ない。プラグインごとの項目名を一度だけ作る
+	# サイトの設定は項目が多いので、全項目を毎回見ない。プラグインごとの項目名を一度だけ作る
 	my $index = $self->{_plgset_index};
 	if (!$index || $self->{_plgset_blog} != $blog) {
 		$index = $self->{_plgset_index} = {};
@@ -1494,7 +1493,7 @@ sub load_plgset {
 }
 
 ################################################################################
-# ■システム情報 / ブログ情報の管理
+# ■システム情報 / サイト情報の管理
 ################################################################################
 #-------------------------------------------------------------------------------
 # ●システムdatをロードする
@@ -1536,10 +1535,11 @@ sub apply_sys_settings {
 	}
 	if ($sys->{session_days} ne '') { $auth->{expires} = $sys->{session_days} * 86400; }
 
-	foreach(qw(album_jpeg_quality album_avif_quality)) {
+	foreach(qw(media_jpeg_quality media_avif_quality)) {
 		if ($sys->{$_} ne '') { $self->{$_} = $sys->{$_}; }
 	}
 	if ($sys->{upload_max_mb} ne '') { $self->{uplaod_files_max} = $sys->{upload_max_mb} * 1048576; }
+	if ($sys->{post_max_mb}   ne '') { $self->{form_post_max}    = $sys->{post_max_mb}   * 1048576; }
 }
 
 #-------------------------------------------------------------------------------
@@ -1598,7 +1598,7 @@ sub load_tag_postprocessor {
 }
 
 #-------------------------------------------------------------------------------
-# ●記事情報キャッシュのロード（ブログ記事）
+# ●記事情報キャッシュのロード（記事）
 #-------------------------------------------------------------------------------
 sub load_art_node {
 	my ($self, $pkey) = @_;
@@ -1634,7 +1634,7 @@ sub load_arts_postprocessor {
 }
 
 #-------------------------------------------------------------------------------
-# ●記事情報キャッシュのロード（コンテンツ）
+# ●記事情報キャッシュのロード（固定ページ）
 #-------------------------------------------------------------------------------
 sub load_content_node {
 	my ($self, $pkey) = @_;
@@ -1725,7 +1725,7 @@ sub blog_dir {
 }
 sub blogimg_dir {
 	my $self = shift;
-	return $self->{pub_dir} . 'attachments/';
+	return $self->{pub_dir} . 'attach/';
 }
 
 #-------------------------------------------------------------------------------

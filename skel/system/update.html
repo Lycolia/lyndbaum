@@ -24,9 +24,9 @@
 	<p><button type="submit" name="action" value="<@v.skel_dir>remake_custom_css">カスタムCSS再生成</button><span class="help-text">使用中のテーマカスタマイズ用CSSを再構築します。</span></p>
 	<$end>
 
-	<@> 4.31より古いデータからはアップデートできない（system_update）
+	<@> 4.42より古いデータからはアップデートできない（system_update）
 	<@ifexec(v.require_update && v.update_unsupported(), begin)>
-	<p class="warning">このデータの版（<@v.sys.VERSION>）からは、直接アップデートできません。先に4.32の版でアップデート処理を行ってください。</p>
+	<p class="warning">このデータの版（<@v.sys.VERSION>）からは、直接アップデートできません。先に4.42の版でアップデート処理を行ってください。</p>
 	<$end>
 
 	<button type="submit" name="action" value="<@v.skel_dir>update" value="1"<@if(!v.require_update || v.update_unsupported(), ' disabled')>>アップデート処理を行う</button><span class="help-text">バージョンを上げたときに必要な再構築処理やマイグレーション処理を走らせます。必要な時だけボタンがonになります。</span>

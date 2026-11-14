@@ -20,12 +20,12 @@ sub {
 		if ($evt eq 'ARTICLE_AFTER')        { return 0; }
 		return &make_tags_tree(@_);
 	}
-	# コンテンツ一覧の表示
+	# 固定ページの一覧の表示
 	if ($evt eq 'TAG_STATE_CHANGE') { return 0; }
 	if ($evt eq 'ARTICLE_AFTER')    { return 0; }
 	return &make_contents_tree(@_);
 #-------------------------------------------------------------------------------
-# コンテンツツリーのロード
+# 固定ページのツリーのロード
 #-------------------------------------------------------------------------------
 sub make_contents_tree {
 	my $self = shift;
