@@ -170,6 +170,93 @@ $$.progressbar = function(dom, opt) {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// show with delay, hide
+////////////////////////////////////////////////////////////////////////////////
+// jQueryの.show(300)（$.fn.showDelay）、.hide()と同じ動き。隠れた要素を、高さ、幅、余白、
+// 濃さを0から広げて出す（swing）。出ている要素では何もしない。動いている間に呼ぶと、
+// 終わった後に動く（jQueryのfxの列と同じ）
+//	adiary.show_delay(dom)	adiary.show(dom)	adiary.hide(dom)
+// jQueryと同じ順に書く（styleの並びも同じになる）
+const ShowProps = ['height', 'paddingTop', 'marginTop', 'paddingRight', 'marginRight',
+		   'paddingBottom', 'marginBottom', 'paddingLeft', 'marginLeft', 'width', 'opacity'];
+const OldDisplay = new WeakMap();	// 隠す前のdisplay（jQueryのdataPrivの"display"）
+const Showing    = new WeakMap();	// 動いている間：{ pending }
+
+function is_hidden(dom) {	// jQueryのisHiddenWithinTree
+	return dom.style.display === 'none'
+	    || dom.style.display === '' && dom.isConnected && getComputedStyle(dom).display === 'none';
+}
+function default_display(dom) {	// jQueryのgetDefaultDisplay
+	const tmp = document.body.appendChild( document.createElement(dom.nodeName) );
+	const display = getComputedStyle(tmp).display;
+	tmp.remove();
+	return display === 'none' ? 'block' : display;
+}
+function show_now(dom) {	// jQueryのshowHide(dom, true)
+	let val = null;
+	if (dom.style.display === 'none') {
+		val = OldDisplay.get(dom) || null;
+		if (!val) dom.style.display = '';
+	}
+	if (dom.style.display === '' && is_hidden(dom)) val = default_display(dom);
+	if (val != null) dom.style.display = val;
+}
+$$.show = function(dom) {	// jQueryの.show()（すぐに出す）
+	if (dom) show_now(dom);
+};
+$$.hide = function(dom) {
+	if (!dom) return;
+	const display = dom.style.display;
+	if (display === 'none') return;
+	OldDisplay.set(dom, display);
+	dom.style.display = 'none';
+};
+$$.show_delay = function(dom, ms) {
+	if (!dom) return;
+	const running = Showing.get(dom);
+	if (running) {
+		running.pending = true;
+		return;
+	}
+	if (!is_hidden(dom)) return;
+	if (ms === undefined) ms = this.DefaultShowSpeed;
+
+	const style = dom.style;
+	const orig  = {};
+	for(const p of ShowProps) orig[p] = style[p];
+	const overflow = [ style.overflow, style.overflowX, style.overflowY ];
+	style.overflow = 'hidden';
+
+	show_now(dom);
+	const cs  = getComputedStyle(dom);
+	const end = {};
+	for(const p of ShowProps) end[p] = parseFloat(cs[p]) || 0;
+
+	const state = { pending: false };
+	Showing.set(dom, state);
+	const start = Date.now();
+	const self  = this;
+	const tick  = function(){
+		const percent = ms ? Math.min(1, (Date.now() - start) / ms) : 1;
+		const eased   = 0.5 - Math.cos(percent * Math.PI) / 2;	// swing
+		for(const p of ShowProps) {
+			const v = end[p] * eased;
+			style[p] = (p === 'opacity') ? v : v + 'px';
+		}
+		if (percent < 1) return requestAnimationFrame(tick);
+
+		// 終わったら、元のスタイルに戻す
+		style.overflow  = overflow[0];
+		style.overflowX = overflow[1];
+		style.overflowY = overflow[2];
+		for(const p of ShowProps) style[p] = orig[p];
+		Showing.delete(dom);
+		if (state.pending) self.show_delay(dom, ms);
+	};
+	requestAnimationFrame(tick);
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // draggable
 ////////////////////////////////////////////////////////////////////////////////
 function set_iframe_events(val) {

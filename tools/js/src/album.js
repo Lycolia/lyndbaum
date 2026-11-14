@@ -2,7 +2,7 @@
 // アルバム用JavaScript
 //							(C)2014 nabe@abk
 //##############################################################################
-//[TAB=8]  require jQuery
+//[TAB=8]  require tree.js
 //
 //tree.json
 //	name	フォルダ名	ex) yyy/
@@ -14,46 +14,100 @@
 //	name	ファイル名
 //	size	ファイルサイズ
 //	date	UTC
-//	isImg	画像ファイルか？ true/false
+//	isImg	画像ファイルか？true/false
 //
 'use strict';
 
-$( function(){
-	var tree = $('#album-folder-tree');
-	var view = $('#album-folder-view');
-	var selfiles   = $('#selected-files')
-	var allow_edit = view.data('edit');
+adiary.ready(function(){
+	function $id(id) { return document.getElementById(id) }
+	var tree = $id('album-folder-tree');
+	var view = $id('album-folder-view');
+	var selfiles   = $id('selected-files');
+	if (!tree || !view) return;
+	var allow_edit = jq_data(view, 'edit');
+	var dtree;
 
 	// 表示設定
-	var all_select = $('#all-select');
-	var view_type  = $('#view-type');
-	var sort_type  = $('#sort-type');
-	var sort_rev   = $('#sort-rev');
-	var folder_icon= $('#folder-icon-change');
-	var name_filter= $('#name-filter');
+	var all_select = $id('all-select');
+	var view_type  = $id('view-type');
+	var sort_type  = $id('sort-type');
+	var sort_rev   = $id('sort-rev');
+	var folder_icon= $id('folder-icon-change');
+	var name_filter= $id('name-filter');
 	var is_thumbview;
 
 	// ツリー関連
-	var path = $('#image-path').text();
+	var path = text_of('image-path');
 	var cur_files;
 	var cur_folder;		// ex) '/' 'newfolder/' 'aaa/bbb/ccc/' 'path/to/'
 	var cur_node;
-	var cur_folder_rel;	// cur_folder == '/' のとき空文字
+	var cur_folder_rel;	// cur_folder == '/'のとき空文字
 
 	// ファイルアップロード関連
-	var upform   = $secure('#upload-form');
-	var message  = $('#upload-messages');
-	var upfolder = $('#upload-folder');
-	var file_btn = $('#file-btn');
+	var upform   = adiary.secure('#upload-form');
+	var message  = $id('upload-messages');
+	var upfolder = $id('upload-folder');
+	var file_btn = $id('file-btn');
 
 	// Drag&Drop関連
-	var dnd_body = $('#body');
+	var dnd_body = $id('body');
 
 	var isMac = /Mac/.test(navigator.platform);
 
 	// フラグ管理
 	var key_event_stop;
 	var uploading;
+
+	// 画像やファイル名の要素に持たせる値（今までのjQueryの.data()）
+	//	{ title: ファイル名, isimg, viewable, href }
+	var fdata = new WeakMap();
+
+////////////////////////////////////////////////////////////////////////////////
+// ●jQueryの代わり
+////////////////////////////////////////////////////////////////////////////////
+function text_of(id) {
+	var dom = $id(id);
+	return dom ? dom.textContent : '';
+}
+function on(dom, type, func) {
+	if (dom) dom.addEventListener(type, func);
+}
+function create(tag, cls) {
+	var dom = document.createElement(tag);
+	if (cls) dom.className = cls;
+	return dom;
+}
+// jQueryの.data()と同じく、data-*の値を数値などに直す
+function jq_data(dom, name) {
+	var v = dom.getAttribute('data-' + name);
+	if (v === null) return undefined;
+	if (v === 'true')  return true;
+	if (v === 'false') return false;
+	if (v === 'null')  return null;
+	if (v === +v + '') return +v;
+	if (/^(?:\{[\w\W]*\}|\[[\w\W]*\])$/.test(v)) {
+		try { return JSON.parse(v) } catch(e) { }
+	}
+	return v;
+}
+// jQueryの.blur()と同じく、focusが無くてもblurの処理を呼ぶ
+function blur(inp) {
+	if (document.activeElement === inp) inp.blur();
+		else inp.dispatchEvent( new FocusEvent('blur') );
+}
+// jQueryの.toggle(bool)
+function toggle(dom, flag) {
+	if (!dom) return;
+	if (flag) adiary.show(dom);
+	     else adiary.hide(dom);
+}
+// 選択中の要素（画像、ファイル名の行）
+function selected_items() {
+	return Array.from( view.querySelectorAll('.selected') );
+}
+function set_visibility(items, val) {
+	items.forEach(function(x){ if (x.parentNode) x.parentNode.style.visibility = val });
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●初期化処理
@@ -63,10 +117,9 @@ var set = {
 	persist: true,
 	cookieId: 'album:' + adiary.myself,
 	minExpandLevel: 2,
-	imagePath: $('#icon-path').text(),
-	debugLevel: 0,
+	imagePath: text_of('icon-path'),
 
-	initAjax: { url: tree.data('url') },
+	url: tree.dataset.url,
 	onPostInit: function(isReloading, isError) {
 		if (isError) {
 			error_msg('#msg-load-error');
@@ -74,7 +127,7 @@ var set = {
 		}
 
 		// ロードしたデータの加工
-		var rootNode = tree.dynatree("getRoot");
+		var rootNode = this.getRoot();
 		rootNode.visit(function(node){
 			var data = node.data;
 			data.name     = adiary.tag_decode(data.name || '');
@@ -91,7 +144,7 @@ var set = {
 		// ゴミ箱の設定
 		if (rnodes[2].data.name === '.trashbox/') {
 			var data = rnodes[2].data;
-			data.name  = $('#msg-trashbox').text();
+			data.name  = text_of('msg-trashbox');
 			data.title = get_title(data);
 			data.name  = '.trashbox/';
 			data.fix   = true;
@@ -100,11 +153,11 @@ var set = {
 
 		// 開くフォルダの指定（?media/&folder=xxx/。記事作成画面のアイキャッチ画像から）
 		var open_key = !isReloading && new URLSearchParams(location.search).get('folder');
-		var open_node = open_key && tree.dynatree("getTree").getNodeByKey(open_key);
+		var open_node = open_key && this.getNodeByKey(open_key);
 		if (open_node) open_node.activateSilently();
 
 		// 選択中のノード
-		var sel = tree.dynatree("getActiveNode");
+		var sel = this.getActiveNode();
 		if (!sel) {
 			root.activate();
 			sel = root;
@@ -143,7 +196,6 @@ var set = {
 	dnd: {
 		onDragStart: function(node) {
 			if (node.data.fix) return false;
-			// console.log("tree.onDragStart(%o)", node);
 			return true;	// Return false to cancel dragging of node.
 		},
 		autoExpandMS: 400,
@@ -172,7 +224,7 @@ if(! allow_edit) {	// 編集権限なし
 	delete set['onKeydown'];
 	delete set['dnd'];
 }
-tree.dynatree(set);
+dtree = new AdiaryTree(tree, set);
 
 function get_title(data) {
 	return adiary.tag_esc(data.name) + (data.count==0 ? '' : ' (' + data.count + ')');
@@ -182,128 +234,42 @@ function get_title(data) {
 // ■フォルダツリー関連
 //##############################################################################
 ////////////////////////////////////////////////////////////////////////////////
-// ●画像ファイルのドラッグ指定
-////////////////////////////////////////////////////////////////////////////////
-var visible_on_stop;
-var img_draggable_option = {
-	connectToDynatree: true,
-	zIndex: 100,
-	opacity: 	0.7,
-	opacity_text:	0.95,	// filename-view
-	delay:   	200,
-	cursorAt: { top: -5, left:-5 },
-	//----------------------------------------
-	// ドラッグ中の画像要素
-	//----------------------------------------
-	helper: function(evt,ui){
-		// 開始要素が選択されてない時、選択する
-		var obj = $(evt.target);
-		if (!is_thumbview && !obj.hasClass('fileline')) obj = obj.parents('.fileline');
-		if (!obj.hasClass('selected')) {
-			obj.addClass('selected')
-			update_selected_files();
-		};
-		// 選択中の画像すべて
-		var div = $('<div>');
-		if (is_thumbview) {
-			// アイコンビューのとき
-			var imgs = view.find('.selected').clone();
-			imgs.removeClass('selected');
-			// 一覧のマスの指定（幅100%など）を受けるので、大きさと並べ方をここで決める
-			imgs.css( {width: 60, height: 60, display: 'inline-block'} );
-			div.css('max-width', 320);
-			imgs.css({
-				padding: 1,
-				border: 'none',
-				visibility: 'visible'
-			});
-			div.append(imgs);
-		} else {
-			// ファイル名ビューのとき
-			var files = view.find('.selected');
-			for(var i=0; i<files.length; i++) {
-				var span = $('<span>').text( $(files[i]).data('title') );
-				div.append( span );
-			}
-			div.attr('id', 'album-dnd-name-view');
-			div.css('visibility', 'visible');
-		}
-		return div;
-	},
-	//------------------------------------------------------------
-	// ドラッグ開始イベント
-	//------------------------------------------------------------
-	start: function(evt,ui) {
-		var imgs = view.find('.selected').parent();
-		imgs.css('visibility', 'hidden');
-		visible_on_stop = true;
-	},
-	//------------------------------------------------------------
-	// ドラッグ終了イベント
-	//------------------------------------------------------------
-	stop: function(evt,ui) {
-		if (!visible_on_stop) return;
-		var imgs = view.find('.selected').parent();
-		imgs.css('visibility', 'visible');
-	},
-
-	//------------------------------------------------------------
-	// ドラッグ終了時、「戻る」アニメーションの判定
-	//------------------------------------------------------------
-	// trueを返すと、戻るアニメーションが表示される（ドロップ失敗）
-	revert: function(obj){
-		if(typeof obj === "boolean") {
-			// jQuery上で処理される drop可能/不可能対象の時
-			return !obj;
-		}
-
-		// dynatreeへのドロップの場合 obj が渡される
-		var helper = $.ui.ddmanager && $.ui.ddmanager.current && $.ui.ddmanager.current.helper;
-		var isRejected = helper && helper.hasClass("dynatree-drop-reject");
-		return isRejected;
-	}
-};
-
-////////////////////////////////////////////////////////////////////////////////
 // ●フォルダ名の編集
 ////////////////////////////////////////////////////////////////////////////////
 function edit_node( node ) {
-	if (node.data.fix) return;	// root and ゴミ箱
+	if (node.data.fix) return;	// rootとゴミ箱
 
 	var ctree = node.tree;
-	ctree.$widget.unbind();			// ツリーのバインドを外す
+	ctree.disable();			// ツリーのクリックとキーを止める
 	var name = node.data.name;
 	name = name.substr(0, name.length-1);	// 201201/ to 201201
 
 	// ノードの選択中表示を解除する
-	var span = $(node.span);
-	span.removeClass('dynatree-active');
+	var span = node.span;
+	span.classList.remove('dynatree-active');
 
-	// タイトルを <input> 要素に置き換える
-	var inp = $('<input>').attr({
-		type:  'text',
-		value: name
-	});
-	inp.addClass('folder-edit-inp no-resize');
+	// タイトルを<input>要素に置き換える
+	var inp = document.createElement('input');
+	inp.setAttribute('type',  'text');
+	inp.setAttribute('value', name);
+	inp.className = 'folder-edit-inp no-resize';
 	// aタグ内にinputを入れると不可思議な動作をするので、
-	// 変わりの span box を作り置き換える。
-	var item = span.find( ".dynatree-title" );	// aタグ
-	var box = $('<span>');
-	box.addClass( item.attr('class') );
-	box.append( inp );
-	box.insertBefore( item );
+	// 変わりのspan boxを作り置き換える。
+	var item = span.querySelector( ".dynatree-title" );	// aタグ
+	var box = document.createElement('span');
+	box.className = item.getAttribute('class');
+	box.appendChild( inp );
 	item.replaceWith( box );
 
 	// Focus <input> and bind keyboard handler
 	inp.focus();
-	inp.keydown(function(evt){
-		var obj = $(evt.target);
+	inp.addEventListener('keydown', function(evt){
 		switch( evt.which ) {
 			case 27: // [esc]
-				obj.blur();
+				blur(inp);
 				break;
 			case 13: // [enter]
-				rename_folder(obj, node, inp.val());
+				rename_folder(inp, node, inp.value);
 				break;
 			case 46: // delete
 				evt.stopPropagation();	// stop delete folder
@@ -314,19 +280,19 @@ function edit_node( node ) {
 	// ○ツリーのクリック
 	//----------------------------------------
 	var tree_click = function(evt){
-		if (inp[0] == evt.target) return;
-		inp.blur();
+		if (inp == evt.target) return;
+		blur(inp);
 	};
-	tree.click(tree_click);
+	tree.addEventListener('click', tree_click);
 
 	//----------------------------------------
 	// ○フォーカスが離れた（編集終了）
 	//----------------------------------------
-	inp.blur(function(evt){
+	inp.addEventListener('blur', function(evt){
 		box.remove();
-		tree.unbind('click', tree_click);
+		tree.removeEventListener('click', tree_click);
 		node.setTitle( node.data.title );
-		ctree.$widget.bind();
+		ctree.enable();
 		node.data.rename = false;
 		node.focus();
 		if (evt && evt.which == 13 && node.data.key != cur_node.data.key)
@@ -340,7 +306,7 @@ function edit_node( node ) {
 function rename_folder(obj, node, name) {
 	if (name.substr(-1) != '/') name += '/';
 	if (name == '' || node.data.name === name) {
-		obj.blur();	// 変更なし
+		blur(obj);	// 変更なし
 		return;
 	};
 	node.data.rename = true;
@@ -354,7 +320,7 @@ function rename_folder(obj, node, name) {
 		},
 		success: function(data) {
 			if (data.ret !== 0) {
-				obj.blur();
+				blur(obj);
 				// blur()してから呼び出さないとキー入力がbindされない
 				error_msg('#msg-fail-rename-folder');
 				return;
@@ -365,11 +331,11 @@ function rename_folder(obj, node, name) {
 
 			if (cur_node.data.key === node.data.key) set_current_folder(node);
 			node.data.rename = false;
-			obj.blur();
+			blur(obj);
 		},
 		error: function() {
 			node.data.rename = false;
-			obj.blur();
+			blur(obj);
 			error_msg('#msg-fail-rename-folder');
 		}
 	});
@@ -379,10 +345,10 @@ function rename_folder(obj, node, name) {
 // ●リロードボタン
 ////////////////////////////////////////////////////////////////////////////////
 function tree_reload() {
-	tree.dynatree('getTree').reload();
+	dtree.reload();
 }
 
-$('#album-reload').click( function(){
+on($id('album-reload'), 'click', function(){
 	ajax_submit({
 		action: 'refresh',
 		success: function(data) {
@@ -398,7 +364,7 @@ $('#album-reload').click( function(){
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダ作成ボタン
 ////////////////////////////////////////////////////////////////////////////////
-$('#album-new-folder').click( function(){
+on($id('album-new-folder'), 'click', function(){
 	var node = cur_node;
 	var ary  = node.getChildren();
 	var name = "new-folder";
@@ -430,7 +396,7 @@ $('#album-new-folder').click( function(){
 		success: function(data) {
 			if (data.ret !== 0) return error_msg('#msg-fail-create');
 			name += '/';
-			tree.find('.folder-edit-inp').blur();	// addChild前に
+			tree.querySelectorAll('.folder-edit-inp').forEach(blur);	// addChild前に
 
 			var create = node.addChild({
 			        isFolder: true,
@@ -460,7 +426,7 @@ function clear_trash() {
 		delete_folder('.trashbox/');
 	});
 }
-$('#album-clear-trashbox').click( clear_trash );
+on($id('album-clear-trashbox'), 'click', clear_trash);
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダの削除
@@ -486,19 +452,19 @@ function delete_folder(folder) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダの移動
 ////////////////////////////////////////////////////////////////////////////////
-function drop_to_tree(node, srcNode, hitMode, ui, draggable) {
+function drop_to_tree(node, srcNode, hitMode) {
 	// フォルダの中へのドロップのみ有効
 	if (hitMode !== "over") return false;
 
 	// ファイルのドロップ？
-	if (!srcNode) return drop_files_to_tree(node, srcNode, hitMode, ui, draggable);
+	if (!srcNode) return drop_files_to_tree(node, srcNode, hitMode);
 
 	// フォルダの移動
 	move_folder(node, srcNode);
 }
 
 function move_folder(node, srcNode) {
-	node = (typeof(node) == 'string') ? tree.dynatree("getTree").getNodeByKey(node) : node;
+	node = (typeof(node) == 'string') ? dtree.getNodeByKey(node) : node;
 
 	var from = srcNode.getParent().data.key;
 	var to   = node.data.key;
@@ -527,7 +493,7 @@ function move_folder(node, srcNode) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●ファイルの移動
 ////////////////////////////////////////////////////////////////////////////////
-function drop_files_to_tree(node, srcNode, hitMode, ui, draggable) {
+function drop_files_to_tree(node, srcNode, hitMode) {
 	// 移動処理
 	if (! move_files(node.data.key)) return false;
 
@@ -559,8 +525,7 @@ function move_files(to_folder) {
 		error: function() {
 			error_msg('#msg-fail-mv-files');
 			// ファイルを再表示
-			var imgs = view.find('.selected').parent();
-			imgs.css('visibility', 'visible');
+			set_visibility(selected_items(), 'visible');
 		}
 	});
 	return true;
@@ -589,8 +554,7 @@ function delete_files() {
 		error: function() {
 			error_msg('#msg-fail-delete-files');
 			// ファイルを再表示
-			var imgs = view.find('.selected').parent();
-			imgs.css('visibility', 'visible');
+			set_visibility(selected_items(), 'visible');
 		}
 	});
 	return true;
@@ -599,22 +563,25 @@ function delete_files() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●選択ファイルの一覧の更新
 ////////////////////////////////////////////////////////////////////////////////
+var li_names = new WeakMap();	// 一覧のliのファイル名（今までのli.data('name')）
 function update_selected_files() {
-	var imgs = view.find('.selected');
-	if (!imgs.length) all_select.prop('checked', false);
-	if (imgs.length && imgs.length == cur_files.length) all_select.prop('checked', true);
+	var imgs = selected_items();
+	if (!imgs.length) all_select.checked = false;
+	if (imgs.length && imgs.length == cur_files.length) all_select.checked = true;
 
-	selfiles.empty();
+	selfiles.innerHTML = '';
 	for(var i=0; i<imgs.length; i++) {
-		var name = $(imgs[i]).data('title');
-		var li = $('<li>').text( name );
-		li.data('name', name);
-		li.dblclick(function(evt){ edit_file_name($(evt.target)); });
-		selfiles.append(li);
+		var name = fdata.get(imgs[i]).title;
+		var li = document.createElement('li');
+		li.textContent = name;
+		li_names.set(li, name);
+		li.addEventListener('dblclick', function(evt){ edit_file_name(evt.currentTarget); });
+		selfiles.appendChild(li);
 	}
 	var bool = (imgs.length == 0);
-	$('#paste-form [data-select]').prop('disabled', bool);
-	$('#set-eyecatch').prop('disabled', !(imgs.length == 1 && $(imgs[0]).data('isimg')));
+	document.querySelectorAll('#paste-form [data-select]').forEach(function(x){ x.disabled = bool });
+	var eye = $id('set-eyecatch');
+	if (eye) eye.disabled = !(imgs.length == 1 && fdata.get(imgs[0]).isimg);
 }
 
 //------------------------------------------------------------------------------
@@ -623,36 +590,35 @@ function update_selected_files() {
 function edit_file_name(li) {
 	key_event_stop = true;
 
-	var inp = $('<input>').attr({
-		type:  'text',
-		value: li.data('name')
-	}).addClass('w100p');
-	li.empty();
-	li.append( inp );
+	var inp = document.createElement('input');
+	inp.setAttribute('type',  'text');
+	inp.setAttribute('value', li_names.get(li));
+	inp.className = 'w100p';
+	li.innerHTML = '';
+	li.appendChild( inp );
 
 	inp.focus();
 	inp.select();
-	inp.keydown(function(evt){
-		var obj = $(evt.target);
+	inp.addEventListener('keydown', function(evt){
 		switch( evt.which ) {
 			case 27: // [esc]
-				obj.blur();
+				blur(inp);
 				break;
 			case 13: // [enter]
-				if (li.data('name') == inp.val()) {
-					obj.blur();
+				if (li_names.get(li) == inp.value) {
+					blur(inp);
 					break;
 				}
-				rename_file(inp, li, inp.val());
+				rename_file(inp, li, inp.value);
 				break;
 		}
 	});
 	//----------------------------------------
 	// ○フォーカスが離れた（編集終了）
 	//----------------------------------------
-	inp.blur(function(evt){
+	inp.addEventListener('blur', function(evt){
 		key_event_stop = false;
-		li.text( li.data('name') );
+		li.textContent = li_names.get(li);
 	});
 
 }
@@ -665,34 +631,33 @@ function rename_file(obj, li, new_name) {
 		action: 'rename_file',
 		data: {
 			folder: cur_folder,
-			old:    li.data('name'),
+			old:    li_names.get(li),
 			name:   new_name
 		},
 		success: function(data) {
 			if (data.ret !== 0) return error_msg('#msg-fail-rename-file');
-			var old = li.data('name');
-			li.data('name', new_name);
-			obj.blur();
+			var old = li_names.get(li);
+			li_names.set(li, new_name);
+			blur(obj);
 
 			// ファイル名の変更を記録する
 			for(var i in cur_files) {
-				var x = cur_files[i].name;
 				if (cur_files[i].name != old) continue;
 				cur_files[i].name = new_name;
 				break;
 			}
 
 			// 選択済情報を保持する
-			var lis = selfiles.find('li');
+			var lis = selfiles.querySelectorAll('li');
 			var files = {};
 			for(var i=0; i<lis.length; i++) {
-				files[ $(lis[i]).data('name') ] = true;
+				files[ li_names.get(lis[i]) ] = true;
 			}
 			update_view(true, files);
 		},
 		error: function() {
 			error_msg('#msg-fail-rename-file');
-			obj.blur();
+			blur(obj);
 		}
 	});
 }
@@ -707,7 +672,7 @@ function error_msg(id, h) {
 	adiary.show_error({id:id, hash:h});
 }
 
-// 末尾の / を除去
+// 末尾の/を除去
 function chop_slash(str) {
 	if (str.substr(-1) != '/') return str;
 	return str.substr(0, str.length-1);
@@ -735,8 +700,8 @@ function set_keydata(folder, node) {
 ////////////////////////////////////////////////////////////////////////////////
 function open_folder(node, isReloading) {
 	if (!isReloading && !uploading) {
-		message.hide();
-		all_select.prop('checked', false);
+		adiary.hide(message);
+		all_select.checked = false;
 	}
 	if (node.data.rename) return;	// リネーム中は何もしない
 
@@ -760,15 +725,16 @@ function open_folder(node, isReloading) {
 				jpeg = true;
 				break;
 			}
-			$('#select-exifjpeg').prop('disabled', !jpeg);
+			var exif = $id('select-exifjpeg');
+			if (exif) exif.disabled = !jpeg;
 			if (data.length==0)	// ファイルがひとつもない
-				all_select.prop('checked', false);
+				all_select.checked = false;
 
 			// viewの更新
 			update_view();
 		},
 		error: function() {
-			$('#current-folder').text( '(load failed!)' );
+			$id('current-folder').textContent = '(load failed!)';
 			error_msg('#msg-load-error');
 			cur_files = [];
 			set_current_folder(node);
@@ -780,69 +746,93 @@ function open_folder(node, isReloading) {
 function set_current_folder(node) {
 	cur_folder = node.data.key;
 	cur_node   = node;
-	upfolder.val( cur_folder );
+	upfolder.value = cur_folder;
 	cur_folder_rel = (cur_folder == '/') ? '' : cur_folder;
 
-	var icon = $('#folder-icon');
-	icon.empty();
-	icon.removeClass('dynatree-icon');
+	var icon = $id('folder-icon');
+	icon.innerHTML = '';
+	icon.classList.remove('dynatree-icon');
 
 	var title = node.data.key;
 	if (title.substr(0,9) == '.trashbox') {
-		title = $('#msg-trashbox').text() + title.substr(9);
-		icon.append(
-			$('<img>').attr('src', $('#icon-path').text() + 'trashbox.png' )
-		);
+		title = text_of('msg-trashbox') + title.substr(9);
+		var img = document.createElement('img');
+		img.setAttribute('src', text_of('icon-path') + 'trashbox.png');
+		icon.appendChild( img );
 	} else {
-		icon.addClass('dynatree-icon');
+		icon.classList.add('dynatree-icon');
 	}
-	$('#current-folder').text( title );
+	$id('current-folder').textContent = title;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●ajaxデータ送信
 ////////////////////////////////////////////////////////////////////////////////
+// 今までの$.ajax（traditional: true）と同じく、配列は同じ名前で並べて送る
 function ajax_submit(opt) {
 	var data = opt.data || {};
-	data.action = $('#action-base').val() + opt.action;
+	data.action = $id('action-base').value + opt.action;
 
-	folder_icon.attr('class', 'dynatree-statusnode-wait');	// Loding.gif
-	$.ajax(adiary.myself + '?etc/ajax_dummy', {
+	var body = new URLSearchParams();
+	for(var k in data) {
+		var v = data[k];
+		if (Array.isArray(v))
+			v.forEach(function(x){ body.append(k, x == null ? '' : x) });
+		else	body.append(k, v == null ? '' : v);
+	}
+
+	folder_icon.className = 'dynatree-statusnode-wait';	// Loding.gif
+	fetch(adiary.myself + '?etc/ajax_dummy', {
 		method: 'POST',
-		data: data,
-		dataType: opt.type || 'json',
-		error: function(data) {
-			if (opt.error) opt.error(data);
-			// console.log('[ajax_submit()] http post fail');
-		},
-		success: function(data) {
-			if (opt.success) opt.success(data);
-			// console.log('[ajax_submit()] http post success');
-		},
-		complete : function() {
-			folder_icon.attr('class', 'dynatree-ico-ef');
-		},
-		traditional: true
+		body:   body
+	}).then(function(res){
+		return res.text().then(function(text){ return { res: res, text: text } });
+	}).then(function(r){
+		var ok = r.res.ok;
+		var ret;
+		if (ok && (opt.type || 'json') === 'json') {
+			try { ret = JSON.parse(r.text) } catch(e) { ok = false }
+		} else ret = r.text;
+		finish(ok, ret, r.text);
+	}, function(e){
+		finish(false, null, '');
 	});
+	function finish(ok, ret, text) {
+		if (ok) {
+			if (opt.success) opt.success(ret);
+		} else {
+			if (opt.error) opt.error({ responseText: text });
+		}
+		folder_icon.className = 'dynatree-ico-ef';
+	}
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●全選択
 ////////////////////////////////////////////////////////////////////////////////
-all_select.change( function(){ all_select_change() } );
+on(all_select, 'change', function(){ all_select_change() });
 
+// 名前で絞り込んでいれば、出ているものだけ
+function shown_items() {
+	var ary = [];
+	for(var a of view.children) {
+		if (a.tagName !== 'A' || a.classList.contains('filtered-out')) continue;
+		for(var x of a.children)
+			if (is_thumbview ? x.tagName === 'IMG' : x.classList.contains('fileline')) ary.push(x);
+	}
+	return ary;
+}
 function all_select_change(init) {
-	var stat = all_select.is(":checked");
-	// 名前で絞り込んでいれば、出ているものだけ
-	var imgs = view.children('a').not('.filtered-out').children(is_thumbview ? 'img' : '.fileline');
+	var stat = all_select.checked;
+	var imgs = shown_items();
 	for(var i=0; i<imgs.length; i++) {
-		var obj = $(imgs[i]);
+		var obj = imgs[i];
 		if (stat) {
-			obj.addClass('selected');
+			obj.classList.add('selected');
 			continue;
 		}
-		if (!init) obj.removeClass('selected');
+		if (!init) obj.classList.remove('selected');
 	}
 	update_selected_files();
 }
@@ -850,15 +840,15 @@ function all_select_change(init) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●表示形式変更
 ////////////////////////////////////////////////////////////////////////////////
-view_type.change( view_change );
-sort_type.change( view_change );
-sort_rev.change ( view_change );
+on(view_type, 'change', view_change);
+on(sort_type, 'change', view_change);
+on(sort_rev,  'change', view_change);
 function view_change() {
 	// 選択済情報を保持する
-	var imgs = view.find('.selected');
+	var imgs = selected_items();
 	var files = {};
 	for(var i=0; i<imgs.length; i++) {
-		files[ $(imgs[i]).data('title') ] = true;
+		files[ fdata.get(imgs[i]).title ] = true;
 	}
 	update_view(false, files);
 }
@@ -866,31 +856,32 @@ function view_change() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●名前で絞り込み
 ////////////////////////////////////////////////////////////////////////////////
-// 名前に語を含むファイルだけを出す（大文字と小文字は区別しない）。Lyndbaum 0 のメディアと同じ
+// 名前に語を含むファイルだけを出す（大文字と小文字は区別しない）。Lyndbaum 0のメディアと同じ
 // 当たらないファイルは隠すだけで、選んでいれば選んだままにする。語はフォルダを移っても残す
 // 範囲選択、全選択、画像ビューアーは、出ているファイルだけを対象にする。ゴミ箱では絞り込まない
-name_filter.on('input', apply_filter);
+on(name_filter, 'input', apply_filter);
 
 function apply_filter() {
 	var trash = cur_folder && cur_folder.substr(0,9) == '.trashbox';
-	name_filter.toggle( !trash );
-	var word  = trash ? '' : name_filter.val().trim().toLowerCase();
-	var links = view.children('a');
+	toggle(name_filter, !trash);
+	var word  = trash ? '' : name_filter.value.trim().toLowerCase();
 	var shown = 0;
-	for(var i=0; i<links.length; i++) {
-		var link = $(links[i]);
-		var obj  = link.children().first();
-		var hit  = word == '' || String(obj.data('title')).toLowerCase().indexOf(word) >= 0;
-		link.toggleClass('filtered-out', !hit);
-		// 画像ビューアーは開くときに data-lythumb のリンクを集めるので、隠したものは外す
-		if (hit && obj.data('viewable'))
-			link.attr('data-lythumb', 'roadtrip');
+	for(var link of view.children) {
+		if (link.tagName !== 'A') continue;
+		var obj  = link.firstElementChild;
+		var d    = obj && fdata.get(obj) || {};
+		var hit  = word == '' || String(d.title).toLowerCase().indexOf(word) >= 0;
+		link.classList.toggle('filtered-out', !hit);
+		// 画像ビューアーは開くときにdata-lythumbのリンクを集めるので、隠したものは外す
+		if (hit && d.viewable)
+			link.setAttribute('data-lythumb', 'roadtrip');
 		else
-			link.removeAttr('data-lythumb');
+			link.removeAttribute('data-lythumb');
 		if (hit) shown++;
 	}
-	view.children('.file-not-found').toggle( shown == 0 );
-	$('#current-count').text( trash ? '' : '(' + shown + '件)' );
+	for(var x of view.children)
+		if (x.classList.contains('file-not-found')) toggle(x, shown == 0);
+	$id('current-count').textContent = trash ? '' : '(' + shown + '件)';
 }
 
 
@@ -910,8 +901,8 @@ function update_view(flag, selected) {
 	// ソート処理。既定は日付の降順（skel/media/_main.html）。
 	// 同じ値（同じ秒に上げたファイルなど）は名前順にして、開くたびに並びが変わらないようにする
 	{
-		var type = sort_type.val();
-		var rev  = sort_rev.val() != 0 ? -1 : 1;
+		var type = sort_type.value;
+		var rev  = sort_rev.value != 0 ? -1 : 1;
 		cur_files.sort(function(a,b) {
 			if (a[type] != b[type]) return (a[type] < b[type] ? -1 : 1) * rev;
 			if (a.name  != b.name ) return (a.name  < b.name  ? -1 : 1) * rev;
@@ -919,105 +910,117 @@ function update_view(flag, selected) {
 		});
 	}
 
-	view.empty();
+	view.innerHTML = '';
 	var fspath = path + cur_folder_rel;
-	if (view_type.val() != 'name')
+	if (view_type.value != 'name')
 	  for(var i in cur_files) {
 		// サムネイルビュー
 		is_thumbview = true;
-		view.removeClass('name-view');
-		view.addClass('thumb-view');
+		view.classList.remove('name-view');
+		view.classList.add('thumb-view');
 		var file = cur_files[i];
 		var viewable = file.isImg || is_video_file(file.name);	// 画像ビューアーで開ける（画像と動画）
-		var link = $('<a>', {
-			href: encode_link( fspath + file.name )
-		});
+		var link = document.createElement('a');
+		link.setAttribute('href', encode_link( fspath + file.name ));
 		if (viewable) {
-			link.attr({
-				'data-lythumb': 'roadtrip',
-				'data-caption': file.name
-			});
+			link.setAttribute('data-lythumb', 'roadtrip');
+			link.setAttribute('data-caption', file.name);
 		}
-		var img  = $('<img>', {
-			src: encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq ,
-			'data-title': file.name,
-			'data-isimg': file.isImg ? 1 : 0
-		});
-		img.data('viewable', viewable);
+		var img = document.createElement('img');
+		img.setAttribute('src', encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq);
+		img.setAttribute('data-title', file.name);
+		img.setAttribute('data-isimg', file.isImg ? 1 : 0);
+		fdata.set(img, { title: file.name, isimg: file.isImg, viewable: viewable });
 		if (allow_edit) {
-			img.click( img_click );
-			img.dblclick( img_dblclick );
-			img.on('mydbltap', img_dblclick );	// ダブルタップ
+			img.addEventListener('click',    img_click);
+			img.addEventListener('dblclick', img_dblclick);
 		} else {
-			img.click( img_dblclick );
+			img.addEventListener('click', img_dblclick);
 		}
-		img.data('isimg', file.isImg);
 
-		if (selected[file.name]) img.addClass('selected');
-		link.append(img);
-		view.append(link);
+		if (selected[file.name]) img.classList.add('selected');
+		link.appendChild(img);
+		view.appendChild(link);
 
 		// for Drag&Drop
-		img.draggable( img_draggable_option );
+		img_draggable(img, 0.7);
+		if (allow_edit) dbltap(img);	// ダブルタップ
 	} else {
 	  for(var i in cur_files) {
 		// ファイル名ビュー
 		is_thumbview = false;
-		view.removeClass('thumb-view');
-		view.addClass('name-view');
+		view.classList.remove('thumb-view');
+		view.classList.add('name-view');
 		var file = cur_files[i];
 		var viewable = file.isImg || is_video_file(file.name);	// 画像ビューアーで開ける（画像と動画）
-		var link = $('<a>', {
-			href: encode_link( fspath + file.name )
-		});
+		var link = document.createElement('a');
+		link.setAttribute('href', encode_link( fspath + file.name ));
 		if (viewable) {
-			link.attr({
-				'data-lythumb': 'roadtrip',
-				'data-caption': file.name,
-			});
+			link.setAttribute('data-lythumb', 'roadtrip');
+			link.setAttribute('data-caption', file.name);
 		}
-		var span = $('<span>').addClass('fileline').data({
+		var span = create('span', 'fileline');
+		fdata.set(span, {
 			title: file.name,
 			isimg: file.isImg ? 1 : 0,
 			viewable: viewable,
-			href:  link.attr('href')	// for CTRL + click
+			href:  link.getAttribute('href')	// for CTRL + click
 		});
-		// ファイル名
-		var fname = $('<span>').text( file.name );
-		fname.addClass('js-popup-img').data('img-url', encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq );
-		span.append( $('<span>').addClass('filename').append( fname ) );
+		// ファイル名（admin.jsのポップアップが、data-img-urlの画像を出す）
+		var fname = create('span', 'js-popup-img');
+		fname.textContent = file.name;
+		fname.setAttribute('data-img-url', encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq);
+		var fn = create('span', 'filename');
+		fn.appendChild( fname );
+		span.appendChild( fn );
 		// 日付
 		var date = new Date( file.date*1000 );
 		var tms  = date.toLocaleString().replace(/\b(\d[\/: ])/g, "0$1");
-		span.append( $('<span>').addClass('filedate').text( tms ) );
+		var fd = create('span', 'filedate');
+		fd.textContent = tms;
+		span.appendChild( fd );
 		// サイズ
-		span.append( $('<span>').addClass('filesize').text( adiary.size_format(file.size) ) );
+		var fs = create('span', 'filesize');
+		fs.textContent = adiary.size_format(file.size);
+		span.appendChild( fs );
 
 		// 追加
 		if (allow_edit) {
-			span.click( img_click );
-			span.dblclick( img_dblclick );
-			span.on('mydbltap', img_dblclick );	// ダブルタップ
+			span.addEventListener('click',    img_click);
+			span.addEventListener('dblclick', img_dblclick);
 		} else {
-			span.click( img_dblclick );
+			span.addEventListener('click', img_dblclick);
 		}
 
-		if (selected[file.name]) span.addClass('selected');
-		link.append(span);
-		view.append(link);
+		if (selected[file.name]) span.classList.add('selected');
+		link.appendChild(span);
+		view.appendChild(link);
 
 		// for Drag&Drop
-		span.draggable( img_draggable_option );
-		span.draggable( { opacity: img_draggable_option.opacity_text } );
+		img_draggable(span, 0.95);
+		if (allow_edit) dbltap(span);	// ダブルタップ
 	  }
 	}
-	// file not found.（名前で絞り込んで1つも出ないときも出す。apply_filter で切り替える）
+	// file not found.（名前で絞り込んで1つも出ないときも出す。apply_filterで切り替える）
 	{
-		var div = $('<div>').addClass('file-not-found');
-		div.text('(File not found)')
-		view.append( div );
+		var div = create('div', 'file-not-found');
+		div.textContent = '(File not found)';
+		view.appendChild( div );
 	}
 	apply_filter();
+
+	// 押した要素（ファイル名ビューでは、中のspanを押しても行にする）
+	function item_of(evt) {
+		var obj = evt.target;
+		if (!is_thumbview && !obj.classList.contains('fileline')) obj = obj.closest('.fileline');
+		return obj;
+	}
+	// ダブルタップ（今までのmydbltapと同じく、ダブルクリックと同じ処理を呼ぶ）
+	function dbltap(dom) {
+		AdiaryTree.dbltap(dom, function(evt){
+			img_dblclick({ type: 'mydbltap', target: evt.target });
+		});
+	}
 
 	//--------------------------------------------------
 	// 画像のクリック
@@ -1026,8 +1029,7 @@ function update_view(flag, selected) {
 	var stop_prop;
 	var prev_sel;
 	function img_click(evt) {
-		var obj = $(evt.target);
-		if (!is_thumbview && !obj.hasClass('fileline')) obj = obj.parents('.fileline');
+		var obj = item_of(evt);
 		if (dbl_click) {
 			dbl_click = false;
 			return;
@@ -1036,59 +1038,42 @@ function update_view(flag, selected) {
 		if (evt.ctrlKey) {
 			if (evt.shiftKey) return true;	// ブラウザデフォルト
 
-			// download させる
+			// downloadさせる
 			evt.stopPropagation();
 			evt.preventDefault()
-			var file = obj.data('href') || obj.parent('a').attr('href');
-			var dl = $('<a>').attr({
-				href: file,
-				download: obj.data('title')
-			});
+			var file = fdata.get(obj).href || obj.parentNode.getAttribute('href');
+			var dl = document.createElement('a');
+			dl.setAttribute('href', file);
+			dl.setAttribute('download', fdata.get(obj).title);
 			var e = document.createEvent('MouseEvent');
 			e.initEvent("click", true, false);
-			dl[0].dispatchEvent( e );
+			dl.dispatchEvent( e );
 			return;
 		}
 
 		// 選択処理
 		evt.stopPropagation();
 		evt.preventDefault()
-		if (prev_sel && evt.shiftKey && prev_sel[0] != obj[0]) {
-			var sel = obj[0];
+		if (prev_sel && evt.shiftKey && prev_sel != obj) {
 			var ary = [];
 			// 名前で絞り込んでいれば、出ているものだけ（apply_filter）
-			// 前方範囲選択
-			var objs = prev_sel.parent().prevAll().not('.filtered-out').children();
-			var find = -1;
-			for(var i=0; i<objs.length; i++) {
-				if (objs[i] != sel) continue;
-				find=i;
-				break;
-			}
-			for(var i=0; i<=find; i++) ary.push(objs[i]);
-			// 後方範囲選択
-			var objs = prev_sel.parent().nextAll().not('.filtered-out').children();
-			var find = -1;
-			for(var i=0; i<objs.length; i++) {
-				if (objs[i] != sel) continue;
-				find=i;
-				break;
-			}
-			for(var i=0; i<=find; i++) ary.push(objs[i]);
+			// 前方、後方の範囲選択
+			['previousElementSibling', 'nextElementSibling'].forEach(function(dir){
+				var objs = [];
+				for(var x = prev_sel.parentNode[dir]; x; x = x[dir]) {
+					if (x.classList.contains('filtered-out')) continue;
+					for(var c of x.children) objs.push(c);
+				}
+				var find = objs.indexOf(obj);
+				for(var i=0; i<=find; i++) ary.push(objs[i]);
+			});
 
 			// 選択・非選択操作
-			for(var i=0; i<ary.length; i++) {
-				if (prev_sel.hasClass('selected'))
-					$(ary[i]).addClass('selected');
-				else
-					$(ary[i]).removeClass('selected');
-			}
+			var add = prev_sel.classList.contains('selected');
+			for(var i=0; i<ary.length; i++) ary[i].classList.toggle('selected', add);
 		} else {
 			prev_sel = obj;
-			if (obj.hasClass('selected'))
-				obj.removeClass('selected');
-			else
-				obj.addClass('selected');
+			obj.classList.toggle('selected');
 		}
 		update_selected_files();
 	}
@@ -1097,9 +1082,8 @@ function update_view(flag, selected) {
 	// 画像のダブルクリック
 	//--------------------------------------------------
 	function img_dblclick(evt) {
-		var obj = $(evt.target);
-		if (!is_thumbview && !obj.hasClass('fileline')) obj = obj.parents('.fileline');
-		if (!obj.data('viewable')) return;
+		var obj = item_of(evt);
+		if (!fdata.get(obj).viewable) return;
 		if (evt.type == 'click') return;
 		dbl_click = true;
 		obj.click();
@@ -1110,85 +1094,421 @@ function update_view(flag, selected) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// ●画像ファイルのドラッグ（今までのjQuery UIのdraggableと同じ動き）
+////////////////////////////////////////////////////////////////////////////////
+// 押して200ms以上たってから動かすと始まる（delay）。選んでいる画像をまとめてつかみ、
+// ツリーのフォルダに落とすと移動する。落とせないときは、元の所へ戻る（revert）
+var visible_on_stop;
+var DragDelay      = 200;	// msec
+var RevertDuration = 500;	// msec
+var TouchDnDTime   = 100;	// msec（スマホ。指を置いてから、これより前に動かすとスクロール）
+var ScrollSensitivity = 20;	// jQuery UIのdraggableの既定と同じ
+var ScrollSpeed       = 20;
+var drag;			// ドラッグの間の状態
+var reverting   = new WeakSet();	// 戻る動きの間の要素（その間は、つかめない）
+var click_after = null;		// ドラッグの後に止めるクリックの要素
+
+function offset_of(el) {	// jQueryの.offset()
+	if (!el.getClientRects().length) return { top: 0, left: 0 };
+	var r = el.getBoundingClientRect();
+	return { top: r.top + window.pageYOffset, left: r.left + window.pageXOffset };
+}
+function is_root(el) {
+	return /(html|body)/i.test(el.tagName) || el === document;
+}
+function scroll_parent(el, includeHidden) {	// jQuery UIの.scrollParent()
+	var cs  = getComputedStyle(el);
+	var pos = cs.position;
+	var excludeStatic = pos === 'absolute';
+	var reg = includeHidden ? /(auto|scroll|hidden)/ : /(auto|scroll)/;
+	if (pos !== 'fixed')
+		for(var p = el.parentElement; p; p = p.parentElement) {
+			var c = getComputedStyle(p);
+			if (excludeStatic && c.position === 'static') continue;
+			if (reg.test(c.overflow + c.overflowY + c.overflowX)) return p;
+		}
+	return document;
+}
+function scroll_top(el)  { return el === document ? window.pageYOffset : el.scrollTop  }
+function scroll_left(el) { return el === document ? window.pageXOffset : el.scrollLeft }
+
+//------------------------------------------------------------------------------
+// ドラッグ中の要素（今までのhelper）
+//------------------------------------------------------------------------------
+function make_helper(down) {
+	// 開始要素が選択されてない時、選択する
+	var obj = down;
+	if (!is_thumbview && !obj.classList.contains('fileline')) obj = obj.closest('.fileline');
+	if (!obj.classList.contains('selected')) {
+		obj.classList.add('selected');
+		update_selected_files();
+	};
+	// 選択中の画像すべて
+	var div = document.createElement('div');
+	if (is_thumbview) {
+		// アイコンビューのとき
+		var imgs = selected_items().map(function(x){ return x.cloneNode(true) });
+		imgs.forEach(function(x){
+			x.classList.remove('selected');
+			if (!x.getAttribute('class')) x.removeAttribute('class');
+			// 一覧のマスの指定（幅100%など）を受けるので、大きさと並べ方をここで決める
+			x.style.width   = '60px';
+			x.style.height  = '60px';
+			x.style.display = 'inline-block';
+		});
+		div.style.maxWidth = '320px';
+		imgs.forEach(function(x){
+			x.style.padding    = '1px';
+			x.style.border     = 'none';
+			x.style.visibility = 'visible';
+			div.appendChild(x);
+		});
+	} else {
+		// ファイル名ビューのとき
+		var files = selected_items();
+		for(var i=0; i<files.length; i++) {
+			var span = document.createElement('span');
+			span.textContent = fdata.get(files[i]).title;
+			div.appendChild( span );
+		}
+		div.setAttribute('id', 'album-dnd-name-view');
+		div.style.visibility = 'visible';
+	}
+	return div;
+}
+
+//------------------------------------------------------------------------------
+// 要素をつかめるようにする
+//------------------------------------------------------------------------------
+function img_draggable(el, opacity) {
+	el.addEventListener('mousedown', function(evt){
+		if (evt.button !== 0) return;
+		if (!down(el, evt, evt.pageX, evt.pageY, opacity)) return;
+		evt.preventDefault();
+		var mv = function(e){
+			if (!drag) return;
+			// ボタンを離したのにmouseupが来ていないとき（ウィンドウの外で離したなど）
+			if (drag.moved && !e.which) {
+				if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) drag.ignoreWhich = true;
+				else if (!drag.ignoreWhich) return up(e);
+			}
+			if (e.which || e.button) drag.moved = true;
+			move(e.pageX, e.pageY, e.target);
+			if (drag && drag.started) e.preventDefault();
+		};
+		var up = function(e){
+			document.removeEventListener('mousemove', mv);
+			document.removeEventListener('mouseup',   up);
+			finish(e.target, e.pageX, e.pageY, e.which === 1);
+		};
+		document.addEventListener('mousemove', mv);
+		document.addEventListener('mouseup',   up);
+	});
+	// ドラッグの後のクリックは、押した所と離した所が同じときだけ止める（jQuery UIと同じ）。
+	// img_clickの後に登録するので、img_clickは呼ばれる
+	el.addEventListener('click', function(evt){
+		if (!click_after || click_after !== evt.target) return;
+		click_after = null;
+		evt.stopImmediatePropagation();
+		evt.preventDefault();
+		evt.stopPropagation();
+	});
+}
+// スマホ：指を置いて少し待ってから動かすとドラッグ（今までのasysのdndEmulationと同じ）。
+// すぐに動かしたときはスクロール
+(function(){
+	var timer;
+	var flag;
+	var target;
+	view.addEventListener('touchstart', function(evt){
+		var t  = evt.touches[0];
+		target = evt.target;
+		flag   = false;
+		var el = target.closest && target.closest('#album-folder-view img, #album-folder-view span.fileline');
+		if (!drag && el && view.contains(el)) {
+			down(el, evt, t.pageX, t.pageY, is_thumbview ? 0.7 : 0.95);
+		}
+		timer = setTimeout(function(){
+			timer = null;
+			flag  = true;
+		}, TouchDnDTime);
+	}, { passive: true });
+	view.addEventListener('touchmove', function(evt){
+		if (!flag) {
+			if (timer) clearTimeout(timer);
+			timer = null;
+			return;
+		}
+		if (!drag) return;
+		var t  = evt.changedTouches[0];
+		var el = document.elementFromPoint(t.clientX, t.clientY);
+		drag.moved = true;
+		move(t.pageX, t.pageY, el);
+		// 今までのタッチの置き換え（dndEmulation）は、1回のtouchmoveでmousemoveを何回も起こしていたので、
+		// 指がノードに乗った最初のtouchmoveで、ノードに入る・上にいるが両方起きていた。それに合わせる
+		if (drag && drag.ext) drag.ext.move(el, t.pageX, t.pageY);
+		if (evt.cancelable) evt.preventDefault();
+	}, { passive: false });
+	view.addEventListener('touchend', function(evt){
+		if (timer) clearTimeout(timer);
+		timer = null;
+		if (!drag) return;
+		var t = evt.changedTouches[0];
+		// 今までと同じく、離した所は指を置いた要素（touchのtarget）にする
+		finish(target, t.pageX, t.pageY, true);
+	});
+	view.addEventListener('touchcancel', function(evt){
+		if (timer) clearTimeout(timer);
+		timer = null;
+		if (!drag) return;
+		finish(target, drag.x0, drag.y0, false);
+	});
+})();
+
+// 押したとき（jQuery UIの_mouseDown、_mouseCapture）
+function down(el, evt, x, y, opacity) {
+	if (drag || reverting.has(el)) return false;
+	if (evt.target.closest && evt.target.closest('input, textarea, button, select, option')) return false;
+	// 押した所の外にfocusがあれば外す
+	var ae = document.activeElement;
+	if (ae && ae !== document.body && !ae.contains(evt.target)) ae.blur();
+	if (click_after === evt.target) click_after = null;
+
+	drag = { el: el, target: evt.target, x0: x, y0: y, opacity: opacity, delay: false, started: false };
+	drag.timer = setTimeout(function(){ if (drag) drag.delay = true }, DragDelay);
+	return true;
+}
+
+// 動かしたとき
+function move(x, y, target) {
+	if (!drag) return;
+	var d = drag;
+	if (!d.started) {
+		if (Math.max(Math.abs(d.x0 - x), Math.abs(d.y0 - y)) < 1 || !d.delay) return;
+		start();
+		if (!drag) return;
+	}
+	// 写しの位置
+	var pos = position(x, y);
+	// 端に来たらスクロール（jQuery UIのscroll）
+	auto_scroll(x, y);
+	// ツリーのフォルダの上
+	if (d.ext) d.ext.move(target, x, y);
+	d.helper.style.left = pos.left + 'px';
+	d.helper.style.top  = pos.top  + 'px';
+}
+
+// 写しの位置（jQuery UIの_generatePosition）
+function position(x, y) {
+	var d = drag;
+	var root = is_root(d.scrollParent);
+	if (!root || !d.scroll) d.scroll = { top: scroll_top(d.scrollParent), left: scroll_left(d.scrollParent) };
+	return {
+		top:  y - d.click.top  - d.parent.top  + (root ? 0 : d.scroll.top),
+		left: x - d.click.left - d.parent.left + (root ? 0 : d.scroll.left)
+	};
+}
+function auto_scroll(x, y) {
+	var d  = drag;
+	var sp = d.scrollParentNotHidden;
+	if (sp !== document && sp.tagName !== 'HTML') {
+		var o = d.overflowOffset;
+		if ((o.top + sp.offsetHeight) - y < ScrollSensitivity)	sp.scrollTop = sp.scrollTop + ScrollSpeed;
+		else if (y - o.top < ScrollSensitivity)			sp.scrollTop = sp.scrollTop - ScrollSpeed;
+		if ((o.left + sp.offsetWidth) - x < ScrollSensitivity)	sp.scrollLeft = sp.scrollLeft + ScrollSpeed;
+		else if (x - o.left < ScrollSensitivity)		sp.scrollLeft = sp.scrollLeft - ScrollSpeed;
+	} else {
+		var sy = window.pageYOffset;
+		if (y - sy < ScrollSensitivity)				window.scrollTo(window.pageXOffset, sy - ScrollSpeed);
+		else if (window.innerHeight - (y - sy) < ScrollSensitivity) window.scrollTo(window.pageXOffset, sy + ScrollSpeed);
+		var sx = window.pageXOffset;
+		if (x - sx < ScrollSensitivity)				window.scrollTo(sx - ScrollSpeed, window.pageYOffset);
+		else if (window.innerWidth - (x - sx) < ScrollSensitivity) window.scrollTo(sx + ScrollSpeed, window.pageYOffset);
+	}
+}
+
+// ドラッグを始める（jQuery UIの_mouseStart）
+function start() {
+	var d  = drag;
+	var el = d.el;
+	var h  = make_helper(d.target);
+	// 今までと同じく、つかんだ要素の親（<a>）に置く
+	el.parentNode.appendChild(h);
+	if (!/(fixed|absolute)/.test(getComputedStyle(h).position)) h.style.position = 'absolute';
+	h.classList.add('ui-draggable-dragging');
+	d.helper  = h;
+	d.started = true;
+
+	// 位置の計算に使う値（つかんだ要素の左上を基にし、マウスの右下5pxに出す。cursorAt）
+	var cs = getComputedStyle(el);
+	var margins = { left: parseInt(cs.marginLeft) || 0, top: parseInt(cs.marginTop) || 0 };
+	d.scrollParent = scroll_parent(h, true);
+	var op = h.offsetParent;
+	while(op && getComputedStyle(op).position === 'static') op = op.offsetParent;
+	op = op || document.documentElement;
+	var po = offset_of(op);
+	if (d.scrollParent !== document && d.scrollParent.contains(op) && d.scrollParent !== op) {
+		po.left += d.scrollParent.scrollLeft;
+		po.top  += d.scrollParent.scrollTop;
+	}
+	if (is_root(op)) po = { top: 0, left: 0 };
+	var ocs = getComputedStyle(op);
+	d.parent = { top: po.top + (parseInt(ocs.borderTopWidth) || 0), left: po.left + (parseInt(ocs.borderLeftWidth) || 0) };
+	var abs = offset_of(el);
+	d.click = { left: d.x0 - (abs.left - margins.left), top: d.y0 - (abs.top - margins.top) };
+	d.original = position(d.x0, d.y0);
+	d.click = { left: -5 + margins.left, top: -5 + margins.top };
+
+	// opacity、z-index（今までのjQuery UIのdraggableの設定。cursorは既定のauto）
+	d.cursor = getComputedStyle(document.body).cursor;
+	document.body.style.cursor = 'auto';
+	h.style.opacity = d.opacity;
+	h.style.zIndex  = 100;
+	d.scrollParentNotHidden = scroll_parent(h, false);
+	if (d.scrollParentNotHidden !== document && d.scrollParentNotHidden.tagName !== 'HTML')
+		d.overflowOffset = offset_of(d.scrollParentNotHidden);
+
+	// ツリーに落とせるようにする
+	if (dtree && set.dnd) d.ext = dtree.externalDrag(h);
+
+	// 選んだ画像を隠す（写しは、visibility:visibleで出す）
+	set_visibility(selected_items(), 'hidden');
+	visible_on_stop = true;
+
+	// 写しを、押した所の右下に置く
+	var pos = position(d.x0, d.y0);
+	h.style.left = pos.left + 'px';
+	h.style.top  = pos.top  + 'px';
+}
+
+// 離したとき（jQuery UIの_mouseUp、_mouseStop）
+function finish(up_target, x, y, dropped) {
+	var d = drag;
+	if (!d) return;
+	drag = null;
+	clearTimeout(d.timer);
+	if (!d.started) return;
+
+	// 押した所と同じ所で離したときは、その後のクリックを止める
+	if (up_target === d.target) click_after = up_target;
+
+	// ツリーの上で離したか（今までのdroppableの判定。ツリーの要素の上か）
+	var on_tree = false;
+	if (d.ext && getComputedStyle(tree).display !== 'none') {
+		var o = offset_of(tree);
+		on_tree = (o.top <= y && y < o.top + tree.offsetHeight && o.left <= x && x < o.left + tree.offsetWidth);
+	}
+	// 戻すか（今までのrevertの判定）
+	var revert = !on_tree || d.helper.classList.contains('dynatree-drop-reject');
+
+	var stop = function(){
+		document.body.style.cursor = d.cursor;
+		if (d.ext) d.ext.stop(dropped);
+		if (visible_on_stop) set_visibility(selected_items(), 'visible');
+		d.helper.classList.remove('ui-draggable-dragging');
+		d.helper.remove();
+		reverting.delete(d.el);
+	};
+	if (!revert) return stop();
+
+	// 元の所へ戻る（jQueryのanimateと同じくswing）
+	reverting.add(d.el);
+	var h  = d.helper;
+	var cs = getComputedStyle(h);
+	var from = { left: parseFloat(cs.left) || 0, top: parseFloat(cs.top) || 0 };
+	var to   = d.original;
+	var t0   = Date.now();
+	var tick = function(){
+		var p = Math.min(1, (Date.now() - t0) / RevertDuration);
+		var e = 0.5 - Math.cos(p * Math.PI) / 2;
+		h.style.left = (from.left + (to.left - from.left) * e) + 'px';
+		h.style.top  = (from.top  + (to.top  - from.top ) * e) + 'px';
+		if (p < 1) return requestAnimationFrame(tick);
+		stop();
+	};
+	requestAnimationFrame(tick);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // ●記事に貼り付け
 ////////////////////////////////////////////////////////////////////////////////
-var paste_form = $secure('#paste-form');
-paste_form.submit(function(){
+var paste_form = adiary.secure('#paste-form');
+on(paste_form, 'submit', function(evt){
 	// エラー時送信しない為
-	if ($('#paste-txt').val() == '') return false;
-	return true;
+	if ($id('paste-txt').value == '') {
+		evt.preventDefault();
+		evt.stopPropagation();
+	}
 });
 
-$('#paste-thumbnail').click( paste_button );
-$('#paste-original' ).click( paste_button );
-$('#paste-text'     ).click( paste_button );
+on($id('paste-thumbnail'), 'click', paste_button);
+on($id('paste-original' ), 'click', paste_button);
+on($id('paste-text'     ), 'click', paste_button);
 
 function paste_button(evt) {
-	var sel = view.find('.selected');
-	if (!sel.length) return false;
+	evt.preventDefault();
+	evt.stopPropagation();
+	var sel = selected_items();
+	if (!sel.length) return;
 
-	var thumb = $(evt.target).data('thumbnail') ? true : false;
-	var text  = $(evt.target).data('text') ? true : false;	// 画像へのテキストリンク
-	var exif  = $('#paste-to-exif').prop('checked');
+	var btn   = evt.currentTarget;
+	var thumb = jq_data(btn, 'thumbnail') ? true : false;
+	var text  = jq_data(btn, 'text') ? true : false;	// 画像へのテキストリンク
+	var exif  = $id('paste-to-exif').checked;
 
 	var ary=[];
 	for(var i=0; i<sel.length; i++) {
-		var img  = $(sel[i]);
-		var name = img.data('title').toString();	// 数字のみのファイル名対策
+		var d    = fdata.get(sel[i]);
+		var name = d.title.toString();	// 数字のみのファイル名対策
 		var reg  = name.match(/\.(\w+)$/);
 		var ext  = reg ? reg[1] : '';
 		ary.push({
 			folder: cur_folder,
 			file:	name,
 			ext:	ext,
-			isimg:	img.data('isimg') ? true : false,
-			exif:	img.data('isimg') && exif ? true : false,
+			isimg:	d.isimg ? true : false,
+			exif:	d.isimg && exif ? true : false,
 			thumbnail: thumb,
 			text:	text
 		});
 	}
 	var data = {
-		caption: $('#paste-caption').val(),
-		class:   $('#paste-class').val(),
+		caption: $id('paste-caption').value,
+		class:   $id('paste-class').value,
 		files: ary
 	};
 	if (window.opener) {
 		// 子ウィンドウとして開かれていたら
 		window.opener.insert_image(data);
 		window.close();
-		return false;
+		return;
 	}
-	$('#paste-txt').val( JSON.stringify(data) );
-	paste_form.submit();
-
-	return false;
+	$id('paste-txt').value = JSON.stringify(data);
+	paste_form.requestSubmit();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●アイキャッチ画像に設定（記事作成画面から開いたとき）
 ////////////////////////////////////////////////////////////////////////////////
-$('#set-eyecatch').click(function(){
-	var sel = view.find('.selected');
-	if (sel.length != 1 || !window.opener || !window.opener.set_eyecatch) return false;
+on($id('set-eyecatch'), 'click', function(evt){
+	evt.preventDefault();
+	evt.stopPropagation();
+	var sel = selected_items();
+	if (sel.length != 1 || !window.opener || !window.opener.set_eyecatch) return;
 
-	var name = sel.first().data('title').toString();	// 数字のみのファイル名対策
+	var name = fdata.get(sel[0]).title.toString();	// 数字のみのファイル名対策
 	window.opener.set_eyecatch(cur_folder_rel + name);
 	window.close();
-	return false;
 });
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●その他の操作（セレクトボックス or 独立ボタン）
+// ●その他の操作（セレクトボックス）
 ////////////////////////////////////////////////////////////////////////////////
-$('#remake-thumbnail').click( remake_thumbnail );
-$('#select-exifjpeg') .click( select_exifjpeg  );
-$('#album-move-files').click( album_move_files );
-
-$('#album-actions').change( function(evt){
-	var obj = $(evt.target);
-	var val = obj.val();
+on($id('album-actions'), 'change', function(evt){
+	var obj = evt.target;
+	var val = obj.value;
 	if (!val) return;
-	obj.val('');
+	obj.value = '';
 
 	if (val == 'remake-thumbnail')   remake_thumbnail(evt);
 	if (val == 'remove-exifjpeg')    remove_exifjpeg(evt);
@@ -1207,16 +1527,16 @@ function make_selected_video_thumbnails(){
 	make_video_thumbnails(cur_folder, files);
 }
 
-// サムネイルのファイル名（.thumbnail/ の中）。サーバーがファイル一覧で返す（AVIFかJPEG）
+// サムネイルのファイル名（.thumbnail/の中）。サーバーがファイル一覧で返す（AVIFかJPEG）
 function thumbnail_name(file) {
 	return file.thumb || (file.name + '.jpg');
 }
-// サムネイルを作れて、画像ビューアーで再生できる動画か（サーバーの is_video と同じ）
+// サムネイルを作れて、画像ビューアーで再生できる動画か（サーバーのis_videoと同じ）
 function is_video_file(name) {
 	return /\.(?:mp4|m4v|webm|ogv)$/i.test(name);
 }
 
-// folder の videos（ファイル名）の中の動画のサムネイルを、ブラウザーで作って送る
+// folderのvideos（ファイル名）の中の動画のサムネイルを、ブラウザーで作って送る
 function make_video_thumbnails(folder, videos) {
 	folder = (folder == '/') ? '' : folder.replace(/^\/+/, '');
 	var files = videos.filter( is_video_file ).map(function(name){
@@ -1224,16 +1544,17 @@ function make_video_thumbnails(folder, videos) {
 	});
 	if (!files.length) return;
 
-	var $msg = $('<div>').addClass('message');
-	message.append( $msg );
-	message.showDelay();
+	var msg = create('div', 'message');
+	message.appendChild( msg );
+	adiary.show_delay(message);
 	adiary.make_video_thumbnails(files, path, function(i){
-		$msg.text( $('#msg-making-video-thumbnail').text() + ' ' + (i+1) + ' / ' + files.length );
+		msg.textContent = text_of('msg-making-video-thumbnail') + ' ' + (i+1) + ' / ' + files.length;
 	}).then(function(fail){
 		if (fail) {
-			$msg.addClass('error').text( $('#msg-fail-video-thumbnail').text().replace('%n', fail) );
+			msg.classList.add('error');
+			msg.textContent = text_of('msg-fail-video-thumbnail').replace('%n', fail);
 		} else {
-			$msg.text( $('#msg-made-video-thumbnail').text() );
+			msg.textContent = text_of('msg-made-video-thumbnail');
 		}
 		update_view(true);	// サムネイルを読み直す
 	});
@@ -1243,8 +1564,7 @@ function make_video_thumbnails(folder, videos) {
 // ●サムネイルの再生成
 ////////////////////////////////////////////////////////////////////////////////
 function remake_thumbnail(){
-	var $div = $('#remake-thumbnail-dialog');
-	album_dialog($div, do_remake_thumbnail);
+	album_dialog($id('remake-thumbnail-dialog'), do_remake_thumbnail);
 }
 
 function do_remake_thumbnail(){
@@ -1264,7 +1584,6 @@ function do_remake_thumbnail(){
 				error_msg('#msg-fail-remake');
 				return;
 			}
-			var node = cur_node;
 			// view更新
 			update_view(true);
 		},
@@ -1317,7 +1636,7 @@ function remove_exifjpeg(){
 				error_msg('#msg-remove-exif-error');
 				return;
 			}
-			view.find('.selected').removeClass('selected');
+			selected_items().forEach(function(x){ x.classList.remove('selected') });
 			update_selected_files();
 		},
 		error: function() {
@@ -1328,22 +1647,15 @@ function remove_exifjpeg(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●ファイルの移動
-////////////////////////////////////////////////////////////////////////////////
-function album_move_files() {
-	folder_select_dialog( move_files );
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // ●選択中ファイル一覧の取得
 ////////////////////////////////////////////////////////////////////////////////
 function load_selected_files() {
-	var sel = view.find('.selected');
+	var sel = selected_items();
 	if (!sel.length) return false;
 
 	var files = [];
 	for(var i=0; i<sel.length; i++) {
-		files.push( $(sel[i]).data('title') );
+		files.push( fdata.get(sel[i]).title );
 	}
 	return files;
 }
@@ -1365,9 +1677,15 @@ function album_delete_files() {
 		}
 	})
 }
-$(document).on('keydown', function(evt) {
+// ダイアログが出ているか（今までの$('div.ui-dialog').is(':visible')）
+function dialog_visible() {
+	return Array.from( document.querySelectorAll('div.ui-dialog') ).some(function(x){
+		return x.offsetWidth || x.offsetHeight || x.getClientRects().length;
+	});
+}
+document.addEventListener('keydown', function(evt) {
 	if (key_event_stop) return;
-	if ($('div.ui-dialog').is(':visible')) return;
+	if (dialog_visible()) return;
 	if (evt.keyCode != 46) return;
 
 	var trash = (cur_folder.substr(0,10) == '.trashbox/');
@@ -1405,17 +1723,17 @@ function album_move_files() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●ドラッグ＆ドロップ
 ////////////////////////////////////////////////////////////////////////////////
-dnd_body.on('dragover', function(evt) {
-	return false;
+on(dnd_body, 'dragover', function(evt) {
+	evt.preventDefault();
+	evt.stopPropagation();
 });
-dnd_body.on("drop", function(evt) {
-	if (!evt.originalEvent.dataTransfer) return;
+on(dnd_body, 'drop', function(evt) {
+	if (!evt.dataTransfer) return;
 
 	evt.stopPropagation();
 	evt.preventDefault();
-	var dnd_files = evt.originalEvent.dataTransfer.files;
+	var dnd_files = evt.dataTransfer.files;
 	if (!dnd_files) return;
-	if (!FormData)  return;
 	if (uploading) return;
 
 	var files = [];
@@ -1428,33 +1746,34 @@ dnd_body.on("drop", function(evt) {
 });
 
 function update_files_view(files) {
-	var $div = $('#dnd-files');
-	$div.empty();
+	var div = $id('dnd-files');
+	div.innerHTML = '';
 	for(var i=0; i<files.length; i++) {
 		if (!files[i]) continue;
 		var fs  = adiary.size_format(files[i].size);
-		var div = $('<div>').text(
-			files[i].name + ' (' + fs + ')'
-		);
-		$div.append(div);
+		var x   = document.createElement('div');
+		x.textContent = files[i].name + ' (' + fs + ')';
+		div.appendChild(x);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●<input type=file> が変更された
+// ●<input type=file>が変更された
 ////////////////////////////////////////////////////////////////////////////////
-file_btn.on('click', function (evt) {
-	if (uploading) return false;
+on(file_btn, 'click', function (evt) {
+	if (!uploading) return;
+	evt.preventDefault();
+	evt.stopPropagation();
 });
-file_btn.on('change', function (evt) {
-	if (!file_btn.val()) return;
+on(file_btn, 'change', function (evt) {
+	if (!file_btn.value) return;
 
-	var files = file_btn[0].files;
+	var files = file_btn.files;
 	update_files_view(files)
 	ajax_upload(files);
 
 	// 選択クリア
-	file_btn.val('');
+	file_btn.value = '';
 });
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1470,22 +1789,26 @@ function upload_post_process(text) {
 	var videos = [];
 	ary = ary.filter(function(line){
 		var m = line.match(/^video=(.+)$/);
-		if (m) videos.push( $('<div>').html(m[1]).text() );
+		if (m) {
+			var tmp = document.createElement('div');
+			tmp.innerHTML = m[1];
+			videos.push( tmp.textContent );
+		}
 		return !m;
 	});
 	if (reg) {
 		ret = reg[0];
-		message.html( ary.join("\n") );
+		message.innerHTML = ary.join("\n");
 	} else {
-		message.html( '<div class="message error">upload error : ' + adiary.tag_esc(ret) + '</div>' );
+		message.innerHTML = '<div class="message error">upload error : ' + adiary.tag_esc(ret) + '</div>';
 	}
-	message.showDelay();
+	adiary.show_delay(message);
 
 	// アルバムツリーのリロード
 	tree_reload();
 
 	// 続けて動画のサムネイルを作る
-	make_video_thumbnails(upfolder.val(), videos);
+	make_video_thumbnails(upfolder.value, videos);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1494,8 +1817,8 @@ function upload_post_process(text) {
 function ajax_upload(files) {
 	uploading = true;
 
-	var fd = new FormData( upform[0] );
-	if (!file_btn.val()) fd.delete('_file_btn');
+	var fd = new FormData( upform );
+	if (!file_btn.value) fd.delete('_file_btn');
 
 	for(var i=0; i<files.length; i++) {
 		if (!files[i]) continue;
@@ -1503,50 +1826,44 @@ function ajax_upload(files) {
 	}
 
 	// progress message
-	var $label = $('<span>').addClass( 'label' );
-	var $prog  = $('<div>').append( $label );
-	$prog.adiaryProgressbar({
+	var label = create('span', 'label');
+	var prog  = document.createElement('div');
+	prog.appendChild( label );
+	var bar = adiary.progressbar(prog, {
 		value: 0,
 		change: function(value) {
-			$label.text( "Uploading " + value + "%" );
+			label.textContent = "Uploading " + value + "%";
 		},
 		complete: function() {
-			$label.text( "Upload complete!" );
+			label.textContent = "Upload complete!";
 		}
 	});
 
-	// submit処理
-	$.ajax(upform.attr('action'), {
-		method: 'POST',
-		contentType: false,
-		processData: false,
-		data: fd,
-		dataType: 'text',
-		error: function(xhr) {
-			// console.log('[ajax_upload()] http post fail');
-			upload_post_process( xhr.responseText || '' );
-		},
-		success: function(data) {
-			// console.log('[ajax_upload()] http post success');
-			upload_post_process(data);
-		},
-		complete: function(){
-			uploading = false;
-		},
-		xhr: function(){
-			var XHR = $.ajaxSettings.xhr();
-			XHR.upload.addEventListener('progress', function(e){
-		                var par = Math.floor(e.loaded*100/e.total + 0.5);
-		                $prog.adiaryProgressbar({ value: par });
-			});
-			return XHR;
-		}
+	// submit処理（進み具合を出すので、XMLHttpRequestを使う）
+	var xhr = new XMLHttpRequest();
+	xhr.open('POST', upform.getAttribute('action'));
+	xhr.upload.addEventListener('progress', function(e){
+		var par = Math.floor(e.loaded*100/e.total + 0.5);
+		bar.set(par);
 	});
+	var done = false;
+	var end = function(ok){
+		if (done) return;
+		done = true;
+		upload_post_process( ok ? xhr.responseText : (xhr.responseText || '') );
+		uploading = false;
+	};
+	xhr.addEventListener('load', function(){
+		end(200 <= xhr.status && xhr.status < 300 || xhr.status === 304);
+	});
+	xhr.addEventListener('error', function(){ end(false) });
+	xhr.addEventListener('abort', function(){ end(false) });
+	xhr.send(fd);
 
-	message.hide();
-	message.empty();
-	message.append( $prog );
-	message.showDelay();
+	adiary.hide(message);
+	message.innerHTML = '';
+	message.appendChild( prog );
+	adiary.show_delay(message);
 
 	return false;
 }
@@ -1560,29 +1877,23 @@ function encode_link(str){
 	});
 }
 
-//##############################################################################
-// ■スマホ関連処理
-//##############################################################################
-// スマホ用のDnDエミュレーション
-view.dndEmulation();
 ////////////////////////////////////////////////////////////////////////////////
 // ●移動先フォルダ選択メニュー
 ////////////////////////////////////////////////////////////////////////////////
 function folder_select_dialog(callback) {
-	var div = $('#move-dialog');
-	var buttons = {};
+	var div = $id('move-dialog');
 
-	div.empty();
-	var dtree = $('<div>').addClass('album-folder-tree');
-	dtree.dynatree({
+	div.innerHTML = '';
+	var box = create('div', 'album-folder-tree');
+	var stree = new AdiaryTree(box, {
 		clickFolderMode: 1,	// activate only
-		imagePath: $('#icon-path').text(),
-		children: tree.dynatree("getTree").toDict()
+		imagePath: text_of('icon-path'),
+		children: dtree.toDict()
 	});
-	div.append( dtree );
+	div.appendChild( box );
 
 	var ok_func = function(){
-		var node = dtree.dynatree("getActiveNode");
+		var node = stree.getActiveNode();
 		if (!node || !node.data) return;
 		var folder = node.data.key;
 		if (folder == '') return;
@@ -1592,7 +1903,7 @@ function folder_select_dialog(callback) {
 			error_msg(folder == cur_folder ? '#msg-same-folder' : '#msg-illegal-folder');
 			return;
 		}
-		div.adiaryDialog('close');
+		adiary.dialog_close(div);
 	};
 	album_dialog(div, ok_func);
 }
@@ -1600,20 +1911,20 @@ function folder_select_dialog(callback) {
 //##############################################################################
 // ●アルバム用ダイアログの表示ルーチン
 //##############################################################################
-function album_dialog($div, ok_func) {
+function album_dialog(div, ok_func) {
 	var buttons = {};
-	buttons[ $div.data('ok') ] = function(){
+	buttons[ div.dataset.ok ] = function(){
 		ok_func();
-		$div.adiaryDialog('close');
+		adiary.dialog_close(div);
 	}
-	buttons[ $div.data('cancel') ] = function(){
-		$div.adiaryDialog('close');
+	buttons[ div.dataset.cancel ] = function(){
+		adiary.dialog_close(div);
 	};
-	$div.adiaryDialog({
+	adiary.dialog(div, {
 		modal: true,
 		minWidth:  240,
 		minHeight: 100,
-		title: $div.data('title'),
+		title: div.dataset.title,
 		buttons: buttons,
 	});
 }
