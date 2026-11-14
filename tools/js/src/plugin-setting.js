@@ -34,28 +34,6 @@ function text_of(id) {
 	return dom ? dom.textContent : '';
 }
 
-// 読み込んだHTMLの<script>を取り出し、目印に置き換える。開いた後に run_scripts() で動かす
-// （今まではjQueryが、文書に入れたときに動かしていた）
-const ScriptType = /^$|^module$|\/(?:java|ecma)script/i;	// jQueryと同じ
-function take_scripts(dom) {
-	const ary = [];
-	dom.querySelectorAll('script').forEach(function(scr){
-		if (!ScriptType.test(scr.getAttribute('type') || '')) return;	// text/template などは、そのまま残す
-		const mark = document.createComment('script');
-		scr.replaceWith(mark);
-		ary.push({ mark: mark, script: scr });
-	});
-	return ary;
-}
-function run_scripts(ary) {
-	for(const x of ary) {
-		const scr = document.createElement('script');
-		for(const a of x.script.attributes) scr.setAttribute(a.name, a.value);
-		scr.textContent = x.script.textContent;
-		x.mark.replaceWith(scr);
-	}
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // ●モジュールの設定を変更する
 ////////////////////////////////////////////////////////////////////////////////
@@ -137,12 +115,12 @@ function module_setting(obj) {
 		return '';
 	}).then(function(html){
 		formbody.innerHTML = html;
-		const scripts = take_scripts(formbody);
+		const scripts = adiary.take_scripts(formbody);	// 開いた後に動かす（asys.js）
 
 		adiary.dom_init( formdiv );
 		formbody.appendChild( errdiv );
 		dialog.open();
-		run_scripts(scripts);
+		scripts.run();
 
 		const inp = create('input');
 		inp.setAttribute('type',  'hidden');

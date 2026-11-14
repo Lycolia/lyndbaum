@@ -105,6 +105,35 @@ $$.overlay_show = function() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// 読み込んだHTMLの<script>を、後で動かす
+////////////////////////////////////////////////////////////////////////////////
+//	const scripts = $$.take_scripts(dom);	… 中の<script>を取り出し、目印に置き換える
+//	（ダイアログを開くなど、文書に入れた後で）scripts.run();
+// innerHTML で入れた<script>は動かない。今までの jQuery の .load() は、文書に入れたときに動かしていた。
+// 取り出しておくので、asys のダイアログが jQuery で足しても、二重には動かない。
+// 動かすのは jQuery と同じく、type が無いか JavaScript のものだけ（text/template などはそのまま残す）
+const ScriptType = /^$|^module$|\/(?:java|ecma)script/i;
+$$.take_scripts = function(dom) {
+	const ary = [];
+	dom.querySelectorAll('script').forEach(function(scr){
+		if (!ScriptType.test(scr.getAttribute('type') || '')) return;
+		const mark = document.createComment('script');
+		scr.replaceWith(mark);
+		ary.push({ mark: mark, script: scr });
+	});
+	return {
+		run: function() {
+			for(const x of ary) {
+				const scr = document.createElement('script');
+				for(const a of x.script.attributes) scr.setAttribute(a.name, a.value);
+				scr.textContent = x.script.textContent;
+				x.mark.replaceWith(scr);
+			}
+		}
+	};
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // progressbar
 ////////////////////////////////////////////////////////////////////////////////
 //	const bar = $$.progressbar(dom, { value: 0, change: func(value), complete: func(value) });
