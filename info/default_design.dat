@@ -3,13 +3,15 @@ version=7
 save=_sidebar
 
 *side_a=<<LIST
-des_information-ja
+des_searchbox
 des_taglist
-des_artlist
 LIST
 
 *side_b=<<LIST
+des_information-ja
+des_freetext,1
+des_artlist
 des_comlist
-des_searchbox
+des_monthlist
 des_system-info
 LIST
