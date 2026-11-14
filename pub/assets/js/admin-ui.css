@@ -446,6 +446,17 @@ ul.dynatree-container img {
 .ui-sortable-handle .no-drag {
 	cursor:			auto;
 }
+/* 並べ替えのハンドル（adiary.sortableのopt.handleに指定する。リンク集の設定画面など）。
+   縦に並んだ6つの点を、画像のファイルを使わずにCSSで出す。にじまないよう、点は1pxの格子に合わせた2pxの四角 */
+.sort-handle {
+	width:			1.5em;
+	min-width:		1.5em;
+	cursor:			grab;
+	background:		url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 16'%3E%3Cg fill='%23888' shape-rendering='crispEdges'%3E%3Crect x='2' y='2' width='2' height='2'/%3E%3Crect x='6' y='2' width='2' height='2'/%3E%3Crect x='2' y='7' width='2' height='2'/%3E%3Crect x='6' y='7' width='2' height='2'/%3E%3Crect x='2' y='12' width='2' height='2'/%3E%3Crect x='6' y='12' width='2' height='2'/%3E%3C/g%3E%3C/svg%3E") no-repeat center / 10px 16px;
+}
+.ui-sortable-helper .sort-handle {
+	cursor:			grabbing;
+}
 
 /*--------------------------------------------------------------------
 ●その他

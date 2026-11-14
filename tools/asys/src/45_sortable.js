@@ -9,6 +9,7 @@
 //	opt.items	並べ替えるもの（入れ物からの選択子。">"で始まるものは直下。既定は"> *"）
 //	opt.connectWith	行き来できる入れ物（配列）
 //	opt.cancel	ここをつかんだときは始めない（closestで見る）
+//	opt.handle	ここをつかんだときだけ始める（closestで見る。並べ替えるものの中の選択子。既定は、どこをつかんでも始める）
 //	opt.update	並びが変わったときに呼ぶ
 //	adiary.sorting()	並べ替えている（つかんで動かし始めた）間か
 {
@@ -52,13 +53,15 @@ $$.sortable = function(containers, opt) {
 			items:	 (opt.items || '> *').split(',').map(function(x){ x = x.trim(); return x.substr(0,1) == '>' ? ':scope ' + x : x }).join(', '),
 			connect: opt.connectWith || [],
 			cancel:	 opt.cancel || 'input, textarea, button, select, option',
+			handle:	 opt.handle,
 			update:	 opt.update
 		};
 		registry.get(doc).push(s);
 		el.classList.add('ui-sortable');
 		// jQuery UIと同じく、中のui-sortable-handleをいったん外してから、自分のものに付ける
 		el.querySelectorAll('.ui-sortable-handle').forEach(function(x){ x.classList.remove('ui-sortable-handle') });
-		items_of(s).forEach(function(x){ x.classList.add('ui-sortable-handle') });
+		// handleを指定したときは、つかめる所（handle）の見た目をCSSで付けるので、並べ替えるものには付けない
+		if (!s.handle) items_of(s).forEach(function(x){ x.classList.add('ui-sortable-handle') });
 		el.addEventListener('pointerdown', function(evt){ sort_down(s, evt) });
 	}
 };
@@ -82,6 +85,10 @@ function sort_down(s, evt) {
 	let item = evt.target;
 	while(item && item !== s.el && items.indexOf(item) < 0) item = item.parentElement;
 	if (!item || item === s.el) return;
+	if (s.handle) {
+		const h = evt.target.closest(s.handle);
+		if (!h || !item.contains(h)) return;
+	}
 	evt._sort_handled = true;
 
 	const doc = s.doc;
