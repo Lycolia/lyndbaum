@@ -27,38 +27,31 @@
 
 	<table class="blog-setting">
 	<thead>
-	<tr><th>編集画面のデフォルト</th><th>すべての記事</th></tr>
+	<tr><th>編集画面のデフォルト</th></tr>
 	</thead>
 	<tbody>
 	<tr>
 		<td>
 			<label><input type="checkbox" name="enable" value="1"<@if(s.enable, ' checked')>>記事を公開する</label>
 		</td>
-		<td></td>
 	</tr>
 	<tr>
 		<td>
 			<label><input type="checkbox" name="com_ok" value="1"<@if(s.com_ok, ' checked')>>コメントの投稿を受け付ける</label>
-		</td>
-		<td>
-			<label><input type="checkbox" name="com_ok_force" value="0"<@if(s.com_ok_force eq '0', ' checked')>>強制OFF</label>
 		</td>
 	</tr>
 	<tr>
 		<td>
 			<label><input type="checkbox" name="nsfw" value="1"<@if(s.nsfw, ' checked')>>NSFW記事にする</label>
 		</td>
-		<td>
-			<label><input type="checkbox" name="nsfw_force" value="1"<@if(s.nsfw_force, ' checked')>>強制ON（ブログ全体をNSFWにする）</label>
-		</td>
 	</tr>
 	<tr>
-		<td colspan="2">
+		<td>
 			<label><input type="checkbox" name="ping" value="1"<@if(s.ping, ' checked')>>更新通知Pingを送信する</label>
 		</td>
 	</tr>
 	<tr>
-		<td colspan="2">
+		<td>
 			<label><input type="checkbox" name="page" value="1"<@if(s.page, ' checked')>>固定ページにする</label>
 		</td>
 	</tr>

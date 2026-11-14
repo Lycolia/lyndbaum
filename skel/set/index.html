@@ -42,6 +42,18 @@
 		<span class="help-text">公開ページに、検索エンジンにインデックスさせない設定（noindex,nofollow）を付与します。サイトマップとRSSは通常通り出ます。</span>
 		</td>
 	</tr>
+	<tr><th>コメント</th>
+		<td>
+		<label><input type="checkbox" name="com_ok_force" value="0"<@if(s.com_ok_force eq '0', ' checked')>>すべての記事でコメントを受け付けない</label>
+		<span class="help-text">記事ごとの設定によらず、コメントの投稿を受け付けません。</span>
+		</td>
+	</tr>
+	<tr><th>NSFW</th>
+		<td>
+		<label><input type="checkbox" name="nsfw_force" value="1"<@if(s.nsfw_force, ' checked')>>サイト全体をNSFWにする</label>
+		<span class="help-text">サイト全体を成人向けサイトとして扱い、年齢確認を出すようにします。RSSには本文が出ず、OGPは部分的に設定されます。</span>
+		</td>
+	</tr>
 	<tr><th>サイトアイコン</th>
 		<td>
 			<input type="file" name="iconfile" accept=".png,.jpg,.jpeg,.gif"><br>

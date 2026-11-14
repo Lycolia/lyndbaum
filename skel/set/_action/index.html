@@ -18,6 +18,14 @@
 	ping = flag
 	noindex = flag
 
+	com_ok_force = コメント強制OFF
+	com_ok_force:default = 
+	com_ok_force:enum = ,0
+
+	nsfw_force = サイト全体をNSFWにする
+	nsfw_force:default = 
+	nsfw_force:enum = ,1
+
 	ga4id = Google Analytics 4 ID
 	ga4id:filter0 = reg_del:[^\w\-]
 
@@ -58,7 +66,7 @@
 POST成功時の処理
 <$ifexec(action_return eq '0', begin)>
 	<$v.call_event('BLOG_SETTING')>
-	<@>RSS再生成（ブログ名と紹介はRSSにも出る）
+	<@>RSS再生成（ブログ名と紹介はRSSにも出る。ブログ全体のNSFWを変えたときも、RSSに本文を出すかが変わる）
 	<$v.generate_rss()>
 
 	<$message("設定を保存しました")>

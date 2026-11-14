@@ -61,6 +61,37 @@ subtest '検索エンジンに掲載しない（noindex）' => sub {
 	is($robots->($app->get('guest', "?q=$q")), 1, '検索画面にはもとのとおり付く');
 };
 
+subtest 'コメントの強制OFFとブログ全体のNSFWは基本設定で選ぶ' => sub {
+	my %base    = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+	my $setting = "$dir/data/blog/setting.dat";
+	my $rating  = sub { body($app->get('guest', '')) =~ m{<meta name="rating" content="adult">} ? 1 : 0 };
+
+	my $r = $app->post('admin', 'set/', { %base, com_ok_force => 0, nsfw_force => 1 });
+	ok(AppTest::is_reload($r), 'オンで保存できる');
+	like(read_file($setting), qr/^com_ok_force=0$/m, 'コメントの強制OFFが設定に入る');
+	like(read_file($setting), qr/^nsfw_force=1$/m, 'ブログ全体のNSFWが設定に入る');
+	my $b = body($app->get('admin', 'set/'));
+	like($b, qr{<input type="checkbox" name="com_ok_force" value="0" checked>すべての記事でコメントを受け付けない</label>}, '基本設定でコメントの強制OFFにチェックが入る');
+	like($b, qr{<input type="checkbox" name="nsfw_force" value="1" checked>サイト全体をNSFWにする</label>}, '基本設定でNSFWにチェックが入る');
+	is($rating->(), 1, 'トップにratingのmetaが出る');
+	like(read_file("$dir/pub/rss.xml"), qr{年齢確認}, 'RSSを書き出し直し、本文の代わりに年齢確認の文を出す');
+
+	$b = body($app->get('admin', 'set/editor'));
+	unlike($b, qr{name="(?:com_ok_force|nsfw_force)"|すべての記事}, '編集画面の設定には出さない');
+
+	# 古い編集画面の設定のフォームから送られても変わらない
+	$r = $app->post('admin', 'set/editor', { action => 'set/editor', com_ok_force => '', nsfw_force => '' });
+	ok(AppTest::is_reload($r), '編集画面の設定を保存できる');
+	like(read_file($setting), qr/^nsfw_force=1$/m, '編集画面の設定からはNSFWが変わらない');
+	like(read_file($setting), qr/^com_ok_force=0$/m, '編集画面の設定からはコメントの強制OFFが変わらない');
+
+	$r = $app->post('admin', 'set/', \%base);
+	ok(AppTest::is_reload($r), 'オフに戻せる');
+	unlike(read_file($setting), qr/^(?:com_ok_force|nsfw_force)=./m, '設定から外れる');
+	is($rating->(), 0, 'トップにratingのmetaが出ない');
+	unlike(read_file("$dir/pub/rss.xml"), qr{年齢確認}, 'RSSにも年齢確認の文を出さない');
+};
+
 #-------------------------------------------------------------------------------
 # 公開画面のメタ情報（PageSpeed Insights の指摘）。ブログの説明を入れた後、記事を書き足す前に確かめる
 #-------------------------------------------------------------------------------
