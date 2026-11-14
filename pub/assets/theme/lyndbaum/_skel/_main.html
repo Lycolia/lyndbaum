@@ -37,7 +37,7 @@
 
 
   <$ifexec(##logs==-1, begin)>
-	<@> 検索などで見つからないときと、/99 のような数字だけのURL（コンテンツの名前として探す）で無いときは404
+	<@> 検索などで見つからないときと、/99 のような数字だけのURL（固定ページのパーマリンクとして探す）で無いときは404
 	<$ifset_status(v.query ne '' || v.pinfo ne '', 404)>
 	<$message("該当する記事がありません")>
   <$end>
@@ -150,7 +150,7 @@
 	<span class="search-caption">日付で絞り込み</span>
 	<$qx = q><$replace_dest(qx, '&amp;d=\d+', '')>
 	<@foreach_hash(t,ret.narrow_ymd,begin)>
-		<@ifexec(t.key == 0, begin)><a href="<@url>&amp;w=1">コンテンツ(<@t.val>)</a><$next()><$end>
+		<@ifexec(t.key == 0, begin)><a href="<@url>&amp;w=1">固定ページ(<@t.val>)</a><$next()><$end>
 		<a href="<@v.myself>?<@qx>&amp;d=<@t.key>"><@if(t.key < 10000, "<@t.key>年", int(substr(t.key,4,2)) . '月')>(<@t.val>)</a>
 	<$end>
 	</div>
