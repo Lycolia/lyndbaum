@@ -8,5 +8,5 @@ allow_com_users=*
 image_data=lythumb=k%k
 exif_tag=%271 %272 / %37386mm F%33437 %33434秒 ISO%34855
 
-p:dea_art-info:wiki_tm=3
+p:dea_art-info:page_tm=3
 

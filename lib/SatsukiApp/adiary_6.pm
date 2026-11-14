@@ -15,7 +15,7 @@ package SatsukiApp::adiary;
 ################################################################################
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -119,6 +119,7 @@ sub update_unsupported {
 # 同時編集の確認を削除したので、システム設定の間隔と、ブログのロックのファイルを置いたディレクトリを消す
 # 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
 # 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、ブログの設定と記事に保存したパスを移す
+# 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、ブログの設定を移す
 sub sys_update_443 {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -154,6 +155,34 @@ sub sys_update_443 {
 		($up{$_} = $blog->{$_}) =~ s/$old_path/$new_path/g;
 	}
 	if (%up) { $self->update_blogset($blog, \%up); }
+
+	# 固定ページの内部の名前をwikiからpageにしたので、ブログの設定（編集画面の既定、プラグインの設定、テーマの色の調整）を移す
+	{
+		my %up;
+		my %rename = ('wiki' => 'page', 'p:dea_art-info:wiki_tm' => 'p:dea_art-info:page_tm');
+		foreach(keys(%rename)) {
+			if (!exists($blog->{$_})) { next; }
+			if ($blog->{ $rename{$_} } eq '') { $up{ $rename{$_} } = $blog->{$_}; }
+			$up{$_} = undef;
+		}
+		foreach(keys(%$blog)) {
+			if ($_ !~ /^theme_custom:/ || $blog->{$_} !~ /^wikibg=/m) { next; }
+			($up{$_} = $blog->{$_}) =~ s/^wikibg=/pagebg=/mg;
+		}
+		if (%up) { $self->update_blogset($blog, \%up); }
+	}
+
+	# 固定ページのctypeをwikiからpageにする。rev、lastrevにはctypeの列が無い
+	foreach my $table (qw(art trash)) {
+		if (!$self->{DB}->find_table($table)) { next; }
+		my $ary = $self->{DB}->select_match($table, 'ctype', 'wiki', '*cols', ['pkey']);
+		if (!@$ary) { next; }
+		$self->{DB}->begin();
+		foreach(@$ary) {
+			$self->{DB}->update_match($table, { ctype => 'page' }, 'pkey', $_->{pkey});
+		}
+		if ($self->{DB}->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
+	}
 
 	# 記事の原文（HTML、Markdownで書いたパス）とパースしたもの。artのtextは作り直すが、ゴミ箱は作り直さない
 	my $DB = $self->{DB};

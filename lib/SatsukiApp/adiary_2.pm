@@ -423,7 +423,7 @@ sub regist_article {
 		$art{priority} = int($form->{priority});
 
 		# ctype
-		$ctype = 'wiki';
+		$ctype = 'page';
 	}
 	$art{ctype} = $ctype;
 	if ($ctype eq '') {
@@ -433,7 +433,7 @@ sub regist_article {
 
 		# 子のある固定ページは、ブログ記事にできない（子のパーマリンクの親がなくなる）
 		if ($edit_pkey && $old->{ctype} ne '' && @{ $DB->select_match("art", 'upnode', $edit_pkey, '-ctype', '', '*cols', ['pkey']) }) {
-			$ROBJ->form_error('wiki', 'This page has child pages, so it can not be changed to an article');
+			$ROBJ->form_error('page', 'This page has child pages, so it can not be changed to an article');
 		}
 	}
 

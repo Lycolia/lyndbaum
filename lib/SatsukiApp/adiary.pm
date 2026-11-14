@@ -112,7 +112,7 @@ theme_skeleton_level => 10,
 user_skeleton_level  => 20,
 theme_design_skeleton_level => 21,	# テンプレート別に生成したデザイン
 default_tag_priority => 100000,
-default_wiki_priority=> 100000,
+default_page_priority=> 100000,
 main_skeleton	=> '_main',
 article_skeleton=> '_article',
 frame_skeleton	=> '_frame',
@@ -687,7 +687,7 @@ sub load_article_current_blog {
 sub load_article {
 	my $self = shift;
 	my ($art, $ret) = $self->load_articles(@_);
-	if (($ret->{mode} ne 'pkey' && $ret->{mode} ne 'wiki') || $#$art != 0) {
+	if (($ret->{mode} ne 'pkey' && $ret->{mode} ne 'page') || $#$art != 0) {
 		return undef;
 	}
 	$art = $art->[0];
@@ -915,7 +915,7 @@ sub load_articles {
 	# 固定ページの指定
 	#-------------------------------------------------------------
 	} elsif ($mode =~ /^[^&]/) {
-		$ret{mode} = 'wiki';
+		$ret{mode} = 'page';
 		$q{match} = {link_key => $mode};
 
 	#-------------------------------------------------------------
@@ -1055,7 +1055,7 @@ sub load_articles {
 
 	# 単一記事ページ送り
 	if ($opt->{pagemode} && exists $blog->{keylist} && $logs->[0]
-	 && ($ret{mode} eq 'pkey' || $ret{mode} eq 'wiki')) {
+	 && ($ret{mode} eq 'pkey' || $ret{mode} eq 'page')) {
 		my $key = $logs->[0]->{link_key} || $logs->[0]->{pkey};
 		my $keylist = $blog->{keylist};
 		if ($opt->{load_hidden}) { $keylist = $blog->{keylist_all}; }
@@ -1098,7 +1098,7 @@ sub load_articles {
 	#-------------------------------------------------------------
 	# 記事指定時の日付処理
 	#-------------------------------------------------------------
-	if ($logs->[0] && ($ret{mode} eq 'pkey' || $ret{mode} eq 'wiki')) {
+	if ($logs->[0] && ($ret{mode} eq 'pkey' || $ret{mode} eq 'page')) {
 		$ret{year} = $logs->[0]->{year};
 		$ret{mon}  = $logs->[0]->{mon};
 		$ret{day}  = $logs->[0]->{day};

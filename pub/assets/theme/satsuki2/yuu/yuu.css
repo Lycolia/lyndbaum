@@ -295,8 +295,8 @@ article {
 	border:			1px solid #3a2faf;	/* $c=border */
 	background-color:	#000;			/* $c=artbg = fixmain */
 }
-article.wiki {
-	background-color:	#112;			/* $c=wikibg */
+article.page {
+	background-color:	#112;			/* $c=pagebg */
 }
 
 /* 記事タイトル */
@@ -330,10 +330,10 @@ article:not(.system) h2:after {
 	height:			33px;
 }
 
-article.wiki h2 {
+article.page h2 {
 	background-image:	linear-gradient(to bottom,
 				#3a2faf,	/* $c=headerbg0 */
-				#112);		/* $c=wikibg */
+				#112);		/* $c=pagebg */
 }
 article h2 a.date {
 	position:		absolute;

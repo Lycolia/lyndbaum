@@ -440,7 +440,7 @@ subtest 'リンクカードは編集のたびに取得しない' => sub {
 subtest 'ダッシュボード' => sub {
 	my $r = $app->post('admin', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
 	ok(AppTest::is_reload($r), '記事の下書きを保存できる');
-	$r = $app->post('admin', '', { %ART, title => '固定ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
+	$r = $app->post('admin', '', { %ART, title => '固定ページの下書き', body_txt => "下書き\n", draft => 1, page => 1, link_key_txt => 'draft-page' });
 	ok(AppTest::is_reload($r), '固定ページの下書きを保存できる');
 
 	my $b = body($app->get('admin', 'menu'));

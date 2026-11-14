@@ -20,7 +20,7 @@
 <$canonical_url = url>
 <$encode_uricom(url)>
 <@>
-<article class="article<@if(t.priority, ' wiki')>">
+<article class="article<@if(t.priority, ' page')>">
 <h2 id="art-<@t.pkey>"><@if(!t.priority, #'<a class="date" href="<@permalink>"><@t.year>/<@t.mon>/<@t.day>(<@t.wday_name>)</a>')><a href="<@permalink>" class="title"><@t.title></a></h2>
 <div class="body" id="s<@t.pkey>">
 	<div class="body-header">

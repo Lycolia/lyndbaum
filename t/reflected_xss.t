@@ -75,8 +75,8 @@ subtest '検索のcの値' => sub {
 	like($r->{body},   qr/name="c" value="&quot;&gt;&lt;b&gt;probe/, 'エスケープして出す');
 	unlike($r->{body}, qr/<b>probe/, 'タグのまま出さない');
 
-	$r = $app->get('guest', '?c=wiki');
-	like($r->{body},   qr/name="c" value="wiki"/, '普通の値はそのまま出す');
+	$r = $app->get('guest', '?c=page');
+	like($r->{body},   qr/name="c" value="page"/, '普通の値はそのまま出す');
 };
 
 done_testing();

@@ -279,7 +279,7 @@ subtest '4.42より古いデータからのアップデート' => sub {
 	my $old_att = "$dir/pub/attachments";
 	my $img     = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
 	ok(AppTest::is_reload($app->post('admin', '', { action => 'edit', parser => 'markdown', enable => 1, ymd => '2026-10-01',
-		title => '古い添付ファイルのパス', body_txt => "![](pub/attachments/$img)\n", wiki => 1, link_key_txt => 'old-attach' })), '古いパスを書いた記事を保存できる');
+		title => '古い添付ファイルのパス', body_txt => "![](pub/attachments/$img)\n", page => 1, link_key_txt => 'old-attach' })), '古いパスを書いた記事を保存できる');
 	rename($att, $old_att) || die "$att: $!";
 	my $setting = "$dir/data/blog/setting.dat";
 	my $set_org = read_file($setting);

@@ -1206,7 +1206,7 @@ nav.tree select {
     vertical-align:         baseline;
 }
 
-/* ◆ ツリー(タグ, wiki) */
+/* ◆ ツリー(タグ, 固定ページ) */
 /* --------------------------------------------------------- */
 ul.dynatree-container {
     border:                 1px solid #e1e4e5;

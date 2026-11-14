@@ -926,7 +926,8 @@ sub save_article {
 		my $ctype    = $art->{ctype};
 		my $priority = int( $art->{priority} );
 		my $upnode   = $art->{upnode};
-		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='wiki'; }
+		if ($ctype eq 'wiki') { $art->{ctype}=$ctype='page'; }	# 4.42までのエクスポートは、固定ページをwikiで書き出している
+		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='page'; }
 
 		# save pkey
 		$pkey = ($pkey<1 || ($pkeys->{$pkey} && $opt->{avoid_pkey_collision})) ? 0 : $pkey;

@@ -35,7 +35,7 @@
 	<$art.com_ok  = s.com_ok>
 	<$art.nsfw    = s.nsfw>
 	<$art.ping    = s.ping>
-	<$art.wiki    = s.wiki>
+	<$art.page    = s.page>
 	<$art.parser  = s.parser>
 <$end>
 
@@ -213,7 +213,7 @@
 	<section class="edit-box" id="edit-content">
 	<h3>固定ページ</h3>
 	<ul class="checkbox">
-		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>固定ページにする</label>
+		<li><label><input type="checkbox" name="page" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.page, ' checked')>>固定ページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
 		<ul id="content-block" style="display: none">
 			<@> 親の選択肢は公開中の固定ページだけなので、今の親が非公開のときは、edit.jsが足す

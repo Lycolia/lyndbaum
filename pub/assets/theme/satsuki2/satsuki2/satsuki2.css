@@ -231,8 +231,8 @@ article div.body {
 	border-radius:		0 0 8px 8px;
 }
 /* コンテンツ記事 */
-article.wiki div.body {
-	background-color:	#f4f4ff;		/* $c=wikibg */
+article.page div.body {
+	background-color:	#f4f4ff;		/* $c=pagebg */
 }
 /* 記事ヘッダ */
 div.art-info {
@@ -458,7 +458,7 @@ dt { font-weight:	bold; }
 
 	border-radius:		8px;
 	border:			2px solid #6b75b8;	/* $c=border */
-	background-color:	#f4f4ff;		/* $c=combg= wikibg */
+	background-color:	#f4f4ff;		/* $c=combg= pagebg */
 	box-shadow:		4px 4px 3px 3px rgba(0,0,0, 0.3);
 }
 #com div.caption a {
@@ -624,7 +624,7 @@ button:disabled
 ●システム画面
 --------------------------------------------------------------------*/
 article.system div.body {
-	background-color:	#eeeeff;		/* $c=sysartbg = auto:wikibg */
+	background-color:	#eeeeff;		/* $c=sysartbg = auto:pagebg */
 }
 article.system div.body {
 	padding-bottom:		1em;

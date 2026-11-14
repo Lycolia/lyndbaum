@@ -145,7 +145,7 @@ sub new_app {
 	# NSFWの記事（pkey=4）と固定ページ（pkey=5）を足す
 	my %art = (action => 'edit', parser => 'markdown', enable => 1, body_txt => "本文\n", ymd => '2026-10-05');
 	AppTest::is_reload($app->post('admin', '', { %art, title => 'NSFWの記事', nsfw => 1 })) or die 'nsfw article';
-	AppTest::is_reload($app->post('admin', '', { %art, title => 'ページ', wiki => 1, link_key_txt => 'page1' })) or die 'content';
+	AppTest::is_reload($app->post('admin', '', { %art, title => 'ページ', page => 1, link_key_txt => 'page1' })) or die 'content';
 	return $app;
 }
 

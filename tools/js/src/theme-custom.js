@@ -215,7 +215,7 @@ function init_custom_form(data, data2) {
 	cols = [];
 
 	// データの取り出しと並べ替え
-	var priority = ['base', 'main', 'art', 'wiki', 'footnote', 'border'];
+	var priority = ['base', 'main', 'art', 'page', 'footnote', 'border'];
 	function get_priority(name) {
 		if (name.indexOf( 'fix' ) == 0) return 1000;
 		for(var i=0; i<priority.length; i++)

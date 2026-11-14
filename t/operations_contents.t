@@ -40,7 +40,7 @@ sub comment_keys {
 }
 sub page {	# 固定ページを書く・直す
 	my %f = @_;
-	return $app->post('admin', '', { %ART, wiki => 1, body_txt => "本文\n", %f });
+	return $app->post('admin', '', { %ART, page => 1, body_txt => "本文\n", %f });
 }
 sub save_tree {	# 表示順の保存（pkey,upnode,priority,名前）
 	return $app->post('admin', 'contents_edit', [ action => 'contents_edit', map { (contents_txt_ary => $_) } @_ ]);
@@ -90,7 +90,7 @@ subtest '編集画面：子のあるページはブログ記事にできない' 
 	my $r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'B', body_txt => "本文\n" });
 	ok(!AppTest::is_reload($r), '保存できない');
 	like(body($r), qr{子の固定ページがあるので、ブログ記事にはできません}, 'エラーの文言');
-	is(pages()->{2}->{ctype}, 'wiki', '固定ページのまま');
+	is(pages()->{2}->{ctype}, 'page', '固定ページのまま');
 };
 
 #-------------------------------------------------------------------------------
