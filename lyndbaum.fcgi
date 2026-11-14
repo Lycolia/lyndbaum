@@ -104,6 +104,9 @@ sub fcgi_main_loop {
 			if ($flag) {
 				$Satsuki::Base::RELOAD = 1;	# Base.pmコンパイルエラー時
 				require Satsuki::Base;		# 次回、強制RELOADさせる。
+				# Timerも外されている（Satsuki::で始まるものは全部外す）。
+				# 読み込み直さないと、下のSatsuki::Timer->new()が毎回失敗する
+				require Satsuki::Timer;
 				$Satsuki::Base::RELOAD = 0;
 			}
 
