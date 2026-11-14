@@ -1513,6 +1513,7 @@ sub restore_articles {
 			return ($depth{ $t->{pkey} } = $up ? &$depth($up) + 1 : 0);
 		};
 		$arts = [ sort { &$depth($a) <=> &$depth($b) } @$arts ];
+		undef $depth;	# 自分を参照するクロージャの循環参照を切る（FastCGIでメモリーが漏れないように）
 	}
 
 	my @restored;
