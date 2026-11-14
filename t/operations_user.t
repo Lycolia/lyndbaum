@@ -469,10 +469,15 @@ subtest '同時編集の確認の残りを消すアップデート（4.43）' =>
 	open(my $fh, '>', "$lock/1") || die "$lock/1: $!";
 	print $fh "admin\t2026/11/13 10:00:00\t1700000000\n";
 	close($fh);
+	my $setting = "$dir/data/blog/setting.dat";
+	open($fh, '>>:utf8', $setting) || die "$setting: $!";
+	print $fh "suggest_link_key=1\n";
+	close($fh);
 	ok(AppTest::is_reload($update->("edit_lock_interval=30\n")), 'アップデート処理を行える');
 	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
 	unlike(read_file($sys), qr/^edit_lock_interval=/m, 'システム設定の間隔を消す');
 	ok(!-e $lock, 'サイトのlock/を消す');
+	unlike(read_file($setting), qr/^suggest_link_key=/m, '消した設定suggest_link_keyをサイトの設定から消す');
 	$app->restore($snap);
 
 	$snap = $app->snapshot();

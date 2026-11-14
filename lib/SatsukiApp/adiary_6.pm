@@ -162,6 +162,8 @@ sub sys_update_443 {
 	# 記事ヘッダ（dea_art-info）の日時の設定（tmdate、wiki_tm）は、#70から効いておらず、意味の違う設定にしたので、移さずに消す
 	{
 		my %up = map { ("p:dea_art-info:$_" => undef) } grep { exists($blog->{"p:dea_art-info:$_"}) } qw(tmdate wiki_tm page_tm);
+		# 編集画面の設定suggest_link_key（親のパーマリンクから自動設定する）は、パーマリンクを「親のパーマリンク/名前」に決めたので消す
+		if (exists($blog->{suggest_link_key})) { $up{suggest_link_key} = undef; }
 		my %rename = ('wiki' => 'page');
 		foreach(keys(%rename)) {
 			if (!exists($blog->{$_})) { next; }
