@@ -7,15 +7,81 @@
 //### global variables #######################################################
 var insert_image;	// global function for album.js
 
-$(function(){
+adiary_public.ready(function(){
 //##############################################################################
-const $tagsel = $secure('#tag-select');
-const $upsel  = $secure('#upnode-select');
-const $edit   = $('#editarea');
+// ■サブルーチン
+//##############################################################################
+function create(tag, cls) {
+	const dom = document.createElement(tag);
+	if (cls) dom.className = cls;
+	return dom;
+}
+function text_of(id) {
+	const dom = document.getElementById(id);
+	return dom ? dom.textContent : '';
+}
+// jQueryの .show()、.hide() と同じ。CSSで隠れていれば、その要素の既定の表示にする
+const default_display = {};
+function show(dom) {
+	if (!dom) return;
+	if (dom.style.display === 'none') dom.style.display = '';
+	if (getComputedStyle(dom).display !== 'none') return;
+	const tag = dom.nodeName;
+	if (!default_display[tag]) {
+		const tmp = document.body.appendChild( document.createElement(tag) );
+		default_display[tag] = getComputedStyle(tmp).display;
+		tmp.remove();
+		if (default_display[tag] === 'none') default_display[tag] = 'block';
+	}
+	dom.style.display = default_display[tag];
+}
+function hide(dom) {
+	if (dom) dom.style.display = 'none';
+}
+// サーバーにPOSTして、JSONを受け取る（今までの $.ajax の dataType:'json' と同じ扱い）。
+// 成り立つのは2xxか304で、JSONとして読めたとき。そうでなければ error。最後に complete
+function post_json(url, data, opt) {
+	const xhr = new XMLHttpRequest();
+	xhr.open('POST', url);
+	if (opt.progress) xhr.upload.addEventListener('progress', opt.progress);
+	function done(ok) {
+		let json;
+		if (ok) {
+			try {
+				json = JSON.parse(xhr.responseText);
+			} catch(e) {
+				ok = false;
+			}
+		}
+		if (ok) { if (opt.success) opt.success(json); }
+		  else  { if (opt.error)   opt.error(xhr);    }
+		if (opt.complete) opt.complete(xhr);
+	}
+	xhr.addEventListener('load', function(){
+		done(xhr.status >= 200 && xhr.status < 300 || xhr.status === 304);
+	});
+	xhr.addEventListener('error',   function(){ done(false) });
+	xhr.addEventListener('abort',   function(){ done(false) });
+	xhr.addEventListener('timeout', function(){ done(false) });
+	xhr.send(data);
+	return xhr;
+}
+// フォームの欄の値（jQueryの .val() と同じ）
+function val_of(el) {
+	if (el.type === 'select-multiple')
+		return Array.from(el.options).filter(function(o){ return o.selected }).map(function(o){ return o.value });
+	if (el.type === 'select-one' && el.selectedIndex < 0) return null;
+	return typeof(el.value) === 'string' ? el.value.replace(/\r/g, '') : el.value;
+}
+
+//##############################################################################
+const tagsel = adiary.secure('#tag-select');
+const upsel  = adiary.secure('#upnode-select');
+const edit   = document.getElementById('editarea');
 
 // タグ一覧 [{ name: "親::子", qt: 使用数 }, ...]
 const all_tags = [];
-adiary.load_tags_list($tagsel, function(data){
+adiary.load_tags_list(tagsel, function(data){
 	const r_func = function(ary, head) {
 		for(var i=0; i<ary.length; i++) {
 			const name = head + ary[i].title;
@@ -25,19 +91,22 @@ adiary.load_tags_list($tagsel, function(data){
 	};
 	r_func(data, '');
 });
-const contents_loaded = adiary.load_contents_list($upsel);
+// 読み込んで、optionを足してchangeを起こした後に終わる（失敗しても終わる）
+const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catch(function(){});
 
 //##############################################################################
 // ■下書きを開く
 //##############################################################################
 {
-	var $draft = $('#select-draft');
-	$('#open-draft').click(function(){
-		var pkey = $draft.val();
+	const draft = document.getElementById('select-draft');
+	const open_draft    = document.getElementById('open-draft');
+	const open_template = document.getElementById('open-template');
+	if (open_draft) open_draft.addEventListener('click', function(){
+		var pkey = draft.value;
 		window.location = adiary.myself2 + '0' + pkey + '?edit';
 	});
-	$('#open-template').click(function(){
-		var pkey = $draft.val();
+	if (open_template) open_template.addEventListener('click', function(){
+		var pkey = draft.value;
 		window.location = adiary.myself2 + '0' + pkey + '?edit&template=1';
 	});
 }
@@ -49,12 +118,16 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	//----------------------------------------------------------------------
 	// ●タグの削除ボタン（×ボタン）
 	//----------------------------------------------------------------------
-	const $tagdel = $('<span>').addClass('ui-icon ui-icon-close');
-	$tagdel.click(function(evt){
-		var obj = $(evt.target);
-		obj.parent().remove();
+	function make_tagdel() {
+		const span = create('span', 'ui-icon ui-icon-close');
+		span.addEventListener('click', function(evt){
+			evt.target.parentElement.remove();
+		});
+		return span;
+	}
+	document.querySelectorAll('#edit-tags span.tag').forEach(function(tag){
+		tag.appendChild( make_tagdel() );
 	});
-	$("#edit-tags span.tag").append( $tagdel.clone(true) );
 
 	//----------------------------------------------------------------------
 	// ●タグの追加
@@ -62,31 +135,32 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	function tag_append(text) {
 		if (text=="") return;
 
-		var $tags = $('#tags');
-		var ch = $tags.children();
+		const tags = document.getElementById('tags');
+		const ch   = tags.children;
 		for(var i=0; i<ch.length; i++) {
-			if ($(ch[i]).text() == text) return;
+			if (ch[i].textContent == text) return;
 		}
 		// append
-		var $tag = $('<span>').addClass('tag').html( adiary.tag_esc_amp(text) );
-		var $inp = $('<input>').attr({
-			type: 'hidden',
-			name: 'tag_ary',
-			value: text
-		});
-		$tag.append( $inp, $tagdel.clone(true) );
-		$tags.append( $tag );
+		const tag = create('span', 'tag');
+		tag.innerHTML = adiary.tag_esc_amp(text);
+		const inp = create('input');
+		inp.setAttribute('type',  'hidden');
+		inp.setAttribute('name',  'tag_ary');
+		inp.setAttribute('value', text);
+		tag.append( inp, make_tagdel() );
+		tags.appendChild( tag );
 	}
 
 	//--------------------------------------------------------------------------------
 	// ●タグ追加ダイアログの表示
 	//--------------------------------------------------------------------------------
-	const $addtag  = $secure('#edit-add-tag');
-	const $tagform = $secure('#tag-select-form').detach();
-	const $inp     = $tagform.find('#input-new-tag');
-	const $cands   = $tagform.find('#tag-candidates');
+	const addtag  = adiary.secure('#edit-add-tag');
+	const tagform = adiary.secure('#tag-select-form');
+	if (tagform) tagform.remove();
+	const inp     = tagform.querySelector('#input-new-tag');
+	const cands   = tagform.querySelector('#tag-candidates');
 	const max_cands = 20;
-	var $div;
+	let   dialog;
 
 	//--------------------------------------------------------------------------------
 	// ●候補の絞り込み
@@ -100,13 +174,13 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		}) ? 1 : 0;
 	}
 	function update_candidates() {
-		$cands.empty();
-		const text  = $inp.val().trim();
+		cands.innerHTML = '';
+		const text  = inp.value.trim();
 		const words = text.toLowerCase().split(/\s+/).filter(function(w){ return w != '' });
 		if (!words.length) return;
 
 		const added = {};
-		$('#tags input[name="tag_ary"]').each(function(i, obj){ added[obj.value] = true; });
+		document.querySelectorAll('#tags input[name="tag_ary"]').forEach(function(obj){ added[obj.value] = true; });
 
 		const lc = text.toLowerCase();
 		const hits = all_tags.filter(function(t){
@@ -121,82 +195,94 @@ const contents_loaded = adiary.load_contents_list($upsel);
 		});
 
 		for(var i=0; i<hits.length && i<max_cands; i++) {
-			const $li = $('<li>').attr('data-tag', hits[i].name);
-			$li.append( $('<span>').text(hits[i].name) );
-			$li.append( $('<span>').addClass('qt').text(hits[i].qt) );
-			$cands.append($li);
+			const li = create('li');
+			li.setAttribute('data-tag', hits[i].name);
+			const s1 = create('span');
+			s1.textContent = hits[i].name;
+			const s2 = create('span', 'qt');
+			s2.textContent = hits[i].qt;
+			li.append(s1, s2);
+			cands.appendChild(li);
 		}
 		// 一致するタグがなければ新規タグとして追加
 		const exists = all_tags.some(function(t){ return t.name == text });
 		if (!exists && !added[text] && text.indexOf(',') < 0) {
-			const msg = $('#new-tag-create').text().replace('%t', text);
-			$cands.append( $('<li>').addClass('new-tag').attr('data-tag', text).text(msg) );
+			const msg = text_of('new-tag-create').replace('%t', text);
+			const li  = create('li', 'new-tag');
+			li.setAttribute('data-tag', text);
+			li.textContent = msg;
+			cands.appendChild(li);
 		}
-		$cands.children().first().addClass('selected');
+		if (cands.firstElementChild) cands.firstElementChild.classList.add('selected');
 	}
 
 	function move_selected(dir) {
-		const $li  = $cands.children();
-		if (!$li.length) return;
-		const cur  = $li.index( $li.filter('.selected') );
-		const next = (cur + dir + $li.length) % $li.length;
-		$li.removeClass('selected');
-		const $next = $li.eq(next).addClass('selected');
-		$next[0].scrollIntoView({ block: 'nearest' });
+		const li = Array.from(cands.children);
+		if (!li.length) return;
+		const cur  = li.findIndex(function(x){ return x.classList.contains('selected') });
+		const next = (cur + dir + li.length) % li.length;
+		li.forEach(function(x){ x.classList.remove('selected') });
+		li[next].classList.add('selected');
+		li[next].scrollIntoView({ block: 'nearest' });
 	}
 
 	// 追加したらダイアログは閉じずに次の入力へ
 	function append_and_continue(tag) {
 		if (tag == '' || tag.indexOf(',') >= 0) return;
 		tag_append( tag );
-		$inp.val('');
+		inp.value = '';
 		update_candidates();
-		$inp.focus();
+		inp.focus();
 	}
 
 	function append_selected() {
-		const $sel = $cands.children('.selected');
-		if ($sel.length) return append_and_continue( $sel.attr('data-tag') );
-		append_and_continue( $inp.val().trim() );
+		const sel = Array.from(cands.children).find(function(x){ return x.classList.contains('selected') });
+		if (sel) return append_and_continue( sel.getAttribute('data-tag') );
+		append_and_continue( inp.value.trim() );
 	}
 
-	$inp.on('input', update_candidates);
-	$inp.on('keydown', function(evt){
+	inp.addEventListener('input', update_candidates);
+	inp.addEventListener('keydown', function(evt){
 		// IME変換中のキー操作は無視
-		if (evt.originalEvent.isComposing || evt.keyCode == 229) return;
-		if (evt.keyCode == 38) { move_selected(-1); return false; }	// ↑
-		if (evt.keyCode == 40) { move_selected( 1); return false; }	// ↓
-		if (evt.keyCode != 13) return;
-		append_selected();
-		return false;
+		if (evt.isComposing || evt.keyCode == 229) return;
+		let stop;
+		if      (evt.keyCode == 38) { move_selected(-1); stop = true; }	// ↑
+		else if (evt.keyCode == 40) { move_selected( 1); stop = true; }	// ↓
+		else if (evt.keyCode == 13) { append_selected(); stop = true; }
+		if (!stop) return;
+		evt.preventDefault();
+		evt.stopPropagation();
 	});
-	$cands.on('click', 'li', function(evt){
-		append_and_continue( $(evt.currentTarget).attr('data-tag') );
+	cands.addEventListener('click', function(evt){
+		const li = evt.target.closest('li');
+		if (!li || !cands.contains(li)) return;
+		append_and_continue( li.getAttribute('data-tag') );
 	});
 
-	$addtag.click( function(){
-		$div = $('<div>').append( $tagform );
+	addtag.addEventListener('click', function(){
+		const div = create('div');
+		div.appendChild( tagform );
 
 		// ボタンの設定
 		var buttons = {};
-		buttons[ $('#new-tag-append').text() ] = append_selected;
-		buttons[ $('#new-tag-close').text() ] = function(){
-			$div.adiaryDialog( 'close' );
+		buttons[ text_of('new-tag-append') ] = append_selected;
+		buttons[ text_of('new-tag-close') ] = function(){
+			dialog.close();
 		};
-		$div.adiaryDialog({
+		dialog = adiary.dialog(div, {
 			modal:	true,
-			width:	Math.min(420, $(window).width() - 20),
+			width:	Math.min(420, document.documentElement.clientWidth - 20),
 			minHeight: 200,
-			title:   $addtag.data('title'),
+			title:   addtag.dataset.title,
 			buttons: buttons,
 			open: function(){
-				$inp.focus();
+				inp.focus();
 			},
 			beforeClose: function(){
-				$tagsel.val('');
-				$inp.val('');
-				$cands.empty();
-				$tagform.detach();
+				if (tagsel) tagsel.value = '';
+				inp.value = '';
+				cands.innerHTML = '';
+				tagform.remove();
 			}
 		});
 	});
@@ -204,10 +290,11 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	//--------------------------------------------------------------------------------
 	// ●タグ選択フォームの処理
 	//--------------------------------------------------------------------------------
-	$tagsel.change(function(){
-		if ($(':selected', $tagsel).data('new')) return;
-		tag_append( $tagsel.val() );
-		$tagsel.val('');
+	if (tagsel) tagsel.addEventListener('change', function(){
+		const opt = tagsel.selectedOptions[0];
+		if (opt && opt.dataset.new) return;
+		tag_append( tagsel.value );
+		tagsel.value = '';
 		update_candidates();
 	});
 }
@@ -218,12 +305,12 @@ const contents_loaded = adiary.load_contents_list($upsel);
 // name="ogp" の欄が実体（main_image）。空ならブログの画像を使う。本文の画像は拾わない。
 // 画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
 {
-	const $preview = $('#eyecatch-preview');
-	const $note    = $('#eyecatch-note');
-	const $pick    = $('#eyecatch-pick');
-	const $remove  = $('#eyecatch-remove');
-	const $ogp     = $('#ogp-input');
-	const imgdir   = $('#image-dir').text();		// 画像ディレクトリ（相対）
+	const preview  = document.getElementById('eyecatch-preview');
+	const note     = document.getElementById('eyecatch-note');
+	const pick     = document.getElementById('eyecatch-pick');
+	const remove   = document.getElementById('eyecatch-remove');
+	const ogp      = document.getElementById('ogp-input');
+	const imgdir   = text_of('image-dir');		// 画像ディレクトリ（相対）
 	const img_url  = adiary.Basepath + imgdir;
 	const img_ext  = /\.(?:jpe?g|png|gif|webp|apng|avif)$/i;
 
@@ -255,7 +342,7 @@ const contents_loaded = adiary.load_contents_list($upsel);
 
 	// 欄の値を画像パスにする。保存した値の末尾の「?幅,高さ」と、記法で書いた古い値に対応する
 	function current_value() {
-		const val = $ogp.val().trim().replace(/\?\d+,\d+$/, '');
+		const val = ogp.value.trim().replace(/\?\d+,\d+$/, '');
 		if (val.indexOf(':') < 0) return decode_path(val);
 		return find_images(val)[0] || val;
 	}
@@ -270,49 +357,60 @@ const contents_loaded = adiary.load_contents_list($upsel);
 	}
 	function make_img(path) {
 		const urls = [ thumb_url(path, 'jpg'), img_url + enc(path) ];
-		const $img = $('<img>').attr({ src: thumb_url(path, 'avif'), alt: '' });
-		$img.on('error', function(){
-			if (urls.length) $img.attr('src', urls.shift());
+		const img  = create('img');
+		img.setAttribute('src', thumb_url(path, 'avif'));
+		img.setAttribute('alt', '');
+		img.addEventListener('error', function(){
+			if (urls.length) img.setAttribute('src', urls.shift());
 		});
-		return $img;
+		return img;
 	}
 
 	function render() {
 		const cur = current_value();
-		$preview.empty();
+		preview.innerHTML = '';
 		if (cur != '') {
 			// 選んだ画像は、押すと選び直せる
-			const $btn = $('<button>').attr({ type: 'button', title: '画像を変更' }).addClass('eyecatch-change');
-			$btn.append( make_img(cur) );
-			$preview.append($btn);
-			$note.text( $('#eyecatch-note-chosen').text() );
+			const btn = create('button');
+			btn.setAttribute('type',  'button');
+			btn.setAttribute('title', '画像を変更');
+			btn.className = 'eyecatch-change';
+			btn.appendChild( make_img(cur) );
+			preview.appendChild(btn);
+			note.textContent = text_of('eyecatch-note-chosen');
 		} else {
-			$preview.append( $('<img>').attr({ src: $preview.data('blog-image'), alt: '' }) );
-			$note.text( $('#eyecatch-note-blog').text() );
+			const img = create('img');
+			img.setAttribute('src', preview.dataset.blogImage);
+			img.setAttribute('alt', '');
+			preview.appendChild(img);
+			note.textContent = text_of('eyecatch-note-blog');
 		}
-		$pick  .toggle(cur == '');
-		$remove.toggle(cur != '');
+		(cur == '' ? show : hide)(pick);
+		(cur != '' ? show : hide)(remove);
 	}
 
 	// 画像アルバムを開く。選んである画像があれば、そのフォルダを開く
 	function open_album() {
 		const cur = current_value();
-		let url   = $pick.data('url');
+		let url   = pick.dataset.url;
 		const x   = cur.lastIndexOf('/');
 		if (x >= 0) url += '&folder=' + encodeURIComponent(cur.substr(0, x+1));
 		const win = window.open(url, 'album', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
 		win.focus();
 	}
-	$pick.on('click', open_album);
-	$preview.on('click', '.eyecatch-change', open_album);
-	$remove.on('click', function(){
-		$ogp.val('');
+	pick.addEventListener('click', open_album);
+	preview.addEventListener('click', function(evt){
+		const btn = evt.target.closest('.eyecatch-change');
+		if (btn && preview.contains(btn)) open_album();
+	});
+	remove.addEventListener('click', function(){
+		ogp.value = '';
 		render();
 	});
 
 	// 画像アルバムから呼ばれる。path は画像ディレクトリからの相対パス
 	window.set_eyecatch = function(path) {
-		$ogp.val(path);
+		ogp.value = path;
 		render();
 	};
 
@@ -356,46 +454,50 @@ function line_diff(a, b) {
 }
 
 // 変更行の前後だけを表示する
-function render_diff(diff, $body) {
+function render_diff(diff, body) {
 	const ctx = 2;
 	const show = new Array(diff.length).fill(false);
 	diff.forEach(function(d, i){
 		if (d[0] == ' ') return;
 		for(let k=Math.max(0, i-ctx); k<=Math.min(diff.length-1, i+ctx); k++) show[k] = true;
 	});
-	$body.empty();
+	body.innerHTML = '';
+	function span(cls, text) {
+		const s = create('span', cls);
+		s.textContent = text;
+		body.appendChild(s);
+	}
 	let skipped = false;
 	diff.forEach(function(d, i){
 		if (!show[i]) { skipped = true; return; }
-		if (skipped) { $body.append( $('<span>').addClass('rev-skip').text("…") ); skipped = false; }
+		if (skipped) { span('rev-skip', "…"); skipped = false; }
 		const cls = d[0] == '-' ? 'rev-del' : d[0] == '+' ? 'rev-add' : 'rev-ctx';
-		$body.append( $('<span>').addClass(cls).text(d[0] + ' ' + d[1]) );
+		span(cls, d[0] + ' ' + d[1]);
 	});
-	if (skipped) $body.append( $('<span>').addClass('rev-skip').text("…") );
+	if (skipped) span('rev-skip', "…");
+}
+
+// 記事の更新履歴、今の記事の要約を取り寄せる（失敗したらnull）
+function ajax_revision(data, callback) {
+	data.action = 'ajax_revision';
+	post_json(adiary.myself + '?etc/ajax_dummy', new URLSearchParams(data), {
+		success: callback,
+		error:   function(){ callback(null) }
+	});
 }
 
 //##############################################################################
 // ■更新履歴
 //##############################################################################
 {
-	const $btn    = $secure('#edit-revision');
-	const $dialog = $secure('#revision-dialog').detach();
-	const $list   = $dialog.find('#revision-list');
-	const $title  = $dialog.find('#revision-title');
-	const $body   = $dialog.find('#revision-body');
+	const btn    = adiary.secure('#edit-revision');
+	const dialog = adiary.secure('#revision-dialog');
+	if (dialog) dialog.remove();
+	const list   = dialog.querySelector('#revision-list');
+	const title  = dialog.querySelector('#revision-title');
+	const body   = dialog.querySelector('#revision-body');
 	let cur_rev;			// 表示中の版
-
-	function ajax_revision(data, callback) {
-		data.action = 'ajax_revision';
-		$.ajax({
-			type: 'POST',
-			url:  adiary.myself + '?etc/ajax_dummy',
-			dataType: 'json',
-			data: data,
-			success: callback,
-			error: function(){ callback(null) }
-		});
-	}
+	let dlg;
 
 	function format_tm(tm) {
 		const d = new Date(tm * 1000);
@@ -405,38 +507,46 @@ function render_diff(diff, $body) {
 	}
 
 	function show_revision() {
-		$title.empty();
-		$body.empty().removeClass('rev-full');
+		title.innerHTML = '';
+		body.innerHTML  = '';
+		body.classList.remove('rev-full');
 		if (!cur_rev) {
-			$body.text( $('#rev-select').text() );
+			body.textContent = text_of('rev-select');
 			return;
 		}
-		$title.html( cur_rev.title );
+		title.innerHTML = cur_rev.title;
 
-		const mode = $dialog.find('input[name="rev_mode"]:checked').val();
+		const checked = dialog.querySelector('input[name="rev_mode"]:checked');
+		const mode = checked ? checked.value : undefined;
 		const text = cur_rev.text;
 		if (mode == 'diff') {
-			const now  = $edit.val().replace(/\r\n?/g, "\n");
-			if (now === text) { $body.text( $('#rev-same').text() ); return; }
+			const now  = edit.value.replace(/\r\n?/g, "\n");
+			if (now === text) { body.textContent = text_of('rev-same'); return; }
 			const diff = line_diff(text.split("\n"), now.split("\n"));
-			if (diff) return render_diff(diff, $body);
-			$title.append( $('<div>').addClass('rev-note').text( $('#rev-too-large').text() ) );
+			if (diff) return render_diff(diff, body);
+			const note = create('div', 'rev-note');
+			note.textContent = text_of('rev-too-large');
+			title.appendChild(note);
 		}
-		$body.addClass('rev-full').text(text);
+		body.classList.add('rev-full');
+		body.textContent = text;
 	}
-	$dialog.find('input[name="rev_mode"]').on('change', show_revision);
+	dialog.querySelectorAll('input[name="rev_mode"]').forEach(function(x){
+		x.addEventListener('change', show_revision);
+	});
 
 	//--------------------------------------------------------------------------
 	// ●一覧
 	//--------------------------------------------------------------------------
 	// 直前の保存（data-last）は記事のpkeyで、履歴は版のpkeyで読む
-	$list.on('click', 'li[data-pkey]', function(evt){
-		const $li = $(evt.currentTarget);
-		$list.children().removeClass('selected');
-		$li.addClass('selected');
-		const req = $li.attr('data-last') ? { last: $('#edit-pkey').val() } : { rev: $li.attr('data-pkey') };
+	list.addEventListener('click', function(evt){
+		const li = evt.target.closest('li[data-pkey]');
+		if (!li || !list.contains(li)) return;
+		Array.from(list.children).forEach(function(x){ x.classList.remove('selected') });
+		li.classList.add('selected');
+		const req = li.getAttribute('data-last') ? { last: document.getElementById('edit-pkey').value } : { rev: li.getAttribute('data-pkey') };
 		ajax_revision(req, function(data){
-			if (!data || !$li.hasClass('selected')) return;
+			if (!data || !li.classList.contains('selected')) return;
 			data.text = data.text.replace(/\r\n?/g, "\n");
 			cur_rev = data;
 			show_revision();
@@ -444,25 +554,35 @@ function render_diff(diff, $body) {
 	});
 
 	function load_list() {
-		$list.empty();
+		list.innerHTML = '';
 		cur_rev = undefined;
 		show_revision();
-		ajax_revision({ pkey: $('#edit-pkey').val() }, function(data){
+		ajax_revision({ pkey: document.getElementById('edit-pkey').value }, function(data){
 			if (!data || !data.length) {
-				$list.append( $('<li>').addClass('rev-empty').text( $('#rev-empty').text() ) );
+				const li = create('li', 'rev-empty');
+				li.textContent = text_of('rev-empty');
+				list.appendChild(li);
 				return;
 			}
-			const chars = $('#rev-chars').text();
+			const chars = text_of('rev-chars');
 			data.forEach(function(r){
-				const $li = $('<li>').attr('data-pkey', r.pkey);
-				if (r.last) {
-					$li.attr('data-last', 1).addClass('rev-last');
-					$li.append( $('<span>').addClass('rev-last-label').text( $('#rev-last').text() ) );
+				const li = create('li');
+				li.setAttribute('data-pkey', r.pkey);
+				function add(tag, cls, text, html) {
+					const x = create(tag, cls);
+					if (html) x.innerHTML = text;
+					     else x.textContent = text;
+					li.appendChild(x);
 				}
-				$li.append( $('<span>').addClass('rev-tm').text( format_tm(r.update_tm || r.tm) ) );
-				$li.append( $('<span>').addClass('rev-len').text( chars.replace('%n', r.length.toLocaleString()) ) );
-				$li.append( $('<div>').addClass('rev-title').html( r.title ) );
-				$list.append($li);
+				if (r.last) {
+					li.setAttribute('data-last', 1);
+					li.classList.add('rev-last');
+					add('span', 'rev-last-label', text_of('rev-last'));
+				}
+				add('span', 'rev-tm',    format_tm(r.update_tm || r.tm));
+				add('span', 'rev-len',   chars.replace('%n', r.length.toLocaleString()));
+				add('div',  'rev-title', r.title, true);
+				list.appendChild(li);
 			});
 		});
 	}
@@ -470,28 +590,31 @@ function render_diff(diff, $body) {
 	//--------------------------------------------------------------------------
 	// ●ダイアログ
 	//--------------------------------------------------------------------------
-	$btn.click(function(){
-		const $div = $('<div>').append($dialog);
+	// 履歴のボタンは、保存した記事を編集するときだけある（新しい記事には無い）
+	if (btn) btn.addEventListener('click', function(){
+		const div = create('div');
+		div.appendChild(dialog);
 		const buttons = {};
-		buttons[ $('#rev-load').text() ] = function(){
+		buttons[ text_of('rev-load') ] = function(){
 			if (!cur_rev) return;
-			const msg = $('#rev-confirm').text().replace('%t', format_tm(cur_rev.update_tm || cur_rev.tm));
+			const msg = text_of('rev-confirm').replace('%t', format_tm(cur_rev.update_tm || cur_rev.tm));
 			adiary.confirm(msg, function(ok){
 				if (!ok) return;
-				$edit.val(cur_rev.text).trigger('input');
-				$div.adiaryDialog('close');
+				edit.value = cur_rev.text;
+				edit.dispatchEvent(new Event('input', { bubbles: true }));
+				dlg.close();
 			});
 		};
-		buttons[ $('#new-tag-close').text() ] = function(){
-			$div.adiaryDialog('close');
+		buttons[ text_of('new-tag-close') ] = function(){
+			dlg.close();
 		};
-		$div.adiaryDialog({
+		dlg = adiary.dialog(div, {
 			modal:	true,
-			width:	Math.min(960, $(window).width() - 20),
+			width:	Math.min(960, document.documentElement.clientWidth - 20),
 			minHeight: 300,
-			title:	$btn.data('title'),
+			title:	btn.dataset.title,
 			buttons: buttons,
-			beforeClose: function(){ $dialog.detach(); }
+			beforeClose: function(){ dialog.remove(); }
 		});
 		load_list();
 	});
@@ -502,12 +625,12 @@ function render_diff(diff, $body) {
 //##############################################################################
 // タブを閉じる、再読み込み、リンク、戻るなどで離れるときに確かめる（Lyndbaumの admin-unsaved.js と同じ）。
 // 開いたときの中身を覚えておき、離れるときに今の中身と比べる（書き換えても元に戻せば確かめない。
-// タグやアイキャッチ画像など、JavaScript で変えた欄も比べる）。album から貼り付けて開いたときは、
-// 貼り付けた本文（edit-helper.js が後で入れる）が変更になる。
+// タグやアイキャッチ画像など、JavaScriptで変えた欄も比べる）。albumから貼り付けて開いたときは、
+// 貼り付けた本文（edit-helper.jsが後で入れる）が変更になる。
 // 記事の保存と削除で送るときは確かめない。確かめる文言はブラウザが決める（ページからは変えられない）
 let submitting = false;
 {
-	const form = $('form[name="edit"]')[0];
+	const form = document.querySelector('form[name="edit"]');
 	// 固定ページの一覧を読み込んだ後に決まる欄（親を選び、パーマリンクを補う）
 	const late = { upnode: true, link_key_txt: true };
 
@@ -515,17 +638,17 @@ let submitting = false;
 	// ファイルの欄と、ブラウザに覚えさせる設定（js-save）は比べない
 	function snapshot(is_late) {
 		const pairs = [];
-		$(form.elements).each(function(){
-			if (!this.name || !late[this.name] !== !is_late) return;
-			if (/^(?:submit|button|reset|file)$/.test(this.type) || $(this).hasClass('js-save')) return;
-			if ((this.type === 'checkbox' || this.type === 'radio') && !this.checked) return;
-			pairs.push([ this.name, $(this).val() ]);
+		Array.from(form.elements).forEach(function(el){
+			if (!el.name || !late[el.name] !== !is_late) return;
+			if (/^(?:submit|button|reset|file)$/.test(el.type) || el.classList.contains('js-save')) return;
+			if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) return;
+			pairs.push([ el.name, val_of(el) ]);
 		});
 		return JSON.stringify(pairs);
 	}
 	const initial = snapshot();
 	let initial_late;
-	contents_loaded.always(function(){ initial_late = snapshot(true) });
+	contents_loaded.then(function(){ initial_late = snapshot(true) });
 
 	function changed() {
 		return snapshot() !== initial
@@ -533,9 +656,9 @@ let submitting = false;
 	}
 
 	// 送るのを取りやめたとき（競合の確認、削除の確認で「キャンセル」など）は、確かめる対象のまま。
-	// 確認の後に jQuery で送るとき（js-check-form）も受けるため、jQuery で window に付ける
-	$(window).on('submit', function(evt){
-		if (!evt.isDefaultPrevented() && $(evt.target).closest('#edit').length) submitting = true;
+	// 削除の確認（js-check-form）の後は、asys.js が requestSubmit で送るので、ここに届く
+	window.addEventListener('submit', function(evt){
+		if (!evt.defaultPrevented && evt.target.closest && evt.target.closest('#edit')) submitting = true;
 	});
 	// 送った後に「戻る」で戻ってきたとき（bfcache）は、また確かめる
 	window.addEventListener('pageshow', function(evt){
@@ -555,15 +678,15 @@ let submitting = false;
 // 違えば保存せず、今の記事とこの画面の本文の差分を見せる。
 // 取り寄せに失敗したときはそのまま送る（サーバー側でも確かめる）。
 {
-	const $form   = $('form[name="edit"]');
-	const $digest = $('#edit-digest');
-	const $dialog = $secure('#conflict-dialog').detach();
-	const $title  = $dialog.find('#conflict-title');
-	const $body   = $dialog.find('#conflict-body');
+	const form   = document.querySelector('form[name="edit"]');
+	const digest = document.getElementById('edit-digest');
+	const dialog = adiary.secure('#conflict-dialog');
+	if (dialog) dialog.remove();
+	const title  = dialog.querySelector('#conflict-title');
+	const body   = dialog.querySelector('#conflict-body');
 	let checked = false;
 
 	function submit(submitter) {
-		const form = $form[0];
 		if (form.requestSubmit) {
 			// submitイベントは同期で起きる。入力のチェックで止まったら、次はまた確かめる
 			checked = true;
@@ -571,62 +694,69 @@ let submitting = false;
 			checked = false;
 			return;
 		}
-		if (submitter && submitter.name)	// 押したボタン（下書き保存など）を送る
-			$('<input>').attr({ type: 'hidden', name: submitter.name, value: submitter.value }).appendTo(form);
+		if (submitter && submitter.name) {	// 押したボタン（下書き保存など）を送る
+			const inp = create('input');
+			inp.setAttribute('type',  'hidden');
+			inp.setAttribute('name',  submitter.name);
+			inp.setAttribute('value', submitter.value);
+			form.appendChild(inp);
+		}
 		submitting = true;	// form.submit() は submit イベントが起きない
 		form.submit();
 	}
 
 	function show_conflict(now, submitter) {
 		const text = now.text.replace(/\r\n?/g, "\n");
-		const mine = $edit.val().replace(/\r\n?/g, "\n");
+		const mine = edit.value.replace(/\r\n?/g, "\n");
 		const now_title  = adiary.tag_decode(now.title);
-		const mine_title = $form.find('input[name="title"]').val();
+		const mine_title = form.querySelector('input[name="title"]').value;
 
-		$title.empty();
+		title.innerHTML = '';
 		if (now_title !== mine_title)
-			$title.text( $('#conflict-title-diff').text().replace('%n', now_title).replace('%m', mine_title) );
-		$body.empty().removeClass('rev-full');
+			title.textContent = text_of('conflict-title-diff').replace('%n', now_title).replace('%m', mine_title);
+		body.innerHTML = '';
+		body.classList.remove('rev-full');
 		if (text === mine) {
-			$body.text( $('#conflict-same-body').text() );
+			body.textContent = text_of('conflict-same-body');
 		} else {
 			const diff = line_diff(text.split("\n"), mine.split("\n"));
-			if (diff) render_diff(diff, $body);
-			else $body.addClass('rev-full').text( $('#rev-too-large').text() + "\n\n" + text );
+			if (diff) render_diff(diff, body);
+			else {
+				body.classList.add('rev-full');
+				body.textContent = text_of('rev-too-large') + "\n\n" + text;
+			}
 		}
-		$dialog.find('#conflict-open').attr('href', adiary.myself2 + '0' + now.pkey);
+		dialog.querySelector('#conflict-open').setAttribute('href', adiary.myself2 + '0' + now.pkey);
 
-		const $div = $('<div>').append($dialog);
+		const div = create('div');
+		div.appendChild(dialog);
+		let dlg;
 		const buttons = {};
-		buttons[ $('#conflict-save').text() ] = function(){
-			$digest.val(now.digest);	// 今の記事を見た上で上書きする
-			$div.adiaryDialog('close');
+		buttons[ text_of('conflict-save') ] = function(){
+			digest.value = now.digest;	// 今の記事を見た上で上書きする
+			dlg.close();
 			submit(submitter);
 		};
-		buttons[ $('#conflict-cancel').text() ] = function(){
-			$div.adiaryDialog('close');
+		buttons[ text_of('conflict-cancel') ] = function(){
+			dlg.close();
 		};
-		$div.adiaryDialog({
+		dlg = adiary.dialog(div, {
 			modal:	true,
-			width:	Math.min(960, $(window).width() - 20),
+			width:	Math.min(960, document.documentElement.clientWidth - 20),
 			minHeight: 300,
-			title:	$dialog.data('title'),
+			title:	dialog.dataset.title,
 			buttons: buttons,
-			beforeClose: function(){ $dialog.detach(); }
+			beforeClose: function(){ dialog.remove(); }
 		});
 	}
 
-	$form.on('submit', function(evt){
-		if (checked || !$digest.length) return;
+	form.addEventListener('submit', function(evt){
+		if (checked || !digest) return;
 		evt.preventDefault();
-		const submitter = evt.originalEvent && evt.originalEvent.submitter;
-		$.ajax({
-			type: 'POST',
-			url:  adiary.myself + '?etc/ajax_dummy',
-			dataType: 'json',
-			data: { action: 'ajax_revision', now: $('#edit-pkey').val() },
+		const submitter = evt.submitter;
+		post_json(adiary.myself + '?etc/ajax_dummy', new URLSearchParams({ action: 'ajax_revision', now: document.getElementById('edit-pkey').value }), {
 			success: function(now){
-				if (!now || now.digest === $digest.val()) return submit(submitter);
+				if (!now || now.digest === digest.value) return submit(submitter);
 				show_conflict(now, submitter);
 			},
 			error: function(){ submit(submitter) }
@@ -638,21 +768,25 @@ let submitting = false;
 // ■公開状態の変更
 //##############################################################################
 {
-	var $echk = $('#enable-chk');
-	var $dchk = $('#draft-chk');
-	$echk.change( echk_change );
-	$dchk.change( echk_change );
+	const echk = document.getElementById('enable-chk');
+	const dchk = document.getElementById('draft-chk');
+	if (echk) echk.addEventListener('change', echk_change);
+	if (dchk) dchk.addEventListener('change', echk_change);
 	echk_change();
 
+	function set_title(text) {
+		document.querySelectorAll('.save-btn-title').forEach(function(x){ x.textContent = text });
+	}
 	function echk_change() {
-		if ($dchk.prop('checked')) {	// 下書き
-			$('.save-btn-title').text( $dchk.data('on') );
+		if (dchk && dchk.checked) {	// 下書き
+			set_title( dchk.dataset.on );
 			return;
 		}
-		if ($echk.prop('checked'))
-			$('.save-btn-title').text( $echk.data('on') );
+		if (!echk) return;
+		if (echk.checked)
+			set_title( echk.dataset.on );
 		else
-			$('.save-btn-title').text( $echk.data('off') );
+			set_title( echk.dataset.off );
 	}
 }
 
@@ -660,88 +794,94 @@ let submitting = false;
 // ■upnodeの変更 / link_keyの設定
 //##############################################################################
 {
-	const $upsel = $('#upnode-select');
-	const $lkey  = $('#link-key');
+	const lkey = document.getElementById('link-key');
+	let   lkey_set;	// 補った値（そのままなら、親を選び直したときに補い直す）
 
-	$upsel.change(function(){
-		if (! $lkey.data('suggest')) return;	// 機能がoff
-		var val = $lkey.val();
-		if (val != '' && val != $lkey.data('set')) return;
+	// data-suggest は "1" か "0" か ""。今までの jQuery の .data() は "0" を数の0（偽）にしていた
+	const suggest = lkey && !/^(?:|0|false|null)$/.test(lkey.dataset.suggest || '');
 
-		var $opt = $upsel.children(':selected');
-		if (!$opt.length) return;
+	if (upsel && lkey) upsel.addEventListener('change', function(){
+		if (! suggest) return;	// 機能がoff
+		var val = lkey.value;
+		if (val != '' && val != lkey_set) return;
 
-		var set = $opt.data('link_key');
+		const opt = upsel.selectedOptions[0];
+		if (!opt) return;
+
+		var set = opt.dataset.link_key;
 		if (set == undefined) return;
 		if (set.substr(-1) != '/') set += '/';
-		$lkey.val( set );
-		$lkey.data('set', set);
+		lkey.value = set;
+		lkey_set   = set;
 	});
 }
 
 //##############################################################################
 // ■ファイルアップロード機能
 //##############################################################################
-var $upform   = $('#upload-form').detach();
-var $file_btn = $upform.find('#file-btn');
-var $file_div = $upform.find('#file-btn-div');
-var $fileup   = $secure('#edit-file-upload');
+const upform   = document.getElementById('upload-form');
+if (upform) upform.remove();
+const file_btn = upform.querySelector('#file-btn');
+const file_div = upform.querySelector('#file-btn-div');
+const fileup   = adiary.secure('#edit-file-upload');
 //------------------------------------------------------------------------------
 // ●アップロードダイアログ
 //------------------------------------------------------------------------------
-$fileup.click(function(){
+fileup.addEventListener('click', function(){
 	update_files_view([]);
 	open_upload_dialog();
 });
 function open_upload_dialog(files) {
-	var div = $('<div>').append( $upform );
-	var cnt = 0;
+	const div = create('div');
+	div.appendChild( upform );
 
 	if (files) {
-		$file_div.hide();
+		hide(file_div);
 		update_files_view(files);
 	} else {
-		$file_div.show();
+		show(file_div);
 	}
 
 	// ボタンの設定
+	let dlg;
 	var buttons = {};
-	var ok_func = buttons['Upload'] = function(){
-		if (!files && !$file_btn.val()) return;	// no selected
+	buttons['Upload'] = function(){
+		if (!files && !file_btn.value) return;	// no selected
 
-		div.parent().find('.ui-button').prop("disabled", true);
+		div.parentElement.querySelectorAll('.ui-button').forEach(function(x){ x.disabled = true });
 
-		ajax_upload( $upform[0], files, {
+		ajax_upload( upform, files, {
 			callback: function(data, folder){
+				const thumb = upform.querySelector('#paste-thumbnail');
 				upload_files_insert(data, {
 					folder:		folder,
-					thumbnail:	$('#paste-thumbnail').val() == '0' ? false : true,
-					text:		$('#paste-thumbnail').val() == 'text',	// 画像へのテキストリンク
-					caption:	$('#paste-caption').val(),
-					exif:		$('#paste-to-exif').prop('checked'),
-					class:		$('#paste-class').val()
+					thumbnail:	thumb.value == '0' ? false : true,
+					text:		thumb.value == 'text',	// 画像へのテキストリンク
+					caption:	upform.querySelector('#paste-caption').value,
+					exif:		upform.querySelector('#paste-to-exif').checked,
+					class:		upform.querySelector('#paste-class').value
 				});
 			},
 			complete: function(){
-				$upform.detach();
-				div.adiaryDialog( 'close' );
+				upform.remove();
+				dlg.close();
 				div.remove();
 			}
 		});
 
-		$file_btn.val('');
+		file_btn.value = '';
 	};
 	buttons[ adiary.msg('cancel') ] = function(){
-		$upform.detach();
-		div.adiaryDialog( 'close' );
+		upform.remove();
+		dlg.close();
 		div.remove();
 	};
 
-	div.adiaryDialog({
+	dlg = adiary.dialog(div, {
 		modal: true,
 		width:  adiary.DialogWidth,
 		// minHeight: 200,
-		title:   $fileup.data('title'),
+		title:   fileup.dataset.title,
 		buttons: buttons
 	});
 }
@@ -749,20 +889,19 @@ function open_upload_dialog(files) {
 // ●選択ファイル一覧表示 / ファイル選択後の処理
 //------------------------------------------------------------------------------
 function update_files_view(files) {
-	var $div = $upform.find('#dnd-files');
-	$div.empty();
+	const box = upform.querySelector('#dnd-files');
+	box.innerHTML = '';
 	for(var i=0; i<files.length; i++) {
 		if (!files[i]) continue;
 		var fs  = adiary.size_format(files[i].size);
-		var div = $('<div>').text(
-			files[i].name + ' (' + fs + ')'
-		);
-		$div.append(div);
+		const div = create('div');
+		div.textContent = files[i].name + ' (' + fs + ')';
+		box.appendChild(div);
 	}
 }
 
-$file_btn.on('change', function() {
-	var files = $file_btn[0].files;
+file_btn.addEventListener('change', function() {
+	var files = file_btn.files;
 	update_files_view(files)
 });
 
@@ -820,14 +959,14 @@ function upload_files_insert(data, opt) {
 		return { folder: opt.folder, name: file.name };
 	});
 	if (videos.length)
-		adiary.make_video_thumbnails(videos, adiary.Basepath + $('#image-dir').text());
+		adiary.make_video_thumbnails(videos, adiary.Basepath + text_of('image-dir'));
 }
 
 //------------------------------------------------------------------------------
 // ●アップロード処理
 //------------------------------------------------------------------------------
 function get_upload_folder() {
-	var date = $('#edit-date').val().toString() || '';
+	var date = document.getElementById('edit-date').value.toString() || '';
 	var year;
 	var mon;
 	if (date.match(/^\d\d\d\d[\-\/]\d\d/)) {
@@ -838,7 +977,7 @@ function get_upload_folder() {
 		year = d.getFullYear();
 		mon  = (101 + d.getMonth()).toString().substr(1);
 	}
-	var folder = $fileup.data('folder');
+	var folder = fileup.dataset.folder;
 	if (folder == '') folder='posts/%y/';
 	return folder.replace('%y', year).replace('%m', mon).replace(/^\/+/, '');
 }
@@ -848,7 +987,7 @@ function ajax_upload( form_dom, files, option ) {
 
 	// FormData生成
 	var fd = new FormData( form_dom );
-	if (!$file_btn.val()) fd.delete('_file_btn');
+	if (!file_btn.value) fd.delete('_file_btn');
 	fd.append('action', 'etc/ajax_upload');
 	fd.append('folder', folder);
 
@@ -861,26 +1000,22 @@ function ajax_upload( form_dom, files, option ) {
 	}
 
 	// progress bar init
-	var $prog  = $('#progress');
-	var $label = $prog.find('.label').text('');
-	$prog.show();
-	$prog.adiaryProgressbar({
+	const prog  = form_dom.querySelector('#progress') || document.getElementById('progress');
+	const label = prog.querySelector('.label');
+	label.textContent = '';
+	show(prog);
+	const bar = adiary.progressbar(prog, {
 		value: 0,
 		change: function(value) {
-			$label.text( value + "%" );
+			label.textContent = value + "%";
 		},
 		complete: function() {
-			$label.text( "Upload complete!" );
+			label.textContent = "Upload complete!";
 		}
 	});
 
 	// submit処理
-	$.ajax(adiary.myself + '?etc/ajax_dummy', {
-		method: 'POST',
-		contentType: false,
-		processData: false,
-		data: fd,
-		dataType: 'json',
+	post_json(adiary.myself + '?etc/ajax_dummy', fd, {
 		error: function(xhr) {
 			console.log('[ajax_upload()] http post fail');
 			adiary.show_error('#msg-upload-error');
@@ -889,17 +1024,13 @@ function ajax_upload( form_dom, files, option ) {
 			console.log('[ajax_upload()] http post success');
 			if (option.callback) option.callback(data, folder);
 		},
-		complete: function(xhr, text) {
-			$prog.hide();
-			if (option.complete) option.complete(xhr, text);
+		complete: function(xhr) {
+			hide(prog);
+			if (option.complete) option.complete(xhr);
 		},
-		xhr: function() {
-			var XHR = $.ajaxSettings.xhr();
-			XHR.upload.addEventListener('progress', function(e){
-				var par = Math.floor(e.loaded*100/e.total + 0.5);
-				$prog.adiaryProgressbar({ value: par });
-			});
-			return XHR;
+		progress: function(e) {
+			var par = Math.floor(e.loaded*100/e.total + 0.5);
+			bar.set(par);
 		}
 	});
 }
@@ -908,7 +1039,7 @@ function ajax_upload( form_dom, files, option ) {
 //------------------------------------------------------------------------------
 // CodeMirrorのとき（edit-cm.js）は、その枠で受ける。CodeMirrorはファイルを文字として
 // 入れてしまうので、それより先に受けるよう捕捉の段階で受ける
-const edit_box = document.getElementById('editarea-cm') || $edit[0];
+const edit_box = document.getElementById('editarea-cm') || edit;
 edit_box.addEventListener('dragover', function(evt) {
 	evt.stopPropagation();
 	evt.preventDefault();
@@ -917,7 +1048,7 @@ edit_box.addEventListener('drop', function(evt) {
 	evt.stopPropagation();
 	evt.preventDefault();
 
-	if ($edit.prop('readonly')) return;
+	if (edit.readOnly) return;
 	if (!evt.dataTransfer) return;
 
 	var files = evt.dataTransfer.files;
@@ -945,12 +1076,7 @@ const uploadFile = (file, successCb, errorCb) => {
 	fd.append('file_ary', file);
 
 	// submit処理
-	$.ajax(`${adiary.myself}?etc/ajax_dummy`, {
-		method: 'POST',
-		contentType: false,
-		processData: false,
-		data: fd,
-		dataType: 'json',
+	post_json(`${adiary.myself}?etc/ajax_dummy`, fd, {
 		error: function(xhr) {
 			console.log('[ajax_upload()] http post fail');
 			//errorCb;
@@ -964,7 +1090,7 @@ const uploadFile = (file, successCb, errorCb) => {
 
 window.onload = () => {
 	/** @type {HTMLElement} */
-    const txt = edit_box;	// CodeMirrorのときはその枠（ドラッグ＆ドロップと同じ）
+	const txt = edit_box;	// CodeMirrorのときはその枠（ドラッグ＆ドロップと同じ）
 	txt.onpaste = (e) => {
 		if (e.clipboardData.files.length) {
 			const pasteFile = e.clipboardData.files[0];
@@ -976,10 +1102,10 @@ window.onload = () => {
 				upload_files_insert(data, {
 					folder:		folder,
 					// 編集画面の設定（skel/edit.html）
-					thumbnail:	$fileup.data('paste') != 'large',
+					thumbnail:	fileup.dataset.paste != 'large',
 					caption:	'',
-					exif:		$fileup.data('exif') == 1,
-					class:		$fileup.data('class')
+					exif:		fileup.dataset.exif == 1,
+					class:		fileup.dataset.class
 				});
 			});
 		} else {
@@ -989,4 +1115,3 @@ window.onload = () => {
 };
 
 });
-

@@ -45,33 +45,14 @@ $.adiaryUIAppend = $.fn.adiaryUIAppend = function($obj) {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// Progressbar
+// Progressbar（本体は 40_dialog.js の $$.progressbar()）
 ////////////////////////////////////////////////////////////////////////////////
+// 今までどおり、状態はjQueryのオブジェクトに持つ（$(...)を取り直すと、初めからになる）
 $.fn.adiaryProgressbar = function(opt) {
-	const data  = this.adiaryUIData('progress');
-	if (opt === 'value') return data.value;
+	if (opt === 'value') return this.aui_progress && this.aui_progress.value();
 
-	if (opt.change)   data.change   = opt.change;
-	if (opt.complete) data.complete = opt.complete;
-
-	let init;
-	if (!('$value' in data)) {
-		this.find('.ui-progressbar-value').remove();
-		// initalize
-		data.$value = $('<div>').addClass('ui-progressbar-value');
-		this.addClass('ui-progressbar');
-		this.append( data.$value );
-		init = true;
-	}
-
-	// value set
-	const old   = data.value;
-	const value = opt.value;
-	data.value  = value;
-	data.$value.css('width', value + '%');
-
-	if (init || data.change && old != value) data.change  (data.value);
-	if (      data.complete && 100 <= value) data.complete(data.value);
+	if (!this.aui_progress) this.aui_progress = $$.progressbar(this[0], opt);
+		else		this.aui_progress.set(opt);
 	return this;
 };
 
@@ -95,15 +76,4 @@ $.fn.adiaryAccordion = function(opt) {
 $.fn.adiaryDraggable = function(opt) {
 	this.each(function(i, dom){ $$.draggable(dom, opt) });
 	return this;
-};
-
-////////////////////////////////////////////////////////////////////////////////
-// data function
-////////////////////////////////////////////////////////////////////////////////
-$.fn.adiaryUIData = function(name, key, val) {
-	name = 'aui_' + name;
-	const data = this[name] = this[name] || {};
-	if (arguments.length==2) return data[key];
-	if (arguments.length==3) data[key] = val;
-	return data;
 };

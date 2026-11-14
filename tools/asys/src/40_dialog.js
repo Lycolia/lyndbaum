@@ -105,6 +105,42 @@ $$.overlay_show = function() {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
+// progressbar
+////////////////////////////////////////////////////////////////////////////////
+//	const bar = $$.progressbar(dom, { value: 0, change: func(value), complete: func(value) });
+//	bar.set(50);	bar.value();
+// 呼ぶたびに作り直す（中の .ui-progressbar-value を作り直し、changeを呼ぶ）
+$$.progressbar = function(dom, opt) {
+	opt = opt || {};
+	dom.querySelectorAll('.ui-progressbar-value').forEach(function(x){ x.remove() });
+	const bar = create('div', 'ui-progressbar-value');
+	dom.classList.add('ui-progressbar');
+	dom.appendChild( bar );
+
+	const data = { change: opt.change, complete: opt.complete };
+	let   init = true;
+	const ret  = {
+		value: function(){ return data.value },
+		set:   function(o){
+			if (typeof(o) !== 'object') o = { value: o };
+			if (o.change)   data.change   = o.change;
+			if (o.complete) data.complete = o.complete;
+
+			const old   = data.value;
+			const value = o.value;
+			data.value  = value;
+			bar.style.width = value + '%';
+
+			if (init || data.change && old != value) data.change  (data.value);
+			if (        data.complete && 100 <= value) data.complete(data.value);
+			init = false;
+			return ret;
+		}
+	};
+	return ret.set(opt.value);
+};
+
+////////////////////////////////////////////////////////////////////////////////
 // draggable
 ////////////////////////////////////////////////////////////////////////////////
 function set_iframe_events(val) {

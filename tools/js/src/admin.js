@@ -269,8 +269,13 @@ $$.load_tags_list = function(id, callback) {
 			}
 		};
 		r_func(data, '', 0);
-		$sel.change();
+		fire_change($sel);
 	});
+}
+// ふつうのchangeのイベントを起こす。jQueryの .change() のイベントは、jQueryを使わずに
+// 付けた処理（edit.js など）に届かないため。jQueryで付けた処理にも届く
+function fire_change($obj) {
+	$obj.each(function(i, dom){ dom.dispatchEvent(new Event('change', { bubbles: true })) });
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -294,7 +299,7 @@ $$.load_contents_list = function(id) {
 				var opt = $('<option>').attr('value', pkey);
 				//opt.css('padding-left', tab*8);	// Fx以外で効かないので以下で代用
 				opt.html('&emsp;'.repeat(tab) + title );
-				opt.data('link_key', ary[i].link_key);
+				opt.attr('data-link_key', ary[i].link_key);	// edit.js が dataset.link_key で読む
 				if ( pkey == _default ) opt.prop('selected', true);
 				obj.append(opt);
 				if (ary[i].children)
@@ -302,7 +307,7 @@ $$.load_contents_list = function(id) {
 			}
 		};
 		r_func(data, 0);
-		obj.change();
+		fire_change(obj);
 	});
 }
 

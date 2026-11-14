@@ -74,6 +74,9 @@ $$.dom_init( function($R){
   			$form.data('_confirm_ok', true);
 			if ($form.data('button')) return $form.data('button').click();
 
+			// ふつうのsubmitのイベントを起こして送る。jQueryの .submit() のイベントは、
+			// jQueryで付けた処理にしか届かない（記事の編集画面の、離れるときの確認など）
+			if ($form[0].requestSubmit) return $form[0].requestSubmit();
 			$form.submit();
 		});
 		return false;
