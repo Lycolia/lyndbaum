@@ -934,7 +934,7 @@ AdiaryTree.prototype = {
 		function start(x, y, evt) {
 			const src = get_node(evt.target);
 			if (!src || src.tree !== self || src.isStatusNode()) return false;
-			drag = { x0: x, y0: y, src: src, started: false, down: evt.target, title: evt.target.closest ? evt.target.closest('.' + CN.title) : null };
+			drag = { x0: x, y0: y, src: src, started: false, title: evt.target.closest ? evt.target.closest('.' + CN.title) : null };
 			return true;
 		}
 		function begin(x, y) {
@@ -992,20 +992,18 @@ AdiaryTree.prototype = {
 			if (x - sx < 10)				window.scrollTo(window.pageXOffset - 7, window.pageYOffset);
 			else if (window.innerWidth - (x - sx) < 10)	window.scrollTo(window.pageXOffset + 7, window.pageYOffset);
 		}
-		function stop(dropped, up_target) {
+		function stop(dropped) {
 			if (!drag) return;
 			const d = drag;
 			if (d.started) {
 				self._dnd_stop(d, dropped);
 				if (d.src.span) d.src.span.classList.remove('dynatree-drag-source');
 				d.helper.remove();
-				// ドラッグの後のクリックは、押した所と離した所が同じときだけ止める（今までのjQuery UIと同じ）。
-				// 違うときのクリックは、両方を含む親で起き、その親のノードが選ばれる
-				if (up_target && up_target === d.down) {
-					const stopclick = function(evt){ evt.stopPropagation(); evt.preventDefault(); };
-					document.addEventListener('click', stopclick, true);
-					setTimeout(function(){ document.removeEventListener('click', stopclick, true) }, 0);
-				}
+				// ドラッグの後のクリックは止める。押した所と離した所が違うとき、クリックは両方を含む親で起きる。
+				// 止めないと、その親のノードが選ばれて開け閉めされる（フォルダを隣のフォルダに入れると、親が閉じる）
+				const stopclick = function(evt){ evt.stopPropagation(); evt.preventDefault(); };
+				document.addEventListener('click', stopclick, true);
+				setTimeout(function(){ document.removeEventListener('click', stopclick, true) }, 0);
 			}
 			drag = null;
 		}
@@ -1025,7 +1023,7 @@ AdiaryTree.prototype = {
 			const up = function(e){
 				document.removeEventListener('mousemove', mv);
 				document.removeEventListener('mouseup',   up);
-				stop(e.button === 0, e.target);
+				stop(e.button === 0);
 			};
 			document.addEventListener('mousemove', mv);
 			document.addEventListener('mouseup',   up);
@@ -1067,8 +1065,7 @@ AdiaryTree.prototype = {
 		div.addEventListener('touchend', function(evt){
 			if (timer) clearTimeout(timer);
 			timer = null;
-			const t = evt.changedTouches[0];
-			stop(true, t && document.elementFromPoint(t.clientX, t.clientY));
+			stop(true);
 		});
 		div.addEventListener('touchcancel', function(evt){
 			if (timer) clearTimeout(timer);

@@ -325,9 +325,11 @@ function rename_folder(obj, node, name) {
 				error_msg('#msg-fail-rename-folder');
 				return;
 			}
+			var old_key = node.data.key;
 			node.data.name  = name;
 			node.data.title = get_title( node.data );
 			set_keydata(node.getParent().data.key, node);
+			replace_persist_key(old_key, node.data.key, true);
 
 			if (cur_node.data.key === node.data.key) set_current_folder(node);
 			node.data.rename = false;
@@ -346,6 +348,29 @@ function rename_folder(obj, node, name) {
 ////////////////////////////////////////////////////////////////////////////////
 function tree_reload() {
 	dtree.reload();
+}
+
+//------------------------------------------------
+// ○覚えているフォルダのキーを書き換える
+//------------------------------------------------
+// ツリーは、開いているフォルダと選択中のフォルダをキーで覚え、読み込み直すときに使う（tree.jsのPersistence）。
+// フォルダの移動や名前の変更でキーが変わると覚えたキーと合わなくなり、閉じてしまうので、新しいキーにする。
+// old_keyとその中のフォルダのキーを、new_keyの下に書き換える。followが真なら、選択中とフォーカスのキーも書き換える
+// フォーカスのキーは保存先にだけ書かれる（tree.jsの_persist_set）ので、保存先の値を書き換える
+function replace_persist_key(old_key, new_key, follow) {
+	var ps = dtree.persistence;
+	if (!ps.expandedKeyList) return;
+	var rep = function(k) {
+		return (k && k.indexOf(old_key) == 0) ? new_key + k.substr(old_key.length) : k;
+	};
+	ps.expandedKeyList = ps.expandedKeyList.map(rep);
+	ps._set('-expand', ps.expandedKeyList.join(','));
+	if (!follow) return;
+	['-active', '-focus'].forEach(function(name) {
+		var k = ps._get(name);
+		if (k) ps._set(name, rep(k));
+	});
+	ps.activeKey = rep(ps.activeKey);
 }
 
 on($id('media-reload'), 'click', function(){
@@ -506,6 +531,13 @@ function move_folder(node, srcNode) {
 		},
 		success: function(data) {
 			if (data.ret !== 0) error_msg('#msg-fail-mv-folder', {files: data.files});
+			else {
+				// 読み込み直しても、移動先と動かしたフォルダが開いたままになるようにする
+				// ゴミ箱へ移したときは、ゴミ箱を開かず、表示中のフォルダも追わない
+				var trash = (to.substr(0,10) == '.trashbox/');
+				replace_persist_key(srcNode.data.key, to + srcNode.data.name, !trash);
+				if (!trash) dtree.persistence.addExpand(to);
+			}
 			srcNode.move(node, 'over');
 			tree_reload();
 		},
