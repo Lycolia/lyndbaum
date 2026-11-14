@@ -306,7 +306,6 @@ const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catc
 // 画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
 {
 	const preview  = document.getElementById('eyecatch-preview');
-	const note     = document.getElementById('eyecatch-note');
 	const pick     = document.getElementById('eyecatch-pick');
 	const remove   = document.getElementById('eyecatch-remove');
 	const ogp      = document.getElementById('ogp-input');
@@ -377,13 +376,11 @@ const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catc
 			btn.className = 'eyecatch-change';
 			btn.appendChild( make_img(cur) );
 			preview.appendChild(btn);
-			note.textContent = text_of('eyecatch-note-chosen');
 		} else {
 			const img = create('img');
 			img.setAttribute('src', preview.dataset.blogImage);
 			img.setAttribute('alt', '');
 			preview.appendChild(img);
-			note.textContent = text_of('eyecatch-note-blog');
 		}
 		(cur == '' ? show : hide)(pick);
 		(cur != '' ? show : hide)(remove);

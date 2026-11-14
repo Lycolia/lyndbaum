@@ -835,10 +835,6 @@ article#edit > div.body {
 #eyecatch-preview button.eyecatch-change:hover img {
 	outline:		2px solid var(--admin-accent);
 }
-#eyecatch-note {
-	font-size:		12px;
-	color:			var(--admin-muted);
-}
 
 /*--------------------------------------------------------------------
 ■メッセージ
