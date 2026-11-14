@@ -221,7 +221,7 @@
 			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>" data-parent-title="<@up.title>" data-parent-link_key="<@esc(up.link_key)>">
 				<option value="0">*トップ(root)</option>
 			</select></li>
-			<li>パーマリンク<span id="link-key-prefix"><@if(up, esc(up.link_key) . '/')></span><input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(replace(art.link_key, '^.*/', '')))>"><span class="help-text">名前に「/」は使えません。トップの"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
+			<li>パーマリンク名<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(replace(art.link_key, '^.*/', '')))>"><span class="help-text">名前に「/」は使えません。トップの"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
 		</ul>
 		</li>
 	</ul>

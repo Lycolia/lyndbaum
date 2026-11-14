@@ -801,19 +801,6 @@ let submitting = false;
 }
 
 //##############################################################################
-// ■upnodeの変更：パーマリンクの前に、親のパーマリンクを出す
-//##############################################################################
-// パーマリンクは「親のパーマリンク/名前」で、欄には名前だけを書く
-{
-	const prefix = document.getElementById('link-key-prefix');
-	if (upsel && prefix) upsel.addEventListener('change', function(){
-		const opt = upsel.selectedOptions[0];
-		const key = opt && opt.dataset.link_key;
-		prefix.textContent = key ? key + '/' : '';
-	});
-}
-
-//##############################################################################
 // ■ファイルアップロード機能
 //##############################################################################
 const upform   = document.getElementById('upload-form');
