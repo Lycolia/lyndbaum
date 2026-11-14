@@ -174,7 +174,8 @@ if ('<@ps.zindex>' == '') {
 }
 if (!<@ps.no_underl || 0>) {
 	var a = li && li.querySelector(':scope a');
-	if (height(li) == height(a)) document.getElementById('no-underl').checked = true;
+	var nu = document.getElementById('no-underl');	// 今はこの欄が無い
+	if (nu && height(li) == height(a)) nu.checked = true;
 }
 
 
