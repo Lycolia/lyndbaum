@@ -73,7 +73,7 @@ function theme_change(){
 	theme_query = '&_theme=' + theme;
 	iframe.setAttribute('src', adiary.myself + '?' + theme_query );
 	var opt = sel.selectedOptions[0];
-	if (opt && opt.dataset.readme) {
+	if (opt && opt.dataset.readme == '1') {	// サーバーは1か0を出す
 		readme.setAttribute('data-url', adiary.myself + '?design/theme_readme&name=' + theme);
 		readme.disabled = false;
 	} else {
