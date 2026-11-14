@@ -225,7 +225,7 @@
 <@>$ARTICLE_MIDDLE$------------------------------------------------------------
 </div><!-- body-header -->
 <div class="body-main">
-<@> ブログ全体がNSFWのときは画面全体で確認するので、記事ごとには出さない（_frame.html）
+<@> サイト全体がNSFWのときは画面全体で確認するので、記事ごとには出さない（_frame.html）
 <@ifexec(t.nsfw && !s.nsfw_force, begin)><@call('_sub/nsfw_gate')><div class="nsfw-content"><$end>
 	<@if(! t.enable, '<div><strong class="warning">【この記事は非公開です】</strong></div>')>
 <@if(t.text_s ne '', t.text_s, t.text)>

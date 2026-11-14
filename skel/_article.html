@@ -34,7 +34,7 @@
 <$ifset(frontpage, v.subtitle, s.fp_title, t.title)>
 
 <@> OGP/Twitter Cards
-<@> NSFWの記事は、SNSのカードに画像を出さない（ブログの既定の画像にする）
+<@> NSFWの記事は、SNSのカードに画像を出さない（サイトの既定の画像にする）
 <$img = if(t.main_image && !t.nsfw, v.blogimg_dir() . t.main_image, '')>
 <$call('_sub/set_ogp', 'article', permalink, v.subtitle, t.description, img)>
 
@@ -59,7 +59,7 @@
 <@>$ARTICLE_MIDDLE$------------------------------------------------------------
 </div><!-- body-header -->
 <div class="body-main">
-<@> ブログ全体がNSFWのときは画面全体で確認するので、記事ごとには出さない（_frame.html）
+<@> サイト全体がNSFWのときは画面全体で確認するので、記事ごとには出さない（_frame.html）
 <@ifexec(t.nsfw && !s.nsfw_force, begin)><@call('_sub/nsfw_gate')><div class="nsfw-content"><$end>
 	<@if( t.draft,  '<div><strong class="warning">【この記事は下書きです】</strong></div>' )>
 	<@if(!t.draft && !t.enable, '<div><strong class="warning">【この記事は非公開です】</strong></div>')>

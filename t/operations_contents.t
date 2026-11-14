@@ -86,10 +86,10 @@ subtest '編集画面：親のパーマリンクを変えると子孫も変わ�
 	is($app->get('guest', '/a/b/c')->{status}, 404, '古いURLは出ない');
 };
 
-subtest '編集画面：子のあるページはブログ記事にできない' => sub {
+subtest '編集画面：子のあるページは記事にできない' => sub {
 	my $r = $app->post('admin', '', { %ART, edit_pkey_int => 2, title => 'B', body_txt => "本文\n" });
 	ok(!AppTest::is_reload($r), '保存できない');
-	like(body($r), qr{子の固定ページがあるので、ブログ記事にはできません}, 'エラーの文言');
+	like(body($r), qr{子の固定ページがあるので、記事にはできません}, 'エラーの文言');
 	is(pages()->{2}->{ctype}, 'page', '固定ページのまま');
 };
 

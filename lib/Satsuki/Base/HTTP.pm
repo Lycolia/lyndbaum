@@ -167,7 +167,7 @@ sub is_internal_ip {
 	return 0;
 }
 
-# ブログ自身のホスト名か。自分のドメインが内部アドレスに解決される環境でも、自分へのリンクは取得できるようにする
+# サイト自身のホスト名か。自分のドメインが内部アドレスに解決される環境でも、自分へのリンクは取得できるようにする
 # ServerURLはHostヘッダーの偽装から守られている（adiary.pm secure_http_host）
 sub is_self_host {
 	my ($self, $host) = @_;

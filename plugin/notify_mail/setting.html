@@ -37,7 +37,7 @@
 
 	<tr>
 		<th>メールタイトル</th>
-		<td><input type="text" class="w160" name="subject" value="<@esc(ps.subject) || '%n notify'>" maxlength="64"><span class="help-text">%nはブログ名に置き換わります。</span></td>
+		<td><input type="text" class="w160" name="subject" value="<@esc(ps.subject) || '%n notify'>" maxlength="64"><span class="help-text">%nはサイト名に置き換わります。</span></td>
 	</tr>
 <@ifexec(v.system_email, begin, begin)>
 	<tr>

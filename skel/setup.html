@@ -10,10 +10,10 @@
 <@> システムモード
 <$v.system_mode("初期セットアップ")>
 
-<@> ブログ名は今の値を入れておく。初めの「（ブログのタイトルを入力）」は入れない
+<@> サイト名は今の値を入れておく。初めの「（サイトのタイトルを入力）」は入れない
 <$s = v.blog>
 <$blog_name = s.blog_name>
-<$ifset(blog_name eq '（ブログのタイトルを入力）', blog_name, '')>
+<$ifset(blog_name eq '（サイトのタイトルを入力）', blog_name, '')>
 
 <!--=========================================================================-->
 <article class="system setting">
@@ -23,7 +23,7 @@
 <@ifexec(!ret, begin)>
 	<form class="js-ajax" id="setup-form" data-url="<@v.myself>?menu">
 	<input type="hidden" name="action" value="_ajax_setup">
-	<p>管理者とブログ名を決めてください。ユーザーは管理者1人だけです。</p>
+	<p>管理者とサイト名を決めてください。ユーザーは管理者1人だけです。</p>
 
 	<table>
 	<tr>
@@ -46,7 +46,7 @@
 		<td><input type="password" name="pass2" class="w120" value="" data-name="pass" autocomplete="new-password" required></td>
 	</tr>
 	<tr>
-		<th>ブログ名</th>
+		<th>サイト名</th>
 		<td><input type="text" name="blog_name" class="w280" value="<@blog_name>" maxlength="48" required></td>
 	</tr>
 	</table>

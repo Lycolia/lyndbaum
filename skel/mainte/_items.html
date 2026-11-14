@@ -1,8 +1,8 @@
 <@40.is_function>
 <$ifsuperjump_clear(! Auth.ok,       '_sub/error_message_403', 'ログインしていません')>
-<$ifsuperjump_clear(! v.blog_admin,  '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
+<$ifsuperjump_clear(! v.blog_admin,  '_sub/error_message_403', 'サイトが存在しないか権限がありません')>
 <$return( begin_hash )>
-	index = ブログの再構築
+	index = サイトの再構築
 	blog_clear = 全記事の削除
 	import = インポート
 	import_img = 画像取込

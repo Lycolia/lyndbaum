@@ -4,7 +4,7 @@
 
 # Lyndbaum - The ultimate lightweight self-hosted Knowledge Base Management System for Japanese
 
-本システムは個人用のブログやWikiとして特化したシステムを目指しています。
+本システムは個人用のブログやWikiなど、Webサイトを構築するCMSとして特化したシステムを目指しています。
 
 レンタルサーバーや自宅サーバでホストでき、軽量で高速、モダンな機能を持ったものとして設計されています。
 

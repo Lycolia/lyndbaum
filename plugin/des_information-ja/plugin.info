@@ -1,5 +1,5 @@
 ######################################################################
-title=ブログの基本情報
+title=サイトの基本情報
 version=1.03
 #					(C)2013 nabe@abk
 ######################################################################
@@ -18,7 +18,7 @@ module_id=side-information
 <div class="hatena-moduletitle">Information</div>
 <div class="hatena-modulebody">
 <ul class="hatena-section">
-<li class="description">このブログの説明</li>
+<li class="description">このサイトの説明</li>
 </ul>
 </div>
 </div>

@@ -5,7 +5,7 @@ Access: https://twitter.com/nabe_abk
 License: GPL
 System-mode: yes
 
-ブログの説明をヘッダに置くと自動的に配置します。
+サイトの説明をヘッダに置くと自動的に配置します。
 
 ChangeLog
 2015-05-09 初版

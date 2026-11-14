@@ -3,7 +3,7 @@
 <$err=FormError>
 
 <@> システムモード
-<$v.system_mode("ブログの基本設定")>
+<$v.system_mode("サイトの基本設定")>
 
 <!--=========================================================================-->
 <@> 階層ツリー、初期処理
@@ -24,10 +24,10 @@
 	<table class="blog-setting blog-setting-stack">
 	<tbody>
 	<tr>
-		<th>ブログ名</th><td<@err.c_blog_name>><input type="text" name="blog_name" class="w280" value="<@s.blog_name>" required></td>
+		<th>サイト名</th><td<@err.c_blog_name>><input type="text" name="blog_name" class="w280" value="<@s.blog_name>" required></td>
 	</tr>
 	<tr>
-		<th>ブログの紹介<br>（RSSにも出力）<br><a href="<@v.myself>?etc/allow_tags&amp;n=description" target="_blank">使用可能なHTMLタグ</a></th><td><textarea name="description_txt" class="description w400" cols="50" rows="3" wrap="soft"><@replace(x = s.description_txt, "<br>", "\n")></textarea>
+		<th>サイトの紹介<br>（RSSにも出力）<br><a href="<@v.myself>?etc/allow_tags&amp;n=description" target="_blank">使用可能なHTMLタグ</a></th><td><textarea name="description_txt" class="description w400" cols="50" rows="3" wrap="soft"><@replace(x = s.description_txt, "<br>", "\n")></textarea>
 		改行有効。タグ非推奨。紹介文以外は<a href="<@v.myself>?design/edit">デザイン編集</a>を。</td>
 	</tr>
 	<tr><th>更新通知</th>

@@ -14,7 +14,7 @@ module_id=page-title
 
 *sample_html=<<HTML
 <h1 id="<@id>" data-module-name="<@this>">
-	<a href="#">ブログのタイトル</a>
+	<a href="#">サイトのタイトル</a>
 </h1>
 HTML
 

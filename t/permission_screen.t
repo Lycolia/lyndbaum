@@ -32,7 +32,7 @@ my $json  = sub { my $r = shift; $r->{status} == 200 && $r->{json} && !$r->{json
 
 my @SCREENS = (
 	# 公開画面
-	[ ''                    , 'guest' , 'テストのブログ' ],
+	[ ''                    , 'guest' , 'テストのサイト' ],
 	[ '/01'                 , 'guest' , 'editorの記事' ],
 
 	# ログインと共通
@@ -48,8 +48,8 @@ my @SCREENS = (
 	[ 'tag_edit'            , 'admin', 'タグの編集' ],
 	[ 'contents_edit'       , 'admin', '固定ページの表示順' ],
 
-	# ブログの設定
-	[ 'set/'                , 'admin' , 'ブログの基本設定' ],
+	# サイトの設定
+	[ 'set/'                , 'admin' , 'サイトの基本設定' ],
 	[ 'set/detail'          , 'admin' , '詳細/コメント設定' ],
 	[ 'set/editor'          , 'admin' , '編集画面の設定' ],
 
@@ -75,8 +75,8 @@ my @SCREENS = (
 	[ 'plugin/plugin_setting&name=des_clock', 'admin', sub { $_[0]->{status} == 200 && $_[0]->{body} =~ /\S/ } ],
 	[ 'plugin/plugin_readme&name=des_clock' , 'admin' , $text ],
 
-	# ブログのメンテナンス
-	[ 'mainte/'             , 'admin' , 'ブログの再構築' ],
+	# サイトのメンテナンス
+	[ 'mainte/'             , 'admin' , 'サイトの再構築' ],
 	[ 'mainte/blog_clear'   , 'admin' , '全記事の削除' ],
 	[ 'mainte/import'       , 'admin' , '記事のインポート' ],
 	[ 'mainte/import_img'   , 'admin' , '外部画像の取り込み' ],

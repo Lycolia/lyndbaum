@@ -15,7 +15,7 @@ package SatsukiApp::adiary;
 ################################################################################
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとサイトのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとサイトの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -43,7 +43,7 @@ sub system_update {
 		$opt{rebuild} ||= $h->{rebuild};	# 全記事再構築
 		$opt{plugin}  ||= $h->{plugin};		# プラグイン更新
 		$opt{theme}   ||= $h->{theme};		# テーマカスタムCSS更新
-		$opt{info}    ||= $h->{info};		# ブログ付加情報更新
+		$opt{info}    ||= $h->{info};		# サイト付加情報更新
 
 		# 条件付きリビルド
 		if ($h->{rebuild_cond}) {
@@ -58,7 +58,7 @@ sub system_update {
 		$cur = $h->{ver};
 	}
 	$self->select_blog();
-	if (!$exists) { %opt = (); }	# ブログが無ければ再構築などは不要
+	if (!$exists) { %opt = (); }	# サイトが無ければ再構築などは不要
 
 	# 再構築
 	if ($opt{rebuild}) {
@@ -95,7 +95,7 @@ sub system_update {
 		$ROBJ->message("Remake all custom css");
 		$self->remake_theme_custom_css();
 	}
-	# ブログ付加情報の再構築
+	# サイト付加情報の再構築
 	if ($opt{info}) {
 		$ROBJ->message("Rebuild blog infomation");
 		$self->blog_info_rebuild();
@@ -116,10 +116,10 @@ sub update_unsupported {
 #-------------------------------------------------------------------------------
 # ●システムアップデート for Ver4.43
 #-------------------------------------------------------------------------------
-# 同時編集の確認を削除したので、システム設定の間隔と、ブログのロックのファイルを置いたディレクトリを消す
+# 同時編集の確認を削除したので、システム設定の間隔と、サイトのロックのファイルを置いたディレクトリを消す
 # 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
-# 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、ブログの設定と記事に保存したパスを移す
-# 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、ブログの設定を移す
+# 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、サイトの設定と記事に保存したパスを移す
+# 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、サイトの設定を移す
 # 記事ヘッダの日時の設定（tmdate、wiki_tm）を消す
 # satsuki2系のテーマの色の調整の、前のポップアップのヘルプの色（fixhelpfont）を、ヘルプの文字の色（helpfont）にしたので、保存した値を移す
 sub sys_update_443 {
@@ -148,7 +148,7 @@ sub sys_update_443 {
 	my $dir = $self->{blog_dir} . 'lock/';
 	if (-d $dir) { $ROBJ->dir_delete($dir); }
 
-	# ブログの設定（ブログの画像、アイコン、プラグインの画像など）のパス
+	# サイトの設定（サイトの画像、アイコン、プラグインの画像など）のパス
 	my $old_path = qr|pub/attachments/|;
 	my $new_path = 'pub/attach/';
 	my %up;
@@ -158,7 +158,7 @@ sub sys_update_443 {
 	}
 	if (%up) { $self->update_blogset($blog, \%up); }
 
-	# 固定ページの内部の名前をwikiからpageにしたので、ブログの設定（編集画面の既定、テーマの色の調整）を移す
+	# 固定ページの内部の名前をwikiからpageにしたので、サイトの設定（編集画面の既定、テーマの色の調整）を移す
 	# 記事ヘッダ（dea_art-info）の日時の設定（tmdate、wiki_tm）は、#70から効いておらず、意味の違う設定にしたので、移さずに消す
 	{
 		my %up = map { ("p:dea_art-info:$_" => undef) } grep { exists($blog->{"p:dea_art-info:$_"}) } qw(tmdate wiki_tm page_tm);

@@ -8,8 +8,8 @@
 <@> ログインしていない
 <$ifjump(!Auth.ok && ENV.REQUEST_METHOD ne 'POST', 'login')>
 
-<@> ブログが存在しない or 権限がない
-<$ifjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
+<@> サイトが存在しない or 権限がない
+<$ifjump_clear(! v.blog_admin, '_sub/error_message_403', 'サイトが存在しないか権限がありません')>
 
 <@> 編集モードなら記事をロード
 <$ifexec(v.pinfo, begin, begin)>
@@ -186,7 +186,7 @@
 
 <aside class="edit-side">
 	<!--アイキャッチ画像=====================================================-->
-	<@> 選んでいなければブログの画像を使う（edit.js）。本文の画像は拾わない
+	<@> 選んでいなければサイトの画像を使う（edit.js）。本文の画像は拾わない
 	<section class="edit-box" id="edit-eyecatch">
 	<h3>アイキャッチ画像</h3>
 	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">

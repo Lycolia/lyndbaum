@@ -128,14 +128,14 @@ body {
 }
 
 /* 本文部 ----------------------------------------------------*/
-/* 管理メニュー + ブログタイトル + サイドバー + 記事部 */
+/* 管理メニュー + サイトタイトル + サイドバー + 記事部 */
 #adiary-body {
     margin:                 0 auto;
     /* ヘッダー・フッターを常に表示 */
     height:                 100%;
 }
 
-/* 管理メニュー + ブログタイトル */
+/* 管理メニュー + サイトタイトル */
 #header {
     background-color:       black;
 }
@@ -152,7 +152,7 @@ body {
     width:                  calc(100% - 520px);
 }
 
-/* ブログタイトル部 */
+/* サイトタイトル部 */
 #page-title {
     margin:                 0;
     padding:                0 20px;
@@ -1044,7 +1044,7 @@ div.hatena-module:not(.system-module) li {
 /* --------------------------------------------------------- */
 /* ■ モジュール */
 /* --------------------------------------------------------- */
-/* ヘッダー: ブログの説明、自由入力, 検索 */
+/* ヘッダー: サイトの説明、自由入力, 検索 */
 #header .dem-module, 
 div[data-module-name="dem_searchbox,1"], #head-search {
 }
@@ -1129,7 +1129,7 @@ article.system h2 {
 article.system div.body {
 }
 
-/* ブログの情報(サイドバー) */
+/* サイトの情報(サイドバー) */
 #side-login-information tr:nth-child(odd) td,
 #side-login-information tr:nth-child(even) td{
     background-color:       transparent;

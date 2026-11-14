@@ -234,7 +234,7 @@ __END_BLK_DATA
 
 - カラムの定義（`create_table`、`add_column`に渡すハッシュ）：`name`、`type`（`int`、`float`、`flag`、`text`、`ltext`）、`index`、`index_tdb`、`unique`、`not_null`、`default`。どちらも同じキーを使う。
 - カラムを足す、消す、indexにするときは、`#index.dat`と`#index.backup.dat`の両方を書き直す。
-- 既にあるブログにカラムを足すときの手順は`アップデート処理.md`を参照。
+- 既にあるサイトにカラムを足すときの手順は`アップデート処理.md`を参照。
 
 ### indexの作り直し
 

@@ -170,7 +170,7 @@ subtest '内部のアドレスだけを除いて外部へ接続する' => sub {
 	is(scalar(@tried), 1, '外部のアドレスにだけ接続を試みる');
 };
 
-subtest 'ブログ自身のホスト名だけは内部のアドレスへ接続できる' => sub {
+subtest 'サイト自身のホスト名だけは内部のアドレスへ接続できる' => sub {
 	{
 		package FakeRobj;
 		sub translate { my $self = shift; my $f = shift; return sprintf($f, @_); }

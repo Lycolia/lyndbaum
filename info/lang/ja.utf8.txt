@@ -173,7 +173,7 @@ Illegal day=日付（日）の指定が不正です
 ###############################################################################
 # adiary汎用
 ###############################################################################
-Blog not found=ブログがみつかりません
+Blog not found=サイトがみつかりません
 Article '0%d' not found=記事番号「0%d」が見つかりません
 Now maintenance mode=現在メンテナンスモードで動作中です。
 Require update=アップデートが必要です。
@@ -204,7 +204,7 @@ Can not use character "%s" in the name of content key=パーマリンクの名�
 The parent page is not found=親の固定ページが見つかりません
 This page or its child page can not be the parent=このページと、その子孫のページは親にできません
 The parent page is not published, so this page can not be published=親の固定ページが非公開なので、公開できません
-This page has child pages, so it can not be changed to an article=子の固定ページがあるので、ブログ記事にはできません
+This page has child pages, so it can not be changed to an article=子の固定ページがあるので、記事にはできません
 Content key "%s" is already used, so "%s" was not changed=パーマリンク「%s」がほかで使われているので、「%s」のパーマリンクは変えませんでした
 Load parser '%s' failed=パーサーのロードに失敗しました : %s
 
@@ -286,4 +286,4 @@ Not exists article=該当する記事がみつかりません
 ###############################################################################
 Restart of %s is required!=%sの再起動が必要です！
 Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.32の版でアップデート処理を行ってください
-Blog database error(%s)=ブログのデータベースのエラーです（%s）
+Blog database error(%s)=サイトのデータベースのエラーです（%s）

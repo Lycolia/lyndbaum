@@ -74,8 +74,8 @@ subtest '初期セットアップ' => sub {
 	foreach my $n (qw(adiary_id name pass pass2 blog_name)) {
 		like($b, qr{name="$n"}, "$n の欄がある");
 	}
-	unlike($b, qr{value="（ブログのタイトルを入力）"}, 'ブログ名の欄に、初めの値を入れない');
-	unlike($b, qr{（ブログのタイトルを入力）}, "上のバーやタブの題にも、初めのブログ名を出さない");
+	unlike($b, qr{value="（サイトのタイトルを入力）"}, 'サイト名の欄に、初めの値を入れない');
+	unlike($b, qr{（サイトのタイトルを入力）}, "上のバーやタブの題にも、初めのサイト名を出さない");
 	like($b, qr{<span class="admin-bar-blog">Lyndbaum</span>}, "上のバーにはシステム名を出す");
 	unlike($b, qr{id="admin-nav"}, '管理画面のナビは出ない');
 
@@ -84,22 +84,22 @@ subtest '初期セットアップ' => sub {
 	is_deeply([ AppTest::diff_fingerprint($before, $fresh->fingerprint()) ], [], 'ほかの処理では何も変わらない');
 
 	# 入力の誤り
-	ok(!json_ok($setup->(blog_name => '')), 'ブログ名が空なら作らない');
-	ok(!json_ok($setup->(blog_name => 'あ' x 49)), 'ブログ名が49文字なら作らない');
+	ok(!json_ok($setup->(blog_name => '')), 'サイト名が空なら作らない');
+	ok(!json_ok($setup->(blog_name => 'あ' x 49)), 'サイト名が49文字なら作らない');
 	ok(!json_ok($setup->(pass => 'abcdefg', pass2 => 'abcdefg')), 'パスワードが7文字なら作らない');
 	ok(!json_ok($setup->(pass2 => 'different-pass')), '確認用のパスワードが違うと作らない');
 	ok(!json_ok($setup->(adiary_id => '1abc')), 'IDの先頭が数字なら作らない');
 	ok(!json_ok($setup->(name => '')), '名前が空なら作らない');
 	my $r = $setup->(blog_name => '', adiary_id => '');
-	ok($r->{json} && $r->{json}->{errs} && $r->{json}->{errs}->{blog_name} && $r->{json}->{errs}->{id}, 'ブログ名と管理者の誤りをまとめて返す');
+	ok($r->{json} && $r->{json}->{errs} && $r->{json}->{errs}->{blog_name} && $r->{json}->{errs}->{id}, 'サイト名と管理者の誤りをまとめて返す');
 	ok($to_setup->($fresh->get('guest', '')), '誤りのときは、セットアップの前のまま');
 
 	# 作る
-	$r = $setup->(blog_name => '<b>最初</b>のブログ');
+	$r = $setup->(blog_name => '<b>最初</b>のサイト');
 	ok(json_ok($r), '管理者を作れる');
 	ok($fresh->{cookie}->{first}->{session}, 'ログインしたCookieが返る');
 	is($fresh->get('first', 'menu')->{status}, 200, 'そのままダッシュボードを開ける');
-	like(body($fresh->get('guest', '')), qr{<title>&lt;b&gt;最初&lt;/b&gt;のブログ}, 'ブログ名が入る（タグはエスケープする）');
+	like(body($fresh->get('guest', '')), qr{<title>&lt;b&gt;最初&lt;/b&gt;のサイト}, 'サイト名が入る（タグはエスケープする）');
 	ok(!-e "$fresh->{dir}/data/setup.lock", 'ロックのファイルは残らない');
 
 	# 2回目は作れない
@@ -274,7 +274,7 @@ subtest '4.42より古いデータからのアップデート' => sub {
 		print $fh $conf;
 		close($fh);
 	}
-	# 4.43より前の添付ファイルのフォルダ（pub/attachments/）と、そこを指すパスを書いた記事とブログの設定
+	# 4.43より前の添付ファイルのフォルダ（pub/attachments/）と、そこを指すパスを書いた記事とサイトの設定
 	my $att     = "$dir/pub/attach";
 	my $old_att = "$dir/pub/attachments";
 	my $img     = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
@@ -292,7 +292,7 @@ subtest '4.42より古いデータからのアップデート' => sub {
 	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.42なら知らせない');
 	ok(AppTest::is_reload($update->()), '4.42からはアップデートできる');
 	ok(-f "$att/$img" && !-e $old_att, '添付ファイルのフォルダをpub/attach/に移す');
-	like(read_file($setting), qr{^blog_image=pub/attach/\@system/sys-blog_image\.png$}m, 'ブログの設定のパスを書き換える');
+	like(read_file($setting), qr{^blog_image=pub/attach/\@system/sys-blog_image\.png$}m, 'サイトの設定のパスを書き換える');
 	{
 		my $b = body($app->get('guest', '/old-attach'));
 		unlike($b, qr{pub/attachments/}, '記事に古いパスが残らない');
@@ -302,7 +302,7 @@ subtest '4.42より古いデータからのアップデート' => sub {
 		my $art = join('', map { read_file($_) } glob("$dir/data/db/{art,rev,lastrev,trash}/*.dat"));
 		unlike($art, qr{pub/attachments/}, 'DBに古いパスが残らない');
 	}
-	{	# 後のテストのため、ブログの設定を戻す
+	{	# 後のテストのため、サイトの設定を戻す
 		open(my $fh, '>:utf8', $setting) || die "$setting: $!";
 		print $fh $set_org;
 		close($fh);
@@ -472,7 +472,7 @@ subtest '同時編集の確認の残りを消すアップデート（4.43）' =>
 	ok(AppTest::is_reload($update->("edit_lock_interval=30\n")), 'アップデート処理を行える');
 	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
 	unlike(read_file($sys), qr/^edit_lock_interval=/m, 'システム設定の間隔を消す');
-	ok(!-e $lock, 'ブログのlock/を消す');
+	ok(!-e $lock, 'サイトのlock/を消す');
 	$app->restore($snap);
 
 	$snap = $app->snapshot();
@@ -508,7 +508,7 @@ subtest 'パスワードを忘れたときの復旧' => sub {
 	is($fresh->get('admin', 'menu')->{status}, 302, 'ユーザーのフォルダを消すと、前の管理者のセッションでは入れない');
 	$fresh->setup_admin('again');
 	is($fresh->get('again', 'menu')->{status}, 200, '初期セットアップから管理者を作り直せる');
-	is($fresh->get('again', 'set/')->{status}, 200, 'ブログの設定はそのまま使える');
+	is($fresh->get('again', 'set/')->{status}, 200, 'サイトの設定はそのまま使える');
 
 	# 記事が残っているときは、公開画面を止めない
 	my $kept = AppTest->new()->setup()->seed();
@@ -519,7 +519,7 @@ subtest 'パスワードを忘れたときの復旧' => sub {
 	is($kept->get('guest', '/01')->{status}, 200, '記事も開ける');
 	is($kept->get('guest', 'menu')->{status}, 403, '管理画面は開けない');
 	like(body($kept->get('guest', 'setup')), qr{<title>初期セットアップ}, '初期セットアップの画面は開ける');
-	like(body($kept->get('guest', 'setup')), qr{name="blog_name" [^>]*value="テストのブログ"}, 'ブログ名の欄に今の名前を入れる');
+	like(body($kept->get('guest', 'setup')), qr{name="blog_name" [^>]*value="テストのサイト"}, 'サイト名の欄に今の名前を入れる');
 	$kept->setup_admin('again');
 	is($kept->get('again', 'menu')->{status}, 200, '管理者を作り直せる');
 	like(body($kept->get('again', 'artlist')), qr{editorの記事}, '記事はそのまま');

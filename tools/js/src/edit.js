@@ -315,7 +315,7 @@ const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catc
 //##############################################################################
 // ■アイキャッチ画像（OGP画像）
 //##############################################################################
-// name="ogp" の欄が実体（main_image）。空ならブログの画像を使う。本文の画像は拾わない。
+// name="ogp" の欄が実体（main_image）。空ならサイトの画像を使う。本文の画像は拾わない。
 // 画像はメディア管理を別のウィンドウで開いて選ぶ（media.js が set_eyecatch() を呼ぶ）
 {
 	const preview  = document.getElementById('eyecatch-preview');

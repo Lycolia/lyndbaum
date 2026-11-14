@@ -112,7 +112,7 @@ my @ACTIONS = (
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up2.png', content => $PNG, type => 'image/png' } ] },
 
 	#---------------------------------------------------------------
-	# ブログの設定
+	# サイトの設定
 	#---------------------------------------------------------------
 	{ action => 'set/index', min => 'admin',
 	  form => { blog_name => '新しい名前', description_txt => '' } },
@@ -194,7 +194,7 @@ my @ACTIONS = (
 my %SKIP = (
 	'_ajax_login'       => '誰でも',
 	'_ajax_setup'       => '管理者がいないときだけ（t/operations_user.t）',
-	'comment_post'      => '誰でも（ブログの設定で、コメントできる人を決める）',
+	'comment_post'      => '誰でも（サイトの設定で、コメントできる人を決める）',
 	'etc/dummy'         => '誰でも（何もしない）',
 );
 

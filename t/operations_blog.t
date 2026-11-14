@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 主な操作の中身のテスト（ブログの設定、メディア管理）
+# 主な操作の中身のテスト（サイトの設定、メディア管理）
 #-------------------------------------------------------------------------------
 # 実行: prove t/operations_blog.t
 #
@@ -23,19 +23,19 @@ my $app = AppTest->new()->setup()->seed();
 my $dir = $app->dir;
 
 #-------------------------------------------------------------------------------
-# ブログの設定
+# サイトの設定
 #-------------------------------------------------------------------------------
-subtest 'ブログの基本設定' => sub {
-	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明' });
+subtest 'サイトの基本設定' => sub {
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明' });
 	ok(AppTest::is_reload($r), '保存できる');
 	$r = $app->get('guest', '');
-	is($r->{title}, 'テストのブログ', 'トップの題名が変わる');
-	like(body($r), qr{ブログの説明}, '説明が出る');
-	like(read_file("$dir/pub/rss.xml"), qr{テストのブログ}, 'RSSの題名も変わる');
+	is($r->{title}, 'テストのサイト', 'トップの題名が変わる');
+	like(body($r), qr{サイトの説明}, '説明が出る');
+	like(read_file("$dir/pub/rss.xml"), qr{テストのサイト}, 'RSSの題名も変わる');
 };
 
 subtest '検索エンジンに掲載しない（noindex）' => sub {
-	my %base   = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+	my %base   = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
 	my $robots = sub { scalar(() = body($_[0]) =~ m{<meta name="robots" content="noindex,nofollow">\n}g) };
 	my $rss    = read_file("$dir/pub/rss.xml");
 	my $q      = AppTest::_uri_escape('記事');
@@ -61,15 +61,15 @@ subtest '検索エンジンに掲載しない（noindex）' => sub {
 	is($robots->($app->get('guest', "?q=$q")), 1, '検索画面にはもとのとおり付く');
 };
 
-subtest 'コメントの強制OFFとブログ全体のNSFWは基本設定で選ぶ' => sub {
-	my %base    = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+subtest 'コメントの強制OFFとサイト全体のNSFWは基本設定で選ぶ' => sub {
+	my %base    = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
 	my $setting = "$dir/data/blog/setting.dat";
 	my $rating  = sub { body($app->get('guest', '')) =~ m{<meta name="rating" content="adult">} ? 1 : 0 };
 
 	my $r = $app->post('admin', 'set/', { %base, com_ok_force => 0, nsfw_force => 1 });
 	ok(AppTest::is_reload($r), 'オンで保存できる');
 	like(read_file($setting), qr/^com_ok_force=0$/m, 'コメントの強制OFFが設定に入る');
-	like(read_file($setting), qr/^nsfw_force=1$/m, 'ブログ全体のNSFWが設定に入る');
+	like(read_file($setting), qr/^nsfw_force=1$/m, 'サイト全体のNSFWが設定に入る');
 	my $b = body($app->get('admin', 'set/'));
 	like($b, qr{<input type="checkbox" name="com_ok_force" value="0" checked>すべての記事でコメントを受け付けない</label>}, '基本設定でコメントの強制OFFにチェックが入る');
 	like($b, qr{<input type="checkbox" name="nsfw_force" value="1" checked>サイト全体をNSFWにする</label>}, '基本設定でNSFWにチェックが入る');
@@ -93,7 +93,7 @@ subtest 'コメントの強制OFFとブログ全体のNSFWは基本設定で選�
 };
 
 #-------------------------------------------------------------------------------
-# 公開画面のメタ情報（PageSpeed Insights の指摘）。ブログの説明を入れた後、記事を書き足す前に確かめる
+# 公開画面のメタ情報（PageSpeed Insights の指摘）。サイトの説明を入れた後、記事を書き足す前に確かめる
 #-------------------------------------------------------------------------------
 subtest 'メタディスクリプション' => sub {
 	# 記事は、トップに出ている最初の記事（ほかのテストで公開の状態が変わるため）
@@ -123,11 +123,11 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	like($b, qr{<meta name="generator" content="[^"]* \d+\.\d{2}">}, 'generatorの版は小数2桁（4.30が4.3にならない）');
 	like($b, qr{</a> v\d+\.\d{2} }, 'フッターの版は小数2桁');
 
-	# ブログの画像を設定していないページは、既定のアイコン（正方形）なので小さいカード
+	# サイトの画像を設定していないページは、既定のアイコン（正方形）なので小さいカード
 	like($b, qr{<meta property="og:image" content="[^"]*/default-icon\.png">}, 'og:imageは既定のアイコン');
 	like($b, qr{<meta name="twitter:card" content="summary">}, '既定のアイコンのtwitter:cardはsummary');
 
-	# ブログの画像（バナーを想定）は大きいカード
+	# サイトの画像（バナーを想定）は大きいカード
 	my $setting = "$dir/data/blog/setting.dat";
 	my $org = read_file($setting);
 	my $write = sub {
@@ -137,8 +137,8 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 	};
 	$write->($org . "blog_image=pub/attach/\@system/sys-blog_image.png\n");
 	$b = body($app->get('guest', ''));
-	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはブログの画像');
-	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'ブログの画像のtwitter:cardはsummary_large_image');
+	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはサイトの画像');
+	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'サイトの画像のtwitter:cardはsummary_large_image');
 	$write->($org);
 };
 
@@ -152,29 +152,29 @@ subtest 'RSSのチャンネルの画像' => sub {
 	my $big   = $file->('default-icon.png');	# 192x192（RSSの上限の幅144を超える）
 	my $small = $file->('rss-icon.png');		# 80x15
 	my $image = sub { (read_file("$dir/pub/rss.xml") =~ m{<image>(.*?)</image>}s)[0] // '' };
-	my %base  = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+	my %base  = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
 
 	my $r = $app->post('admin', 'set/', [ %base, iconfile => { filename => 'icon.png', content => $small, type => 'image/png' } ]);
 	ok(AppTest::is_reload($r), 'サイトアイコンを上げられる');
 	my $img = $image->();
-	like($img, qr{<url>[^<]*/sys-iconfile\.png</url>}, 'ブログの画像がなければ、サイトアイコンを使う');
+	like($img, qr{<url>[^<]*/sys-iconfile\.png</url>}, 'サイトの画像がなければ、サイトアイコンを使う');
 	like($img, qr{<width>80</width>\s*<height>15</height>}, '上限以内なので幅と高さを書く');
 
 	$r = $app->post('admin', 'set/detail', [ action => 'set/detail', blog_image => { filename => 'banner.bmp', content => $big, type => 'image/bmp' } ]);
-	ok(!AppTest::is_reload($r), 'ブログの画像にPNG・JPEG・GIF以外は上げられない');
+	ok(!AppTest::is_reload($r), 'サイトの画像にPNG・JPEG・GIF以外は上げられない');
 	unlike(read_file($setting), qr/^blog_image=/m, '設定に入らない');
 
 	$r = $app->post('admin', 'set/detail', [ action => 'set/detail', blog_image => { filename => 'banner.png', content => $big, type => 'image/png' } ]);
-	ok(AppTest::is_reload($r), 'ブログの画像を上げられる');
+	ok(AppTest::is_reload($r), 'サイトの画像を上げられる');
 	like(read_file($setting), qr/^blog_image_w=192$/m, '幅を設定に保存する');
 	like(read_file($setting), qr/^blog_image_h=192$/m, '高さを設定に保存する');
 	$img = $image->();
-	like($img, qr{<url>[^<]*/sys-blog_image\.png</url>}, 'ブログの画像を使う');
+	like($img, qr{<url>[^<]*/sys-blog_image\.png</url>}, 'サイトの画像を使う');
 	unlike($img, qr{<width>|<height>}, '上限を超えるので幅と高さを書かない');
 	like(body($app->get('guest', '')), qr{<meta name="twitter:card" content="summary_large_image">}, 'twitter:cardはsummary_large_image');
 
 	$r = $app->post('admin', 'set/detail', { action => 'set/detail', blog_image_void => 1 });
-	ok(AppTest::is_reload($r), 'ブログの画像を消せる');
+	ok(AppTest::is_reload($r), 'サイトの画像を消せる');
 	unlike(read_file($setting), qr/^blog_image_[wh]=./m, '幅と高さも消える');
 	like($image->(), qr{<url>[^<]*/sys-iconfile\.png</url>}, 'サイトアイコンに戻る');
 
@@ -202,7 +202,7 @@ subtest 'コメントできる人' => sub {
 subtest 'プライベートモードの削除' => sub {
 	# 古い画面からPOSTされても、設定に入らず、閉じない
 	my $setting = "$dir/data/blog/setting.dat";
-	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明', private => 1 });
+	my $r = $app->post('admin', 'set/', { action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明', private => 1 });
 	ok(AppTest::is_reload($r), '基本設定を保存できる');
 	unlike(read_file($setting), qr/^(?:private=1|viewers=|view_pass=)/m, 'プライベートモード、閲覧者、表示パスワードは設定に入らない');
 	is($app->get('guest', '/02')->{status}, 200, 'ログインしていない人も記事を見られる');
@@ -212,7 +212,7 @@ subtest 'プライベートモードの削除' => sub {
 	}
 };
 
-subtest 'ブログの自動作成' => sub {
+subtest 'サイトの自動作成' => sub {
 	# 空のデータを初めて開く
 	my $fresh = AppTest->new();
 	my $r = $fresh->get('guest', '');
@@ -249,7 +249,7 @@ subtest 'ブログの自動作成' => sub {
 	system('rm', '-rf', "$part->{dir}/data/db/art") == 0 || die;
 	$r = $part->get('guest', '');
 	is($r->{status}, 503, 'artだけが無いと503');
-	like(body($r), qr{ブログのデータを読めない}, '読めないことを知らせる');
+	like(body($r), qr{サイトのデータを読めない}, '読めないことを知らせる');
 	ok(!-e "$part->{dir}/data/db/art", '作らない');
 	ok(-e "$part->{dir}/data/db/com/00001.dat", 'ほかのテーブルは消えない');
 	ok(-e "$part->{dir}/data/blog/setting.dat", '設定は消えない');
@@ -264,7 +264,7 @@ subtest 'ブログの自動作成' => sub {
 	chmod(0755, "$ro->{dir}/data/db");
 	is($ro->get('guest', 'setup')->{status}, 200, '直せば作る');
 
-	# ブログが無いままアップデートが要るとき
+	# サイトが無いままアップデートが要るとき
 	my $old = AppTest->new()->setup();
 	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev lastrev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
