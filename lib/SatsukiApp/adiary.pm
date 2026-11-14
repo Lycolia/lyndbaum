@@ -1153,14 +1153,17 @@ sub post_process_article {
 	my $mon  = $art->{mon}  = substr($yyyymmdd, 4, 2);
 	my $day  = $art->{day}  = substr($yyyymmdd, 6, 2);
 
-	# 更新日をテンプレートに出す用の処理
-	my $update_ymd = $ROBJ->time2timehash($art->{update_tm});
-	$art->{upd_year} = $update_ymd->{year};
-	$art->{upd_mon}  = $update_ymd->{mon};
-	$art->{upd_day}  = $update_ymd->{day};
+	# 更新日（記事ヘッダ、_sub/art_info）。update_tmが空ならtmを使う。time2timehashは空を今の時刻として扱うので、両方空なら作らない
+	my $update_tm = $art->{update_tm} || $art->{tm};
+	if ($update_tm) {
+		my $update_ymd = $ROBJ->time2timehash($update_tm);
+		$art->{upd_year} = $update_ymd->{year};
+		$art->{upd_mon}  = $update_ymd->{mon};
+		$art->{upd_day}  = $update_ymd->{day};
 
-	# 更新日の表示制御フラグ
-	$art->{shown_upd_date} = "$year$mon$day" != "$art->{upd_year}$art->{upd_mon}$art->{upd_day}";
+		# 記事の日付と違うときだけ出す
+		$art->{shown_upd_date} = "$year$mon$day" != "$art->{upd_year}$art->{upd_mon}$art->{upd_day}";
+	}
 
 	# パーマリンク関連
 	my $key = $art->{link_key};

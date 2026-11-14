@@ -15,7 +15,7 @@ package SatsukiApp::adiary;
 ################################################################################
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -120,6 +120,7 @@ sub update_unsupported {
 # 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
 # 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、ブログの設定と記事に保存したパスを移す
 # 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、ブログの設定を移す
+# 記事ヘッダの日時の設定（tmdate、wiki_tm）を消す
 sub sys_update_443 {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -156,10 +157,11 @@ sub sys_update_443 {
 	}
 	if (%up) { $self->update_blogset($blog, \%up); }
 
-	# 固定ページの内部の名前をwikiからpageにしたので、ブログの設定（編集画面の既定、プラグインの設定、テーマの色の調整）を移す
+	# 固定ページの内部の名前をwikiからpageにしたので、ブログの設定（編集画面の既定、テーマの色の調整）を移す
+	# 記事ヘッダ（dea_art-info）の日時の設定（tmdate、wiki_tm）は、#70から効いておらず、意味の違う設定にしたので、移さずに消す
 	{
-		my %up;
-		my %rename = ('wiki' => 'page', 'p:dea_art-info:wiki_tm' => 'p:dea_art-info:page_tm');
+		my %up = map { ("p:dea_art-info:$_" => undef) } grep { exists($blog->{"p:dea_art-info:$_"}) } qw(tmdate wiki_tm page_tm);
+		my %rename = ('wiki' => 'page');
 		foreach(keys(%rename)) {
 			if (!exists($blog->{$_})) { next; }
 			if ($blog->{ $rename{$_} } eq '') { $up{ $rename{$_} } = $blog->{$_}; }

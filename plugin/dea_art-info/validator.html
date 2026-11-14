@@ -2,16 +2,8 @@
 <@local(h)>
 <$h = validator(begin_hash, argv#0)>
 	hatena_bicon = flag
-
-	tmdate = 通常記事の日時表示
-	tmdate:type = int
-	tmdate:min  = 0
-	tmdate:max  = 2
-
-	page_tm = 固定ページの日時表示
-	page_tm:type = int
-	page_tm:min  = 0
-	page_tm:max  = 3
+	art_upd      = flag
+	page_upd     = flag
 <$end>
 
 <$ifbreak(form_error())>

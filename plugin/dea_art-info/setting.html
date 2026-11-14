@@ -1,22 +1,17 @@
 <@7>
-<@local(ps,x)>
+<@local(ps)>
 <$ps=argv#0>
 	<table class="blog-setting">
 	<tbody>
-	<tr><th>通常記事の日時</th>
-		<td><select name="tmdate"><$x = ps.tmdate>
-			<option value="0"<@if(x==0, ' selected')>>表示しない</option>
-			<option value="1"<@if(x==1, ' selected')>>投稿日時を表示</option>
-			<option value="2"<@if(x==2, ' selected')>>更新日時を表示</option>
-		</select></td>
+	<tr><th>通常記事の更新日</th>
+		<td colspan="2">
+			<label><input type="checkbox" name="art_upd" value="1"<@if(ps.art_upd, ' checked')>>記事の日付と違うときに表示する</label>
+		</td>
 	</tr>
-	<tr><th>固定ページの日時</th>
-		<td><select name="page_tm"><$x = ps.page_tm>
-			<option value="0"<@if(x==0, ' selected')>>表示しない</option>
-			<option value="1"<@if(x==1, ' selected')>>投稿日時を表示</option>
-			<option value="2"<@if(x==2, ' selected')>>更新日時を表示</option>
-			<option value="3"<@if(x==3, ' selected')>>記事の日付を表示</option>
-		</select></td>
+	<tr><th>固定ページの更新日</th>
+		<td colspan="2">
+			<label><input type="checkbox" name="page_upd" value="1"<@if(ps.page_upd, ' checked')>>記事の日付と違うときに表示する</label>
+		</td>
 	</tr>
 	<tr><th>はてなブックマーク数</th>
 		<td colspan="2">
