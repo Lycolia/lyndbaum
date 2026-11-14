@@ -15,7 +15,7 @@ package SatsukiApp::adiary;
 ################################################################################
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとブログの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、今までのヘルプの文字の色にする
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -121,6 +121,7 @@ sub update_unsupported {
 # 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、ブログの設定と記事に保存したパスを移す
 # 固定ページの内部の名前をwikiからpageにしたので、記事とゴミ箱のctypeと、ブログの設定を移す
 # 記事ヘッダの日時の設定（tmdate、wiki_tm）を消す
+# satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色にしたので、保存した値を今までの文字の色にする
 sub sys_update_443 {
 	my $self = shift;
 	my $ROBJ = $self->{ROBJ};
@@ -170,6 +171,25 @@ sub sys_update_443 {
 		foreach(keys(%$blog)) {
 			if ($_ !~ /^theme_custom:/ || $blog->{$_} !~ /^wikibg=/m) { next; }
 			($up{$_} = $blog->{$_}) =~ s/^wikibg=/pagebg=/mg;
+		}
+
+		# satsuki2系のテーマの色の調整のfixhelpfontを、ポップアップのヘルプの色から、ヘルプの文字（.help-text）の色にした。
+		# 保存してある値は前のポップアップの色なので、今までヘルプの文字に効いていた色（テーマごとの下の名前の値）にする
+		my %help_src = (
+			'bigblue'     => 'fixfont', 'bigblue-3col'  => 'fixfont', 'hatena2'    => 'fixfont',
+			'mikky'       => 'fixfont', 'nature-dark'   => 'artfont', 'nature-forest' => 'fixfont',
+			'nature-sky'  => 'fixfont', 'satsuki2'      => 'fixfont', 'satsuki2-3col' => 'fixfont',
+			'wp'          => 'fixfont', 'yuu'           => 'font'
+		);
+		foreach my $k (keys(%$blog)) {
+			if ($k !~ m|^theme_custom:satsuki2/([\w-]+)$| || !$help_src{$1}) { next; }
+			my $src = $help_src{$1};
+			my $v   = exists($up{$k}) ? $up{$k} : $blog->{$k};
+			if ($v eq '') { next; }
+			my ($col) = $v =~ /^\Q$src\E=(#[0-9A-Fa-f]+)$/m;
+			my $new   = join("\n", grep { $_ !~ /^fixhelpfont=/ } split(/\n/, $v));
+			if ($col) { $new .= ($new ne '' ? "\n" : '') . "fixhelpfont=$col"; }
+			if ($new ne $v) { $up{$k} = $new ne '' ? $new : undef; }
 		}
 		if (%up) { $self->update_blogset($blog, \%up); }
 	}
