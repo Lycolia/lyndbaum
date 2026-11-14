@@ -144,4 +144,9 @@ foreach my $s (@SCREENS) {
 	}
 }
 
+# skel/の直下にあって、set2/の_items.htmlの確認を通らない画面も、ログインしていなければ403
+foreach my $query (qw(tag_edit contents_edit)) {
+	is($app->get('guest', $query)->{status}, 403, "?$query をguestが開くと403");
+}
+
 done_testing();

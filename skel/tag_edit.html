@@ -1,6 +1,7 @@
 <@7>
 <@local(s,err)>
-<$ifbreak(!v.blog_admin)>
+<$ifsuperjump_clear(! Auth.ok, '_sub/error_message_403', 'ログインしていません')>
+<$ifsuperjump_clear(! v.blog_admin, '_sub/error_message_403', 'サイトが存在しないか権限がありません')>
 <$err=FormError>
 
 <@> システムモード
