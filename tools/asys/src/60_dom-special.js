@@ -22,7 +22,7 @@
 			return a.p - b.p;
 		});
 
-		const $obj = func ? func : this.$body;
+		const $obj = func ? $(func) : this.$body;	// DOMの要素も受け取る（jQueryを使わずに書いた画面のJSから呼ぶ）
 		for(var i=0; i<ary.length; i++)
 			ary[i].func.call(this, $obj);
 
