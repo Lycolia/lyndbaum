@@ -879,9 +879,11 @@ function view_html_source(_obj) {
 //##############################################################################
 }
 //------------------------------------------------------------------------------
-// ロードが早すぎてiframeのloadが呼ばれない時の対策
+// ロードが早すぎてiframeのloadが呼ばれない時の対策。
+// 読み込みを始める前の文書（about:blank）は除く
 //------------------------------------------------------------------------------
-if (!iframe_onload && iframe && iframe.contentWindow && iframe.contentWindow.$)
+if (!iframe_onload && iframe && iframe.contentDocument
+ && iframe.contentDocument.readyState == 'complete' && iframe.contentDocument.URL != 'about:blank')
 	setTimeout(on_iframe_load, 200);
 //------------------------------------------------------------------------------
 });
