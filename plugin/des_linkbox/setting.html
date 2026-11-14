@@ -48,12 +48,17 @@ var div = document.getElementById('lkbox-form');
 div.remove();
 
 btn.addEventListener('click', function(){
+	open_form(btn.textContent, '', '', append_element);
+});
+
+// 名前とURLのダイアログ。欄にtextとurlを入れて開き、OKでok(名前, URL)を呼ぶ（追加と編集で使う）
+function open_form(title, text, url, ok) {
 	document.getElementById('body').appendChild(div);
 	var inp_url  = document.getElementById('lkbox-link-url');
 	var inp_text = document.getElementById('lkbox-link-name');
 	var buttons = {};
 	buttons['OK'] = function(){
-		append_element(inp_text.value, inp_url.value);
+		ok(inp_text.value, inp_url.value);
 		adiary.dialog_close(div);
 		div.remove();
 	};
@@ -61,17 +66,17 @@ btn.addEventListener('click', function(){
 		adiary.dialog_close(div);
 		div.remove();
 	};
-	inp_url.value  = '';
-	inp_text.value = '';
+	inp_url.value  = url;
+	inp_text.value = text;
 
 	// ダイアログの表示
 	adiary.dialog(div, {
 		modal: true,
 		width:	adiary.DialogWidth,
-		title:  btn.textContent,
+		title:  title,
 		buttons: buttons
 	});
-});
+}
 
 function hidden(name, value) {
 	var inp = document.createElement('input');
@@ -82,14 +87,48 @@ function hidden(name, value) {
 }
 var num=0;
 function append_element(text, url) {
-	if (text == '') text=url;
 	var tr = document.createElement('tr');
 	// 並べ替えのハンドル
 	var hd = document.createElement('td');
 	hd.className = 'sort-handle';
 	hd.title = 'ドラッグして並べ替え';
+	// リンク。押すと編集する
 	var td = document.createElement('td');
-	// リンク
+	td.title = 'クリックして編集';
+	td.style.cursor = 'pointer';
+	// 閉じるボタン
+	var cl = document.createElement('td');
+	cl.className = 'c';
+	var span = document.createElement('span');
+	span.className = 'ui-icon ui-icon-closethick ui-button';
+	span.addEventListener('click', function(){ tr.remove() });
+	// 送る値は「番号,値」。番号は名前とURLの組み合わせに使う（validator.pm）。編集しても番号は変えない
+	var n = num++;
+	var inp0 = hidden('url_ary',  '');
+	var inp1 = hidden('text_ary', '');
+	var row  = { td: td, n: n, url: inp0, text: inp1 };
+	set_row(row, text, url);
+
+	td.addEventListener('click', function(evt){
+		evt.preventDefault();	// リンクを押しても移らない
+		open_form('リンクの編集', row.text_val, row.url_val, function(text, url){
+			set_row(row, text, url);
+		});
+	});
+
+	cl.append(inp0, inp1, span);
+	tr.append(hd, td, cl);
+	tbody.appendChild(tr);
+}
+// 行に名前とURLを入れる（表示と送る値）
+function set_row(row, text, url) {
+	if (text == '') text=url;
+	row.text_val = text;
+	row.url_val  = url;
+	row.url.value  = row.n + ',' + url;
+	row.text.value = row.n + ',' + text;
+	var td = row.td;
+	td.textContent = '';
 	if (!url || url == '') {
 		td.textContent = text;
 	} else {
@@ -98,19 +137,6 @@ function append_element(text, url) {
 		a.textContent = text;
 		td.appendChild( a );
 	}
-	// 閉じるボタン
-	var cl = document.createElement('td');
-	cl.className = 'c';
-	var span = document.createElement('span');
-	span.className = 'ui-icon ui-icon-closethick ui-button';
-	span.addEventListener('click', function(){ tr.remove() });
-	var inp0 = hidden('url_ary',  num + ',' + url);
-	var inp1 = hidden('text_ary', num + ',' + text);
-	num++;
-
-	cl.append(inp0, inp1, span);
-	tr.append(hd, td, cl);
-	tbody.appendChild(tr);
 }
 /////////////////
 //初期化処理
