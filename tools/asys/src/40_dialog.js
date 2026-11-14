@@ -253,7 +253,7 @@ $$.show_delay = function(dom, ms) {
 		Showing.delete(dom);
 		if (state.pending) self.show_delay(dom, ms);
 	};
-	requestAnimationFrame(tick);
+	tick();		// jQueryと同じく、最初の1回はすぐに動かす
 };
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -69,11 +69,11 @@
 </article>
 
 <script-defer><!--
-$('#ga4id-setting').click(function(evt){
-	adiary.textarea_dialog(evt.target, function(data){
+document.getElementById('ga4id-setting').addEventListener('click', function(evt){
+	adiary.textarea_dialog(evt.currentTarget, function(data){
 		var x;
 		if (x = data.match(/\?id=([\w\-]+)/)) {
-			$('#ga4id').val( x[1] );
+			document.getElementById('ga4id').value = x[1];
 		}
 	});
 });

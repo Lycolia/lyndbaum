@@ -37,14 +37,13 @@
 </article>
 
 <script-defer><!--
-	var yesbox = $('#yes-box');
-	var submit = $('#submit-btn');
-	yesbox.change(function(evt) {
-		var yes = yesbox.val().toLowerCase();
-		submit.prop('disabled', (yes != 'yes'));
-	});
-	yesbox.keyup(function(evt) {
-		yesbox.change();
-	});
-	yesbox.change();
+	var yesbox = document.getElementById('yes-box');
+	var submit = document.getElementById('submit-btn');
+	function yes_change() {
+		var yes = yesbox.value.toLowerCase();
+		submit.disabled = (yes != 'yes');
+	}
+	yesbox.addEventListener('change', yes_change);
+	yesbox.addEventListener('keyup',  yes_change);
+	yes_change();
 --></script-defer>

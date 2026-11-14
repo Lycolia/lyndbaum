@@ -54,9 +54,11 @@
 
 <script-defer><!--
 	adiary.load_tags_list( '#tag-select' );
-	$("button.export").click(function(evt){
-		var type = $(evt.target).data('type');
-		$('#input-type').val(type ? type : '');
+	document.querySelectorAll('button.export').forEach(function(btn){
+		btn.addEventListener('click', function(evt){
+			var type = evt.currentTarget.dataset.type;
+			document.getElementById('input-type').value = type ? type : '';
+		});
 	});
 --></script-defer>
 

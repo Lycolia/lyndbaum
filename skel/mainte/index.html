@@ -41,15 +41,16 @@
 
 
 <script-defer><!--
-	var info = $('#info-only');
-	var submit = $('#submit-btn');
-	var refetch = $('#refetch-link-cards');
-	info.change(function(evt){
-		if (info.prop('checked'))
-			submit.text( info.data('on') );
-		else	submit.text( info.data('off') );
-		refetch.prop('disabled', info.prop('checked'));	// 付加情報だけのときは記事を作り直さない
-	});
-	info.change();
+	var info = document.getElementById('info-only');
+	var submit = document.getElementById('submit-btn');
+	var refetch = document.getElementById('refetch-link-cards');
+	function info_change(){
+		if (info.checked)
+			submit.textContent = info.dataset.on;
+		else	submit.textContent = info.dataset.off;
+		refetch.disabled = info.checked;	// 付加情報だけのときは記事を作り直さない
+	}
+	info.addEventListener('change', info_change);
+	info_change();
 --></script-defer>
 

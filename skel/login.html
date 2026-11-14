@@ -34,7 +34,7 @@
 
 <@>
 <script-defer><!--
-	$("<@if(Query.id ne '', "#pass", "#id")>").focus();
+	document.querySelector("<@if(Query.id ne '', "#pass", "#id")>").focus();
 --></script-defer>
 
 

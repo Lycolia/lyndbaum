@@ -77,12 +77,29 @@ ul {
 ////////////////////////////////////////////////////////////////////////////////
 // ●iframeの自動リサイズ
 ////////////////////////////////////////////////////////////////////////////////
-	var body = $('#body');
-	var iframe = $('#iframe');
+	var body = document.getElementById('body');
+	var iframe = document.getElementById('iframe');
+	// jQueryの$(body).height()、$(iframe).position().topと同じ値を求める（theme-custom.jsと同じ）
+	function body_height() {
+		var cs = getComputedStyle(body);
+		var h  = parseFloat(cs.height) || 0;
+		if (cs.boxSizing === 'border-box')
+			['Top', 'Bottom'].forEach(function(s){
+				h -= (parseFloat(cs['padding' + s]) || 0) + (parseFloat(cs['border' + s + 'Width']) || 0);
+			});
+		return h;
+	}
+	function iframe_top() {
+		// 親（offsetParent）の枠の内側からの位置。端数も出す（offsetTopは整数になる）
+		var op = iframe.offsetParent || document.documentElement;
+		var pr = op.getBoundingClientRect();
+		var pt = pr.top + (parseFloat(getComputedStyle(op).borderTopWidth) || 0);
+		return iframe.getBoundingClientRect().top - pt - (parseFloat(getComputedStyle(iframe).marginTop) || 0);
+	}
 	function iframe_resize() {
-		var h = body.height() - iframe.position().top;
-		iframe.css('height', h);
+		var h = body_height() - iframe_top();
+		iframe.style.height = h + 'px';
 	}
 	iframe_resize();
-	$(window).resize( iframe_resize );
+	window.addEventListener('resize', iframe_resize);
 --></script-defer>

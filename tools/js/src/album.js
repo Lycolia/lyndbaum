@@ -1426,7 +1426,7 @@ function finish(up_target, x, y, dropped) {
 		if (p < 1) return requestAnimationFrame(tick);
 		stop();
 	};
-	requestAnimationFrame(tick);
+	tick();		// jQueryと同じく、最初の1回はすぐに動かす
 }
 
 ////////////////////////////////////////////////////////////////////////////////
