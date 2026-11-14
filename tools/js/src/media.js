@@ -996,6 +996,7 @@ function update_view(flag, selected) {
 			link.setAttribute('data-lythumb', 'roadtrip');
 			link.setAttribute('data-caption', file.name);
 		}
+		if (is_video_file(file.name)) link.classList.add('is-video');	// 静止画と見分けるため、再生の印を重ねる（admin-ui.css）
 		var img = document.createElement('img');
 		img.setAttribute('src', encode_link( fspath + '.thumbnail/' + thumbnail_name(file) ) + thumbq);
 		img.setAttribute('data-title', file.name);

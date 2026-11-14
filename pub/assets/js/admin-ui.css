@@ -220,6 +220,23 @@ ul.dynatree-container a {
 	outline:		3px solid var(--admin-link, #2271b1);
 	outline-offset:		-1px;
 }
+/* 動画（media.js の is_video_file）。サムネイルだけでは静止画と見分けられないので、右下に再生の印を重ねる。
+   印は記事の動画のサムネイル（theme/base.css の a.video-thumb::after）と同じSVG。
+   クリックやドラッグはimgで受けるので、印はイベントを受けない */
+#media-folder-view.thumb-view a.is-video {
+	position:		relative;
+}
+#media-folder-view.thumb-view a.is-video::after {
+	content:		"";
+	position:		absolute;
+	right:			calc(0.35rem + 1px);
+	bottom:			calc(0.35rem + 1px);
+	width:			22px;
+	height:			22px;
+	border-radius:		50%;
+	background:		rgba(0,0,0,0.6) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%23fff' d='M8 5v14l11-7z'/%3E%3C/svg%3E") no-repeat 55% center / 14px 14px;
+	pointer-events:		none;
+}
 /* 名前で絞り込んで隠したファイル（media.js の apply_filter）。表示形式ごとの display より強くする */
 #media-folder-view.thumb-view a.filtered-out,
 #media-folder-view.name-view  a.filtered-out {
