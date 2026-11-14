@@ -58,11 +58,6 @@ sub new {
 	$self->SetDefaultValue();
 	$self->{http_agent} = "$SYSTEM_NAME $OUTVERSION on Satsuki-system $ROBJ->{VERSION}";
 
-	# Cache環境向け Timer のロード
-	if ($ROBJ->{CGI_cache} && $ENV{SatsukiTimer} ne '0' && !$Satsuki::Timer::VERSION) {
-		require Satsuki::Timer;
-	}
-
 	return $self;
 }
 

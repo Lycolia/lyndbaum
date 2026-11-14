@@ -15,9 +15,7 @@ BEGIN {
 use FCGI;
 use Satsuki::Base ();
 use Satsuki::AutoReload ();
-BEGIN {
-	if ($ENV{SatsukiTimer}) { require Satsuki::Timer; }
-}
+use Satsuki::Timer ();
 
 $SIG{CHLD} = 'IGNORE';	# for fork()
 
@@ -112,11 +110,8 @@ sub fcgi_main_loop {
 			#-------------------------------------------------------
 			# 時間計測開始
 			#-------------------------------------------------------
-			my $timer;
-			if ($ENV{SatsukiTimer} ne '0' && $Satsuki::Timer::VERSION) {
-				$timer = Satsuki::Timer->new();
-				$timer->start();
-			}
+			my $timer = Satsuki::Timer->new();
+			$timer->start();
 
 			#-------------------------------------------------------
 			# FastCGI環境初期化

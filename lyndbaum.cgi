@@ -18,16 +18,13 @@ BEGIN {
 #-------------------------------------------------------------------------------
 eval {
 	require Satsuki::Base;
+	require Satsuki::Timer;
 
 	#---------------------------------------------------
 	# 時間計測開始
 	#---------------------------------------------------
-	my $timer;
-	if ($ENV{SatsukiTimer}) {
-		require Satsuki::Timer;
-		$timer = Satsuki::Timer->new();
-		$timer->start();
-	}
+	my $timer = Satsuki::Timer->new();
+	$timer->start();
 
 	#---------------------------------------------------
 	# メイン
