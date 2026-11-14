@@ -93,12 +93,12 @@
 	</table>
 
 	<h3>ログインの制限</h3>
-	同一IDから同一IDに対し何回までログイン試行を許容するか。制限に達したとき、どの程度の時間ログインを制限するか。
+	同一IPから、または同一IDに対し何回までログイン試行を許容するか。制限に達したとき、どの程度の時間ログインを制限するか。
 	<table class="blog-setting">
 	<tbody>
 	<tr>
 		<th>同一IPからの試行回数</th>
-		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
+		<td<@err.c_fail_count_ip>>
 <@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
 			<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
@@ -108,7 +108,7 @@
 	</tr>
 	<tr>
 		<th>同一IDへの試行回数</th>
-		<td>
+		<td<@err.c_fail_count>>
 <@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
 			<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
@@ -118,7 +118,7 @@
 	</tr>
 	<tr>
 		<th>ログインを制限する時間</th>
-		<td>
+		<td<@err.c_fail_minute>>
 <@ifexec(!POST && (fm < 1 || fm > 1440), begin, begin)>
 			<input type="number" class="w60" value="<@fm>" disabled>分（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
