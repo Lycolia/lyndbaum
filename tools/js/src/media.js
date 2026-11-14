@@ -226,6 +226,15 @@ if(! allow_edit) {	// 編集権限なし
 }
 dtree = new AdiaryTree(tree, set);
 
+// ダブルタップで名前の編集（スマホ）。ノードは読み込み直しやフォルダ作成で作られ直すので、ツリーで受ける
+if (allow_edit) AdiaryTree.dbltap(tree, function(evt) {
+	if (!dtree.enabled) return;	// 編集中
+	var li   = evt.target.closest('li');
+	var node = li && li.dtnode;
+	if (!node || node.tree !== dtree || !node.span.contains(evt.target)) return;
+	edit_node(node);
+});
+
 function get_title(data) {
 	return adiary.tag_esc(data.name) + (data.count==0 ? '' : ' (' + data.count + ')');
 }
@@ -283,13 +292,16 @@ function edit_node( node ) {
 		if (inp == evt.target) return;
 		blur(inp);
 	};
-	tree.addEventListener('click', tree_click);
+	// ダブルタップでは、編集を始めたclickがこの後treeに届くので、受け付けるのは次から
+	var ended;
+	setTimeout(function(){ if (!ended) tree.addEventListener('click', tree_click) }, 0);
 
 	//----------------------------------------
 	// ○フォーカスが離れた（編集終了）
 	//----------------------------------------
 	inp.addEventListener('blur', function(evt){
 		box.remove();
+		ended = true;
 		tree.removeEventListener('click', tree_click);
 		node.setTitle( node.data.title );
 		ctree.enable();

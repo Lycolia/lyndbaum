@@ -193,9 +193,12 @@ function editNode( node ) {
 		if (inp == evt.target) return;
 		inp.blur();
 	};
-	tree.addEventListener('click', tree_click);
+	// ダブルタップでは、編集を始めたclickがこの後treeに届くので、受け付けるのは次から
+	var ended;
+	setTimeout(function(){ if (!ended) tree.addEventListener('click', tree_click) }, 0);
 
 	inp.addEventListener('blur', function(evt){
+		ended = true;
 		tree.removeEventListener('click', tree_click);
 		set_node_title(node);
 		node.tree.enable();
