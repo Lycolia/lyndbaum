@@ -88,7 +88,6 @@ AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージ�
 
 ## JavaScript
 
-- jQuery UI (MIT / GPLv2)
 - [Lythumb-viewer](https://github.com/Lycolia/lythumb-viewer) (AGPLv3)
 - [Prism.js](https://prismjs.com/) (MIT)
 - [CodeMirror](https://codemirror.net/) (MIT)
