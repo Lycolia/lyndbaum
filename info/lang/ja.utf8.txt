@@ -285,5 +285,7 @@ Not exists article=該当する記事がみつかりません
 # adiary_6
 ###############################################################################
 Restart of %s is required!=%sの再起動が必要です！
-Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.32の版でアップデート処理を行ってください
+Update from this version is not supported=このデータの版からは直接アップデートできません。先に4.42の版でアップデート処理を行ってください
 Blog database error(%s)=サイトのデータベースのエラーです（%s）
+Already exists '%s'=「%s」が既にあります
+Rename '%s' failed=「%s」の名前を変えられませんでした
