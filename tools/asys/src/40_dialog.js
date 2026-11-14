@@ -164,12 +164,17 @@ $$.progressbar = function(dom, opt) {
 // 動いている間に呼ぶと、終わった後に動く（jQueryのfxの列と同じ）
 //	adiary.show_delay(dom)	adiary.hide_delay(dom)	adiary.toggle_delay(dom)
 //	adiary.show(dom)	adiary.hide(dom)	… すぐに出す、隠す
-//	adiary.showing(dom)	… 動いている途中か（jQueryの:animated）
+//	adiary.showing(dom)	… 動いている途中か（jQueryの:animated）。フェードの途中も含む
+// フェードは、大きさを変えずに濃さだけを変えて出す（動きはbase.cssの.aui-fade-in）。
+// 隠すときは、すぐに隠す。msが0のとき、OSで動きを減らす設定のときは、すぐに出す。
+//	adiary.fade_show(dom, ms)	adiary.fade_toggle(dom, ms)
 // jQueryと同じ順に書く（styleの並びも同じになる）
 const ShowProps = ['height', 'paddingTop', 'marginTop', 'paddingRight', 'marginRight',
 		   'paddingBottom', 'marginBottom', 'paddingLeft', 'marginLeft', 'width', 'opacity'];
 const OldDisplay = new WeakMap();	// 隠す前のdisplay（jQueryのdataPrivの"display"）
 const Anim       = new WeakMap();	// 動いている間：{ queue: [後で動かすもの] }
+const FadeBound  = new WeakSet();	// フェードの終わりを受ける処理を付けた要素
+const FadeClass  = 'aui-fade-in';
 
 function is_hidden(dom) {	// jQueryのisHiddenWithinTree
 	return dom.style.display === 'none'
@@ -245,14 +250,47 @@ function animate(dom, show, ms) {
 	};
 	tick();		// jQueryと同じく、最初の1回はすぐに動かす
 }
+function reduced_motion() {
+	return window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+function fade_in(dom, ms) {
+	ms = Number(ms) || 0;
+	if (!ms || reduced_motion()) return;
+
+	if (!FadeBound.has(dom)) {
+		FadeBound.add(dom);
+		const end = function(evt){
+			if (evt.target === dom) dom.classList.remove(FadeClass);
+		};
+		dom.addEventListener('animationend',    end);
+		dom.addEventListener('animationcancel', end);
+	}
+	dom.style.setProperty('--aui-fade-time', ms + 'ms');
+	dom.classList.remove(FadeClass);
+	void dom.offsetWidth;		// 付け直したときに、最初から動かす
+	dom.classList.add(FadeClass);
+}
 $$.showing = function(dom) {
-	return !!(dom && Anim.has(dom));
+	return !!(dom && (Anim.has(dom) || dom.classList.contains(FadeClass)));
 };
 $$.show = function(dom) {	// jQueryの.show()（すぐに出す）
 	if (dom) show_now(dom);
 };
 $$.hide = function(dom) {	// jQueryの.hide()（すぐに隠す）
-	if (dom) hide_now(dom);
+	if (!dom) return;
+	dom.classList.remove(FadeClass);
+	hide_now(dom);
+};
+$$.fade_show = function(dom, ms) {
+	if (!dom || !is_hidden(dom)) return;
+	if (ms === undefined) ms = this.DefaultFadeSpeed;
+	show_now(dom);
+	fade_in(dom, ms);
+};
+$$.fade_toggle = function(dom, ms) {
+	if (!dom) return;
+	if (is_hidden(dom)) this.fade_show(dom, ms);
+		else	    this.hide(dom);
 };
 $$.show_delay = function(dom, ms) {
 	if (!dom) return;

@@ -31,7 +31,7 @@ $$.popup_on = function(sel, opt) {
 			if (opt.show) opt.show(obj, div);
 			div.style.left = (self.SP ? 0 : (x + self.PopupOffsetX)) + 'px';
 			div.style.top  = (y + self.PopupOffsetY) + 'px';
-			self.show_delay(div);
+			self.fade_show(div);
 		}, delay));
 
 		if (bound.has(obj)) return;

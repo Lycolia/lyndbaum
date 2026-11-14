@@ -432,6 +432,18 @@ div.popup-block {
 	position:	absolute;
 	z-index:	1100;
 }
+/* adiary.fade_show()で出すときのフェード（asys.js。時間は--aui-fade-timeで渡す） */
+.aui-fade-in {
+	animation:	aui-fade-in var(--aui-fade-time, .15s) ease-out;
+}
+@keyframes aui-fade-in {
+	from	{ opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+	.aui-fade-in {
+		animation:	none;
+	}
+}
 div.popup-help, #popup-com {
 	background-color:	#eee;
 	padding:		6px;

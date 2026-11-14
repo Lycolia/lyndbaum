@@ -429,7 +429,7 @@ $$.dom_init(function(R){
 			h.addEventListener('click', function(evt){
 				const div = next_div(evt.target);
 				if (!div) return;
-				self.toggle_delay(div);
+				self.fade_toggle(div);
 			});
 		});
 		heads.forEach(function(h){
