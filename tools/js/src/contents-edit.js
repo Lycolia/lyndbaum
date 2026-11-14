@@ -164,7 +164,6 @@ function editNode( node ) {
 	// 不可思議な動作をするので、span に置き換える。
 	var box = document.createElement('span');
 	box.className = item.getAttribute('class');
-	if (pk) box.appendChild( document.createTextNode(adiary.tag_decode(pk) + '/') );	// 親のパーマリンクは変えられない
 	box.appendChild( inp );
 	item.replaceWith( box );
 
