@@ -1,11 +1,11 @@
 <@7>
-<@> album main view
+<@> media main view
 <@>
 <@>	スマホ画面からも呼ばれる
 <@>
 <@> 操作（ファイルが増えても押せるように、一覧の上に置く）
 <@ifexec(v.blog_admin, begin)>
-<div id="album-toolbar">
+<div id="media-toolbar">
 	<form action="<@v.myself>?edit" method="POST" id="paste-form">
 	<input type="hidden" name="action" value="etc/dummy">
 	<input type="hidden" name="paste_txt" value="" id="paste-txt">
@@ -17,14 +17,14 @@
 	<button type="submit" id="paste-original"  data-select="1" data-thumbnail="0">元画像を貼付</button>
 	<button type="submit" id="paste-text"      data-select="1" data-thumbnail="0" data-text="1">テキストリンクを貼付</button>
 	<label><input type="checkbox" id="open-detail" class="js-switch js-save" data-target="#paste-detail">詳細</label>
-	<select id="album-actions">
+	<select id="media-actions">
 		<option value="" selected>その他の操作</option>
-		<option value="album-move-files" data-select="1">ファイルの移動</option>
+		<option value="media-move-files" data-select="1">ファイルの移動</option>
 		<option value="remake-thumbnail" data-select="1">サムネイル再生成</option>
 		<option value="make-video-thumbnail" data-select="1">動画のサムネイル作成</option>
 		<option value="select-exifjpeg">Exif検索</option>
 		<option value="remove-exifjpeg"  data-select="1">Exif削除</option>
-		<option value="album-delete-files"  data-select="1">ファイルの削除</option>
+		<option value="media-delete-files"  data-select="1">ファイルの削除</option>
 	</select>
 	<ul id="paste-detail">
 		<li><label><input type="checkbox" id="paste-to-exif" class="js-save">Exifも貼り付ける</label>
@@ -40,15 +40,15 @@
 </div>
 <$end>
 
-	<div id="album-folder-view" data-edit="<@v.blog_admin>"></div>
+	<div id="media-folder-view" data-edit="<@v.blog_admin>"></div>
 	<$ifbreak(!v.blog_admin)>
 
-<div id="album-footer">
+<div id="media-footer">
 	<h4 id="selected-files-title"><label><input type="checkbox" class="js-switch" data-target="#selected-files">選択中のファイル名を表示</label></h4>
 	<span class="help-text">ファイル名を変更するには「選択ファイル名の表示」から該当ファイルをダブルクリックしてください。</span>
 	<ul id="selected-files"></ul>
 
-	<section id="album-upload">
+	<section id="media-upload">
 	<!--===========================================================================-->
 	<h4>アップロード<span class="help-text">ドラッグ＆ドロップでファイルをアップロードできます</span></h4>
 
@@ -72,9 +72,9 @@
 	<label><input type="checkbox" class="js-switch" data-target="#upload-information-view">最大サイズ、拡張子情報</label>
 	<section id="upload-information-view">
 	<div>最大サイズ : <@(v.uplaod_files_max>>20)>MB<span class="help-text">一回のアプロードできる、全ファイル合計のサイズです。</span></div>
-	<div>画像拡張子 : <@join(' ', sort_str(keys(v.album_image_ext)))></div>
+	<div>画像拡張子 : <@join(' ', sort_str(keys(v.media_image_ext)))></div>
 	<$call('media/_load_extensions')>
-	<div>許可拡張子 : <@join(' ', sort_str( grep('^[^\.]', keys(v.album_allow_ext)) ))></div>
+	<div>許可拡張子 : <@join(' ', sort_str( grep('^[^\.]', keys(v.media_allow_ext)) ))></div>
 	</section>
 	</div>
 </div>

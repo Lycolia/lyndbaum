@@ -3,7 +3,7 @@
 <$ifsuperjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
 
 <@> システムモード
-<$v.system_mode("メディア")>
+<$v.system_mode("メディア管理")>
 
 <@> 階層ツリー
 <@ifexec(v.blog_admin, begin)>
@@ -14,11 +14,11 @@
 
 <!--=========================================================================-->
 <$v.init_image_dir()>
-<$v.special_body_class = 'album'>
+<$v.special_body_class = 'media'>
 
 <$v.regist_csslib("<@v.script_dir>dynatree/skin/ui.dynatree.css")>
 <$v.regist_jslib ("<@v.script_dir>tree.min.js")>
-<$v.regist_js    ("<@v.script_dir>album.min.js")>
+<$v.regist_js    ("<@v.script_dir>media.min.js")>
 
 
 <@call('media/_main')>
@@ -28,7 +28,7 @@
 
 <span id="msg-trashbox">ゴミ箱</span>
 <span id="image-path"><@Basepath><@v.blogimg_dir()></span>
-<span id="icon-path"><@Basepath><@v.album_icons></span>
+<span id="icon-path"><@Basepath><@v.media_icons></span>
 <span id="uploading-msg">Now uploading</span>
 <span id="msg-delete-date">削除日</span>
 

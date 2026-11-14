@@ -3,7 +3,7 @@
   adiary 管理画面のCSS
 	管理画面のフレーム（_frame_admin）の配置と色。公開画面のテーマの代わり。
 	上にバー、左にグローバルナビ、右に本文（WordPressと同じ並び）。
-	部品（記事の編集、画像アルバムなど）のCSSは admin-ui.css に書く。
+	部品（記事の編集、メディア管理など）のCSSは admin-ui.css に書く。
 *******************************************************************************/
 /* [TAB=8] */
 :root {
@@ -144,7 +144,7 @@ body.admin *::after {
 	grid-template-columns:	var(--admin-nav-width) minmax(0, 1fr);
 	min-height:		calc(100vh - var(--admin-bar-height));
 }
-/* 別のウィンドウで開いたとき（記事作成画面からの画像アルバム）は、上のバーとナビを出さない */
+/* 別のウィンドウで開いたとき（記事作成画面からのメディア管理）は、上のバーとナビを出さない */
 body.admin-popup {
 	--admin-bar-height:	0px;
 }
@@ -235,7 +235,7 @@ body:not(.admin-logged-in) #admin-frame {
 	padding:		1rem 1.25rem 2rem;
 	min-width:		0;
 }
-/* 画面専用のサイドの部品があるとき（画像アルバムのフォルダツリー）は、左に置く */
+/* 画面専用のサイドの部品があるとき（メディア管理のフォルダツリー）は、左に置く */
 #admin-main:has(> #admin-side) {
 	display:		grid;
 	grid-template-columns:	16rem minmax(0, 1fr);
@@ -959,39 +959,39 @@ div.popup-help {
 }
 
 /*--------------------------------------------------------------------
-■画像アルバム（body.album）
+■メディア管理（body.media）
 --------------------------------------------------------------------*/
 /* 操作のバー */
-#album-header {
+#media-header {
 	display:		flex;
 	flex-wrap:		wrap;
 	align-items:		center;
 	justify-content:	space-between;
 	gap:			0.5rem 1rem;
 }
-#album-header div.view-option {
+#media-header div.view-option {
 	float:			none;
 }
-#album-header .option-item + .option-item {
+#media-header .option-item + .option-item {
 	margin-left:		0.5em;
 }
-#album-toolbar {
+#media-toolbar {
 	margin:			0.5rem -1rem 0;
 	padding:		0.5rem 1rem;
 	background-color:	#f6f7f7;
 	border-top:		1px solid var(--admin-border-light);
 	border-bottom:		1px solid var(--admin-border-light);
 }
-#album-toolbar form {
+#media-toolbar form {
 	display:		flex;
 	flex-wrap:		wrap;
 	align-items:		center;
 	gap:			0.5rem;
 }
-#album-toolbar button + button {
+#media-toolbar button + button {
 	margin-left:		0;
 }
-#album-toolbar ul#paste-detail {
+#media-toolbar ul#paste-detail {
 	flex-basis:		100%;
 	display:		flex;
 	flex-wrap:		wrap;
@@ -1002,33 +1002,33 @@ div.popup-help {
 }
 
 /* ファイルの一覧 */
-#album-folder-view {
+#media-folder-view {
 	margin:			0;
 	padding:		0.5rem 0;
 }
 
 /* 一覧の下（選択中のファイル、アップロード） */
-#album-footer {
+#media-footer {
 	margin:			0 -1rem;
 	padding:		0 1rem 0.5rem;
 	border-top:		1px solid var(--admin-border-light);
 	font-size:		13px;
 }
-#album-footer h4 {
+#media-footer h4 {
 	margin:			0.5rem 0 0.25rem;
 	font-size:		13px;
 }
-#album-footer ul#selected-files {
+#media-footer ul#selected-files {
 	margin:			0;
 	padding-left:		1.5em;
 }
-#album-upload form {
+#media-upload form {
 	display:		flex;
 	flex-wrap:		wrap;
 	align-items:		center;
 	gap:			0.5rem;
 }
-#album-upload #file-btn-div {
+#media-upload #file-btn-div {
 	margin:			0;
 }
 
@@ -1042,50 +1042,50 @@ div.popup-help {
 	border:			none;
 }
 
-/* 広い画面では、アルバムを画面の高さに収め、ツリーとファイルの一覧だけをスクロールする。
+/* 広い画面では、メディア管理を画面の高さに収め、ツリーとファイルの一覧だけをスクロールする。
    ファイルが増えても、操作のバーが下に行かないようにする */
 @media screen and (min-width: 783px) {
-	body.album #admin-main {
+	body.media #admin-main {
 		height:			calc(100vh - var(--admin-bar-height));
 		box-sizing:		border-box;
 		grid-template-rows:	minmax(0, 1fr);
 		grid-auto-rows:		auto;
 	}
-	body.album #admin-main > .main,
-	body.album #admin-side {
+	body.media #admin-main > .main,
+	body.media #admin-side {
 		min-height:		0;
 		height:			100%;
 		display:		flex;
 		flex-direction:		column;
 	}
-	body.album #admin-side {
+	body.media #admin-side {
 		position:		static;
 	}
-	body.album #album,
-	body.album #admin-side .side-folder-tree {
+	body.media #media,
+	body.media #admin-side .side-folder-tree {
 		flex:			1;
 		min-height:		0;
 		margin:			0;
 		display:		flex;
 		flex-direction:		column;
 	}
-	body.album #album > .body,
-	body.album #admin-side .side-folder-tree .hatena-modulebody {
+	body.media #media > .body,
+	body.media #admin-side .side-folder-tree .hatena-modulebody {
 		flex:			1;
 		min-height:		0;
 		display:		flex;
 		flex-direction:		column;
 	}
-	body.album #album > .body {
+	body.media #media > .body {
 		padding-bottom:		0;
 	}
-	body.album #album-folder-view,
-	body.album #album-folder-tree {
+	body.media #media-folder-view,
+	body.media #media-folder-tree {
 		flex:			1;
 		min-height:		0;
 		overflow:		auto;
 	}
-	body.album #album-footer {
+	body.media #media-footer {
 		flex:			none;
 		max-height:		40%;
 		overflow-y:		auto;
@@ -1093,23 +1093,23 @@ div.popup-help {
 }
 /* 狭い画面では、フォルダのツリーを上に置き、ツリーとファイルの一覧の高さを抑える */
 @media screen and (max-width: 782px) {
-	body.album #admin-main:has(> #admin-side) {
+	body.media #admin-main:has(> #admin-side) {
 		display:		flex;
 		flex-direction:		column;
 		align-items:		stretch;
 		gap:			1rem;
 	}
-	body.album #admin-side {
+	body.media #admin-side {
 		order:			-1;
 	}
-	body.album #admin-side .side-folder-tree {
+	body.media #admin-side .side-folder-tree {
 		margin:			0;
 	}
-	body.album #album-folder-tree {
+	body.media #media-folder-tree {
 		max-height:		30vh;
 		overflow:		auto;
 	}
-	body.album #album-folder-view {
+	body.media #media-folder-view {
 		max-height:		60vh;
 		overflow-y:		auto;
 	}

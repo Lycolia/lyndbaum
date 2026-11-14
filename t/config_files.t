@@ -112,7 +112,7 @@ subtest 'ユーザー設定で値を変えられる' => sub {
 subtest 'アップロード' => sub {
 	mkdir("$dir/pub/attachments");
 	my $r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'test' });
-	is(($r->{json} || {})->{ret}, 0, 'アルバムのフォルダを作る');
+	is(($r->{json} || {})->{ret}, 0, 'メディア管理のフォルダを作る');
 
 	my $upload = sub {
 		my ($who, $name, $size) = @_;

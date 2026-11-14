@@ -11,7 +11,7 @@
 <$cur.menu    = (skel eq 'menu')>
 <$cur.artlist = (skel eq 'artlist' || skel eq 'edit')>
 <$cur.trash   = (skel eq 'trash')>
-<$cur.album   = (dir eq 'media/')>
+<$cur.media   = (dir eq 'media/')>
 <$cur.comlist = (skel eq 'comlist')>
 <$cur.tag     = (skel eq 'tag_edit')>
 <$cur.contents = (skel eq 'contents_edit')>
@@ -34,7 +34,7 @@
 <@ifexec(s && v.blog_admin, begin)>
 	<li<@if(cur.artlist, ' class="current"')>><a href="<@v.myself>?artlist">記事一覧</a></li>
 	<li<@if(cur.trash,   ' class="current"')>><a href="<@v.myself>?trash">ゴミ箱</a></li>
-	<li<@if(cur.album,   ' class="current"')>><a href="<@v.myself>?media/">メディア</a></li>
+	<li<@if(cur.media,   ' class="current"')>><a href="<@v.myself>?media/">メディア管理</a></li>
 	<li<@if(cur.comlist, ' class="current"')>><a href="<@v.myself>?comlist">コメント一覧<@if(s.newcom_flag, ' <span class="admin-nav-new">新着</span>')></a></li>
 	<li<@if(cur.tag,     ' class="current"')>><a href="<@v.myself>?tag_edit">タグ</a></li>
 	<li<@if(cur.contents, ' class="current"')>><a href="<@v.myself>?contents_edit">固定ページの表示順</a></li>

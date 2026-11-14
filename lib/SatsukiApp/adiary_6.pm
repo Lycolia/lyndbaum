@@ -22,7 +22,7 @@ my @update_versions = (
 	{ ver => 4.38, func => 'sys_update_438' },	# 記事の直前の保存のテーブル（lastrev）を作る
 	{ ver => 4.39, rebuild_cond => ['\(\('] },	# 注釈の一覧を、書いた見出しの下に出すようにしたので、注釈のある記事を作り直す
 	{ ver => 4.42, plugin=>1 },	# 検索画面の検索条件の欄とタグで絞り込みを変えたので、デザインのスケルトンを作り直す
-	{ ver => 4.43, func => 'sys_update_443', system=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す
+	{ ver => 4.43, func => 'sys_update_443', system=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -173,9 +173,16 @@ sub sys_update_438 {
 # ●システムアップデート for Ver4.43
 #-------------------------------------------------------------------------------
 # 同時編集の確認を削除したので、システム設定の間隔と、ブログのロックのファイルを置いたディレクトリを消す
+# 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
 sub sys_update_443 {
 	my $self = shift;
 	$self->update_sysdat('edit_lock_interval', undef);	# 値が空のキーは保存しない
+	foreach(qw(jpeg avif)) {
+		my $old = $self->{sys}->{"album_${_}_quality"};
+		if ($old eq '') { next; }
+		if ($self->{sys}->{"media_${_}_quality"} eq '') { $self->update_sysdat("media_${_}_quality", $old); }
+		$self->update_sysdat("album_${_}_quality", undef);
+	}
 
 	if (!$self->{blog}) { return; }
 	my $dir = $self->{blog_dir} . 'lock/';

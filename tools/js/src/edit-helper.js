@@ -5,14 +5,14 @@
 //[TAB=8]
 'use strict';
 //### global variables #######################################################
-var insert_image;	// global function for edit.js, album.js
+var insert_image;	// global function for edit.js, media.js
 /*
 insert_image( data )
   data = {
 	caption: "caption text",
 	class:   "class text",
 	files: [{
-		folder: "album folder",
+		folder: "media folder",
 		file:	"file name",
 		ext:	"file extension",
 		isimg:	true or false,
@@ -48,7 +48,7 @@ Helpers.push({
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	details: { func: 'block',	start: "<details>$1\n", end: "\n</details>", sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },	// 中身にMarkdownが効くように、空行で挟む
-	album:	{ func: 'album' },
+	media:	{ func: 'media' },
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
 		thumbnail:	'[image:S:%d:%f:%c]',
@@ -84,7 +84,7 @@ Helpers.push({
 	toc:	null,
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	details: { func: 'block',	start: '<details>$1', end: '</details>', sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },
-	album:	{ func: 'album' },
+	media:	{ func: 'media' },
 	image:	{
 		//	%a : image attribute
 		//	%p : image_dir
@@ -358,11 +358,11 @@ helper.prototype._block2 = function(help, obj, arg) {
 }
 
 //------------------------------------------------------------------------------
-// ■画像アルバムを開く
+// ■メディア管理を開く
 //------------------------------------------------------------------------------
-helper.prototype.album = function(help, obj) {
+helper.prototype.media = function(help, obj) {
 	var url = obj.dataset.url;
-	var win = window.open(url, 'album', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
+	var win = window.open(url, 'media', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
 	win.focus();
 };
 

@@ -5,7 +5,7 @@
 //[TAB=8]
 'use strict';
 //### global variables #######################################################
-var insert_image;	// global function for album.js
+var insert_image;	// global function for media.js
 
 adiary.ready(function(){
 //##############################################################################
@@ -303,7 +303,7 @@ const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catc
 // ■アイキャッチ画像（OGP画像）
 //##############################################################################
 // name="ogp" の欄が実体（main_image）。空ならブログの画像を使う。本文の画像は拾わない。
-// 画像は画像アルバムを別のウィンドウで開いて選ぶ（album.js が set_eyecatch() を呼ぶ）
+// 画像はメディア管理を別のウィンドウで開いて選ぶ（media.js が set_eyecatch() を呼ぶ）
 {
 	const preview  = document.getElementById('eyecatch-preview');
 	const pick     = document.getElementById('eyecatch-pick');
@@ -386,26 +386,26 @@ const contents_loaded = Promise.resolve( adiary.load_contents_list(upsel) ).catc
 		(cur != '' ? show : hide)(remove);
 	}
 
-	// 画像アルバムを開く。選んである画像があれば、そのフォルダを開く
-	function open_album() {
+	// メディア管理を開く。選んである画像があれば、そのフォルダを開く
+	function open_media() {
 		const cur = current_value();
 		let url   = pick.dataset.url;
 		const x   = cur.lastIndexOf('/');
 		if (x >= 0) url += '&folder=' + encodeURIComponent(cur.substr(0, x+1));
-		const win = window.open(url, 'album', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
+		const win = window.open(url, 'media', 'location=yes, menubar=no, resizable=yes, scrollbars=yes');
 		win.focus();
 	}
-	pick.addEventListener('click', open_album);
+	pick.addEventListener('click', open_media);
 	preview.addEventListener('click', function(evt){
 		const btn = evt.target.closest('.eyecatch-change');
-		if (btn && preview.contains(btn)) open_album();
+		if (btn && preview.contains(btn)) open_media();
 	});
 	remove.addEventListener('click', function(){
 		ogp.value = '';
 		render();
 	});
 
-	// 画像アルバムから呼ばれる。path は画像ディレクトリからの相対パス
+	// メディア管理から呼ばれる。path は画像ディレクトリからの相対パス
 	window.set_eyecatch = function(path) {
 		ogp.value = path;
 		render();
@@ -622,7 +622,7 @@ function ajax_revision(data, callback) {
 //##############################################################################
 // タブを閉じる、再読み込み、リンク、戻るなどで離れるときに確かめる（Lyndbaumの admin-unsaved.js と同じ）。
 // 開いたときの中身を覚えておき、離れるときに今の中身と比べる（書き換えても元に戻せば確かめない。
-// タグやアイキャッチ画像など、JavaScriptで変えた欄も比べる）。albumから貼り付けて開いたときは、
+// タグやアイキャッチ画像など、JavaScriptで変えた欄も比べる）。mediaから貼り付けて開いたときは、
 // 貼り付けた本文（edit-helper.jsが後で入れる）が変更になる。
 // 記事の保存と削除で送るときは確かめない。確かめる文言はブラウザが決める（ページからは変えられない）
 let submitting = false;

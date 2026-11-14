@@ -13,7 +13,7 @@
 <article class="system setting">
 <h2><@v.title></h2>
 <div class="body">
-	<p>記事に使用されている外部の画像をメディアにコピーします。<em>ブログの引っ越し</em>に便利な機能です。</p>
+	<p>記事に使用されている外部の画像をメディア管理にコピーします。<em>ブログの引っ越し</em>に便利な機能です。</p>
 	<ul>
 		<li>HTML解析をしていますので、異常なHTMLでは期待した動作をしないかも知れません。</li>
 		<li><a href="https://adiary.org/tools.html#mixi_export">mixi export</a>で出力した記事の画像も取り込めます。</li>
@@ -38,7 +38,7 @@
 				<option value="">（すべて）</option>
 			</select>
 		</li>
-		<li>保存フォルダ<input type="text" class="w160" name="folder" value="<@v.blog.edit_upload || 'posts/%y/'>"> %y=年, %m=月<span class="help-text">メディアのどのフォルダに保存するか指定します。</span></li>
+		<li>保存フォルダ<input type="text" class="w160" name="folder" value="<@v.blog.edit_upload || 'posts/%y/'>"> %y=年, %m=月<span class="help-text">メディア管理のどのフォルダに保存するか指定します。</span></li>
 		<li>補完するURL<input type="text" class="w300" name="base" value=""><span class="help-text">画像URLが http:// 等で始まらない場合、取り込みに失敗しますが、元サイトのURLを入力することでURL情報を補完することができます。<br>画像が問題なく表示されている時、よく分からない時は入力しないでください。</span></li>
 		<li><label><input type="checkbox" name="html_only" value="1" checked>HTML以外の入力方法を無視する</label><span class="help-text">チェックを外すと標準のさつき記法やMarkdown中のHTMLの記述も解析しますが、記法を解釈するわけではないので書式が壊れることがあります。</span></li>
 		<li><label><input type="checkbox" name="enable_only" value="1">非公開記事を処理しない</label></li>

@@ -27,7 +27,7 @@
 <!--%SeeMore%-->
 <p>後</p>
 
-=== 画像アルバムの画像
+=== メディア管理の画像
 --- input
 [image:S:adiary/2026/01/:a.png:キャプション]
 --- expected

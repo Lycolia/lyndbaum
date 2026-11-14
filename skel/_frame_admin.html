@@ -7,7 +7,7 @@
 <@>
 <$ifset(v.title eq '', v.title, 'adiary')>
 <$s = v.blog>
-<@> 記事作成画面から別のウィンドウで開いたとき（画像アルバム）は、上のバーとナビを出さない
+<@> 記事作成画面から別のウィンドウで開いたとき（メディア管理）は、上のバーとナビを出さない
 <$popup = Query.popup>
 <@>
 <!DOCTYPE html>
@@ -93,7 +93,7 @@
 <@inframe>
 </div>
 
-<@> 画面専用のサイドの部品（画像アルバムのフォルダツリーなど）
+<@> 画面専用のサイドの部品（メディア管理のフォルダツリーなど）
 <@ifexec(v.special_sidebar_module, begin)>
 <aside id="admin-side">
 <@call(v.special_sidebar_module)>

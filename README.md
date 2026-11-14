@@ -116,9 +116,9 @@ VLゴシックフォント（`pub/assets/dist/VL-PGothic-Regular.ttf`）を
 
 ## 画像アイコン
 
-- `pub/assets/dist/album-icon`以下のアイコンの多くはせりか氏の著作物です。
-- `pub/assets/dist/album-icon/pdf.png`は http://iconhoihoi.oops.jp/ の著作物です。
-- `pub/assets/dist/album-icon`以下の`g-\*.png`と`trashbox.png`はGNOME Desktopアイコンです。
+- `pub/assets/dist/media-icon`以下のアイコンの多くはせりか氏の著作物です。
+- `pub/assets/dist/media-icon/pdf.png`は http://iconhoihoi.oops.jp/ の著作物です。
+- `pub/assets/dist/media-icon`以下の`g-\*.png`と`trashbox.png`はGNOME Desktopアイコンです。
 - `pub/assets/dist/mahjong/`以下のファイルは「[麻雀豆腐](http://majandofu.com/mahjong-images)」の画像を利用しています。
 - `pub/assets/theme/base.css`のソーシャルボタンのXとFacebookのロゴは、各社の商標です。はてなブックマークのマーク（「B!ブックマーク」）は、はてなの公式のブックマークボタンのものです。
 

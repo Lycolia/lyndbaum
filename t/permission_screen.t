@@ -44,7 +44,7 @@ my @SCREENS = (
 	[ 'artlist'             , 'admin', '記事一覧' ],
 	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
-	[ 'media/'              , 'admin', 'メディア' ],
+	[ 'media/'              , 'admin', 'メディア管理' ],
 	[ 'tag_edit'            , 'admin', 'タグの編集' ],
 	[ 'contents_edit'       , 'admin', '固定ページの表示順' ],
 

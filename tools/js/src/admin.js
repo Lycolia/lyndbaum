@@ -99,7 +99,7 @@ $$.init( function(){
 ////////////////////////////////////////////////////////////////////////////////
 //●画像・コメントのポップアップ
 ////////////////////////////////////////////////////////////////////////////////
-// アルバムのファイル名（album.js）、コメントの一覧（comlist.html）
+// メディア管理のファイル名（media.js）、コメントの一覧（comlist.html）
 $$.init( function(){
 	const self = this;
 	this.popup_on('.js-popup-img', {
@@ -427,9 +427,9 @@ $$.session = function(btns, opt){
 //●動画のサムネイルを作って送る
 ////////////////////////////////////////////////////////////////////////////////
 // サーバーではコマンドを動かさず、ブラウザーで動画の1コマを切り出してPNGにする。
-// 長い辺960pxのPNGを media/upload_video_thumbnail に送る。記事用と画像アルバム用のJPEGは、サーバーがこれから作る
+// 長い辺960pxのPNGを media/upload_video_thumbnail に送る。記事用とメディア管理の一覧用のJPEGは、サーバーがこれから作る
 //	opt.url    : 動画のURL
-//	opt.folder : 画像アルバムのフォルダ（posts/2026/）
+//	opt.folder : メディア管理のフォルダ（posts/2026/）
 //	opt.name   : 動画のファイル名
 //	ret        : Promise。再生できない形式などで作れなければ reject
 //
@@ -511,7 +511,7 @@ function video_to_png(video, max) {
 //●動画のサムネイルをまとめて作る
 ////////////////////////////////////////////////////////////////////////////////
 // files : [ { folder:'posts/2026/', name:'clip.mp4' }, ... ]
-// base  : 画像アルバムのURL（/pub/attachments/）
+// base  : メディア管理のURL（/pub/attachments/）
 // progress(i, file, err) : 1つ終わるたびに呼ぶ（err は失敗したとき）
 // ret   : Promise。失敗した数で resolve する（1つ失敗しても続ける）
 //

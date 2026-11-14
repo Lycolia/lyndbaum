@@ -1,5 +1,5 @@
 //##############################################################################
-// アルバム用JavaScript
+// メディア管理用JavaScript
 //							(C)2014 nabe@abk
 //##############################################################################
 //[TAB=8]  require tree.js
@@ -20,8 +20,8 @@
 
 adiary.ready(function(){
 	function $id(id) { return document.getElementById(id) }
-	var tree = $id('album-folder-tree');
-	var view = $id('album-folder-view');
+	var tree = $id('media-folder-tree');
+	var view = $id('media-folder-view');
 	var selfiles   = $id('selected-files');
 	if (!tree || !view) return;
 	var allow_edit = jq_data(view, 'edit');
@@ -115,7 +115,7 @@ function set_visibility(items, val) {
 var set = {
 	autoFocus: false,
 	persist: true,
-	cookieId: 'album:' + adiary.myself,
+	cookieId: 'media:' + adiary.myself,
 	minExpandLevel: 2,
 	imagePath: text_of('icon-path'),
 
@@ -348,7 +348,7 @@ function tree_reload() {
 	dtree.reload();
 }
 
-on($id('album-reload'), 'click', function(){
+on($id('media-reload'), 'click', function(){
 	ajax_submit({
 		action: 'refresh',
 		success: function(data) {
@@ -364,7 +364,7 @@ on($id('album-reload'), 'click', function(){
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダ作成ボタン
 ////////////////////////////////////////////////////////////////////////////////
-on($id('album-new-folder'), 'click', function(){
+on($id('media-new-folder'), 'click', function(){
 	var node = cur_node;
 	var ary  = node.getChildren();
 	var name = "new-folder";
@@ -426,7 +426,7 @@ function clear_trash() {
 		delete_folder('.trashbox/');
 	});
 }
-on($id('album-clear-trashbox'), 'click', clear_trash);
+on($id('media-clear-trashbox'), 'click', clear_trash);
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダの削除
@@ -1171,7 +1171,7 @@ function make_helper(down) {
 			span.textContent = fdata.get(files[i]).title;
 			div.appendChild( span );
 		}
-		div.setAttribute('id', 'album-dnd-name-view');
+		div.setAttribute('id', 'media-dnd-name-view');
 		div.style.visibility = 'visible';
 	}
 	return div;
@@ -1224,7 +1224,7 @@ function img_draggable(el, opacity) {
 		var t  = evt.touches[0];
 		target = evt.target;
 		flag   = false;
-		var el = target.closest && target.closest('#album-folder-view img, #album-folder-view span.fileline');
+		var el = target.closest && target.closest('#media-folder-view img, #media-folder-view span.fileline');
 		if (!drag && el && view.contains(el)) {
 			down(el, evt, t.pageX, t.pageY, is_thumbview ? 0.7 : 0.95);
 		}
@@ -1504,7 +1504,7 @@ on($id('set-eyecatch'), 'click', function(evt){
 ////////////////////////////////////////////////////////////////////////////////
 // ●その他の操作（セレクトボックス）
 ////////////////////////////////////////////////////////////////////////////////
-on($id('album-actions'), 'change', function(evt){
+on($id('media-actions'), 'change', function(evt){
 	var obj = evt.target;
 	var val = obj.value;
 	if (!val) return;
@@ -1513,8 +1513,8 @@ on($id('album-actions'), 'change', function(evt){
 	if (val == 'remake-thumbnail')   remake_thumbnail(evt);
 	if (val == 'remove-exifjpeg')    remove_exifjpeg(evt);
 	if (val == 'select-exifjpeg')    select_exifjpeg(evt);
-	if (val == 'album-move-files')   album_move_files(evt);
-	if (val == 'album-delete-files') album_delete_files(evt);
+	if (val == 'media-move-files')   media_move_files(evt);
+	if (val == 'media-delete-files') media_delete_files(evt);
 	if (val == 'make-video-thumbnail') make_selected_video_thumbnails(evt);
 });
 
@@ -1564,7 +1564,7 @@ function make_video_thumbnails(folder, videos) {
 // ●サムネイルの再生成
 ////////////////////////////////////////////////////////////////////////////////
 function remake_thumbnail(){
-	album_dialog($id('remake-thumbnail-dialog'), do_remake_thumbnail);
+	media_dialog($id('remake-thumbnail-dialog'), do_remake_thumbnail);
 }
 
 function do_remake_thumbnail(){
@@ -1663,7 +1663,7 @@ function load_selected_files() {
 ////////////////////////////////////////////////////////////////////////////////
 // ●フォルダやファイルの削除
 ////////////////////////////////////////////////////////////////////////////////
-function album_delete_files() {
+function media_delete_files() {
 	var trash = (cur_folder.substr(0,10) == '.trashbox/');
 	var mode  = trash ? 'delete' : 'trash';
 
@@ -1693,7 +1693,7 @@ document.addEventListener('keydown', function(evt) {
 	var files = load_selected_files();
 
 	// ファイルの削除
-	if (files.length) return album_delete_files()
+	if (files.length) return media_delete_files()
 
 	// ゴミ箱を空に？フォルダの削除
 	if (cur_folder == '.trashbox/') return clear_trash();
@@ -1713,7 +1713,7 @@ document.addEventListener('keydown', function(evt) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●ファイルの移動
 ////////////////////////////////////////////////////////////////////////////////
-function album_move_files() {
+function media_move_files() {
 	folder_select_dialog( move_files );
 }
 
@@ -1804,7 +1804,7 @@ function upload_post_process(text) {
 	}
 	adiary.show_delay(message);
 
-	// アルバムツリーのリロード
+	// メディア管理のツリーのリロード
 	tree_reload();
 
 	// 続けて動画のサムネイルを作る
@@ -1884,7 +1884,7 @@ function folder_select_dialog(callback) {
 	var div = $id('move-dialog');
 
 	div.innerHTML = '';
-	var box = create('div', 'album-folder-tree');
+	var box = create('div', 'media-folder-tree');
 	var stree = new AdiaryTree(box, {
 		clickFolderMode: 1,	// activate only
 		imagePath: text_of('icon-path'),
@@ -1905,13 +1905,13 @@ function folder_select_dialog(callback) {
 		}
 		adiary.dialog_close(div);
 	};
-	album_dialog(div, ok_func);
+	media_dialog(div, ok_func);
 }
 
 //##############################################################################
-// ●アルバム用ダイアログの表示ルーチン
+// ●メディア管理用ダイアログの表示ルーチン
 //##############################################################################
-function album_dialog(div, ok_func) {
+function media_dialog(div, ok_func) {
 	var buttons = {};
 	buttons[ div.dataset.ok ] = function(){
 		ok_func();

@@ -12,7 +12,7 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.post_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.post_max_mb, s.media_jpeg_quality, s.media_avif_quality)>
 <$end>
 
 <@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
@@ -157,9 +157,9 @@
 	</tr>
 	<tr>
 		<th>サムネイルの品質</th>
-		<td<@err.c_album_jpeg_quality><@err.c_album_avif_quality>>
-			JPEG <input type="number" name="album_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.album_jpeg_quality ne '', s.album_jpeg_quality, v.album_jpeg_quality)>">
-			AVIF <input type="number" name="album_avif_quality" min="1" max="100" class="w50" value="<@if(s.album_avif_quality ne '', s.album_avif_quality, v.album_avif_quality)>">（1-100）
+		<td<@err.c_media_jpeg_quality><@err.c_media_avif_quality>>
+			JPEG <input type="number" name="media_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.media_jpeg_quality ne '', s.media_jpeg_quality, v.media_jpeg_quality)>">
+			AVIF <input type="number" name="media_avif_quality" min="1" max="100" class="w50" value="<@if(s.media_avif_quality ne '', s.media_avif_quality, v.media_avif_quality)>">（1-100）
 		</td>
 	</tr>
 	</tbody>

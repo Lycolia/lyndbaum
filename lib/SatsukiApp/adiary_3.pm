@@ -248,14 +248,14 @@ sub make_thumbnail {
 		if (!$r) { next; }
 
 		# サムネイル生成に失敗したとき
-		my $icon = $self->{album_icons} . $self->{album_allow_ext}->{'..'};
+		my $icon = $self->{media_icons} . $self->{media_allow_ext}->{'..'};
 		if ($_ =~ m/\.(\w+)$/) {
 			my $ext = $1;
 			$ext =~ tr/A-Z/a-z/;
-			my $exts = $self->load_album_allow_ext();
-			my $file = $self->{album_allow_ext}->{$ext};
+			my $exts = $self->load_media_allow_ext();
+			my $file = $self->{media_allow_ext}->{$ext};
 			if ($file) {
-				$icon = $self->{album_icons} . $file;
+				$icon = $self->{media_icons} . $file;
 			}
 		}
 		$ROBJ->file_copy($icon, $thumb);	# アイコンをコピー
@@ -303,13 +303,13 @@ sub make_thumbnail_for_image {
 #	$dest : 書き出す実パス。拡張子が .avif ならAVIF、ほかはJPEG
 #	$size : 長い辺の大きさ。これより小さい画像は縮めない
 #	ret   : 成功なら0
-# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら album_avif_quality（既定65）、JPEGなら album_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
+# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら media_avif_quality（既定65）、JPEGなら media_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
 #
 sub make_jpeg_thumbnail {
 	my ($self, $src, $dest, $size) = @_;
 	require Satsuki::ImageFormat;
 	return Satsuki::ImageFormat::make_thumbnail($src, $dest, $size, {
-		quality => ($dest =~ /\.avif$/i ? $self->{album_avif_quality} : $self->{album_jpeg_quality})	# 空なら make_thumbnail の既定値
+		quality => ($dest =~ /\.avif$/i ? $self->{media_avif_quality} : $self->{media_jpeg_quality})	# 空なら make_thumbnail の既定値
 	});
 }
 
@@ -324,7 +324,7 @@ sub make_thumbnail_for_notimage {
 
 	# サイズ処理
 	my $size  = 120;
-	my $fsize = $self->{album_font_size};
+	my $fsize = $self->{media_font_size};
 	if($fsize < 6) { $fsize = 6; }
 	my $fpixel = int($fsize*1.3333 + 0.999);
 	my $f_height = $fpixel*3 +2;	# bottom padding = 2
@@ -336,8 +336,8 @@ sub make_thumbnail_for_notimage {
 	$img->ReadImage('xc:white');
 
 	# 拡張子アイコンの読み込み
-	my $exts = $self->load_album_allow_ext();
-	my $icon_dir  = $self->{album_icons};
+	my $exts = $self->load_media_allow_ext();
+	my $icon_dir  = $self->{media_icons};
 	my $icon_file = $exts->{'.'};
 	if ($self->is_image($file)) {
 		$icon_file = $exts->{'.img'};	# 画像読み込みエラー時
@@ -362,8 +362,8 @@ sub make_thumbnail_for_notimage {
 	};
 
 	# 画像情報の書き込み
-	my $album_file = $self->{album_font};
-	if ($self->{album_font} && -r $album_file) {
+	my $media_file = $self->{media_font};
+	if ($self->{media_font} && -r $media_file) {
 		my @st = stat("$dir$file");
 		my $tm = $ROBJ->print_tmf("%Y/%m/%d %H:%M", $st[9]);
 		my $fs = $self->size_format($st[7]);
@@ -380,7 +380,7 @@ sub make_thumbnail_for_notimage {
 		my $text = "$name\r\n$tm\r\n$fs";
 		$img->Annotate(
 			text => $text,
-			font => $album_file,
+			font => $media_file,
 			x => 3,
 			y => ($size - $f_height + $fpixel),	# 最初の行の baseline 基準なので1行下げる
 			pointsize => $fsize
@@ -527,7 +527,7 @@ sub do_upload {
 
 	# 中間拡張子が許可されていなければ、中間の . を _ に置き換える
 	#   photo.edited.jpg → photo_edited.jpg
-	if (! $self->album_check_ext($file_name) && $file_name =~ /^(.+)\.([^\.]+)$/) {
+	if (! $self->media_check_ext($file_name) && $file_name =~ /^(.+)\.([^\.]+)$/) {
 		my $base = $1;
 		my $ext  = $2;
 		$base =~ tr/./_/;
@@ -540,7 +540,7 @@ sub do_upload {
 	$file_name =~ s!^\.!_!;
 
 	# 拡張子チェック
-	if (! $self->album_check_ext($file_name)) {
+	if (! $self->media_check_ext($file_name)) {
 		$ROBJ->message("File extension error : %s", $file_h->{name});
 		return 3;
 	}
@@ -725,7 +725,7 @@ sub rebuild_arts_using_files {
 # 動画の1コマは、管理画面でブラウザーが切り出してPNGで送る（サーバーではコマンドを動かさない）
 # サーバーは、それを画像のサムネイルと同じ処理（make_jpeg_thumbnail）で、AVIFかJPEG（thumbnail_ext）にする
 #   記事に出すサムネイル         → .thumbnail/動画名.poster.avif（.poster.jpg）
-#   画像アルバムの一覧に出すもの → .thumbnail/動画名.avif（.jpg）
+#   メディア管理の一覧に出すもの → .thumbnail/動画名.avif（.jpg）
 # PNGで、大きさが決めた範囲のものだけを受け付ける。保存する名前はここで決める
 #
 my $VIDEO_POSTER_MAX = 960;	# 記事用のサムネイルの長い辺（記事での既定の表示480pxの2倍）
@@ -854,7 +854,7 @@ sub create_folder {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 
 	my $r = $ROBJ->mkdir("$dir$name") ? 0 : 1;
 	$ROBJ->mkdir("$dir$name/.thumbnail");
@@ -875,7 +875,7 @@ sub rename_folder {
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 
 	return rename("$dir$old", "$dir$name") ? 0 : 1;
 }
@@ -928,7 +928,7 @@ sub move_files {
 		#---------------------------------
 		# 許可していない拡張子
 		#---------------------------------
-		if (!$self->album_check_ext($des)) {
+		if (!$self->media_check_ext($des)) {
 			push(@fail, $_);
 			next;
 		}
@@ -981,7 +981,7 @@ sub rename_file {
 	my $name = $form->{name};
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 	if (-e "$dir$name") { return 1; }	# 同じ名前のファイルを上書きしない
 
 	my $r  = rename("$dir$old", "$dir$name");
@@ -1054,7 +1054,7 @@ sub delete_folder {
 	}
 
 	my $dir = $self->image_folder_to_dir( $folder );
-	# 「..」などを取り除いた結果、アルバムの根元を指すときは消さない
+	# 「..」などを取り除いた結果、メディア管理の根元を指すときは消さない
 	if ($dir eq $self->blogimg_dir()) {
 		return -1;
 	}
@@ -1065,7 +1065,7 @@ sub delete_folder {
 }
 
 #-------------------------------------------------------------------------------
-# ■アルバム関連サブルーチン
+# ■メディア管理関連サブルーチン
 #-------------------------------------------------------------------------------
 sub load_image_magick {
 	eval { require Image::Magick; };
@@ -1129,7 +1129,7 @@ sub chop_slash {
 sub is_image {
 	my ($self, $f) = @_;
 	$f =~ tr/A-Z/a-z/;
-	return ($f =~ m/\.(\w+)$/ && $self->{album_image_ext}->{$1});
+	return ($f =~ m/\.(\w+)$/ && $self->{media_image_ext}->{$1});
 }
 
 #-------------------------------------------------------------------------------
@@ -1143,23 +1143,23 @@ sub is_video {
 #-------------------------------------------------------------------------------
 # ○許可拡張子か判定
 #-------------------------------------------------------------------------------
-sub album_check_ext {
+sub media_check_ext {
 	my ($self, $f) = @_;
 	# if ($self->{trust_mode}) { return 1; }	## 危険すぎるので無効に
-	$self->load_album_allow_ext();
+	$self->load_media_allow_ext();
 
 	# 空の拡張子も確かめる（x.php. や x.php..png で確認が止まらないように）
 	while($f =~ /^(.*)\.([^\.]*)$/) {
 		$f = $1;
-		if (!$self->album_check_ext_one($2)) { return 0; }
+		if (!$self->media_check_ext_one($2)) { return 0; }
 	}
 	return 1;
 }
 
-sub album_check_ext_one {
+sub media_check_ext_one {
 	my ($self, $ext) = @_;
 	$ext =~ tr/A-Z/a-z/;
-	if ($self->{album_image_ext}->{$ext} || $self->{album_allow_ext}->{$ext}) { return 1; }
+	if ($self->{media_image_ext}->{$ext} || $self->{media_allow_ext}->{$ext}) { return 1; }
 
 	# 特殊な文字を含むか、数字で始まる
 	return ($ext =~ /[^\w]/ || $ext =~ /^\d/);
@@ -1168,12 +1168,12 @@ sub album_check_ext_one {
 #-------------------------------------------------------------------------------
 # ○その他拡張子のロード
 #-------------------------------------------------------------------------------
-sub load_album_allow_ext {
+sub load_media_allow_ext {
 	my $self = shift;
-	if (!$self->{album_allow_ext}->{'.'}) {
+	if (!$self->{media_allow_ext}->{'.'}) {
 		$self->{ROBJ}->call('media/_load_extensions');
 	}
-	return $self->{album_allow_ext};
+	return $self->{media_allow_ext};
 }
 
 ################################################################################

@@ -1195,7 +1195,7 @@ sub import_img {
 		$fname =~ s/%([0-9A-Fa-f][0-9A-Fa-f])/$1/g;
 
 		if (!$img_l) { next; }
-		my ($r, $saved) = $self->save_image_to_album($dir, $fname, $img_l);
+		my ($r, $saved) = $self->save_image_to_media($dir, $fname, $img_l);
 		if ($r) {
 			$msg  .= "  Save '$fname' fail!\n";
 			next;	# save fail
@@ -1219,7 +1219,7 @@ sub import_img {
 				my $img = $self->load_image_magick();
 				eval {
 					$self->read_image( $img, $file );
-					$img->Set( quality => ($self->{album_jpeg_quality} || 80) );
+					$img->Set( quality => ($self->{media_jpeg_quality} || 80) );
 					$img->Write( $thumb_file );
 				};
 				if ($@) { last; }
@@ -1295,9 +1295,9 @@ sub get_imgdata {
 }
 
 #-------------------------------------------------------------------------------
-# ●画像データをアルバムに保存
+# ●画像データをメディア管理に保存
 #-------------------------------------------------------------------------------
-sub save_image_to_album {
+sub save_image_to_media {
 	my $self = shift;
 	my $dir  = shift;
 	my $name = shift;

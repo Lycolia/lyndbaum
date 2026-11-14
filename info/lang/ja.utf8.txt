@@ -226,7 +226,7 @@ Invalid IP address rule '%s'=IPアドレスの書き方が正しくありませ�
 ###############################################################################
 Design save failed : %s=デザインの保存に失敗しました : %s
 Tag edit error '%s' to '%s' (same tag name exist?)=タグ編集エラー「%s」→「%s」（同じタグ名が存在しませんか？）
-# album
+# media
 File name error : %s=ファイル名が不正です : %s
 File extension error : %s=許可されない拡張子です : %s
 Save failed ("%s" already exists)=同名のファイルがすでに存在します : %s

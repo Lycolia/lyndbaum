@@ -79,7 +79,7 @@ my @ACTIONS = (
 	  form => { pkey => 1 } },
 
 	#---------------------------------------------------------------
-	# 画像アルバム
+	# メディア管理
 	#---------------------------------------------------------------
 	{ action => 'media/upload_form', min => 'admin', ok => \&text_ret0,
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up.png', content => $PNG, type => 'image/png' } ] },

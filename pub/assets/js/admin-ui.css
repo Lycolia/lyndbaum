@@ -1,7 +1,7 @@
 @charset "UTF-8";
 /*******************************************************************************
   adiary 管理画面の部品のCSS
-	base.cssから、管理画面でだけ使う部品（記事の編集、画像アルバム、
+	base.cssから、管理画面でだけ使う部品（記事の編集、メディア管理、
 	デザイン編集、ツリーなど）を分けたもの。
 	管理画面のフレーム（_frame_admin）と、公開画面のフレーム（_frame）の
 	システムモード（デザイン編集）で読み込む。
@@ -173,7 +173,7 @@ article.edit span.tag {
 }
 
 /*--------------------------------------------------------------------
-●画像アルバム
+●メディア管理
 --------------------------------------------------------------------*/
 ul.dynatree-container a {
 	font-weight:		normal;
@@ -182,14 +182,14 @@ ul.dynatree-container a {
 	min-height:		300px;
 	margin-bottom:		2px;
 }
-#album-folder-view {
+#media-folder-view {
 	margin-top:		4px;
 	min-height:		260px;
 	margin-bottom:		8px;
 	clear:			both;
 }
 
-#album-folder-view a {
+#media-folder-view a {
 	margin:			1px;
 	display:		inline-block;
 }
@@ -197,16 +197,16 @@ ul.dynatree-container a {
 /* サムネイル表示。縦長や横長の画像も見やすく押しやすいよう、同じ大きさのマスに全体を収める（切り取らない）。
    マスの大きさは固定で、列の数は幅に合わせて変わる（Lyndbaum 0 のメディアの一覧と同じ）。
    選択はimgに付くので、マスの枠や余白もimgに付ける */
-#album-folder-view.thumb-view {
+#media-folder-view.thumb-view {
 	display:		grid;
 	grid-template-columns:	repeat(auto-fill, minmax(8.5rem, 1fr));
 	gap:			0.5rem;
 }
-#album-folder-view.thumb-view a {
+#media-folder-view.thumb-view a {
 	margin:			0;
 	display:		block;
 }
-#album-folder-view img {
+#media-folder-view img {
 	display:		block;
 	box-sizing:		border-box;
 	width:			100%;
@@ -216,64 +216,64 @@ ul.dynatree-container a {
 	background-color:	var(--admin-bg, #f0f0f1);
 	object-fit:		contain;
 }
-#album-folder-view img.selected {
+#media-folder-view img.selected {
 	outline:		3px solid var(--admin-link, #2271b1);
 	outline-offset:		-1px;
 }
-/* 名前で絞り込んで隠したファイル（album.js の apply_filter）。表示形式ごとの display より強くする */
-#album-folder-view.thumb-view a.filtered-out,
-#album-folder-view.name-view  a.filtered-out {
+/* 名前で絞り込んで隠したファイル（media.js の apply_filter）。表示形式ごとの display より強くする */
+#media-folder-view.thumb-view a.filtered-out,
+#media-folder-view.name-view  a.filtered-out {
 	display:		none;
 }
 /* ファイル名一覧 */
-#album-folder-view.name-view {
+#media-folder-view.name-view {
 	font-size:		14px;
 }
-#album-folder-view.name-view a {
+#media-folder-view.name-view a {
 	display:		block;
 	width:			100%;
 	padding:		1px;
 	margin-top:		1px;
 }
-#album-folder-view.name-view span.fileline {
+#media-folder-view.name-view span.fileline {
 	display:		block;
 }
-#album-folder-view.name-view span.fileline.selected {
+#media-folder-view.name-view span.fileline.selected {
 	background-color:	#fcc;
 }
-#album-folder-view.name-view span.filename {
+#media-folder-view.name-view span.filename {
 	width:			calc(100% - 230px);
 	display:		inline-block;
 	vertical-align:		middle;
 }
-#album-folder-view.name-view span.filedate {
+#media-folder-view.name-view span.filedate {
 	width:			160px;
 	display:		inline-block;
 	vertical-align:		middle;
 }
-#album-folder-view.name-view span.filesize {
+#media-folder-view.name-view span.filesize {
 	width:			64px;
 	display:		inline-block;
 	vertical-align:		middle;
 	text-align:		right;
 }
-#adiary-body #album-dnd-name-view {
+#adiary-body #media-dnd-name-view {
 	color:			#000;
 	background-color:	#fff;
 	padding:		6px;
 }
-#album-dnd-name-view span {
+#media-dnd-name-view span {
 	display:		block;
 }
 /* ファイルなし */
-#album-folder-view div.file-not-found {
+#media-folder-view div.file-not-found {
 	font-size:		12pt;
 	font-weight:		bold;
 	padding: 		1em 1em 0 1em;
 }
 
-/* アルバムタイトル */
-#album h2 * {
+/* メディア管理のタイトル */
+#media h2 * {
 	vertical-align:		middle;
 }
 #current-folder {
@@ -287,18 +287,18 @@ ul.dynatree-container a {
 	width:			12em;
 }
 
-/* アルバムヘッダ */
-#album-header, #album-header select {
+/* メディア管理のヘッダ */
+#media-header, #media-header select {
 	font-size:		11pt;
 }
-#album-header div {
+#media-header div {
 	display:		inline-block;
 }
-#album-header div.view-option {
+#media-header div.view-option {
 	float:			right;
 }
 
-/* アルバムメイン部 */
+/* メディア管理のメイン部 */
 #iframe-upload-form {
 	width:			100%;
 	border:			none;
@@ -403,7 +403,7 @@ ul.dynatree-container img {
 	margin-left:	0px;
 }
 
-#album-folder-tree ul.dynatree-container > li > ul {
+#media-folder-tree ul.dynatree-container > li > ul {
 	padding-left:	3px;
 }
 
@@ -497,7 +497,7 @@ nav.admin-tabs ul.tabs-dir li > span {
 ●スマホ
 --------------------------------------------------------------------*/
 /* システムモードでは sidebar 非表示 */
-/* 画像アルバム */
-.ui-dialog #album-folder-tree ul {
+/* メディア管理 */
+.ui-dialog #media-folder-tree ul {
 	margin:			0;
 }

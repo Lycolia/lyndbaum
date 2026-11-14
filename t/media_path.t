@@ -5,7 +5,7 @@ use utf8;
 #-------------------------------------------------------------------------------
 # 実行: prove t/media_path.t
 #
-# ファイル名やフォルダ名に .. や / を入れても、アルバムのフォルダ（pub/attachments/）の
+# ファイル名やフォルダ名に .. や / を入れても、メディア管理のフォルダ（pub/attachments/）の
 # 外のファイルを変えられないことを確かめる。Image::Magickは要らない。
 #
 use FindBin;
@@ -45,7 +45,7 @@ subtest 'ファイル名の変更で、フォルダの外を指せない' => sub
 	$r = $app->post('admin', '', { action => 'media/rename_file', folder => 'test/', old => '../../secret.txt', name => 'got.txt' });
 	isnt(json_ret($r), '0', '元の名前に ../ を入れると失敗する');
 	ok(-f "$dir/pub/secret.txt",   'フォルダの外のファイルは動かない');
-	ok(!-e "$img/test/got.txt",    'アルバムに持ち込めない');
+	ok(!-e "$img/test/got.txt",    'メディア管理に持ち込めない');
 
 	$r = $app->post('admin', '', { action => 'media/rename_file', folder => 'test/', old => 'a.png', name => '.htaccess' });
 	isnt(json_ret($r), '0', '. で始まる名前にはできない');
@@ -113,15 +113,15 @@ subtest 'フォルダ名の .. は取り除かれる' => sub {
 	foreach my $folder ('..', '../', '/..', '..//', './..', '...', '/./../') {
 		my $r = $app->post('admin', '', { action => 'media/delete_folder', folder => $folder });
 		isnt(json_ret($r), '0', "folder=$folder の削除は失敗する");
-		ok(-d $img,                "folder=$folder でアルバムの根元が残る");
-		ok(-f "$dir/pub/keep2.txt", "folder=$folder でアルバムの外が残る");
+		ok(-d $img,                "folder=$folder でメディア管理の根元が残る");
+		ok(-f "$dir/pub/keep2.txt", "folder=$folder でメディア管理の外が残る");
 	}
-	ok(-f "$img/$file",            'アルバムの中身も残る');
+	ok(-f "$img/$file",            'メディア管理の中身も残る');
 
 	touch("$dir/pub/keep3.txt");
 	my $r = $app->post('admin', '', { action => 'media/delete_files', folder => '..', file_ary => 'keep3.txt' });
-	isnt(json_ret($r), '0', 'folder=.. でアルバムの外のファイルを消せない');
-	ok(-f "$dir/pub/keep3.txt",    'アルバムの外のファイルは残る');
+	isnt(json_ret($r), '0', 'folder=.. でメディア管理の外のファイルを消せない');
+	ok(-f "$dir/pub/keep3.txt",    'メディア管理の外のファイルは残る');
 
 	$r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'tmpdir' });
 	is(json_ret($r), '0', 'フォルダを作れる');
