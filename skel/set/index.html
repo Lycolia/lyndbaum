@@ -36,6 +36,12 @@
 		<span class="help-text">新しい記事を書いたことを、pingサーバに通知し公開します。</span>
 		</td>
 	</tr>
+	<tr><th>検索エンジン</th>
+		<td>
+		<label><input type="checkbox" name="noindex" value="1"<@if(s.noindex, ' checked')>>検索エンジンに掲載しない</label>
+		<span class="help-text">公開ページに、検索エンジンにインデックスさせない設定（noindex,nofollow）を付与します。サイトマップとRSSは通常通り出ます。</span>
+		</td>
+	</tr>
 	<tr><th>サイトアイコン</th>
 		<td>
 			<input type="file" name="iconfile" accept=".png,.jpg,.jpeg,.gif"><br>

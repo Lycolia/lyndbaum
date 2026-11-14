@@ -34,6 +34,33 @@ subtest 'ブログの基本設定' => sub {
 	like(read_file("$dir/pub/rss.xml"), qr{テストのブログ}, 'RSSの題名も変わる');
 };
 
+subtest '検索エンジンに掲載しない（noindex）' => sub {
+	my %base   = (action => 'set/index', blog_name => 'テストのブログ', description_txt => 'ブログの説明');
+	my $robots = sub { scalar(() = body($_[0]) =~ m{<meta name="robots" content="noindex,nofollow">\n}g) };
+	my $rss    = read_file("$dir/pub/rss.xml");
+	my $q      = AppTest::_uri_escape('記事');
+
+	my $r = $app->post('admin', 'set/', { %base, noindex => 1 });
+	ok(AppTest::is_reload($r), 'オンで保存できる');
+	like(body($app->get('admin', 'set/')), qr{<input type="checkbox" name="noindex" value="1" checked>}, '設定画面でチェックが入っている');
+
+	# トップに出た記事のリンクを辿る
+	$r = $app->get('guest', '');
+	is($robots->($r), 1, 'トップに1つ付く');
+	my ($art) = body($r) =~ m{<a href="[^"]*?(/\d+)" class="title">};
+	ok($art, "記事のリンクが取れる（$art）");
+	is($robots->($app->get('guest', $art)), 1, '記事に1つ付く');
+	is($robots->($app->get('guest', "?q=$q")), 1, 'もとから付く検索画面でも1つだけ');
+	is(read_file("$dir/pub/rss.xml"), $rss, 'RSSは変わらない');
+
+	$r = $app->post('admin', 'set/', \%base);
+	ok(AppTest::is_reload($r), 'オフに戻せる');
+	unlike(body($app->get('admin', 'set/')), qr{name="noindex" value="1" checked}, '設定画面でチェックが外れている');
+	is($robots->($app->get('guest', '')),  0, 'トップには付かない');
+	is($robots->($app->get('guest', $art)), 0, '記事には付かない');
+	is($robots->($app->get('guest', "?q=$q")), 1, '検索画面にはもとのとおり付く');
+};
+
 #-------------------------------------------------------------------------------
 # 公開画面のメタ情報（PageSpeed Insights の指摘）。ブログの説明を入れた後、記事を書き足す前に確かめる
 #-------------------------------------------------------------------------------
