@@ -13,16 +13,9 @@ package SatsukiApp::adiary;
 ################################################################################
 # ■ワンライナーなサブルーチン等
 ################################################################################
-my $UPDATE_MIN_VERSION = 4.31;	# これより古いデータからのアップデートはできない
+my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.32, plugin=>1 },	# ブログが無いときの分岐を雛形とプラグインから消し、変数の名前をそろえた。デザインのスケルトンを作り直す
-	{ ver => 4.33, func => 'sys_update_433', system=>1, plugin=>1 },	# マルチサイトと複数ユーザーの残りの列を消した。記事情報モジュールの「投稿者の表示」を削除したので、デザインのスケルトンを作り直す
-	{ ver => 4.34, func => 'sys_update_434', system=>1 },	# 操作の記録のうち、削除の記録を消す
-	{ ver => 4.37, rebuild_cond => ['\[\*toc'] },	# 目次を「目次」の見出し付きの<nav>で囲んだので、目次のある記事を作り直す
-	{ ver => 4.38, func => 'sys_update_438' },	# 記事の直前の保存のテーブル（lastrev）を作る
-	{ ver => 4.39, rebuild_cond => ['\(\('] },	# 注釈の一覧を、書いた見出しの下に出すようにしたので、注釈のある記事を作り直す
-	{ ver => 4.42, plugin=>1 },	# 検索画面の検索条件の欄とタグで絞り込みを変えたので、デザインのスケルトンを作り直す
-	{ ver => 4.43, func => 'sys_update_443', system=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとブログのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -121,61 +114,14 @@ sub update_unsupported {
 }
 
 #-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.33
-#-------------------------------------------------------------------------------
-# マルチサイトと複数ユーザーの残りの列を消す。書いた人は管理者だけなので、記事ごとに持たない
-sub sys_update_433 {
-	my $self = shift;
-	my $auth = $self->{ROBJ}->{Auth};
-
-	$self->drop_columns_433($auth->{DB}, $auth->{table}, qw(isadmin disable));
-
-	my $blog = $self->{blog};
-	if (!$blog) { return; }
-	my @author = qw(name id ip host agent);
-	$self->drop_columns_433($self->{DB}, 'art',   @author);
-	$self->drop_columns_433($self->{DB}, 'trash', @author, 'deleted_id');
-	$self->update_blogset($blog, 'p:dea_art-info:author', undef);
-}
-sub drop_columns_433 {
-	my ($self, $DB, $table, @cols) = @_;
-	foreach(@cols) {
-		if ($DB->drop_column($table, $_)) {
-			$self->{ROBJ}->message("Blog database error(%s)", "$table.$_");
-		}
-	}
-}
-
-#-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.34
-#-------------------------------------------------------------------------------
-# 操作の記録のうち、削除の記録を消す。ユーザーの削除はもう記録しない
-sub sys_update_434 {
-	my $self = shift;
-	my $auth = $self->{ROBJ}->{Auth};
-
-	$auth->{DB}->delete_match($auth->{table} . '_log', 'type', 'delete');
-}
-
-#-------------------------------------------------------------------------------
-# ●システムアップデート for Ver4.38
-#-------------------------------------------------------------------------------
-# 記事の直前の保存のテーブルを作る
-sub sys_update_438 {
-	my $self = shift;
-	if ($self->{DB}->find_table('lastrev')) { return; }
-	if ($self->create_lastrev_table()) {
-		$self->{ROBJ}->message("Blog database error(%s)", 'lastrev');
-	}
-}
-
-#-------------------------------------------------------------------------------
 # ●システムアップデート for Ver4.43
 #-------------------------------------------------------------------------------
 # 同時編集の確認を削除したので、システム設定の間隔と、ブログのロックのファイルを置いたディレクトリを消す
 # 内部の名前をalbumからmediaにしたので、システム設定のサムネイルの品質を新しい名前に移す
+# 添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと、ブログの設定と記事に保存したパスを移す
 sub sys_update_443 {
 	my $self = shift;
+	my $ROBJ = $self->{ROBJ};
 	$self->update_sysdat('edit_lock_interval', undef);	# 値が空のキーは保存しない
 	foreach(qw(jpeg avif)) {
 		my $old = $self->{sys}->{"album_${_}_quality"};
@@ -184,9 +130,53 @@ sub sys_update_443 {
 		$self->update_sysdat("album_${_}_quality", undef);
 	}
 
-	if (!$self->{blog}) { return; }
+	my $old_img = $self->{pub_dir} . 'attachments/';
+	my $img     = $self->blogimg_dir();
+	if (-d $old_img) {
+		if (-e $img) {
+			$ROBJ->message("Already exists '%s'", $img);
+		} else {
+			rename($old_img, $img) || $ROBJ->message("Rename '%s' failed", $old_img);
+		}
+	}
+
+	my $blog = $self->{blog};
+	if (!$blog) { return; }
 	my $dir = $self->{blog_dir} . 'lock/';
-	if (-d $dir) { $self->{ROBJ}->dir_delete($dir); }
+	if (-d $dir) { $ROBJ->dir_delete($dir); }
+
+	# ブログの設定（ブログの画像、アイコン、プラグインの画像など）のパス
+	my $old_path = qr|pub/attachments/|;
+	my $new_path = 'pub/attach/';
+	my %up;
+	foreach(keys(%$blog)) {
+		if (ref($blog->{$_}) || $blog->{$_} !~ $old_path) { next; }
+		($up{$_} = $blog->{$_}) =~ s/$old_path/$new_path/g;
+	}
+	if (%up) { $self->update_blogset($blog, \%up); }
+
+	# 記事の原文（HTML、Markdownで書いたパス）とパースしたもの。artのtextは作り直すが、ゴミ箱は作り直さない
+	my $DB = $self->{DB};
+	my %cols = (
+		art     => [qw(_text text text_s)],
+		trash   => [qw(_text text text_s)],
+		rev     => [qw(_text)],
+		lastrev => [qw(_text)]
+	);
+	foreach my $table (sort keys(%cols)) {
+		if (!$DB->find_table($table)) { next; }
+		my $ary = $DB->select_match($table, '*cols', ['pkey', @{ $cols{$table} }]);
+		$DB->begin();
+		foreach my $h (@$ary) {
+			my %up;
+			foreach(@{ $cols{$table} }) {
+				my $v = $h->{$_};
+				if ($v =~ s/$old_path/$new_path/g) { $up{$_} = $v; }
+			}
+			if (%up) { $DB->update_match($table, \%up, 'pkey', $h->{pkey}); }
+		}
+		if ($DB->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
+	}
 }
 
 1;

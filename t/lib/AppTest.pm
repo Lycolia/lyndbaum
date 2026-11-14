@@ -254,11 +254,11 @@ sub seed {
 	die "comment failed: $r->{title}" if (($r->{title} // '') !~ /^処理結果/);	# 公開画面の処理結果（_sub/reload_message_public）
 
 	# メディア管理の根元は、画像を初めて置くときに作られる。ここでは先に作っておく
-	mkdir("$self->{dir}/pub/attachments");
+	mkdir("$self->{dir}/pub/attach");
 	$r = $self->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'test' });
 	die "create_folder failed: $r->{body}" if (!$r->{json} || $r->{json}->{ret} ne '0');
-	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attachments/$IMAGE_FOLDER$IMAGE_FILE");
-	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attachments/$IMAGE_FOLDER$VIDEO_FILE");
+	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attach/$IMAGE_FOLDER$IMAGE_FILE");
+	_copy("$ROOT/pub/assets/dist/default-icon.png", "$self->{dir}/pub/attach/$IMAGE_FOLDER$VIDEO_FILE");
 	$r = $self->post('admin', '', { action => 'media/refresh' });
 	return $self;
 }

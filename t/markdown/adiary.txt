@@ -31,13 +31,13 @@
 --- input
 [image:S:adiary/2026/01/:a.png:キャプション]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="キャプション" data-lythumb="k1"><img alt="キャプション" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="キャプション" data-lythumb="k1"><img alt="キャプション" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
 === 画像を並べても参照リンクにならない
 --- input
 [image:S:adiary/2026/01/:a.png:A][image:S:adiary/2026/01/:b.png:B]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="A" data-lythumb="k1"><img alt="A" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><a href="pub/attachments/adiary/2026/01/b.png" class="tag-image-S" title="B" data-lythumb="k1"><img alt="B" src="pub/attachments/adiary/2026/01/.thumbnail/b.png.jpg"></a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="A" data-lythumb="k1"><img alt="A" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a><a href="pub/attach/adiary/2026/01/b.png" class="tag-image-S" title="B" data-lythumb="k1"><img alt="B" src="pub/attach/adiary/2026/01/.thumbnail/b.png.jpg"></a></p>
 
 === 画像のキャプションがあるときだけ figure で囲む
 # キャプションは、画像の後の2つ目以降の引数に # を付けて書く
@@ -45,50 +45,50 @@
 --- input
 [image:S:adiary/2026/01/:a.png:代替:#説明]
 --- expected
-<figure><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
+<figure><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
 
 === 代替テキストを省いた画像の title はタグ名にしない
 --- input
 [image:S:adiary/2026/01/:a.png]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="" data-lythumb="k1"><img alt="" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="" data-lythumb="k1"><img alt="" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
 === 代替テキストの : は title にもそのまま出す
 --- input
 [image:S:adiary/2026/01/:a.png:4:30と23:00]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-S" title="4:30と23:00" data-lythumb="k1"><img alt="4:30と23:00" src="pub/attachments/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="4:30と23:00" data-lythumb="k1"><img alt="4:30と23:00" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>
 
 === 画像へのテキストリンク
 # リンクの文字は、画像ビューアーのキャプション（data-caption）になる
 --- input
 文中の[image:T:adiary/2026/01/:a.png:この写真]を見る
 --- expected
-<p>文中の<a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="この写真">この写真</a>を見る</p>
+<p>文中の<a href="pub/attach/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="この写真">この写真</a>を見る</p>
 
 === リンクの文字を省いた画像へのテキストリンクはファイル名をリンクの文字にする
 --- input
 [image:T:adiary/2026/01/:a.png]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
 
 === 貼り付けたままの画像へのテキストリンク（最後が:）はファイル名をリンクの文字にする
 --- input
 [image:T:adiary/2026/01/:a.png:]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="a.png">a.png</a></p>
 
 === 画像へのテキストリンクの文字の : と # はそのまま出し、figure で囲まない
 --- input
 [image:T:adiary/2026/01/:a.png:4:30の#1]
 --- expected
-<p><a href="pub/attachments/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="4:30の#1">4:30の#1</a></p>
+<p><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-T" data-lythumb="k1" data-caption="4:30の#1">4:30の#1</a></p>
 
 === 名前を省いた添付ファイルはファイル名をリンクの文字にする
 --- input
 [file:pdf:posts/2026/10/:a.pdf] [file:zip:posts/2026/10/:demo.zip:デモ一式]
 --- expected
-<p><a href="pub/attachments/posts/2026/10/a.pdf" class="tag-file" title="ファイル">a.pdf</a> <a href="pub/attachments/posts/2026/10/demo.zip" class="tag-file" title="ファイル">デモ一式</a></p>
+<p><a href="pub/attach/posts/2026/10/a.pdf" class="tag-file" title="ファイル">a.pdf</a> <a href="pub/attach/posts/2026/10/demo.zip" class="tag-file" title="ファイル">デモ一式</a></p>
 
 === YouTube
 # 画像ビューアーがあるので、サムネイルだけを出すモジュールにする（docs/仕様/動画のサムネイル.md）

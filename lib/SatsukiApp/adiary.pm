@@ -1727,7 +1727,7 @@ sub blog_dir {
 }
 sub blogimg_dir {
 	my $self = shift;
-	return $self->{pub_dir} . 'attachments/';
+	return $self->{pub_dir} . 'attach/';
 }
 
 #-------------------------------------------------------------------------------

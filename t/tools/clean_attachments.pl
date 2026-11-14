@@ -7,15 +7,15 @@ use strict;
 # サイトを動かしたままでよいが、Webサーバーと同じユーザーで動かす（ファイルの持ち主が変わらないように）。
 #
 # 使い方:
-#   perl t/tools/clean_attachments.pl <pub/attachments/>               … 数えて出すだけ。何も変えない
-#   perl t/tools/clean_attachments.pl <pub/attachments/> --run         … 原本のメタ情報を消し、AVIFのサムネイルを作る
-#   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
+#   perl t/tools/clean_attachments.pl <pub/attach/>               … 数えて出すだけ。何も変えない
+#   perl t/tools/clean_attachments.pl <pub/attach/> --run         … 原本のメタ情報を消し、AVIFのサムネイルを作る
+#   perl t/tools/clean_attachments.pl <pub/attach/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
 #   --quality=60      サムネイルの画質（既定はシステム設定の media_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
-#   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
-#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi）
+#   --data=<data/>    記事のデータの場所（既定は <pub/attach/>/../../data/）
+#   --conf=<file>     設定ファイル（既定は <pub/attach/>/../../lyndbaum.user.cgi）
 #
 # 手順:
 #   1. --run で、原本を片付けてAVIFのサムネイルを作る。前のJPEGのサムネイルは残すので、記事はそのまま見られる
@@ -51,7 +51,7 @@ my %CLEAN = map { $_ => 1 } qw(jpg jpeg png apng webp);		# メタ情報を消す
 my %VIDEO = map { $_ => 1 } qw(mp4 m4v webm ogv);		# 動画（SatsukiApp::adiary の is_video）
 
 sub usage {
-	die "usage: $0 <pub/attachments/> [--run [--force] | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>] [--conf=<file>]\n";
+	die "usage: $0 <pub/attach/> [--run [--force] | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>] [--conf=<file>]\n";
 }
 
 #-------------------------------------------------------------------------------

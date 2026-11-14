@@ -77,7 +77,7 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 		print $fh shift;
 		close($fh);
 	};
-	$write->($org . "blog_image=pub/attachments/\@system/sys-blog_image.png\n");
+	$write->($org . "blog_image=pub/attach/\@system/sys-blog_image.png\n");
 	$b = body($app->get('guest', ''));
 	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはブログの画像');
 	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'ブログの画像のtwitter:cardはsummary_large_image');
@@ -211,7 +211,7 @@ subtest 'ブログの自動作成' => sub {
 	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev lastrev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
 	open(my $fh, '>:utf8', $sys) || die;
 	print $fh $conf;
 	close($fh);
@@ -294,7 +294,7 @@ subtest 'メディア管理' => sub {
 		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
 		local $/; <$fh>;
 	};
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	require Satsuki::ImageFormat;
 	my $ext = Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';	# 画像のサムネイルの形式
 
@@ -323,13 +323,13 @@ subtest 'メディア管理' => sub {
 	ok(json_ok($r), 'フォルダを作れる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '移せる');
-	ok(!-e "$img/renamed.png" && -f "$dir/pub/attachments/other/renamed.png", 'ファイルが移る');
-	ok(-f "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
+	ok(!-e "$img/renamed.png" && -f "$dir/pub/attach/other/renamed.png", 'ファイルが移る');
+	ok(-f "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
 
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '削除できる');
-	ok(!-e "$dir/pub/attachments/other/renamed.png", 'フォルダから消える');
-	ok(!-e "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
+	ok(!-e "$dir/pub/attach/other/renamed.png", 'フォルダから消える');
+	ok(!-e "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
 };
 
 subtest 'アップロードした画像のメタ情報' => sub {
@@ -342,7 +342,7 @@ subtest 'アップロードした画像のメタ情報' => sub {
 	my $xmp  = "http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x='adobe:ns:meta/'/>";
 	my $seg  = sub { "\xFF" . chr($_[0]) . pack('n', length($_[1]) + 2) . $_[1] };
 	$jpeg = "\xFF\xD8" . $seg->(0xE1, $exif) . $seg->(0xE1, $xmp) . $seg->(0xE5, 'x' x 100) . substr($jpeg, 2);
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	my $read = sub { open(my $fh, '<:raw', shift) || return ''; local $/; <$fh> };
 
 	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
@@ -381,7 +381,7 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	my $post = sub { return $post_data->( $image->(@_) ) };
 	# 画像のサムネイルと同じく、AVIFを書けるならAVIF、書けなければJPEG
 	my ($ext, $format) = Satsuki::ImageFormat::can_write_avif() ? ('avif', 'avif') : ('jpg', 'jpeg');
-	my $th     = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
+	my $th     = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
 	my $poster = "$th.poster.$ext";
 	my $thumb  = "$th.$ext";
 
@@ -441,16 +441,16 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	}
 
 	# 名前の変更、移動、削除で、記事用のサムネイルもついて行く
-	my $tdir = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail";
+	my $tdir = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail";
 	$r = $app->post('admin', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
 	ok(json_ok($r), '動画の名前を変えられる');
 	ok(-e "$tdir/v2.mp4.poster.$ext" && -e "$tdir/v2.mp4.$ext" && !-e $poster, 'サムネイルの名前も変わる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を移せる');
-	ok(-e "$dir/pub/attachments/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
+	ok(-e "$dir/pub/attach/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を削除できる');
-	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
+	ok(!glob("$dir/pub/attach/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
 #-------------------------------------------------------------------------------

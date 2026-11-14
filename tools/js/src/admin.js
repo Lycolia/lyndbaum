@@ -511,7 +511,7 @@ function video_to_png(video, max) {
 //●動画のサムネイルをまとめて作る
 ////////////////////////////////////////////////////////////////////////////////
 // files : [ { folder:'posts/2026/', name:'clip.mp4' }, ... ]
-// base  : メディア管理のURL（/pub/attachments/）
+// base  : メディア管理のURL（/pub/attach/）
 // progress(i, file, err) : 1つ終わるたびに呼ぶ（err は失敗したとき）
 // ret   : Promise。失敗した数で resolve する（1つ失敗しても続ける）
 //

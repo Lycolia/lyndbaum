@@ -110,7 +110,7 @@ subtest 'ユーザー設定で値を変えられる' => sub {
 # フォームの制限（set_form_options）
 #-------------------------------------------------------------------------------
 subtest 'アップロード' => sub {
-	mkdir("$dir/pub/attachments");
+	mkdir("$dir/pub/attach");
 	my $r = $app->post('admin', '', { action => 'media/create_folder', folder => '/', name => 'test' });
 	is(($r->{json} || {})->{ret}, 0, 'メディア管理のフォルダを作る');
 
@@ -118,7 +118,7 @@ subtest 'アップロード' => sub {
 		my ($who, $name, $size) = @_;
 		$app->post($who, '', [ action => 'media/upload_form', folder => 'test/', size => 120,
 			file_ary => { filename => $name, content => 'x' x $size, type => 'text/plain' } ]);
-		return -e "$dir/pub/attachments/test/$name";
+		return -e "$dir/pub/attach/test/$name";
 	};
 	ok($upload->('admin', 'small.txt', 2048), 'ログインしていれば、マルチパートで送れる');
 	ok(!$upload->('guest', 'guest.txt', 2048), 'ログインしていなければ、マルチパートは受け付けない');
@@ -126,7 +126,7 @@ subtest 'アップロード' => sub {
 	# 1MBを超えると一時ファイルに書く。一時フォルダの場所はユーザー設定で変えられる
 	write_file($user, "$PRAGMA<\$Temp = 'data/tmp2/'>\n");
 	ok($upload->('admin', 'big.txt', 1048576 + 1024), '1MBを超えるファイルを送れる');
-	is(-s "$dir/pub/attachments/test/big.txt", 1048576 + 1024, '中身が欠けない');
+	is(-s "$dir/pub/attach/test/big.txt", 1048576 + 1024, '中身が欠けない');
 	ok(-d "$dir/data/tmp2", 'ユーザー設定の一時フォルダを使う');
 
 	write_file($user, "$PRAGMA<\$v.uplaod_files_max = 1K>\n");

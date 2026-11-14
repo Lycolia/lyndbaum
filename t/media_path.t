@@ -5,7 +5,7 @@ use utf8;
 #-------------------------------------------------------------------------------
 # 実行: prove t/media_path.t
 #
-# ファイル名やフォルダ名に .. や / を入れても、メディア管理のフォルダ（pub/attachments/）の
+# ファイル名やフォルダ名に .. や / を入れても、メディア管理のフォルダ（pub/attach/）の
 # 外のファイルを変えられないことを確かめる。Image::Magickは要らない。
 #
 use FindBin;
@@ -17,7 +17,7 @@ binmode(Test::More->builder->$_, ':utf8') foreach (qw(output failure_output todo
 
 my $app = AppTest->new()->setup()->seed();
 my $dir = $app->dir;
-my $img = "$dir/pub/attachments";
+my $img = "$dir/pub/attach";
 my $file = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";	# test/a.png
 
 sub json_ret {
