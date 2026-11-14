@@ -37,7 +37,8 @@ subtest 'サイトの基本設定' => sub {
 subtest '検索エンジンに掲載しない（noindex）' => sub {
 	my %base   = (action => 'set/index', blog_name => 'テストのサイト', description_txt => 'サイトの説明');
 	my $robots = sub { scalar(() = body($_[0]) =~ m{<meta name="robots" content="noindex,nofollow">\n}g) };
-	my $rss    = read_file("$dir/pub/rss.xml");
+	my $rss_of = sub { my $x = read_file("$dir/pub/rss.xml"); $x =~ s{<lastBuildDate>.*?</lastBuildDate>}{}s; $x };	# 保存するたびに今の時刻になる
+	my $rss    = $rss_of->();
 	my $q      = AppTest::_uri_escape('記事');
 
 	my $r = $app->post('admin', 'set/', { %base, noindex => 1 });
@@ -51,7 +52,7 @@ subtest '検索エンジンに掲載しない（noindex）' => sub {
 	ok($art, "記事のリンクが取れる（$art）");
 	is($robots->($app->get('guest', $art)), 1, '記事に1つ付く');
 	is($robots->($app->get('guest', "?q=$q")), 1, 'もとから付く検索画面でも1つだけ');
-	is(read_file("$dir/pub/rss.xml"), $rss, 'RSSは変わらない');
+	is($rss_of->(), $rss, 'RSSは変わらない');
 
 	$r = $app->post('admin', 'set/', \%base);
 	ok(AppTest::is_reload($r), 'オフに戻せる');
