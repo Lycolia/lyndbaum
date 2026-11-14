@@ -429,6 +429,32 @@ function clear_trash() {
 on($id('media-clear-trashbox'), 'click', clear_trash);
 
 ////////////////////////////////////////////////////////////////////////////////
+// ●フォーカスのあるフォルダを消す（Deleteキー）
+////////////////////////////////////////////////////////////////////////////////
+// 表示中のフォルダではなく、矢印キーなどでフォーカスを置いたフォルダが対象
+function delete_focused_folder() {
+	var node = dtree.tnFocused;
+	if (!node) return;
+	var key = node.data.key;
+
+	// ゴミ箱を空に
+	if (key == '.trashbox/') return clear_trash();
+	if (node.data.fix) return;	// ルート
+
+	var trash = (key.substr(0,10) == '.trashbox/');
+	var mode  = trash ? 'delete' : 'trash';
+	adiary.confirm('#msg-confirm-'+mode+'-folder', function(flag) {
+		if (!flag) return;
+		if (trash) {
+			delete_folder(key);
+		} else {
+			// ゴミ箱へ移動
+			move_folder('.trashbox/', node);
+		}
+	});
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // ●フォルダの削除
 ////////////////////////////////////////////////////////////////////////////////
 function delete_folder(folder) {
@@ -468,7 +494,7 @@ function move_folder(node, srcNode) {
 
 	var from = srcNode.getParent().data.key;
 	var to   = node.data.key;
-	if (to.indexOf(cur_folder) == 0) return false;	// 自分自身やその子へは移動できない
+	if (to.indexOf(srcNode.data.key) == 0) return false;	// 自分自身やその子へは移動できない
 	if (from == to) return false;			// 今あるフォルダと同じ場所へは移動できない
 
 	ajax_submit({
@@ -1688,26 +1714,15 @@ document.addEventListener('keydown', function(evt) {
 	if (dialog_visible()) return;
 	if (evt.keyCode != 46) return;
 
-	var trash = (cur_folder.substr(0,10) == '.trashbox/');
-	var mode  = trash ? 'delete' : 'trash';
-	var files = load_selected_files();
+	// 入力欄の中のDeleteは文字を消すだけ
+	var ae = document.activeElement;
+	if (ae && ae.closest('input, textarea, select, [contenteditable]')) return;
 
-	// ファイルの削除
-	if (files.length) return media_delete_files()
+	// フォルダ一覧にフォーカスがあれば、フォーカスのあるフォルダを消す
+	if (tree.contains(ae)) return delete_focused_folder();
 
-	// ゴミ箱を空に？フォルダの削除
-	if (cur_folder == '.trashbox/') return clear_trash();
-
-	// フォルダの削除
-	if (cur_folder != '/') adiary.confirm('#msg-confirm-'+mode+'-folder', function(flag) {
-		if (!flag) return;
-		if (trash) {
-			delete_folder(cur_folder);
-		} else {
-			// ゴミ箱へ移動
-			move_folder('.trashbox/', cur_node);
-		}
-	});
+	// 選択中のファイルを消す
+	if (load_selected_files().length) media_delete_files();
 });
 
 ////////////////////////////////////////////////////////////////////////////////
