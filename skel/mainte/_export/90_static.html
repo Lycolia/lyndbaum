@@ -109,7 +109,6 @@ adiary.session('#static-export, #static-export-format', {
 
 	<$files = begin_array>
 		adiary.min.js
-		highlight.pack.js
 	<$end>
 	<$forexec(t, files, begin)>
 		<$session.msg("\tcopy to '<@dir><@t>'")>
@@ -169,7 +168,6 @@ adiary.session('#static-export, #static-export-format', {
 	<$end>
 
 	<$dirs = begin_array>
-		highlight-js/
 		ui-icon/
 	<$end>
 	<$forexec(t, dirs, begin)>
