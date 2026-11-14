@@ -187,6 +187,11 @@ $$.dom_init( function(R){
 		box.tabIndex  = -1;
 		inp.before(box);
 
+		// 欄が無効（「変更しない」など）のときは、色の窓も押せないようにする
+		box.disabled = inp.disabled;
+		new MutationObserver(function(){ box.disabled = inp.disabled })
+			.observe(inp, { attributes: true, attributeFilter: ['disabled'] });
+
 		function from_text() {
 			const v = self.color_value(inp.value);
 			if (v) box.value = v;
