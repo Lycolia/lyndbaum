@@ -4,7 +4,7 @@
 //##############################################################################
 //[TAB=8]
 'use strict';
-adiary_public.ready(function(){
+adiary.ready(function(){
 	// 設定画面を送るフォームのひな形。開くたびに写して使う
 	// （閉じた後に、前に開いたときのイベントなどが残らないように）
 	const form_tmpl = adiary.secure('#ajax-form');

@@ -13,7 +13,7 @@
 // 字下げやリストの記号を足さない。URLを貼っても、リンクの記法にしない。
 // codemirror.min.jsが読めないときは、textareaのまま。
 'use strict';
-adiary_public.ready(function(){
+adiary.ready(function(){
 	const CM = window.CM6;
 	const ta = document.getElementById('editarea');
 	if (!CM || !ta) return;
