@@ -9,8 +9,8 @@
 ■カラム（2カラム・左サイドバー）
 --------------------------------------------------------------------*/
 /* サイドバーAとBの包み（#sidebars）を1本のサイドバーにし、Aの下にBを重ねる。
-   広い画面では本文の左に置く。狭い画面（48rem未満）では、本文、サイドバーの順に縦に並べる */
-@media (min-width: 48rem) {
+   広い画面では本文の左に置く。72rem未満の画面では、本文、サイドバーの順に縦に並べる */
+@media (min-width: 72rem) {
 	#hatena-body > div {
 		grid-template-columns: 22.5rem minmax(0, 1fr);
 		grid-template-areas: "side main";
@@ -20,11 +20,11 @@
 	.site-sidebars { grid-area: side; }
 }
 
-/* 狭い画面（48rem未満）では、サイドバーを左から出る引き出しにし、左の角の三本線のボタン（.sidebar-toggle-both）で開く
+/* 72rem未満の画面では、サイドバーを左から出る引き出しにし、左の角の三本線のボタン（.sidebar-toggle-both）で開く
    開け閉めはadiary.js（docs/仕様/引き出し.md）。JavaScriptが使えるとき、_frame.htmlがhas-drawerを付ける。付かなければ上の並び。
    暗幕とスクロールの停止はbase.css。引き出しになっている間は--drawer: 1を付ける。
    ボタンの形は共通の部分。ヘッダーの中身がボタンの下に入らないよう、ボタンのある側を空ける */
-@media (max-width: 47.99rem) {
+@media (max-width: 71.99rem) {
 	.has-drawer .site-header { padding-left: 3.25rem; }
 	.has-drawer .sidebar-toggle-both { display: inline-flex; left: .5rem; }
 	.has-drawer .site-sidebars {
