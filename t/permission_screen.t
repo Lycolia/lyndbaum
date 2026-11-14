@@ -87,6 +87,7 @@ my @SCREENS = (
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
 	[ 'system/check'        , 'admin' , 'システム管理メニュー' ],
+	[ 'system/disk'         , 'admin' , 'ディレクトリ使用量' ],
 	[ 'system/copyright'    , 'admin' , '著作権表示' ],
 
 	# 補助の画面

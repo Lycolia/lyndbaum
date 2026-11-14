@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 主な操作の中身のテスト（ユーザー、パスワード、アップデート処理、システムの設定、編集画面の設定、ページ送り）
+# 主な操作の中身のテスト（ユーザー、パスワード、アップデート処理、システムの設定、ディレクトリ使用量、編集画面の設定、ページ送り）
 #-------------------------------------------------------------------------------
 # 実行: prove t/operations_user.t
 #
@@ -732,6 +732,92 @@ subtest '操作の記録' => sub {
 	$b = body($app->get('admin', $link));
 	is($rows->($b), 2, '2ページ目に残りの2件が出る');
 	like($b, qr{全12件}, '2ページ目でも絞り込みが引き継がれる');
+};
+
+#-------------------------------------------------------------------------------
+# ディレクトリ使用量（?system/disk）
+#-------------------------------------------------------------------------------
+subtest 'ディレクトリ使用量' => sub {
+	require Satsuki::Base;
+	require File::Path;
+	my $att = "$dir/pub/attachments";
+	ok(-d $att && !-l $att, 'テストの添付ファイルのフォルダは、本物へのリンクではない');
+
+	# 画面の表を { 見出し => { 行の名前 => ファイル数（表示のまま） } } にする
+	my $tables = sub {
+		my %t;
+		foreach (split(m{<h3>}, shift)) {
+			my ($h) = m{^([^<]*)</h3>} or next;
+			$t{$h}{$1} = $2 while (m{<td>([^<]*)</td><td class="r">[^<]*</td><td class="r">([^<]*)</td>}g);
+		}
+		return \%t;
+	};
+	my $num = sub { my $n = int(shift); 1 while ($n =~ s/^(-?\d+)(\d{3})/$1,$2/); $n };
+
+	# システム管理のタブのリンクを辿る
+	my ($link) = body($app->get('admin', 'system/check')) =~ m{<a href="[^"?]*\?([^"]*)">ディレクトリ使用量</a>};
+	is($link, 'system/disk', 'システム管理のタブにリンクがある');
+	my $b = body($app->get('admin', $link));
+	unlike($b, qr{class="warning"}, '読めないフォルダが無ければ警告は出ない');
+	my $t0 = $tables->($b);
+	is_deeply([ sort keys(%$t0) ], [ sort('全体', '添付ファイル', 'データベース') ], '表は全体、添付ファイル、データベースの3つ');
+	is_deeply([ sort keys(%{ $t0->{'全体'} }) ], [ sort('__cache/', 'pub/attachments/', 'data/db/', '合計') ], '全体は3つのフォルダと合計');
+	ok(exists $t0->{'データベース'}{'data/db/art/'}, 'データベースはテーブルごとに出る');
+	is_deeply([ grep { !m{^data/db/\w+/$} } keys(%{ $t0->{'データベース'} }) ], [], 'データベースにはテーブルのフォルダの行だけが出る');
+
+	# 元のファイル1000個、サムネイル2個、ゴミ箱2個（ゴミ箱の中のサムネイルはゴミ箱に数える）、リンク2つを足す
+	my $put = sub { my $f = shift; open(my $fh, '>', $f) || die "$f: $!"; print $fh 'x' x (shift // 0); close($fh); };
+	File::Path::make_path("$att/disk/.thumbnail", "$att/.trashbox/.thumbnail");
+	$put->("$att/disk/$_.txt") foreach (1..1000);
+	$put->("$att/disk/.thumbnail/$_.jpg") foreach (1..2);
+	$put->("$att/.trashbox/a.png");
+	$put->("$att/.trashbox/.thumbnail/a.png.jpg");
+	symlink("$dir/data/db", "$att/disk/link-dir") || die $!;
+	symlink("$dir/lyndbaum.cgi", "$att/disk/link-file") || die $!;
+
+	my $t1 = $tables->(body($app->get('admin', $link)));
+	my $diff = sub {
+		my ($h, $row, $add) = @_;
+		my $before = $t0->{$h}{$row} =~ s/,//gr;
+		is($t1->{$h}{$row}, $num->($before + $add), "${h}：${row}は${add}個増え、桁区切りで出る");
+	};
+	$diff->('添付ファイル', 'サムネイル以外', 1000);
+	$diff->('添付ファイル', 'サムネイル', 2);
+	$diff->('添付ファイル', 'ゴミ箱', 2);
+	$diff->('添付ファイル', '合計', 1004);
+	$diff->('全体', 'pub/attachments/', 1004);
+	$diff->('全体', '合計', 1004);
+	like($t1->{'全体'}{'合計'}, qr{^\d{1,3}(?:,\d{3})+$}, '1000を超えるファイル数に桁区切りが入る');
+
+	# 大きさはファイルの大きさの合計。リンクは辿らず、数えもしない
+	my $o = bless({}, 'Satsuki::Base');
+	my $s0 = $o->get_dir_size("$att/disk", 1);
+	$put->("$att/disk/sub.txt", 1234);
+	File::Path::make_path("$att/disk/d1/d2");
+	$put->("$att/disk/d1/d2/deep.txt", 10);
+	my $s = $o->get_dir_size("$att/disk", 1, '.thumbnail');
+	is($s->{size}  - $s0->{size},  1244, '大きさはファイルの大きさの合計');
+	is($s->{files} - $s0->{files}, 2, '足したファイルの数だけ増える');
+	is_deeply({ map { $_->{name} => $_->{files} } @{ $s->{list} } }, { '' => 1001, 'd1/' => 1 }, '内訳は指定の深さのフォルダごと。深いところのファイルはその行に入り、直下のファイルはnameが空');
+	is($s->{split}{'.thumbnail'}{files}, 2, '別に数えるフォルダは内訳に入れない');
+	is_deeply($o->get_dir_size("$att/none"), { size => 0, files => 0, errors => 0, list => [], split => {} }, '無いフォルダは0で、読めないものに数えない');
+	is(join(' ', map { $o->num_format($_) } (0, 999, 1000, 1234567, -1234)), '0 999 1,000 1,234,567 -1,234', 'num_formatの桁区切り');
+
+	# 読めないフォルダがあると警告を出す（rootはどのフォルダも読めてしまう）
+	SKIP: {
+		skip('rootでは読めないフォルダを作れない', 2) if ($> == 0);
+		mkdir("$att/disk/ng");
+		chmod(0, "$att/disk/ng");
+		$b = body($app->get('admin', $link));
+		chmod(0755, "$att/disk/ng");
+		like($b, qr{<strong class="warning">読めないフォルダがありました。}, '読めないフォルダがあると警告が出る');
+		is($o->get_dir_size("$att/disk")->{errors}, 0, '読めるように戻すと数えない');
+	}
+
+	# 後のテストに残さない
+	File::Path::remove_tree("$att/disk");
+	unlink("$att/.trashbox/a.png", "$att/.trashbox/.thumbnail/a.png.jpg");
+	is_deeply($tables->(body($app->get('admin', $link))), $t0, '足したものを消すと元の表に戻る');
 };
 
 #-------------------------------------------------------------------------------

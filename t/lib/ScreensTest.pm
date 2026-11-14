@@ -29,7 +29,7 @@ our @ADMIN = qw(
 	plugin/plugin_setting&name=des_clock plugin/plugin_readme&name=des_clock
 	mainte/ mainte/blog_clear mainte/import mainte/import_img mainte/export
 	user/log user/log&id=admin&type=login&result=fail&year=2026&mon=10&page=2
-	system/setting system/update system/check system/copyright
+	system/setting system/update system/check system/disk system/copyright
 	etc/allow_tags&n=article etc/allow_tags&n=header etc/allow_tags&n=description
 	etc/satsuki_tags etc/parser_debug etc/load_session etc/ajax_dummy
 	login
