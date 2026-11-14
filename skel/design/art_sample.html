@@ -1,5 +1,5 @@
 <@7>
-<@local(ret,s,t, logs)>
+<@local(ret,s,t, logs, sample)>
 <$s = v.blog>
 <$ifredirect(!v.blog_admin, v.myself)>
 
@@ -8,33 +8,11 @@
 <@> モジュールに付けるボタンなど、デザイン編集の部品のCSS。テーマで表示するのでシステムモードにはしない
 <$v.regist_css("<@v.script_dir>admin-ui.css")>
 
-<$art_dummy = v.post_process_article(begin_hash)>
-pkey  = 1
-title = ダミー
-yyyymmdd = 20141231
-text  = <section>果物のリスト。<br><ul><li>りんご</li><li>バナナ</li><li>パイナップル</li></ul>この記事はダミーです。<br></section>
-priority=0
-ip=192.168.1.1
-parser=markdown
-tm=1423150095
-update_tm=1423150095
-id=test
-enable=1
-com_ok=1
-coms=0
-name=owner
-host=localhost
-coms_all=0
-link_key=<@'01'>
-agent=Mozilla/5.0 (Windows NT 6.1; WOW64; rv:35.0) Gecko/20100101 Firefox/35.0
-<$end>
-<$(t,ret) = v.load_article_current_blog(s.frontpage)>
-<$ifexec(!t, begin)>
-	<$(logs,ret) = v.load_articles_current_blog('',{}, { load_items => 1 })>
-	<$t = logs#0>
-	<$ifset(!t, t, art_dummy)>
-<$end>
-<$t.com_ok=1>
+<@> 見本の記事（設定を保存した後のモジュールの作り直し、design/_action/load_moduleと同じ記事）
+<$sample    = call('design/_sub/sample_article')>
+<$t         = sample.t>
+<$ret       = sample.ret>
+<$art_dummy = sample.dummy>
 
 <$page_nav_force = begin_string>
 <a href="#" class="prev-page pnavi" rel="prev">sampleについて</a>

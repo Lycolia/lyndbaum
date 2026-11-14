@@ -10,6 +10,9 @@ license=WTFPL
 adiary_version=4.16
 module_type=article
 
+# デザイナで設定を保存したら、見本の記事で作り直す（design/_action/load_module）
+load_module_html_in_edit=1
+
 *sample_html=<<HTML
 	<div class="art-info" data-fix="1">
 		<a href="#" class="edit-article">（編集）</a>
