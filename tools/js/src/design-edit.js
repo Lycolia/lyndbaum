@@ -7,9 +7,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 // ●モジュール情報のロード
 ////////////////////////////////////////////////////////////////////////////////
-// プラグインのCSS設定画面（css_setting.html）が使う。$f、$fsec は iframe の jQuery と $secure
-var $f;
-var $fsec;
+// プラグインのCSS設定画面（css_setting.html）が使う。iframeの中の文書（下のframe_find()など）
+var frame_doc;
 var loading_css_flag;
 adiary.ready(function(){
 	var iframe = document.getElementById('iframe');
@@ -157,8 +156,7 @@ function on_iframe_load(){
 	iframe_onload = true;
 	var if_cw = iframe.contentWindow;
 	var doc   = iframe.contentDocument;
-	    $f    = if_cw.$;		// global（プラグインのCSS設定画面が使う）
-	    $fsec = if_cw.$secure;	// global
+	frame_doc = doc;		// global（プラグインのCSS設定画面が使う）
 	// iframeの中で探す
 	function F(sel) {
 		return Array.from(doc.querySelectorAll(sel));
@@ -175,8 +173,6 @@ function on_iframe_load(){
 	var f_hdiv = children(f_head, 'div:first-child');
 	var view_mode;
 	var zidx_module;	// hoverによる操作ボタン優先度の入れ替え用
-	var sortables = [];	// 並べ替え（下の sortable()）
-	var drag;		// 動かしている間の情報
 
 	// フレーム内check
 	const fbody = doc.getElementById('body');
@@ -200,8 +196,8 @@ function on_iframe_load(){
 	var arthead = children(artbody, 'div.body-header');
 	var artfoot = children(artbody, 'div.body-footer');
 	var artmain = children(artbody, 'div.body-main');
-	sortable(arthead, { items: selector, connectWith: artfoot });
-	sortable(artfoot, { items: selector, connectWith: arthead });
+	adiary.sortable(arthead, { items: selector, connectWith: artfoot });
+	adiary.sortable(artfoot, { items: selector, connectWith: arthead });
 	arthead.forEach(function(x){ x.style.minHeight = '16px' });
 	artfoot.forEach(function(x){ x.style.minHeight = '16px' });
 	if (artmain.length && css_size(artmain[0], 'height') > 300)
@@ -225,16 +221,16 @@ function on_iframe_load(){
 	martfoot.forEach(function(x){ x.style.minHeight = '16px' });
 
 	// sortable設定
-	sortable(side_a, { items: selector, connectWith: side_b });
-	sortable(side_b, { items: selector, connectWith: side_a });
-	sortable(f_hdiv, { items: selector });
-	sortable(f_main, {
+	adiary.sortable(side_a, { items: selector, connectWith: side_b });
+	adiary.sortable(side_b, { items: selector, connectWith: side_a });
+	adiary.sortable(f_hdiv, { items: selector });
+	adiary.sortable(f_main, {
 			items: selector + ', #article-box' + ', #articles>article, #articles ' + selector,
 			cancel: 'article:not(' + module_selector + ')',
 			update: main_update
 	});
-	sortable(marthead, { items: selector, connectWith: martfoot });
-	sortable(martfoot, { items: selector, connectWith: marthead });
+	adiary.sortable(marthead, { items: selector, connectWith: martfoot });
+	adiary.sortable(martfoot, { items: selector, connectWith: marthead });
 
 	// iframe内のリンク書き換え
 	F('a').forEach(function(obj) {
@@ -246,200 +242,6 @@ function on_iframe_load(){
 			obj.setAttribute('target', '_top');
 		//}
 	});
-
-////////////////////////////////////////////////////////////////////////////////
-// ●並べ替え（今までの jQuery UI の sortable の代わり）
-////////////////////////////////////////////////////////////////////////////////
-// つかんだモジュールがマウスについて動き、入る所に空き（ui-sortable-placeholder）を開ける。
-// マウスとペンだけ（今までの jQuery UI と同じく、タッチでは並べ替えない）。
-//	containers	並べ替える入れ物（配列）
-//	opt.items	並べ替えるもの（入れ物からの選択子。">" で始まるものは直下）
-//	opt.connectWith	行き来できる入れ物（配列）
-//	opt.cancel	ここをつかんだときは始めない（closest で見る）
-//	opt.update	並びが変わったときに呼ぶ
-function sortable(containers, opt) {
-	for(const el of containers) {
-		const s = {
-			el:	 el,
-			items:	 opt.items.split(',').map(function(x){ x = x.trim(); return x.substr(0,1) == '>' ? ':scope ' + x : x }).join(', '),
-			connect: opt.connectWith || [],
-			cancel:	 opt.cancel || 'input, textarea, button, select, option',
-			update:	 opt.update
-		};
-		sortables.push(s);
-		el.classList.add('ui-sortable');
-		// jQuery UI と同じく、中の ui-sortable-handle をいったん外してから、自分のものに付ける
-		// （メインは記事の上下より後に作るので、記事の上下のモジュールには付かない。つかめるのは同じ）
-		el.querySelectorAll('.ui-sortable-handle').forEach(function(x){ x.classList.remove('ui-sortable-handle') });
-		items_of(s).forEach(function(x){ x.classList.add('ui-sortable-handle') });
-		el.addEventListener('pointerdown', function(evt){ sort_down(s, evt) });
-	}
-}
-function items_of(s) {
-	return Array.from(s.el.querySelectorAll(s.items));
-}
-function group_of(s) {	// 入れられる並べ替え（自分と、つないだ入れ物）
-	return sortables.filter(function(x){ return x === s || s.connect.indexOf(x.el) >= 0 });
-}
-function sort_down(s, evt) {
-	if (evt._sort_handled || drag) return;		// 内側の並べ替えが受けた
-	if (evt.pointerType === 'touch' || evt.button !== 0) return;
-	if (evt.target.closest(s.cancel)) return;
-
-	// つかんだもの（この並べ替えのもの）
-	const items = items_of(s);
-	let item = evt.target;
-	while(item && item !== s.el && items.indexOf(item) < 0) item = item.parentElement;
-	if (!item || item === s.el) return;
-	evt._sort_handled = true;
-
-	drag = { s: s, item: item, x0: evt.pageX, y0: evt.pageY, started: false, id: evt.pointerId };
-	doc.addEventListener('pointermove',   sort_move);
-	doc.addEventListener('pointerup',     sort_up);
-	doc.addEventListener('pointercancel', sort_cancel);
-	doc.addEventListener('keydown',       sort_key);
-}
-function sort_start() {
-	const item = drag.item;
-	const win  = doc.defaultView;
-	const r    = item.getBoundingClientRect();
-	drag.style  = item.getAttribute('style');
-	drag.parent = item.parentNode;
-	drag.next   = item.nextSibling;
-
-	// 空き（同じタグ、同じクラス、同じ大きさ）
-	const w = css_size(item, 'width');
-	const h = css_size(item, 'height');
-	// 大きさは、jQuery UI と同じく、CSSで大きさが決まらないときだけ入れる
-	// （.design-module-edit は min-height があるので、高さは入らない）
-	const ph = doc.createElement(item.nodeName);
-	ph.className = 'ui-sortable-placeholder ' + item.className;
-	ph.classList.remove('ui-sortable-helper');
-	ph.style.visibility = 'hidden';
-	item.after(ph);
-	if (!css_size(ph, 'height')) ph.style.height = h + 'px';
-	if (!css_size(ph, 'width'))  ph.style.width  = w + 'px';
-	drag.ph = ph;
-
-	// つかんだものを、元の所に浮かせる
-	item.classList.add('ui-sortable-helper');
-	item.style.width  = w + 'px';
-	item.style.height = h + 'px';
-	item.style.position = 'absolute';
-	item.style.zIndex   = 1000;
-	item.style.pointerEvents = 'none';	// 下にあるものを見つけるため
-	const op  = item.offsetParent || doc.documentElement;
-	const opr = op.getBoundingClientRect();
-	const ocs = win.getComputedStyle(op);
-	const ics = win.getComputedStyle(item);
-	drag.left0 = r.left - opr.left - (parseFloat(ocs.borderLeftWidth) || 0) + op.scrollLeft - (parseFloat(ics.marginLeft) || 0);
-	drag.top0  = r.top  - opr.top  - (parseFloat(ocs.borderTopWidth)  || 0) + op.scrollTop  - (parseFloat(ics.marginTop)  || 0);
-	item.style.left = drag.left0 + 'px';
-	item.style.top  = drag.top0  + 'px';
-
-	drag.select = doc.body.style.userSelect;
-	doc.body.style.userSelect = 'none';
-	drag.started = true;
-}
-function sort_move(evt) {
-	if (!drag || evt.pointerId !== drag.id) return;
-	if (!drag.started) {
-		if (Math.max(Math.abs(evt.pageX - drag.x0), Math.abs(evt.pageY - drag.y0)) < 1) return;
-		sort_start();
-	}
-	evt.preventDefault();
-	const item = drag.item;
-	item.style.left = (drag.left0 + evt.pageX - drag.x0) + 'px';
-	item.style.top  = (drag.top0  + evt.pageY - drag.y0) + 'px';
-
-	// 端に近づいたら、iframeの中をスクロールする
-	const win = doc.defaultView;
-	if (evt.clientY < 20)			win.scrollBy(0, -20);
-	else if (win.innerHeight - evt.clientY < 20) win.scrollBy(0, 20);
-
-	place(evt.clientX, evt.clientY);
-}
-// マウスの下に空きを動かす
-function place(x, y) {
-	const ph    = drag.ph;
-	const item  = drag.item;
-	const group = group_of(drag.s);
-	const under = doc.elementFromPoint(x, y);
-	if (!under) return;
-
-	// 入れられるもの
-	let cands = [];
-	for(const g of group) cands = cands.concat( items_of(g) );
-	cands = cands.filter(function(c){ return c !== item && !item.contains(c) && c !== ph });
-
-	// マウスの下のもの
-	let el = under;
-	while(el && cands.indexOf(el) < 0) el = el.parentElement;
-	if (el) {
-		const r = el.getBoundingClientRect();
-		if (y < r.top + r.height/2) { if (el.previousElementSibling !== ph) el.before(ph); }
-		else			    { if (el.nextElementSibling !== ph)     el.after(ph);  }
-		return;
-	}
-	// マウスの下の入れ物（いちばん内側）
-	let box = under;
-	while(box && !group.some(function(g){ return g.el === box })) box = box.parentElement;
-	if (!box) return;
-	const s  = group.find(function(g){ return g.el === box });
-	const in_box = cands.filter(function(c){ return items_of(s).indexOf(c) >= 0 });
-	if (!in_box.length) {
-		if (ph.parentNode !== box) box.appendChild(ph);
-		return;
-	}
-	// 入れ物の中の、いちばん近いものの前か後ろ
-	let near, dist;
-	for(const c of in_box) {
-		const r = c.getBoundingClientRect();
-		const d = y < r.top ? r.top - y : (y > r.bottom ? y - r.bottom : 0);
-		if (near === undefined || d < dist) { near = c; dist = d; }
-	}
-	const r = near.getBoundingClientRect();
-	if (y < r.top + r.height/2) { if (near.previousElementSibling !== ph) near.before(ph); }
-	else			    { if (near.nextElementSibling !== ph)     near.after(ph);  }
-}
-function sort_end(cancel) {
-	doc.removeEventListener('pointermove',   sort_move);
-	doc.removeEventListener('pointerup',     sort_up);
-	doc.removeEventListener('pointercancel', sort_cancel);
-	doc.removeEventListener('keydown',       sort_key);
-	const d = drag;
-	drag = null;
-	if (!d || !d.started) return;
-
-	const item = d.item;
-	if (cancel) d.ph.remove();
-	       else d.ph.replaceWith(item);
-	if (cancel) d.parent.insertBefore(item, d.next);
-	item.classList.remove('ui-sortable-helper');
-	if (d.style === null) item.removeAttribute('style');
-		else	      item.setAttribute('style', d.style);
-	doc.body.style.userSelect = d.select;
-
-	// ドラッグの直後のクリック（離したときに起きる）は止める（今までの jQuery UI と同じ）。
-	// クリックは pointerup と同じ流れで起きるので、その後には外す
-	const stop = function(evt){
-		evt.stopPropagation();
-		evt.preventDefault();
-	};
-	doc.addEventListener('click', stop, true);
-	setTimeout(function(){ doc.removeEventListener('click', stop, true) }, 0);
-
-	if (cancel) return;
-	const moved = item.parentNode !== d.parent || item.nextSibling !== d.next;
-	if (!moved) return;
-	for(const g of group_of(d.s)) {
-		if (!g.update) continue;
-		if (g.el.contains(item) || g.el.contains(d.parent)) g.update();
-	}
-}
-function sort_up(evt)     { if (drag && evt.pointerId === drag.id) sort_end(false) }
-function sort_cancel(evt) { if (drag && evt.pointerId === drag.id) sort_end(true)  }
-function sort_key(evt)    { if (evt.keyCode == 27) sort_end(true) }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●モード切り替え
@@ -687,7 +489,7 @@ function init_module(obj) {
 	obj.prepend(div);
 	show(obj);
 	obj.addEventListener('mouseenter', function(){
-		if (drag && drag.started) return;	// 並べ替えている間は変えない（つかんだものの下を通るため）
+		if (adiary.sorting()) return;	// 並べ替えている間は変えない（つかんだものの下を通るため）
 		if (zidx_module == div) return;
 		const z = function(x){ return parseInt(doc.defaultView.getComputedStyle(x).zIndex) };
 		if (zidx_module) zidx_module.style.zIndex = z(zidx_module) - 1;
@@ -1088,7 +890,107 @@ if (!iframe_onload && iframe && iframe.contentWindow && iframe.contentWindow.$)
 //##############################################################################
 // 設定画面用のサブルーチン
 //##############################################################################
-// プラグインのCSS設定画面（css_setting.html）から呼ぶ。obj は jQuery の要素（$f で探したもの）
+// プラグインのCSS設定画面（css_setting.html）から呼ぶ。objはiframeの中の要素（frame_find()で探したもの）
+//	frame_find(sel)		iframeの中の要素（無ければnull）
+//	css(obj, 'margin-top')	計算された値（jQueryの.css()と同じ）
+//	width(obj)、height(obj)、outer_width(obj)、outer_height(obj)、position(obj)
+//				jQuery 3.6の.width()、.height()、.outerWidth()、.outerHeight()、.position()と同じ値
+//	set_value('#id', 値)	ダイアログの欄に値を入れる（jQueryの.val(値)と同じ）
+// objがnullのときは、jQueryの空の集まりと同じく、undefinedを返す
+function frame_find(sel) {
+	return frame_doc ? frame_doc.querySelector(sel) : null;
+}
+function styles_of(obj) {
+	return obj.ownerDocument.defaultView.getComputedStyle(obj);
+}
+function css(obj, prop) {
+	if (!obj) return undefined;
+	return styles_of(obj).getPropertyValue(prop);
+}
+function css_num(obj, prop) {	// jQuery.css(elem, prop, true)
+	return parseFloat(css(obj, prop)) || 0;
+}
+// jQuery 3.6のgetWidthOrHeight()とboxModelAdjustment()を写した
+function jq_size(obj, dim, box) {
+	if (!obj) return undefined;
+	const cs = styles_of(obj);
+	// 隠れている要素は、jQueryと同じく、一時的に出して測る
+	if (/^(none|table(?!-c[ea]).+)/.test(cs.display) && (!obj.getClientRects().length || !obj.getBoundingClientRect().width)) {
+		const st  = obj.style;
+		const old = { position: st.position, visibility: st.visibility, display: st.display };
+		st.position = 'absolute'; st.visibility = 'hidden'; st.display = 'block';
+		const ret = jq_size_main(obj, dim, box);
+		st.position = old.position; st.visibility = old.visibility; st.display = old.display;
+		return ret;
+	}
+	return jq_size_main(obj, dim, box);
+}
+function jq_size_main(obj, dim, box) {
+	const cs  = styles_of(obj);
+	const D   = dim === 'width' ? 'Width' : 'Height';
+	const isBorderBox = cs.boxSizing === 'border-box';
+	let valueIsBorderBox = isBorderBox;
+	let val = cs[dim];
+	if ((val === 'auto' || !parseFloat(val) && cs.display === 'inline') && obj.getClientRects().length) {
+		valueIsBorderBox = true;
+		val = obj['offset' + D];
+	}
+	val = parseFloat(val) || 0;
+
+	let delta = 0;
+	if (box !== (valueIsBorderBox ? 'border' : 'content')) {
+		const sides = dim === 'width' ? ['Right', 'Left'] : ['Top', 'Bottom'];
+		for(const s of sides) {
+			if (!valueIsBorderBox) {
+				delta += css_num(obj, 'padding-' + s.toLowerCase());
+				delta += css_num(obj, 'border-' + s.toLowerCase() + '-width');
+			} else {
+				if (box === 'content') delta -= css_num(obj, 'padding-' + s.toLowerCase());
+				delta -= css_num(obj, 'border-' + s.toLowerCase() + '-width');
+			}
+		}
+		if (!valueIsBorderBox && val >= 0)	// スクロールバーの分
+			delta += Math.max(0, Math.ceil(obj['offset' + D] - val - delta - 0.5)) || 0;
+	}
+	return val + delta;
+}
+function width(obj)        { return jq_size(obj, 'width',  'content') }
+function height(obj)       { return jq_size(obj, 'height', 'content') }
+function outer_width(obj)  { return jq_size(obj, 'width',  'border')  }
+function outer_height(obj) { return jq_size(obj, 'height', 'border')  }
+function position(obj) {
+	if (!obj) return undefined;
+	const doc = obj.ownerDocument;
+	const win = doc.defaultView;
+	const offset_of = function(el) {
+		if (!el.getClientRects().length) return { top: 0, left: 0 };
+		const r = el.getBoundingClientRect();
+		return { top: r.top + win.pageYOffset, left: r.left + win.pageXOffset };
+	};
+	let offset;
+	let po = { top: 0, left: 0 };
+	if (css(obj, 'position') === 'fixed') {
+		offset = obj.getBoundingClientRect();
+	} else {
+		offset = offset_of(obj);
+		let op = obj.offsetParent || doc.documentElement;
+		while(op && (op === doc.body || op === doc.documentElement) && css(op, 'position') === 'static')
+			op = op.parentNode;
+		if (op && op !== obj && op.nodeType === 1) {
+			po = offset_of(op);
+			po.top  += css_num(op, 'border-top-width');
+			po.left += css_num(op, 'border-left-width');
+		}
+	}
+	return {
+		top:  offset.top  - po.top  - css_num(obj, 'margin-top'),
+		left: offset.left - po.left - css_num(obj, 'margin-left')
+	};
+}
+function set_value(sel, val) {
+	const v = (val === null || val === undefined) ? '' : String(val);
+	document.querySelectorAll(sel).forEach(function(x){ x.value = v });
+}
 // FX : rgb(200,200,200), tranparent
 // GC : rgb(200,200,200), rgb(0, 0, 0, 0)
 function parse_color(col) {
@@ -1121,22 +1023,22 @@ function parse_px_float(m) {
 
 function get_border_color(obj) {
 	return parse_color(
-		obj.css('border-color')
-		|| obj.css('border-bottom-color')
-		|| obj.css('border-top-color')
-		|| obj.css('border-right-color')
-		|| obj.css('border-left-color')
+		css(obj, 'border-color')
+		|| css(obj, 'border-bottom-color')
+		|| css(obj, 'border-top-color')
+		|| css(obj, 'border-right-color')
+		|| css(obj, 'border-left-color')
 	);
 }
 
 function delay_color_setting(target, obj, style, func) {
 	setTimeout( function(){
-		var col = parse_color(obj.css('background-color'));
+		var col = parse_color(css(obj, 'background-color'));
 		const sel = document.getElementById('select-bg');
 		if (col && sel) sel.value = col;
 		if (func) {
 			if (typeof(func) == 'function')	return func(obj);
-			obj.removeClass(func);
+			obj.classList.remove(func);
 		}
 	}, 500);
 }

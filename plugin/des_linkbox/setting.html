@@ -40,74 +40,77 @@
 
 <!--JavaScript===============================================================-->
 <script>!function(){
-var tbody = $('#link-elements');
-var btn   = $('#link-append');
-tbody.sortable();
-var div = $('#lkbox-form');
+var tbody = document.getElementById('link-elements');
+var btn   = document.getElementById('link-append');
+adiary.sortable([ tbody ]);
+var div = document.getElementById('lkbox-form');
 div.remove();
 
-btn.click(function(){
-	$('#body').append(div);
-	var inp_url  = $('#lkbox-link-url');
-	var inp_text = $('#lkbox-link-name');
+btn.addEventListener('click', function(){
+	document.getElementById('body').appendChild(div);
+	var inp_url  = document.getElementById('lkbox-link-url');
+	var inp_text = document.getElementById('lkbox-link-name');
 	var buttons = {};
 	buttons['OK'] = function(){
-		append_element(inp_text.val(), inp_url.val());
-		div.adiaryDialog( 'close' );
+		append_element(inp_text.value, inp_url.value);
+		adiary.dialog_close(div);
 		div.remove();
 	};
 	buttons[ 'CANCEL' ] = function(){
-		div.adiaryDialog( 'close' );
+		adiary.dialog_close(div);
 		div.remove();
 	};
-	inp_url.val('');
-	inp_text.val('');
+	inp_url.value  = '';
+	inp_text.value = '';
 
 	// ダイアログの表示
-	div.adiaryDialog({
+	adiary.dialog(div, {
 		modal: true,
 		width:	adiary.DialogWidth,
-		title:  btn.text(),
+		title:  btn.textContent,
 		buttons: buttons
 	});
 });
 
+function hidden(name, value) {
+	var inp = document.createElement('input');
+	inp.setAttribute('type',  'hidden');
+	inp.setAttribute('name',  name);
+	inp.setAttribute('value', value);
+	return inp;
+}
 var num=0;
 function append_element(text, url) {
 	if (text == '') text=url;
-	var tr = $('<tr>');
-	var td = $('<td>');
+	var tr = document.createElement('tr');
+	var td = document.createElement('td');
 	// リンク
 	if (!url || url == '') {
-		td.text(text);
+		td.textContent = text;
 	} else {
-		var a = $('<a>').attr('href', url).text(text);
-		td.append( a );
+		var a = document.createElement('a');
+		a.setAttribute('href', url);
+		a.textContent = text;
+		td.appendChild( a );
 	}
 	// 閉じるボタン
-	var cl = $('<td>').addClass('c');
-	var span = $('<span>').addClass('ui-icon ui-icon-closethick ui-button');
-	span.click(function(){ tr.remove() });
-	var inp0 = $('<input>').attr({
-		type: 'hidden',
-		name: 'url_ary',
-		value: num + ',' + url
-	});
-	var inp1 = $('<input>').attr({
-		type: 'hidden',
-		name: 'text_ary',
-		value: num + ',' + text
-	});
+	var cl = document.createElement('td');
+	cl.className = 'c';
+	var span = document.createElement('span');
+	span.className = 'ui-icon ui-icon-closethick ui-button';
+	span.addEventListener('click', function(){ tr.remove() });
+	var inp0 = hidden('url_ary',  num + ',' + url);
+	var inp1 = hidden('text_ary', num + ',' + text);
 	num++;
 
 	cl.append(inp0, inp1, span);
 	tr.append(td, cl);
-	tbody.append(tr);
+	tbody.appendChild(tr);
 }
 /////////////////
 //初期化処理
 /////////////////
-var list = $secure('#lkbox-elemtns').text().split("\n");
+var list = adiary.secure('#lkbox-elemtns').textContent.split("\n");
 for(var i=0; i<list.length; i++) {
 	var x = list[i].indexOf("\t");
 	if (x<0) continue;
