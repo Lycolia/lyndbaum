@@ -1,7 +1,7 @@
 //##############################################################################
 // adiary.js
-//	公開画面の処理。jQueryとasys.jsを使わない
-//	※ログイン中と管理画面では、asys.js（jQuery）と admin.js も読み込む。そのときは、
+//	公開画面の処理。asys.jsを使わない
+//	※ログイン中と管理画面では、asys.js と admin.js も読み込む。そのときは、
 //	  <script-defer> の実行と js-switch は asys.js が行い、window.adiary は asys.js（$$）になる。
 //	  テンプレートなどから adiary.〜 で呼ぶものは、admin.js が $$ からも呼べるようにする
 //##############################################################################
@@ -17,7 +17,7 @@ const adiary = {
 	PopupOffsetX:		15,
 	PopupOffsetY:		10
 };
-const with_asys = !!window.jQuery;	// asys.js を読んだページ（ログイン中、管理画面）
+const with_asys = typeof($$) !== 'undefined';	// asys.js を読んだページ（ログイン中、管理画面）
 
 window.adiary        = adiary;		// asys.js を読んだページでは、asys.js が置き換える
 window.adiary_public = adiary;		// admin.js から呼ぶ
@@ -27,13 +27,12 @@ function init(func) {
 	inits.push(func);
 }
 
-// 画面ごとのJS（edit-helper.jsなど）を動かす。jQueryを使わずに書いたものは、$(func)の代わりにこれを使う。
-// asys.jsを読んだページでは、今までの$(func)と同じ時と順番（asysの初期化の後）にする。
+// 画面ごとのJS（edit-helper.jsなど）を動かす。
+// asys.jsを読んだページでは、asysの初期化の後に、登録した順に動かす（asysの$$.ready）。
 // asysの初期化は、DOMContentLoadedの後（tools/asys/src/99_run_init.js）。deferのファイルを実行する時は、
-// window.adiary はまだこの adiary（asys.jsの$$に置き換わる前）なので、adiary.ready で呼べる。
-// jQueryを外し終えたら、initと同じにする
+// window.adiary はまだこの adiary（asys.jsの$$に置き換わる前）なので、adiary.ready で呼べる
 adiary.ready = function(func) {
-	if (with_asys) return window.jQuery(function(){ func.call(window.adiary) });
+	if (with_asys) return $$.ready(function(){ func.call(window.adiary) });
 	init(func);
 };
 

@@ -1,49 +1,68 @@
 //##############################################################################
 // run init
 //##############################################################################
-// 初期化（と、$(func) で登録した処理）は、DOMContentLoaded の後に動かす。
-// asys.min.js は defer で読むので、実行の時にはページの解析が終わっていて、jQuery は
-// setTimeout で ready を決める。後ろの defer のファイル（adiary.js、admin.js、画面のJS）の
-// 読み込みが遅いと、その合間に初期化が動き、window.adiary がずれてしまう
-// （adiary.js が $$ を上書きする、画面のJSを実行する時に window.adiary がもう $$ になっている）。
-// defer のファイルは、どれも DOMContentLoaded の前に実行し終わる。
-// holdReady は jQuery 3.2 で非推奨だが、3.6 にはある。jQuery を外すときには要らなくなる
-if (document.readyState !== 'complete') {
-	let held = true;
-	const release = function(){
-		if (!held) return;
-		held = false;
-		$.holdReady(false);
+// 初期化は、DOMContentLoaded の後の別の回（setTimeout）に動かす。順番は次のとおり。
+//	1. 公開画面の初期化（adiary.js。DOMContentLoaded のとき）
+//	2. asys の初期化（下の boot。window.adiary を asys に置き換える）
+//	3. ready で登録した処理を、登録した順に（admin.js、画面のJS。動いている間に足したもの
+//	   （<script-defer> の実行）は最後に動く）
+// asys.min.js は defer で読む。defer のファイルを実行するときは、readyState はもう interactive。
+// 後ろの defer のファイル（adiary.js、admin.js、画面のJS）は、どれも DOMContentLoaded の前に
+// 実行し終わるので、DOMContentLoaded を待つ（すぐに動かすと、後ろのファイルより先に動くことがある）
+(function(){
+	const queue = [];
+	let   done;
+
+	// 初期化の後に動かす（初期化の後に登録したときは、すぐ動かす）
+	$$.ready = function(func) {
+		if (done) return func.call(this);
+		queue.push(func);
 	};
-	$.holdReady(true);
-	document.addEventListener('DOMContentLoaded', release);
-	window.addEventListener('load', release);	// DOMContentLoaded の後に読み込まれたとき
-}
-$(function(){
-	(function() {
-		this.$head = $('head');
-		this.$body = $('body');
 
-		const $vars = $secure('#asys-vars');
-		if ($vars.length) {
-			const json = $vars.html().replace(/^[\s\S]*?{/, '{').replace(/}[\s\S]*?$/, '}');
-			const data = JSON.parse(json);
-			const ary  = ['name', 'Initialize', 'myself', 'myself2', 'Basepath'];
-			for(var i=0; i<ary.length; i++) {
-				if (ary[i] in data)
-					this[ary[i]] = data[ary[i]];
+	function boot() {
+		(function() {
+			const vars = document.getElementById('asys-vars');
+			if (vars) {
+				const json = vars.innerHTML.replace(/^[\s\S]*?{/, '{').replace(/}[\s\S]*?$/, '}');
+				const data = JSON.parse(json);
+				const ary  = ['name', 'Initialize', 'myself', 'myself2', 'Basepath'];
+				for(var i=0; i<ary.length; i++) {
+					if (ary[i] in data)
+						this[ary[i]] = data[ary[i]];
+				}
+				this.asys_vars = data;
 			}
-			this.asys_vars = data;
+			this.load_msg('#asys-msgs');
+
+			// PrefixStorage
+			this.Storage = new PrefixStorage( this.myself || '/' );
+
+			// global export
+			window[this.name] = this;
+
+			// initalize
+			if (this.Initialize !== false) this.init();
+		}).call($$);
+
+		while(queue.length) {
+			const func = queue.shift();
+			try {
+				func.call($$);
+			} catch(e) {
+				console.error(e);
+			}
 		}
-		this.load_msg($secure('#asys-msgs'));
-
-		// PrefixStorage
-		this.Storage = new PrefixStorage( this.myself || '/' );
-
-		// global export
-		window[this.name] = this;
-
-		// initalize
-		if (this.Initialize !== false) this.init();
-	}).call($$)
-});
+		done = true;
+	}
+	let started;
+	function start() {
+		if (started) return;
+		started = true;
+		setTimeout(boot, 0);
+	}
+	if (document.readyState !== 'complete') {
+		document.addEventListener('DOMContentLoaded', start);
+		window.addEventListener('load', start);		// DOMContentLoaded の後に読み込まれたとき
+	} else
+		start();
+})();

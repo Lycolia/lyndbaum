@@ -2,39 +2,6 @@
 // subroutines
 //##############################################################################
 ////////////////////////////////////////////////////////////////////////////////
-// load script
-////////////////////////////////////////////////////////////////////////////////
-(function(){
-	const inc = {};
-
-	$$.load_script = function(url, callback) {
-		const x = inc[url];
-		if (x) {
-			if (!callback) return;
-			if (x==1) return callback();
-			// now loading
-			x.on('load', func);
-			return;
-		}
-
-		const $s = $(document.createElement('script'));
-		inc[url] = $s;
-		$s.attr('src',   url);
-		$s.attr('async', 'async');
-
-		if (callback) $s.on('load', function(evt){
-			inc[url] = 1;
-			callback(evt);
-		});
-
-		// Do not work and "sync" download by jQuery
-		// this.$head.append( $s );
-
-		this.$head[0].appendChild( $s[0] );
-	}
-})();
-
-////////////////////////////////////////////////////////////////////////////////
 // escape html tag
 ////////////////////////////////////////////////////////////////////////////////
 $$.tag_esc = function(text) {

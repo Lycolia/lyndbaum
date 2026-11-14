@@ -1,6 +1,6 @@
 //##############################################################################
 // admin.js
-//	管理画面でだけ使う処理。asys.js（jQuery）と adiary.js の後に読み込む
+//	管理画面でだけ使う処理。asys.js と adiary.js の後に読み込む
 //	※公開画面のフレーム（_frame）でも、システムモード（デザイン編集など）のときと、
 //	  ログイン中（記事のページのコメントの管理など）は読み込む
 //##############################################################################
@@ -10,7 +10,8 @@
 // 公開画面の処理（adiary.js）。asys.js を読んだページでは、adiary は asys.js（$$）になる
 const adiary_public = window.adiary_public;
 
-$(function(){
+// asys.js の初期化の後に動かす
+$$.ready(function(){
 //##############################################################################
 // ■initalize
 //##############################################################################
@@ -41,24 +42,12 @@ $(function(){
 // ●公開画面の処理（adiary.js）を adiary.〜 で呼べるようにする
 ////////////////////////////////////////////////////////////////////////////////
 // テンプレートの <script-defer> と、デザインのテーマ選択（プレビューの css_init）と、
-// jQueryを使わずに書いた画面のJS（secure）から呼ぶ
+// 画面のJS（secure）から呼ぶ
 for(const name of ['css_init', 'get_value_from_css', 'init_top_search', 'init_narrow_tag', 'word_highlight', 'secure']) {
 	$$[name] = function() {
 		return adiary_public[name].apply(adiary_public, arguments);
 	};
 }
-
-//##############################################################################
-// ■extend jQuery
-//##############################################################################
-(function() {
-	const init_orig = $.fn.init;
-	$.fn.init = function(sel,cont) {
-		if (typeof sel === "string" && sel.match(/<.*?[\W]on\w+\s*=/i))
-			throw 'Security error by ' + $$.name + '.js : ' + sel;
-		return  new init_orig(sel,cont);
-	};
-})();
 
 //##############################################################################
 // ■dom extend
@@ -177,7 +166,7 @@ $$.init( function(){
 //	・色の窓で選んでいる間は、文字の欄に値を入れて「color-input」のイベントを起こす
 //	・決めたときは、文字の欄に値を入れて change を起こす
 //	・文字の欄に色を入れたら、色の窓も合わせる（#rgb、#rrggbb のときだけ）
-// 中の処理はjQueryを使わない。color_value() は theme-custom.js も使う
+// color_value() は theme-custom.js も使う
 const color_boxed = new WeakSet();	// 色の窓を付けた欄（dom_init は、同じ部分にもう一度呼ばれることがある）
 $$.color_value = function(val) {
 	const ma = String(val || '').match(/^#([\dA-Fa-f]{3}|[\dA-Fa-f]{6})$/);
@@ -186,9 +175,9 @@ $$.color_value = function(val) {
 	if (x.length == 3) x = x[0]+x[0] + x[1]+x[1] + x[2]+x[2];
 	return '#' + x.toLowerCase();
 };
-$$.dom_init( function($R){
+$$.dom_init( function(R){
 	const self = this;
-	$R.findx('input.color-picker').each(function(i, inp){
+	this.find_all(R, 'input.color-picker').forEach(function(inp){
 		if (color_boxed.has(inp)) return;
 		color_boxed.add(inp);
 

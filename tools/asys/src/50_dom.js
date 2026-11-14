@@ -16,31 +16,14 @@ $$.init(function(){
 });
 
 ////////////////////////////////////////////////////////////////////////////////
-// button for link
+// no enter submit
 ////////////////////////////////////////////////////////////////////////////////
 $$.init(function(){
-	this.$body.on('click', 'button[data-href]', function(evt){
-		location.href = $(evt.target).data('href');
-	});
-});
-
-////////////////////////////////////////////////////////////////////////////////
-// button for value set to form element
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	this.$body.on('click', 'button.js-set-value[data-target]', function(evt){
-		const $btn = $(evt.target);
-		$($btn.data('target')).val( $btn.attr('value') );
-	});
-});
-
-////////////////////////////////////////////////////////////////////////////////
-// do not submit by enter key
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	this.$body.on('keypress', 'input.no-enter-submit, form.no-enter-submit input', function(evt){
-		if (evt.which === 13) return false;
-		return true;
+	document.body.addEventListener('keypress', function(evt){
+		if (evt.which !== 13) return;
+		if (!evt.target.closest || !evt.target.closest('input.no-enter-submit, form.no-enter-submit input')) return;
+		evt.preventDefault();
+		evt.stopPropagation();
 	});
 });
 
@@ -52,33 +35,23 @@ $$.init(function(){
 // <span id="file-list"></span>
 //
 $$.init(function(){
-	this.$body.on('click', 'button.js-file-btn', function(evt) {
-		const $obj = $(evt.target);
-		const $tar = $($obj.data('target'));
-		if (! $tar.length ) return;
+	const self = this;
+	const registered = new WeakSet();
+	document.body.addEventListener('click', function(evt) {
+		const obj = evt.target.closest && evt.target.closest('button.js-file-btn');
+		if (!obj) return;
+		const sel = self.data_value(obj, 'target');
+		const tar = sel && document.querySelector(sel);
+		if (!tar) return;
 
-
-		if ($tar.data('target') && !$tar.data('--regist-change-evt')) {
-			$tar.data('--regist-change-evt', true);
-			$tar.on('change', function(evt){
-				const $span = $tar.rootfind( $tar.data('target') );
-				const file  = $tar.val().replace(/^.*?([^\\\/]*)$/, "$1");
-				$span.text( file );
-			})
+		if (self.data_value(tar, 'target') && !registered.has(tar)) {
+			registered.add(tar);
+			tar.addEventListener('change', function(evt){
+				const file = tar.value.replace(/^.*?([^\\\/]*)$/, "$1");
+				self.rootfind( tar, self.data_value(tar, 'target') ).forEach(function(x){ x.textContent = file });
+			});
 		}
-
-		$tar.click();
-	});
-});
-////////////////////////////////////////////////////////////////////////////////
-// file reset button
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	this.$body.on('click', 'button.js-reset-btn', function(evt) {
-		const $obj = $(evt.target);
-		const $tar = $($obj.data('target'));
-		if (!$tar.length || $tar.val()=='') return;
-		$tar.val('').change();
+		tar.click();
 	});
 });
 
@@ -86,35 +59,12 @@ $$.init(function(){
 // check all
 ////////////////////////////////////////////////////////////////////////////////
 $$.init(function(){
-	this.$body.on('change', 'input.js-checked', function(evt){
-		const $obj   = $(evt.target);
-		const target = $obj.data( 'target' );
-		$(target).prop("checked", $obj.is(":checked"));
-	});
-});
-
-////////////////////////////////////////////////////////////////////////////////
-// submit on change
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	this.$body.on('change', '.js-on-change-submit', function(evt){
-		const $obj = $(evt.target);
-		$obj.parentsOne('form').submit();
-	});
-});
-
-////////////////////////////////////////////////////////////////////////////////
-// line click for check on table
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	this.$body.on('click', 'tbody.js-line-checked', function(evt){
-		const $obj = $(evt.target);
-		const $pars= $obj.parents('tr');
-		if ($pars.add($obj).filter('a,input,button,label,.line-checked-cancel').length) return;
-
-		const $tr  = $pars.last();
-		const $inp = $tr.find('input[type="checkbox"],input[type="radio"]');
-		$inp.first().click();
+	const self = this;
+	document.body.addEventListener('change', function(evt){
+		const obj = evt.target.closest && evt.target.closest('input.js-checked');
+		if (!obj) return;
+		const checked = obj.checked;
+		document.querySelectorAll( self.data_value(obj, 'target') ).forEach(function(x){ x.checked = checked });
 	});
 });
 
@@ -122,110 +72,69 @@ $$.init(function(){
 // combo box
 ////////////////////////////////////////////////////////////////////////////////
 // used by select.js-save
+// select に値を入れる。無い値のときは option を足す。入れた後に change を起こす
 $$.js_combo_dummy_val  = "\e\e\e\e\e\n\n";
-$$.set_value_on_select = function($select, val) {
-	$select.val( val );
-	if ($select.val() != val) {
-		const format = $select.data('format') || '%v';
+$$.set_value_on_select = function(select, val) {
+	select.value = val;
+	if (select.value != val) {
+		const format = this.data_value(select, 'format') || '%v';
 		const text = format.replace(/%v/g, val);
-		const $opt = $('<option>').attr('value', val).text( text );
-		$select.append( $opt );
-		$select.val( val );
+		const opt  = document.createElement('option');
+		opt.setAttribute('value', val);
+		opt.textContent = text;
+		select.appendChild( opt );
+		select.value = val;
 	}
-	$select.change();
+	select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 $$.init(function(){
-	const self  = this;
-	const dummy = this.js_combo_dummy_val;
+	const self    = this;
+	const dummy   = this.js_combo_dummy_val;
+	const current = new WeakMap();
 
 	function change_select(evt) {
-		const $select = $(evt.target);
-		const val     = $select.val();
+		const select = evt.target;
+		const val    = select.value;
 
 		if (val !== dummy)
-			return $select.data('current', val);
-		$select.val( $select.data('current') );
+			return current.set(select, val);
+		select.value = current.get(select);
 
-		const $target = $( $select.data('target') ).clone(true).removeAttr('id');
-		$target.find('input').attr('name', 'data');
+		const src = document.querySelector( self.data_value(select, 'target') );
+		if (!src) return;
+		const target = src.cloneNode(true);
+		target.removeAttribute('id');
+		target.querySelectorAll('input').forEach(function(x){ x.setAttribute('name', 'data') });
 
 		self.form_dialog({
-			title: $target.data('title'),
+			title: self.data_value(target, 'title'),
 			elements: [
-				{ type: '*', html: $target }
+				{ type: '*', html: target }
 			],
 			callback: function(h) {
 				const val = h.data;
-				if (val == '' || $select.val() == val) return;
+				if (val == '' || select.value == val) return;
 
-				self.set_value_on_select( $select, val );
-				$select.data('current', val);
+				self.set_value_on_select( select, val );
+				current.set(select, val);
 			}
 		});
 	}
 
-	// initalize
-	this.$body.on('focus', 'select.js-combo', function(evt){
-		const $obj = $(evt.target);
-		$obj.data('current', $obj.val() );
+	// initalize（初めて focus したときに「その他」を足す）
+	document.body.addEventListener('focusin', function(evt){
+		const obj = evt.target.closest && evt.target.closest('select.js-combo');
+		if (!obj) return;
+		current.set(obj, obj.value);
 
-		if ($obj.find('option[value="' + dummy + '"]').length) return;
+		if (Array.from(obj.options).some(function(x){ return x.value === dummy })) return;
 		// add other option
-		const $opt = $('<option>').attr('value', dummy).text( self.msg('other') );
-		$obj.append( $opt );
+		const opt = document.createElement('option');
+		opt.setAttribute('value', dummy);
+		opt.textContent = self.msg('other');
+		obj.appendChild( opt );
 
-		$obj.on('change', change_select );
-	});
-})
-
-////////////////////////////////////////////////////////////////////////////////
-// sortable table
-////////////////////////////////////////////////////////////////////////////////
-$$.init(function(){
-	const self  = this;
-
-	this.$body.on('click', 'table.js-sortablex thead', function(evt){
-		const $o1  = $(evt.target).filter('th,td');
-		const $obj = $o1.length ? $o1 : $(evt.target).parentsOne('th,td');
-		if ($obj.hasClass('disable-sort')) return;
-
-		let cnt=0;
-		let $x = $obj;
-		while($x.length) {
-			$x = $x.prev();
-			cnt++;
-		}
-
-		const $tbody  = $obj.parentsOne('table').children('tbody');
-		const td_nth  = 'td:nth-child(' + cnt + ')';
-		const reverse = $tbody.data('_sortable_prev_cnt') == cnt;
-		$tbody.data('_sortable_prev_cnt', reverse ? -1 : cnt);
-
-		$tbody.each(function(idx,dom){
-			const $tbody = $(dom);
-			let   isNum  = true;
-			const lines  = [];
-			$tbody.children('tr').each(function(i2,tr){
-				const $tr = $(tr);
-				const $td = $tr.children(td_nth);
-				const val = $td.existsData('sort') ? $td.data('sort') : $td.text().replace(/^\s+/, '').replace(/\s+$/, '');
-				const num = Number(val);
-				if (isNaN(num)) isNum = false;
-
-				lines.push({
-					val:	val,
-					num:	num,
-					$tr:	$tr
-				});
-			});
-
-			if (isNum) lines.sort(function(a,b){ return a.num - b.num; });
-			      else lines.sort(function(a,b){ return a.val===b.val ? 0 : a.val < b.val; });	// Do not work IE11
-			if (reverse) lines.reverse();
-
-			$tbody.empty();
-			for(let i in lines) $tbody.append(lines[i].$tr);
-		});
+		obj.addEventListener('change', change_select );
 	});
 })

@@ -1,6 +1,8 @@
 //##############################################################################
 // dom special extentions
 //##############################################################################
+// dom_init(func) で登録した処理は、範囲の要素（初めは document.body）を受け取る。
+// 画面のJSが dom_init(要素) を呼ぶと、その中の部品を初期化する
 (function(){
 	const ary = [];
 	let   initialized;
@@ -9,7 +11,7 @@
 		if (typeof(func) == 'function') {
 			if (initialized) {
 				if (priority) console.warn('dom_init() initialized, but priority set', priority);
-				func.call(this, this.$body);
+				func.call(this, document.body);
 			}
 			return ary.push({
 				func:	func,
@@ -22,9 +24,9 @@
 			return a.p - b.p;
 		});
 
-		const $obj = func ? $(func) : this.$body;	// DOMの要素も受け取る（jQueryを使わずに書いた画面のJSから呼ぶ）
+		const root = (func instanceof Node) ? func : document.body;
 		for(var i=0; i<ary.length; i++)
-			ary[i].func.call(this, $obj);
+			ary[i].func.call(this, root);
 
 		initialized = true;
 	};
@@ -33,86 +35,119 @@
 })();
 
 ////////////////////////////////////////////////////////////////////////////////
+// submit の処理を、決めた順に動かす（今までの onSequence）
+////////////////////////////////////////////////////////////////////////////////
+// どれかが false を返したら、そこで止めて、送らない
+const submit_funcs = new WeakMap();
+function on_submit(form, priority, func) {
+	if (!submit_funcs.has(form)) {
+		submit_funcs.set(form, []);
+		form.addEventListener('submit', function(evt){
+			for(const x of submit_funcs.get(form)) {
+				if (x.func(evt)) continue;
+				evt.preventDefault();
+				evt.stopPropagation();
+				return;
+			}
+		});
+	}
+	const list = submit_funcs.get(form);
+	list.push({ priority: priority, func: func });
+	list.sort(function(a,b){ return a.priority - b.priority });
+}
+// フォームの部品の状態（今までの jQuery の .data() に持っていたもの）
+const form_state = new WeakMap();
+function state_of(dom) {
+	if (!form_state.has(dom)) form_state.set(dom, {});
+	return form_state.get(dom);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // submit checker
 ////////////////////////////////////////////////////////////////////////////////
-$$.dom_init( function($R){
+$$.dom_init( function(R){
 	const self=this;
 
-	$R.findx('button.js-check-form').on('click', function(evt){
-		const $obj  = $(evt.target);
-		const $form = $obj.parents('form.js-check-form');
-		if (!$form.length) return;
-		$form.data('confirm', $obj.data('confirm') );
-		$form.data('focus',   $obj.data('focus')   );
-		$form.data('button',  $obj);
-	});
+	this.find_all(R, 'button.js-check-form').forEach(function(btn){ btn.addEventListener('click', function(evt){
+		const obj  = evt.currentTarget;
+		const form = obj.closest('form.js-check-form');
+		if (!form) return;
+		const st = state_of(form);
+		// 今までと同じく、ボタンに無いときは前の値（なければフォームの data-*）のまま
+		const confirm = self.data_value(obj, 'confirm');
+		const focus   = self.data_value(obj, 'focus');
+		if (confirm !== undefined) st.confirm = confirm;
+		if (focus   !== undefined) st.focus   = focus;
+		st.button = obj;
+	}) });
 
-	$R.findx('form.js-check-form').onSequence('submit', 10, function(evt){
-		const $form  = $(evt.target);
-		const target = $form.data('target');
+	this.find_all(R, 'form.js-check-form').forEach(function(form){ on_submit(form, 10, function(evt){
+		const st     = state_of(form);
+		const target = self.data_value(form, 'target');
 		let count=0;
 		if (target) {
-			count = $form.rootfind( target + ":checked" ).length;
+			count = self.rootfind( form, target + ":checked" ).length;
 			if (!count) return false;	// no check
 		}
 
 		// confirm message
-		let confirm = $form.data('confirm');
+		let confirm = ('confirm' in st) ? st.confirm : self.data_value(form, 'confirm');
 		if (!confirm) return true;
-  		if ($form.data('_confirm_ok')) {
-  			$form.data('_confirm_ok', false);
+  		if (st._confirm_ok) {
+  			st._confirm_ok = false;
   			return true;
   		}
 
 		// confirm dialog
 		confirm = confirm.toString().replace("%c", count);
 		self.confirm({
-			html: confirm,
-			focus: $form.data('focus')
+			html:  confirm,
+			focus: ('focus' in st) ? st.focus : self.data_value(form, 'focus')
 		}, function(flag) {
 			if (!flag) return;
-  			$form.data('_confirm_ok', true);
-			if ($form.data('button')) return $form.data('button').click();
+  			st._confirm_ok = true;
+			if (st.button) return st.button.click();
 
-			// ふつうのsubmitのイベントを起こして送る。jQueryの .submit() のイベントは、
-			// jQueryで付けた処理にしか届かない（記事の編集画面の、離れるときの確認など）
-			if ($form[0].requestSubmit) return $form[0].requestSubmit();
-			$form.submit();
+			// ふつうのsubmitのイベントを起こして送る
+			form.requestSubmit();
 		});
 		return false;
-	});
+	}) });
 });
 
 ////////////////////////////////////////////////////////////////////////////////
 // ajax form
 ////////////////////////////////////////////////////////////////////////////////
-$$.dom_init( function($R) {
+// <form class="js-ajax" data-url="送った後に開くURL" data-success="送った後に出すメッセージ" data-overlay="1">
+// 送ったときにエラーがあれば、返事の errs の名前の欄に error のクラスを付ける
+//
+// 今までの jQuery の .serialize() と同じ形にする（ファイルとボタンは入れない、改行は CRLF）
+function serialize(form) {
+	const ary = [];
+	for(const [k, v] of new FormData(form)) {
+		if (typeof(v) !== 'string') continue;
+		ary.push(encodeURIComponent(k) + '=' + encodeURIComponent(v.replace(/\r?\n/g, "\r\n")));
+	}
+	return ary.join('&');
+}
+$$.dom_init( function(R) {
 	const self=this;
-	const func = function($obj){
-		$obj.find('.error').removeClass('error');
+	const func = function(form){
+		form.querySelectorAll('.error').forEach(function(x){ x.classList.remove('error') });
 
-		const gen  = $obj.data('generator');
-		const data = (typeof(gen) === 'function') ? gen($obj) : (function(){
-			const $infile = $obj.find('input[type="file"]');
-			return $infile.length ? (new FormData($obj[0])) : $obj.serialize();
-		})();
+		const data = form.querySelector('input[type="file"]') ? new FormData(form) : serialize(form);
 
-		if ($obj.data('--js-ajax-stop')) return;
-		$obj.data('--js-ajax-stop', true);
-		$obj.prop('disabled', true);
-		if ($obj.data('overlay'))
-			$obj.data('--overlay-obj', $.adiaryOverlayShow());
-
-		const start_func = $obj.data('start');
-		const comp_func  = $obj.data('complete');
-		if (typeof(start_func) === 'function') start_func($obj);
+		const st = state_of(form);
+		if (st.ajax_stop) return;
+		st.ajax_stop = true;
+		if (self.data_value(form, 'overlay'))
+			st.overlay = self.overlay_show();
 
 		self.send_ajax({
 			data:	data,
 			success: function(h) {
-				const success = $obj.data('success');
-				const url = $obj.data('url');
-				if (typeof(success) === 'function') return success(h);
+				const success = self.data_value(form, 'success');
+				const url     = self.data_value(form, 'url');
 				if (typeof(success) === 'string' && success != '') {
 					return self.show_dialog(success, function(){
 						if (url) window.location = url;
@@ -121,9 +156,6 @@ $$.dom_init( function($R) {
 				if (url) window.location = url;
 			},
 			error: function(err, h) {
-				const error = $obj.data('error');
-				if (typeof(error) === 'function') return error(h);
-
 				if (!h || !h.errs) return;
 				const e = h.errs;
 				for(let k in e) {
@@ -134,142 +166,126 @@ $$.dom_init( function($R) {
 					const num = ma ? ma[2] : undefined;
 					k = ma ? ma[1] : k;
 					try {
-						let $x = $obj.find('[name="' + k+ '"], [data-name="' + k + '"]');
-						if (num) $x = $($x[num-1]);
-						$x.addClass('error');
+						let x = Array.from( form.querySelectorAll('[name="' + k+ '"], [data-name="' + k + '"]') );
+						if (num) x = x[num-1] ? [ x[num-1] ] : [];
+						x.forEach(function(y){ y.classList.add('error') });
 					} catch(e) {
 						console.error(e);
 					}
 				}
 			},
-			error_dialog_callback: function(){
-				const callback = $obj.data('error_dialog_callback');
-				if (typeof(callback) === 'function') return callback();
-			},
-			complete: function(h) {
-				if (typeof(comp_func) === 'function') comp_func($obj);
-				$obj.data('--js-ajax-stop', false);
-				$obj.prop('disabled', false);
-				if ($obj.data('--overlay-obj')) $obj.data('--overlay-obj').remove();
+			complete: function() {
+				st.ajax_stop = false;
+				if (st.overlay) st.overlay.remove();
+				st.overlay = null;
 			}
 		});
-		return false;
 	};
 
-	$R.find('form.js-ajax').onSequence('submit', 100, function(evt) {
-		const $obj = $(evt.target);
-		const callback = function(){ func($obj) };
-
-		const checker  = $obj.data('checker');
-		if (typeof(checker) === 'function') {
-			if (! checker($obj, callback)) return false;
-		}
-		func($obj);
+	R.querySelectorAll('form.js-ajax').forEach(function(form){ on_submit(form, 100, function(evt) {
+		func(form);
 		return false;
-	});
+	}) });
 });
 
 ////////////////////////////////////////////////////////////////////////////////
 // auto save form value
 ////////////////////////////////////////////////////////////////////////////////
-$$.dom_init( function($R) {
+$$.dom_init( function(R) {
 	const self = this;
 
-	$R.findx('input.js-save, select.js-save').each( function(idx, dom) {
-		const $obj = $(dom);
-		const type = $obj[0].type;
+	this.find_all(R, 'input.js-save, select.js-save').forEach( function(dom) {
+		const type = dom.type;
 
-		let id = type != 'radio' && $obj.attr("id");
-		if (!id) id = 'name=' + $obj.attr("name");
-		if (!id) return;
+		// 名前が無いときは、今までと同じく "name=undefined"
+		let id = type != 'radio' && dom.getAttribute("id");
+		if (!id) id = 'name=' + (dom.getAttribute("name") ?? undefined);
 
 		if (type == 'checkbox') {
-			$obj.change( function(evt){
-				const $o = $(evt.target);
-				self.Storage.set(id, $o.prop('checked') ? 1 : 0);
+			self.on_change(dom, function(evt){
+				self.Storage.set(id, dom.checked ? 1 : 0);
 			});
 			if ( self.Storage.defined(id) )
-				$obj.prop('checked', self.Storage.get(id) != 0 );
+				dom.checked = self.Storage.get(id) != 0;
 			return;
 		}
 		if (type == 'radio') {
-			const val = $obj.attr('value');
-			$obj.change( function(evt){
-				const $o = $(evt.target);
+			const val = dom.getAttribute('value');
+			self.on_change(dom, function(evt){
 				self.Storage.set(id, val);
 			});
 			if ( self.Storage.defined(id) && val == self.Storage.get(id)) {
-				$obj.prop('checked', 1);
+				dom.checked = true;
 			}
 			return;
 		}
-		$obj.change( function(evt){
-			const $o = $(evt.target);
-			if ($o.val() == self.js_combo_dummy_val) return;
-			self.Storage.set(id, $o.val());
+		self.on_change(dom, function(evt){
+			if (dom.value == self.js_combo_dummy_val) return;
+			self.Storage.set(id, dom.value);
 		});
 		const val = self.Storage.get(id);
 		if (! val) return;
 		if (dom.tagName == 'SELECT')
-			return self.set_value_on_select( $obj, val );
-		
-		return $obj.val( val );
+			return self.set_value_on_select( dom, val );
+
+		dom.value = val;
 	});
 });
 
 ////////////////////////////////////////////////////////////////////////////////
 // form dom element enable/disable by other form elements
 ////////////////////////////////////////////////////////////////////////////////
-$$.dom_init( function($R){
-	const $objs = $R.findx('input.js-enable, input.js-disable, select.js-enable, select.js-disable');
+$$.dom_init( function(R){
+	const self = this;
+	const objs = this.find_all(R, 'input.js-enable, input.js-disable, select.js-enable, select.js-disable');
 
 	let   init;
 	const func = function(evt) {
-		const $btn = $(evt.target);
-		const $tar = $btn.rootfind( $btn.data('target') );
-
-		const type = $btn[0].type;
+		const btn  = evt.target;
+		const tars = self.rootfind( btn, self.data_value(btn, 'target') );
+		const type = btn.type;
 
 		// radio button with data-state="0" or "1"
 		if (type == 'radio') {
-			if ($btn.prop("disabled") || !$btn.prop("checked")) return;
-			let flag = $btn.data("state");
-			if ($btn.hasClass('js-enable')) flag=!flag;
-			$tar.prop('disabled', flag);
+			if (btn.disabled || !btn.checked) return;
+			let flag = self.data_value(btn, 'state');
+			if (btn.classList.contains('js-enable')) flag=!flag;
+			tars.forEach(function(x){ x.disabled = !!flag });
 			return;
 		}
 
 		let flag;
 		if (type == 'checkbox') {
-			flag = !$btn.prop("disabled") && $btn.prop("checked");
-		} else if (type == 'number' || $btn.data('type') == 'int') {
-			var val = $btn.val();
+			flag = !btn.disabled && btn.checked;
+		} else if (type == 'number' || self.data_value(btn, 'type') == 'int') {
+			var val = btn.value;
 			flag = val.length && val > 0;
 		} else {
-			flag = ! ($btn.val() + '').match(/^\s*$/);
+			flag = ! (btn.value + '').match(/^\s*$/);
 		}
 
 		// change flag?
-		if (!init && $btn.data('_flag') === flag) return;
-		$btn.data('_flag', flag);
+		const st = state_of(btn);
+		if (!init && st._flag === flag) return;
+		st._flag = flag;
 
 		// disabled?
-		const counter = $btn.hasClass('js-disable') ? '_disable_c' :  '_enable_c';
+		const counter = btn.classList.contains('js-disable') ? '_disable_c' :  '_enable_c';
 		const add     = flag ? 1 : (init ? 0 : -1);
-		$tar.each(function(idx,dom){
-			const $obj = $(dom);
-			$obj.data(counter, ($obj.data(counter) || 0) + add);
+		tars.forEach(function(dom){
+			const s = state_of(dom);
+			s[counter] = (s[counter] || 0) + add;
 
-			const diff = ($obj.data('_disable_c') || 0) - ($obj.data('_enable_c') || 0)
-				   + ($btn.hasClass('js-enable') ? 0.1 : 0);
+			const diff = (s._disable_c || 0) - (s._enable_c || 0)
+				   + (btn.classList.contains('js-enable') ? 0.1 : 0);
 
-			$obj.prop('disabled', diff>0);
+			dom.disabled = diff>0;
 		});
 	}
-	// regist
-	$objs.change( func );
+	// regist。今までと同じく、初めに1回、asysの部品のchangeの処理を呼ぶ
+	objs.forEach(function(x){ self.on_change(x, func) });
 	init = true;
-	$objs.change();
+	objs.forEach(function(x){ self.fire_change(x) });
 	init = false;
 });
 
@@ -283,103 +299,116 @@ $$.dom_init( function($R){
 	 data-hide-val="show it" data-show-val="hide it" data-negative="1">msg</button>
 */
 (function(){
-	function toggle($obj, init) {
-		if ($obj[0].tagName == 'A') return true;	// link click
+	// jQueryの:hidden（表示の大きさが無い）
+	function hidden(dom) {
+		return !(dom.offsetWidth || dom.offsetHeight || dom.getClientRects().length);
+	}
+	function toggle(obj, init) {
+		if (obj.tagName == 'A') return true;	// link click
 
 		// append switch icon
-		if (init && $obj[0].tagName != 'INPUT' && $obj[0].tagName != 'BUTTON') {
-			const $span = $('<span>');
-			$span.addClass('ui-icon switch-icon');
-			$obj.prepend($span).addClass('sw-show');
+		if (init && obj.tagName != 'INPUT' && obj.tagName != 'BUTTON') {
+			const span = document.createElement('span');
+			span.className = 'ui-icon switch-icon';
+			obj.prepend(span);
+			obj.classList.add('sw-show');
 		}
 
-		const type = $obj[0].tagName == 'INPUT' && $obj[0].type;
-		let   tar  = $obj.data('target');
+		const type = obj.tagName == 'INPUT' && obj.type;
+		let   tar  = this.data_value(obj, 'target');
 		if (!tar) {
-			// $obj is children
-			$obj = $obj.parentsOne(".js-switch");
-			if (!$obj.length) return;
-			tar = $obj.data('target');
+			// obj is children
+			obj = obj.parentElement && obj.parentElement.closest(".js-switch");
+			if (!obj) return;
+			tar = this.data_value(obj, 'target');
 		}
-		const $target = $(tar);
-		if (!$target.length) return false;
+		const targets = Array.from( document.querySelectorAll(tar) );
+		if (!targets.length) return false;
 
 		// save switch status
-		const storage = $obj.existsData('save') ? this.Storage : null;
+		const storage = obj.hasAttribute('data-save') ? this.Storage : null;
 
 		// get current state
-		const id = $obj.attr('id') || $obj.attr('name') || tar;
+		const id = obj.getAttribute('id') || obj.getAttribute('name') || tar;
 		let flag;
 		if (init && storage && storage.defined(id)) {
 			flag = storage.getInt(id) ? true : false;
-			if (type == 'checkbox' || type == 'radio') $obj.prop("checked", flag);
+			if (type == 'checkbox' || type == 'radio') obj.checked = flag;
 		} else if (type == 'checkbox' || type == 'radio') {
-			flag = $obj.prop("checked");
-		} else if (init && $obj.data('default') == 'show') {
+			flag = obj.checked;
+		} else if (init && this.data_value(obj, 'default') == 'show') {
 			flag = true;
-		} else if (init && $obj.data('default') == 'hide') {
+		} else if (init && this.data_value(obj, 'default') == 'hide') {
 			flag = false;
 		} else {
-			flag = init ? !$target.is(':hidden') : $target.is(':hidden');
+			const any_hidden = targets.some(hidden);
+			flag = init ? !any_hidden : any_hidden;
 		}
-		if ($obj.data('negative')) flag = !flag;
+		if (this.data_value(obj, 'negative')) flag = !flag;
 
 		// show speed
-		let delay = $obj.data('delay');
+		let delay = this.data_value(obj, 'delay');
 		if (delay === undefined || delay === '') delay = this.DefaultShowSpeed;
 
 		// fast mode
-		if ($obj.data('fast')) {
+		if (this.data_value(obj, 'fast')) {
 			const css_id = '--css--' + id.replace(/[^\w\-]/g, '-');
-			let   $css   = $('#' + css_id);
-			if (!$css.length) {
-				$css = $('<style>').attr('id', css_id);
-				$('head').append($css);
+			let   css    = document.getElementById(css_id);
+			if (!css) {
+				css = document.createElement('style');
+				css.setAttribute('id', css_id);
+				document.head.appendChild(css);
 			}
-			$css.text( flag ? '' : tar + '{ display: none; }' );
+			css.textContent = flag ? '' : tar + '{ display: none; }';
 			return true;
 		}
 
 		// set state
+		const self = this;
 		if (flag) {
-			$obj.addClass('sw-show');
-			$obj.removeClass('sw-hide');
-			if (init) $target.show();
-			     else $target.show(delay);
+			obj.classList.add('sw-show');
+			obj.classList.remove('sw-hide');
+			targets.forEach(function(x){ init ? self.show(x) : self.show_delay(x, delay) });
 			if (storage) storage.set(id, '1');
-		
+
 		} else {
-			$obj.addClass('sw-hide');
-			$obj.removeClass('sw-show');
-			if (init) $target.hide();
-			     else $target.hide(delay);
+			obj.classList.add('sw-hide');
+			obj.classList.remove('sw-show');
+			targets.forEach(function(x){ init ? self.hide(x) : self.hide_delay(x, delay) });
 			if (storage) storage.set(id, '0');
 		}
 		if (type == 'button') {
-			const val = flag ? $obj.data('show-val') : $obj.data('hide-val');
-			if (val != undefined) $obj.val( val );
+			const val = flag ? this.data_value(obj, 'show-val') : this.data_value(obj, 'hide-val');
+			if (val != undefined) obj.value = val;
 		}
 		return true;
 	}
 
-	$$.dom_init( function($R){
+	$$.dom_init( function(R){
 		const self = this;
+		// 今までと同じく、押した要素（中の要素のときもある）から探す。false のときは止める
 		const func = function(evt){
-			const $obj = $(evt.target);
-			if ($obj[0].type != "radio")
-				return toggle.call(self, $obj);
-
-			const name = $obj.attr('name');
-			$('input.js-switch[name=\"' + name + '"]').each(function(idx, dom){
-				 toggle.call(self, $(dom));
-			});
+			const obj = evt.target;
+			let ret;
+			if (obj.type != "radio") {
+				ret = toggle.call(self, obj);
+			} else {
+				const name = obj.getAttribute('name');
+				document.querySelectorAll('input.js-switch[name="' + name + '"]').forEach(function(dom){
+					 toggle.call(self, dom);
+				});
+			}
+			if (ret === false) {
+				evt.preventDefault();
+				evt.stopPropagation();
+			}
 		}
 
-		$R.findx('.js-switch').each( function(idx,dom) {
-			const $obj = $(dom);
-			const f    = toggle.call(self, $obj, true);	// init=true
-			if (f) 	// initalize success
-				$obj.on(dom.tagName == 'INPUT' ? 'change' : 'click', func);
+		this.find_all(R, '.js-switch').forEach( function(dom) {
+			const f = toggle.call(self, dom, true);	// init=true
+			if (!f) return;		// initalize failed
+			if (dom.tagName == 'INPUT') self.on_change(dom, func);
+				else		    dom.addEventListener('click', func);
 		} );
 	});
 })();
@@ -387,9 +416,25 @@ $$.dom_init( function($R){
 ////////////////////////////////////////////////////////////////////////////////
 // accordion
 ////////////////////////////////////////////////////////////////////////////////
-$$.dom_init(function($R){
-	const $accordion = $R.findx('.js-accordion');
-	if (!$accordion.length) return;
-	$accordion.adiaryAccordion();
+// 見出しを押すと、すぐ後の div を開け閉めする。初めは閉じる
+$$.dom_init(function(R){
+	const self = this;
+	this.find_all(R, '.js-accordion').forEach(function(acc){
+		const heads = Array.from(acc.children).filter(function(x){ return x.matches('h1,h2,h3,h4,h5,h6') });
+		const next_div = function(x) {
+			const n = x.nextElementSibling;
+			return (n && n.tagName == 'DIV') ? n : null;
+		};
+		heads.forEach(function(h){
+			h.addEventListener('click', function(evt){
+				const div = next_div(evt.target);
+				if (!div) return;
+				self.toggle_delay(div);
+			});
+		});
+		heads.forEach(function(h){
+			const div = next_div(h);
+			if (div) self.hide(div);
+		});
+	});
 });
-

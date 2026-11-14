@@ -1,8 +1,6 @@
 //##############################################################################
 // dialog functions
 //##############################################################################
-// jQueryを使わずに書いてある。21_adiary-ui.js の $.fn.adiaryDialog などは、これを呼ぶ包み。
-// asys.js を消すときは、この中身を admin.js へ移す
 {
 ////////////////////////////////////////////////////////////////////////////////
 // sub functions
@@ -17,10 +15,7 @@ function secure(sel) {
 	}
 	return list[0] || null;
 }
-// jQueryの要素も受け取る（移行中）
 function to_dom(x) {
-	if (!x) return null;
-	if (window.jQuery && x instanceof window.jQuery) return x[0] || null;
 	return x instanceof Node ? x : null;
 }
 function create(tag, cls) {
@@ -32,13 +27,9 @@ function add_class(dom, cls) {
 	const ary = String(cls).split(/\s+/).filter(Boolean);
 	if (ary.length) dom.classList.add(...ary);
 }
-// jQueryの .append() と同じ。文字列はHTML、要素、jQueryの要素を受け取る
+// 文字列はHTML、要素は要素を足す
 function append_any(dom, x) {
 	if (x === undefined || x === null) return;
-	if (window.jQuery && x instanceof window.jQuery) {
-		x.each(function(i, d){ dom.appendChild(d) });
-		return;
-	}
 	if (x instanceof Node) return dom.appendChild(x);
 	dom.insertAdjacentHTML('beforeend', String(x));
 }
@@ -87,12 +78,8 @@ $$.ui_append = function(dom) {
 	dom.style.zIndex = ++zindex;
 	ui_zindex.set(dom, zindex);
 
-	// jQueryがあるあいだは、今までどおりjQueryで足す。中の<script>のうち、まだ動いていないもの
-	// （jQueryの .load() や .html() で、文書の外の要素に入れたもの）は、文書に入れたときに動くため。
-	// プラグインの設定画面（.load() で読み込む）のスクリプトは、ダイアログを開いたときに動く。
-	// jQueryを外すときは、読み込んだ側でスクリプトを動かすようにしてから appendChild にする
-	if (window.jQuery) window.jQuery(document.body).append(dom);
-		else	   document.body.appendChild(dom);
+	// 読み込んだHTMLの<script>は、読み込んだ側が take_scripts() で動かす
+	document.body.appendChild(dom);
 };
 
 $$.overlay = function() {
@@ -109,9 +96,8 @@ $$.overlay_show = function() {
 ////////////////////////////////////////////////////////////////////////////////
 //	const scripts = $$.take_scripts(dom);	… 中の<script>を取り出し、目印に置き換える
 //	（ダイアログを開くなど、文書に入れた後で）scripts.run();
-// innerHTML で入れた<script>は動かない。今までの jQuery の .load() は、文書に入れたときに動かしていた。
-// 取り出しておくので、asys のダイアログが jQuery で足しても、二重には動かない。
-// 動かすのは jQuery と同じく、type が無いか JavaScript のものだけ（text/template などはそのまま残す）
+// innerHTML で入れた<script>は動かないので、取り出しておき、後で作り直して動かす。
+// 動かすのは、type が無いか JavaScript のものだけ（text/template などはそのまま残す）
 const ScriptType = /^$|^module$|\/(?:java|ecma)script/i;
 $$.take_scripts = function(dom) {
 	const ary = [];
@@ -170,18 +156,20 @@ $$.progressbar = function(dom, opt) {
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-// show with delay, hide
+// show / hide with delay
 ////////////////////////////////////////////////////////////////////////////////
-// jQueryの.show(300)（$.fn.showDelay）、.hide()と同じ動き。隠れた要素を、高さ、幅、余白、
-// 濃さを0から広げて出す（swing）。出ている要素では何もしない。動いている間に呼ぶと、
-// 終わった後に動く（jQueryのfxの列と同じ）
-//	adiary.show_delay(dom)	adiary.show(dom)	adiary.hide(dom)
-//	adiary.showing(dom)	… show_delay()で出している途中か（jQueryの:animated）
+// jQueryの.show(300)、.hide(300)、.toggle(300)、.show()、.hide()と同じ動き。
+// 高さ、幅、余白、濃さを0から広げて出す、または0まで縮めて隠す（swing）。
+// 出ている要素を出す、隠れている要素を隠すときは何もしない。
+// 動いている間に呼ぶと、終わった後に動く（jQueryのfxの列と同じ）
+//	adiary.show_delay(dom)	adiary.hide_delay(dom)	adiary.toggle_delay(dom)
+//	adiary.show(dom)	adiary.hide(dom)	… すぐに出す、隠す
+//	adiary.showing(dom)	… 動いている途中か（jQueryの:animated）
 // jQueryと同じ順に書く（styleの並びも同じになる）
 const ShowProps = ['height', 'paddingTop', 'marginTop', 'paddingRight', 'marginRight',
 		   'paddingBottom', 'marginBottom', 'paddingLeft', 'marginLeft', 'width', 'opacity'];
 const OldDisplay = new WeakMap();	// 隠す前のdisplay（jQueryのdataPrivの"display"）
-const Showing    = new WeakMap();	// 動いている間：{ pending }
+const Anim       = new WeakMap();	// 動いている間：{ queue: [後で動かすもの] }
 
 function is_hidden(dom) {	// jQueryのisHiddenWithinTree
 	return dom.style.display === 'none'
@@ -202,61 +190,90 @@ function show_now(dom) {	// jQueryのshowHide(dom, true)
 	if (dom.style.display === '' && is_hidden(dom)) val = default_display(dom);
 	if (val != null) dom.style.display = val;
 }
-$$.showing = function(dom) {
-	return !!(dom && Showing.has(dom));
-};
-$$.show = function(dom) {	// jQueryの.show()（すぐに出す）
-	if (dom) show_now(dom);
-};
-$$.hide = function(dom) {
-	if (!dom) return;
+function hide_now(dom) {	// jQueryのshowHide(dom)
 	const display = dom.style.display;
 	if (display === 'none') return;
 	OldDisplay.set(dom, display);
 	dom.style.display = 'none';
-};
-$$.show_delay = function(dom, ms) {
-	if (!dom) return;
-	const running = Showing.get(dom);
-	if (running) {
-		running.pending = true;
-		return;
+}
+// 動いている間は列に入れる
+function enqueue(dom, func) {
+	const a = Anim.get(dom);
+	if (a) return a.queue.push(func);
+	func();
+}
+// 動き終わったら、列のものを順に動かす
+function dequeue(dom) {
+	const a = Anim.get(dom);
+	Anim.delete(dom);
+	const rest = a ? a.queue : [];
+	while(rest.length) {
+		rest.shift()();
+		const b = Anim.get(dom);
+		if (b) return b.queue.push(...rest);
 	}
-	if (!is_hidden(dom)) return;
-	if (ms === undefined) ms = this.DefaultShowSpeed;
-
+}
+function animate(dom, show, ms) {
 	const style = dom.style;
 	const orig  = {};
 	for(const p of ShowProps) orig[p] = style[p];
 	const overflow = [ style.overflow, style.overflowX, style.overflowY ];
-	show_now(dom);			// jQueryと同じく、出してからoverflowを入れる（styleの並びも同じになる）
+	if (show) show_now(dom);	// jQueryと同じく、出してからoverflowを入れる（styleの並びも同じになる）
 	style.overflow = 'hidden';
 	const cs  = getComputedStyle(dom);
-	const end = {};
-	for(const p of ShowProps) end[p] = parseFloat(cs[p]) || 0;
+	const val = {};
+	for(const p of ShowProps) val[p] = parseFloat(cs[p]) || 0;
 
-	const state = { pending: false };
-	Showing.set(dom, state);
+	Anim.set(dom, { queue: [] });
 	const start = Date.now();
-	const self  = this;
 	const tick  = function(){
 		const percent = ms ? Math.min(1, (Date.now() - start) / ms) : 1;
 		const eased   = 0.5 - Math.cos(percent * Math.PI) / 2;	// swing
 		for(const p of ShowProps) {
-			const v = end[p] * eased;
+			const v = val[p] * (show ? eased : 1 - eased);
 			style[p] = (p === 'opacity') ? v : v + 'px';
 		}
 		if (percent < 1) return requestAnimationFrame(tick);
 
-		// 終わったら、元のスタイルに戻す
+		// 終わったら、隠して、元のスタイルに戻す
 		style.overflow  = overflow[0];
 		style.overflowX = overflow[1];
 		style.overflowY = overflow[2];
+		if (!show) hide_now(dom);
 		for(const p of ShowProps) style[p] = orig[p];
-		Showing.delete(dom);
-		if (state.pending) self.show_delay(dom, ms);
+		dequeue(dom);
 	};
 	tick();		// jQueryと同じく、最初の1回はすぐに動かす
+}
+$$.showing = function(dom) {
+	return !!(dom && Anim.has(dom));
+};
+$$.show = function(dom) {	// jQueryの.show()（すぐに出す）
+	if (dom) show_now(dom);
+};
+$$.hide = function(dom) {	// jQueryの.hide()（すぐに隠す）
+	if (dom) hide_now(dom);
+};
+$$.show_delay = function(dom, ms) {
+	if (!dom) return;
+	if (ms === undefined) ms = this.DefaultShowSpeed;
+	enqueue(dom, function(){
+		if (is_hidden(dom)) animate(dom, true, ms);
+	});
+};
+$$.hide_delay = function(dom, ms) {
+	if (!dom) return;
+	if (ms === undefined) ms = this.DefaultShowSpeed;
+	enqueue(dom, function(){
+		if (!is_hidden(dom)) animate(dom, false, ms);
+	});
+};
+$$.toggle_delay = function(dom, ms) {
+	if (!dom) return;
+	if (ms === undefined) ms = this.DefaultShowSpeed;
+	enqueue(dom, function(){
+		animate(dom, is_hidden(dom), ms);
+	});
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -314,7 +331,6 @@ $$.draggable = function(dom, opt) {
 //	opt.title, width(-1 is auto), minWidth, minHeight, maxWidth, maxHeight,
 //	    dialogClass, buttons{label: func}, autoOpen, closeOnEscape, dialog(use <dialog>),
 //	    open(null, dom), beforeClose(dom), close(dom), exit()
-//	opt._remove(dom) … 消すときの処理（$.fn.adiaryDialog が、jQueryのデータも消すために使う）
 const dialog_data = new WeakMap();
 let   esc_dialogs = [];
 let   esc_hook;
@@ -381,8 +397,7 @@ $$.dialog = function(dom, opt) {
 			window.addEventListener('keydown', function(evt){
 				if (evt.keyCode != 27)  return;	// ESC
 
-				// 閉じた後のダイアログが残っていれば、何もしない（今までと同じ。jQueryの .remove() で
-				// 閉じるボタンのイベントも消えていたため）
+				// 閉じた後のダイアログが残っていれば、何もしない
 				const dialog = esc_dialogs.pop();
 				if (!dialog || !in_body(dialog)) return;
 				const btn    = dialog.querySelector('div.ui-dialog-titlebar .ui-icon-closethick');
@@ -397,7 +412,7 @@ $$.dialog = function(dom, opt) {
 	dom.classList.add('ui-dialog-content');
 	data.restore = dom.parentElement;
 	dialog.appendChild( dom );
-	if (dom.style.display === 'none') dom.style.display = '';	// jQueryの .show()（まだ文書の外なので、CSSで隠れていても変えない）
+	if (dom.style.display === 'none') dom.style.display = '';	// 出す（まだ文書の外なので、CSSで隠れていても変えない）
 
 	////////////////////////////////////////////////////////////////////////
 	// button
@@ -442,7 +457,6 @@ $$.dialog = function(dom, opt) {
 	data.open        = opt.open;
 	data.close       = opt.close;
 	data.beforeClose = opt.beforeClose;
-	data.remove      = opt._remove || function(x){ x.remove() };
 	data.useDialog   = useDialog;
 	data.min_h       = min_h;
 
@@ -493,8 +507,8 @@ $$.dialog_close = function(dom) {
 	if (!data.dialog) return dom;		// 閉じた後（閉じるボタンとOKを続けて押したときなど）
 	if (data.beforeClose) data.beforeClose.call( null, dom );
 
-	if (data.overlay) data.remove(data.overlay);
-	data.remove(data.dialog);
+	if (data.overlay) data.overlay.remove();
+	data.dialog.remove();
 	if (data.restore) data.restore.appendChild( dom );
 
 	data.overlay=null;
@@ -529,7 +543,7 @@ $$.show_dialog = function(h, _arg, callback) {
 		callback = _arg; _arg = {};
 	}
 	if (typeof(h) === 'string') h = {id: h, html:h, hash:_arg};
-	// 要素を渡されたとき（jQueryの要素も可）。#idが無いときは、今までどおり中身の無いダイアログにする
+	// 要素を渡されたとき。#idが無いときは、今までどおり中身の無いダイアログにする
 	let obj = to_dom(h);
 	if (!obj && h.id && h.id.substr(0,1) == '#') obj = secure( h.id ) || create('div');
 
