@@ -69,31 +69,37 @@ for(const name of ['css_init', 'get_value_from_css', 'init_top_search', 'init_na
 $$.init( function(){
 	let prev;
 	const self=this;
-	this.$body.on('click', '.js-info[data-info], .js-info[data-url]', function(evt){
+	document.body.addEventListener('click', function(evt){
+		const obj = evt.target;
+		if (!obj.matches || !obj.closest('.js-info[data-info], .js-info[data-url]')) return;
 
-		if (evt.target == prev) return;	// 連続クリック防止
-		prev = evt.target;
+		if (obj == prev) return;	// 連続クリック防止
+		prev = obj;
 
-		// 値は、そのときの属性から読む（jQueryの .data() は1回読んだ値を覚えていて、
-		// theme-custom.js が data-url を書き換えても前の値を読むため）
-		const $obj = $(evt.target);
-		const $div = $('<div>');
-		const $div2= $('<div>');	// 直接 div にクラスを設定すると表示が崩れる
+		// 値は、そのときの属性から読む（theme-custom.jsがdata-urlを書き換えるため）。
+		// 今までと同じく、押した要素（evt.target）から読む
+		const div  = document.createElement('div');
+		const div2 = document.createElement('div');	// 直接divにクラスを設定すると表示が崩れる
 
-		$div.attr('title', $obj.attr("data-title") || "Infomataion" );
-		$div2.addClass($obj.attr("data-class"));
-		$div.empty();
-		$div.append($div2);
-		if ($obj.attr('data-info')) {
-			const text = self.tag_esc_br( $obj.attr("data-info") );
-			$div2.html( text );
-			$div.adiaryDialog({ width: self.DialogWidth, close: close_func });
+		div.setAttribute('title', obj.getAttribute("data-title") || "Infomataion" );
+		const cls = obj.getAttribute("data-class");
+		if (cls) div2.className = cls;
+		div.appendChild(div2);
+		if (obj.getAttribute('data-info')) {
+			div2.innerHTML = self.tag_esc_br( obj.getAttribute("data-info") );
+			self.dialog(div, { width: self.DialogWidth, close: close_func });
 			return;
 		}
-		var url = $obj.attr("data-url");
-		$div2.load( url, function(){
-			$div2.text( $div2.text().replace(/\n*$/, "\n\n") );
-			$div.adiaryDialog({ width: self.DialogWidth, height: 320, close: close_func });
+		// 今までの.load()と同じく、読めなくても開く
+		const url = obj.getAttribute("data-url");
+		fetch(url).then(function(res){
+			return res.ok ? res.text() : '';
+		}).catch(function(){
+			return '';
+		}).then(function(html){
+			div2.innerHTML = html;
+			div2.textContent = div2.textContent.replace(/\n*$/, "\n\n");
+			self.dialog(div, { width: self.DialogWidth, height: 320, close: close_func });
 		});
 	});
 	function close_func() {
@@ -104,33 +110,32 @@ $$.init( function(){
 ////////////////////////////////////////////////////////////////////////////////
 //●画像・コメントのポップアップ
 ////////////////////////////////////////////////////////////////////////////////
+// アルバムのファイル名（album.js）、コメントの一覧（comlist.html）
 $$.init( function(){
 	const self = this;
-	const func = function(evt){ self.popup(evt) }
-
-	this.$body.on('mouseover', '.js-popup-img', {
-		func: function($obj, $div) {
-			const $img = $('<img>');
-			$img.attr('src', $obj.data('img-url'));
-			$div.empty();
-			$div.attr('id', 'popup-image');
-			$div.append( img );
+	this.popup_on('.js-popup-img', {
+		show: function(obj, div) {
+			const img = document.createElement('img');
+			img.setAttribute('src', obj.getAttribute('data-img-url'));
+			div.innerHTML = '';
+			div.setAttribute('id', 'popup-image');
+			div.appendChild( img );
 		}
-	}, func);
-	$('.js-popup-img').removeAttr('title');	// remove title attr popup
+	});
+	document.querySelectorAll('.js-popup-img').forEach(function(x){ x.removeAttribute('title') });	// remove title attr popup
 
-	this.$body.on('mouseover', '.js-popup-com', {
-		func: function($obj, $div){
-			var num = $obj.data('target');
-			if (num == '' || num == 0) return $div.empty();
+	this.popup_on('.js-popup-com', {
+		show: function(obj, div){
+			const num = obj.getAttribute('data-target');
+			if (num == '' || num == 0) return div.innerHTML = '';
 
-			var $com = $secure('#c' + num);
-			if (!$com.length) return $div.empty();
+			const com = self.secure('#c' + num);
+			if (!com) return div.innerHTML = '';
 
-			$div.attr('id', 'popup-com');
-			$div.html( $com.html() );
+			div.setAttribute('id', 'popup-com');
+			div.innerHTML = com.innerHTML;
 		}
-	}, func);
+	});
 });
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -218,44 +223,62 @@ $$.dom_init( function($R){
 ////////////////////////////////////////////////////////////////////////////////
 // ●タグ一覧のロード
 ////////////////////////////////////////////////////////////////////////////////
+// id は選択子か要素。読み込んで option を足した後に、change を起こす
+function select_of(id) {
+	return typeof(id) === 'string' ? document.querySelector(id) : id;
+}
+// 今までの$.getJSONと同じく、読めなくても何も出さない（返すPromiseには、失敗の処理を付けておく）
+function load_json(url, func) {
+	const p = fetch(url).then(function(res){
+		if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+		return res.json();
+	}).then(func);
+	p.catch(function(){});
+	return p;
+}
+function append_option(sel, value, html) {
+	const opt = document.createElement('option');
+	opt.setAttribute('value', value);
+	opt.innerHTML = html;
+	sel.appendChild(opt);
+	return opt;
+}
 $$.load_tags_list = function(id, callback) {
-	const $sel     = $(id);		// セレクトボックス
-	const _default = $sel.data('default') || '';
+	const sel = select_of(id);	// セレクトボックス
+	if (!sel) return;
+	const _default = sel.dataset.default || '';
 
-	$.getJSON( $sel.data('url'), function(data){
+	return load_json( sel.dataset.url, function(data){
 		if (callback) callback(data);
 		var r_func = function(ary, head, tab) {
 			for(var i=0; i<ary.length; i++) {
 				var name= ary[i].title;
 				var val = head + name;
-				var opt = $('<option>').attr('value', val);
-				//opt.css('padding-left', tab*8);	// Fx以外で効かないので以下で代用
-				opt.html('&emsp;'.repeat(tab) + val );
-				if ( val == _default ) opt.prop('selected', true);
-				$sel.append(opt);
+				//padding-left はFx以外で効かないので、全角の空白で字下げする
+				var opt = append_option(sel, val, '&emsp;'.repeat(tab) + val);
+				if ( val == _default ) opt.selected = true;
 				if (ary[i].children)
 					r_func( ary[i].children, head+name+'::', tab+1 );
 			}
 		};
 		r_func(data, '', 0);
-		fire_change($sel);
+		fire_change(sel);
 	});
 }
-// ふつうのchangeのイベントを起こす。jQueryの .change() のイベントは、jQueryを使わずに
-// 付けた処理（edit.js など）に届かないため。jQueryで付けた処理にも届く
-function fire_change($obj) {
-	$obj.each(function(i, dom){ dom.dispatchEvent(new Event('change', { bubbles: true })) });
+function fire_change(dom) {
+	dom.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●固定ページの一覧のロード
 ////////////////////////////////////////////////////////////////////////////////
-// 読み込みの jqXHR を返す（option を足して change した後に done、always が呼ばれる）
+// Promise を返す（option を足して change した後に解決する）
 $$.load_contents_list = function(id) {
-	var obj = $(id);
-	return $.getJSON( obj.data('url'), function(data){
-		var _default  = obj.data('default');
-		var this_pkey = obj.data('this-pkey');
+	const sel = select_of(id);
+	if (!sel) return Promise.reject(new Error('select not found'));
+	return load_json( sel.dataset.url, function(data){
+		var _default  = sel.dataset.default;
+		var this_pkey = sel.dataset.thisPkey;
 
 		var r_func = function(ary, tab) {
 			for(var i=0; i<ary.length; i++) {
@@ -265,18 +288,18 @@ $$.load_contents_list = function(id) {
 				if (title.length > 20)
 					title = title.substr(0,20) + '...';
 
-				var opt = $('<option>').attr('value', pkey);
-				//opt.css('padding-left', tab*8);	// Fx以外で効かないので以下で代用
-				opt.html('&emsp;'.repeat(tab) + title );
-				opt.attr('data-link_key', ary[i].link_key);	// edit.js が dataset.link_key で読む
-				if ( pkey == _default ) opt.prop('selected', true);
-				obj.append(opt);
+				//padding-left はFx以外で効かないので、全角の空白で字下げする
+				var opt = append_option(sel, pkey, '&emsp;'.repeat(tab) + title);
+				if (ary[i].link_key !== undefined)
+					opt.setAttribute('data-link_key', ary[i].link_key);	// edit.js が dataset.link_key で読む
+				if ( pkey == _default ) opt.selected = true;
 				if (ary[i].children)
 					r_func( ary[i].children, tab+1 );
 			}
 		};
 		r_func(data, 0);
-		fire_change(obj);
+		fire_change(sel);
+		return data;
 	});
 }
 
@@ -296,107 +319,117 @@ $$.unesc_satsuki_tag = function(str) {
 ////////////////////////////////////////////////////////////////////////////////
 // ●セッションを保持して随時データをロードする
 ////////////////////////////////////////////////////////////////////////////////
-$$.session = function(btn, opt){
+// ボタンを押すと、セッションを作り、処理を送る。処理の間は、ログ（?etc/load_session）を読み続けて出す
+//	adiary.session(ボタン, opt)	… ボタンは選択子、要素、要素の並び
+//	opt.myself		送る先（既定はadiary.myself）
+//	opt.load_log(evt)	ログを出す要素を返す（既定は、ボタンのdata-log-targetか、#session-log）
+//	opt.load_formdata(btn)	送る中身（FormDataか、URLエンコードした文字列）。既定はnew FormData(opt.form)
+//	opt.interval		ログを読む間隔（既定は、ログの要素のdata-intervalか、300ms）
+//	opt.dataType		返事の形（'text'か'json'。既定は'text'）
+//	opt.init(evt)、opt.success(data)、opt.error(xhr, status, msg)、opt.complete()
+//	opt.progress(e)		アップロードの進み具合（XMLHttpRequestのuploadのprogress）
+$$.session = function(btns, opt){
   const self=this;
-  $(btn).click( function(evt){
-	var $btn = $(evt.target);
+  if (typeof(btns) === 'string') btns = document.querySelectorAll(btns);
+  else if (btns instanceof Element) btns = [ btns ];
+  Array.from(btns).forEach(function(b){ b.addEventListener('click', function(evt){
+	var btn    = evt.currentTarget;
 	var myself = opt.myself || self.myself;
-	var $log   = opt.$log   || $btn.rootfind($btn.data('log-target') || '#session-log');
+	var log    = document.querySelector(btn.getAttribute('data-log-target') || '#session-log');
 
 	var load_session = myself + '?etc/load_session';
-	var interval = opt.interval || $log.data('interval') || 300;
+	var interval = opt.interval || (log && Number(log.getAttribute('data-interval'))) || 300;
 	var snum;
 
-	if (opt.load_log) $log = opt.load_log(evt);
-	$log.showDelay();
+	if (opt.load_log) log = opt.load_log(evt);
+	self.show_delay(log);
 	if (opt.init) opt.init(evt);
 
 	// セッション初期化
-	$.post( load_session, {
-			action: 'etc/init_session'
-		}, function(data) {
-			var reg = data.match(/snum=(\d+)/);
-			if (reg) {
-				snum = reg[1];
-				ajax_session();
-				return;
-			}
-			console.warn(error);
-		}, 'text'
-	);
+	const body = new URLSearchParams();
+	body.append('action', 'etc/init_session');
+	fetch(load_session, { method: 'POST', body: body }).then(function(res){
+		if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+		return res.text();
+	}).then(function(data) {
+		var reg = data.match(/snum=(\d+)/);
+		if (reg) {
+			snum = reg[1];
+			ajax_session();
+			return;
+		}
+		console.warn(data);
+	}).catch(function(){});		// 今までの$.postと同じく、送れなかったときは何もしない
 
 	// Ajaxセッション開始
 	function ajax_session(){
 		log_start();
 		var fd;
-		if (opt.load_formdata) fd = opt.load_formdata($btn);
+		if (opt.load_formdata) fd = opt.load_formdata(btn);
 				else   fd = new FormData( opt.form );
-		var ctype;
 		if (typeof(fd) == 'string') fd += '&snum=' + snum;
-		else {
-			fd.append('snum', snum);
-			ctype = false;
-		}
-		$.ajax(myself + '?etc/ajax_dummy', {
-			method: 'POST',
-			contentType: ctype,
-			processData: false,
-			data: fd,
-			dataType: opt.dataType || 'text',
-			error: function(jqXHR, status, msg) {
-				const e_msg = '[' + $$.name + '.session()] Ajax fail: ' + msg;
-				console.warn(e_msg);
-				log_stop(function(){
-					$log.text($log.text() + "\n" + e_msg + "\n");
-					$log.scrollTop( $log.prop('scrollHeight') );
-					if (opt.error) opt.error(jqXHR, status, msg);
-				});
-			},
-			success: function(data) {
-				log_stop(function(){
+				else	fd.append('snum', snum);
+
+		var xhr = new XMLHttpRequest();
+		xhr.open('POST', myself + '?etc/ajax_dummy');
+		if (typeof(fd) == 'string')	// 今までの$.ajaxと同じ
+			xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded; charset=UTF-8');
+		if (opt.progress) xhr.upload.addEventListener('progress', opt.progress);
+		var error = function(status, msg) {
+			const e_msg = '[' + self.name + '.session()] Ajax fail: ' + msg;
+			console.warn(e_msg);
+			log_stop(function(){
+				log.textContent = log.textContent + "\n" + e_msg + "\n";
+				log.scrollTop = log.scrollHeight;
+				if (opt.error) opt.error(xhr, status, msg);
+			});
+		};
+		// 今までの$.ajaxと同じく、success か error の後に complete を呼ぶ
+		xhr.addEventListener('load', function(){
+			if (200 <= xhr.status && xhr.status < 300 || xhr.status === 304) {
+				var data = xhr.responseText;
+				var ok   = true;
+				if (opt.dataType === 'json') {
+					try { data = JSON.parse(data) }
+					catch(e) { ok = false; error('parsererror', e); }
+				}
+				if (ok) log_stop(function(){
 					if (opt.success) opt.success(data);
 				});
-			},
-			complete:	opt.complete,
-			xhr:		opt.xhr
+			} else	error('error', xhr.statusText);
+			if (opt.complete) opt.complete();
 		});
+		xhr.addEventListener('error', function(){
+			error('error', '');
+			if (opt.complete) opt.complete();
+		});
+		xhr.send(fd);
 	}
 
 	/// ログ表示タイマー
 	var log_timer;
-	function log_start( snum ) {
-		$btn.prop('disabled', true);
-		$log.data('snum', snum);
+	function log_start() {
+		btn.disabled = true;
 		log_timer = setInterval(log_load, interval);
 	}
 	function log_stop(func) {
 		if (log_timer) clearInterval(log_timer);
 		log_timer = 0;
 		log_load(func);
-		$btn.prop('disabled', false);
+		btn.disabled = false;
 	}
+	// 今までの.load()と同じく、innerHTMLに入れる。読めなくても func は呼ぶ
 	function log_load(func) {
 		var url = load_session + '&snum=' + snum;
-		$log.load(url, function(data){
-			$log.scrollTop( $log.prop('scrollHeight') );
-			if (func) func();
+		fetch(url).then(function(res){
+			if (res.ok) return res.text().then(function(text){ log.innerHTML = text });
+		}).catch(function(){}).then(function(){
+			log.scrollTop = log.scrollHeight;
+			if (typeof(func) === 'function') func();
 		});
 	}
-  });
+  })});
 };
-
-////////////////////////////////////////////////////////////////////////////////
-// CSS append
-////////////////////////////////////////////////////////////////////////////////
-$$.prepend_css = function(file) {
-	const $link = $("<link>")
-	$link.attr({
-		rel: "stylesheet",
-		href: file
-	});
-	this.$head.prepend($link);
-	return $link;
-}
 
 //##############################################################################
 // ■動画のサムネイル（docs/仕様/動画のサムネイル.md）
@@ -511,27 +544,26 @@ $$.make_video_thumbnails = function(files, base, progress) {
 //●アップデート処理の画面：サムネイルの無い動画のサムネイルを作る
 ////////////////////////////////////////////////////////////////////////////////
 $$.init( function(){
-	const $box = $('#video-thumbnail');
-	if (!$box.length) return;
-	const $btn  = $box.find('button.make');
-	const $msg  = $box.find('.status');
-	const files = $box.find('li').map(function(i, dom){
-		const $li = $(dom);
-		// data() は数字だけの名前を数値にするので attr() で読む
-		return { folder: $li.attr('data-folder'), name: $li.attr('data-name'), $li: $li };
-	}).get();
+	const box = document.getElementById('video-thumbnail');
+	if (!box) return;
+	const btn   = box.querySelector('button.make');
+	const msg   = box.querySelector('.status');
+	const files = Array.from( box.querySelectorAll('li') ).map(function(li){
+		return { folder: li.getAttribute('data-folder'), name: li.getAttribute('data-name'), li: li };
+	});
 
 	function start() {
-		$btn.prop('disabled', true);
-		$$.make_video_thumbnails(files, $box.data('url'), function(i, file, err){
-			file.$li.addClass(err ? 'error' : 'done');
-			$msg.text((i+1) + ' / ' + files.length);
+		if (btn) btn.disabled = true;
+		$$.make_video_thumbnails(files, box.getAttribute('data-url'), function(i, file, err){
+			file.li.classList.add(err ? 'error' : 'done');
+			if (msg) msg.textContent = (i+1) + ' / ' + files.length;
 		}).then(function(fail){
-			$msg.text( $box.data(fail ? 'msg-fail' : 'msg-done').replace('%n', fail) );
+			const text = box.getAttribute(fail ? 'data-msg-fail' : 'data-msg-done') || '';
+			if (msg) msg.textContent = text.replace('%n', fail);
 		});
 	}
-	$btn.on('click', start);
-	if ($box.data('auto')) start();
+	if (btn) btn.addEventListener('click', start);
+	if (box.getAttribute('data-auto')) start();
 });
 
 //##############################################################################

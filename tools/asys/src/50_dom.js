@@ -5,19 +5,14 @@
 // popup-help
 ////////////////////////////////////////////////////////////////////////////////
 $$.init(function(){
-	const $popup_div = $('<div>').addClass('popup-block');
-	this.$popup_div  = $popup_div;
-	this.$body.append( $popup_div );
 	const self = this;
-
-	const help = '.help[data-help]';
-	this.$body.on('mouseover', help, {
-		show: function(evt, $obj, $div){
-			const text = self.tag_esc_br( $obj.data("help") );
-			$div.addClass('popup popup-help');
-			$div.html( text );
+	this.popup_on('.help[data-help]', {
+		show: function(obj, div){
+			const text = self.tag_esc_br( obj.dataset.help );
+			div.classList.add('popup', 'popup-help');
+			div.innerHTML = text;
 		}
-	}, function(evt){ self.popup(evt) });
+	});
 });
 
 ////////////////////////////////////////////////////////////////////////////////

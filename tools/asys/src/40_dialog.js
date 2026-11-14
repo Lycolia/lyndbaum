@@ -176,6 +176,7 @@ $$.progressbar = function(dom, opt) {
 // 濃さを0から広げて出す（swing）。出ている要素では何もしない。動いている間に呼ぶと、
 // 終わった後に動く（jQueryのfxの列と同じ）
 //	adiary.show_delay(dom)	adiary.show(dom)	adiary.hide(dom)
+//	adiary.showing(dom)	… show_delay()で出している途中か（jQueryの:animated）
 // jQueryと同じ順に書く（styleの並びも同じになる）
 const ShowProps = ['height', 'paddingTop', 'marginTop', 'paddingRight', 'marginRight',
 		   'paddingBottom', 'marginBottom', 'paddingLeft', 'marginLeft', 'width', 'opacity'];
@@ -201,6 +202,9 @@ function show_now(dom) {	// jQueryのshowHide(dom, true)
 	if (dom.style.display === '' && is_hidden(dom)) val = default_display(dom);
 	if (val != null) dom.style.display = val;
 }
+$$.showing = function(dom) {
+	return !!(dom && Showing.has(dom));
+};
 $$.show = function(dom) {	// jQueryの.show()（すぐに出す）
 	if (dom) show_now(dom);
 };
@@ -225,9 +229,8 @@ $$.show_delay = function(dom, ms) {
 	const orig  = {};
 	for(const p of ShowProps) orig[p] = style[p];
 	const overflow = [ style.overflow, style.overflowX, style.overflowY ];
+	show_now(dom);			// jQueryと同じく、出してからoverflowを入れる（styleの並びも同じになる）
 	style.overflow = 'hidden';
-
-	show_now(dom);
 	const cs  = getComputedStyle(dom);
 	const end = {};
 	for(const p of ShowProps) end[p] = parseFloat(cs[p]) || 0;

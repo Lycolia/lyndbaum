@@ -39,32 +39,32 @@
 
 <div style="display:none">
 <script-defer><!--
-let $buttons;
-adiary.session($('#static-export, #static-export-format'), {
-	myself: $secure('#static-session-log').data('myself'),
+let buttons;
+adiary.session('#static-export, #static-export-format', {
+	myself: adiary.secure('#static-session-log').dataset.myself,
 	load_formdata: function(btn) {
-		var fd = $('#export-form').serialize();
-		fd += '&' + $.param({
-			file: btn.val(),
-			enable_only: 1,
-		});
-		return fd;
+		var fd = new URLSearchParams();
+		for(const [k, v] of new FormData( document.getElementById('export-form') ))
+			if (typeof(v) === 'string') fd.append(k, v);
+		fd.append('file', btn.value);
+		fd.append('enable_only', 1);
+		return fd.toString();
 	},
 	success: function(data) {
 		if (!data) return;
 		var ma = data.match(/^ret=(\d+)/);
 		if (!ma || ma && ma[1] == 0) return;
 
-		text = data.replace(/^ret=[^\n]/, "Error code: " + ma[1]);
-		$('#static-session-log').text( text );
+		var text = data.replace(/^ret=[^\n]/, "Error code: " + ma[1]);
+		document.getElementById('static-session-log').textContent = text;
 	},
 	init:	function(){
-		$buttons = $("#export-form button:enabled");
-		$buttons.prop('disabled', true);
+		buttons = document.querySelectorAll("#export-form button:enabled");
+		buttons.forEach(function(x){ x.disabled = true });
 	},
 	complete: function(){
-		$buttons.prop('disabled', false);
-		$buttons = undefined;
+		buttons.forEach(function(x){ x.disabled = false });
+		buttons = undefined;
 	}
 });
 --></script-defer>

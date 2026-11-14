@@ -59,70 +59,71 @@
 ////////////////////////////////////////////////////////////////////////////////
 // ●初期化処理
 ////////////////////////////////////////////////////////////////////////////////
-const form = $secure('#import-form');
-const file = $('#file');
-let $prog;
+const form = adiary.secure('#import-form');
+let prog;
+let bar;
 
-// add log view
+// add log view（各形式の見出しの下に、進み具合とログを入れる）
 {
-	const $prog = $('#progress').removeAttr('id');
-	const $log  = $('#log')     .removeAttr('id');
-	let   $divs = $('#accordion > h3 + div');
-	$divs.append($prog);
-	$divs.append($log);
+	const prog0 = document.getElementById('progress');
+	const log0  = document.getElementById('log');
+	prog0.removeAttribute('id');
+	log0 .removeAttribute('id');
+	// 今までのjQueryの.append()と同じく、最後のもの以外には写しを入れ、最後のものには元を動かす
+	const divs = Array.from( document.querySelectorAll('#accordion > h3 + div') );
+	for(const x of [prog0, log0])
+		divs.forEach(function(div, i){
+			div.appendChild( i == divs.length-1 ? x : x.cloneNode(true) );
+		});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // ●インポートボタン処理
 ////////////////////////////////////////////////////////////////////////////////
-adiary.session($('button.import'), {
+adiary.session('button.import', {
 	myself: adiary.myself,
 
 	load_formdata: function(btn){
-		var fd = new FormData( form[0] );
-		fd.append('type', btn.attr('name'));
-		if (btn.data('class')) fd.append('class', btn.data('class'));
+		var fd = new FormData( form );
+		fd.append('type', btn.getAttribute('name'));
+		if (btn.dataset.class) fd.append('class', btn.dataset.class);
 		return fd;
 	},
 
 	load_log: function(evt) {
-		const $div = $(evt.target).parents('div').first();
-		$prog = $div.find(".progress");
-		return  $div.find(".session-log");
+		const div = evt.target.parentElement.closest('div');
+		prog = div.querySelector(".progress");
+		return div.querySelector(".session-log");
 	},
 	init: function(){
 		init_progressbar()
 	},
 	error: function(){
-		$prog.adiaryProgressbar({ value: 100 });
+		bar.set(100);
 	},
 	success: function(){
-		$prog.adiaryProgressbar({ value: 100 });
+		bar.set(100);
 	},
-	xhr: function(){
-		var XHR = $.ajaxSettings.xhr();
-		XHR.upload.addEventListener('progress', function(e){
-			var par = Math.floor(e.loaded*100/e.total + 0.5);
-			$prog.adiaryProgressbar({ value: par });
-		});
-		return XHR;
+	progress: function(e){
+		var par = Math.floor(e.loaded*100/e.total + 0.5);
+		bar.set(par);
 	}
 });
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●プログレスバー初期化
+// ●プログレスバー初期化（今までと同じく、押すたびに作り直す）
 ////////////////////////////////////////////////////////////////////////////////
 function init_progressbar() {
-	var label = $prog.find('.label');
-	$prog.adiaryProgressbar({
+	var label = prog.querySelector('.label');
+	bar = adiary.progressbar(prog, {
 		value: 0,
 		change: function(value) {
-			label.text( "Uploading " + value + "%" );
+			label.textContent = "Uploading " + value + "%";
 		},
 		complete: function() {
-			label.text( "Upload complete!" );
+			label.textContent = "Upload complete!";
 		}
-	})
+	});
 }
 //##############################################################################
 --></script-defer>

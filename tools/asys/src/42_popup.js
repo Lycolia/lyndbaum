@@ -1,42 +1,47 @@
 ////////////////////////////////////////////////////////////////////////////////
-// popup for mouseenter
+// popup for mouseover
 ////////////////////////////////////////////////////////////////////////////////
-$$.popup = function(evt) {
-	const self  = this;
-	const $obj  = $(evt.target);
-	let   delay = $obj.data('delay') || this.PopupDelayTime;
-	if (delay<1) delay=1;
+// jQueryを使わずに書いてある。選択子に合う要素にマウスを乗せると、少し待ってからポップアップを出す。
+// 後から足した要素にも効く（bodyのmouseoverで受ける）。登録ごとにdiv.popup-blockを1つ作る
+//	adiary.popup_on(選択子, { show: function(要素, div){…}, hide: function(要素, div){…} })
+//	待つ時間は、要素のdata-delayか、adiary.PopupDelayTime
+$$.popup_on = function(sel, opt) {
+	const self = this;
+	opt = opt || {};
+	let div;
+	const timers = new WeakMap();	// 要素ごとの、出すまでのタイマー
+	const bound  = new WeakSet();	// mouseleaveを付けた要素
 
-	if (!evt.data.$div) {
-		const $popup = $('<div>').addClass('popup-block');
-		this.$body.append( $popup );
-	 	evt.data.$div = $popup;
-	}
+	document.body.addEventListener('mouseover', function(evt){
+		const obj = evt.target.closest && evt.target.closest(sel);
+		if (!obj || timers.get(obj)) return;
+		if (!div) {
+			div = document.createElement('div');
+			div.className = 'popup-block';
+			document.body.appendChild(div);
+		}
+		let delay = Number(obj.dataset.delay) || self.PopupDelayTime;
+		if (delay<1) delay=1;
 
-	$obj.on('mouseleave', evt.data, function(evt){ self.popup_hide(evt) });
-	$obj.data('timer', setTimeout(  function()   { self.popup_show(evt) }, delay));
-}
+		const x = evt.pageX;
+		const y = evt.pageY;
+		timers.set(obj, setTimeout(function(){
+			timers.delete(obj);
+			if (self.showing(div)) return;		// 出している途中
+			if (opt.show) opt.show(obj, div);
+			div.style.left = (self.SP ? 0 : (x + self.PopupOffsetX)) + 'px';
+			div.style.top  = (y + self.PopupOffsetY) + 'px';
+			self.show_delay(div);
+		}, delay));
 
-$$.popup_show = function(evt) {
-	const $obj = $(evt.target);
-	const $div = evt.data.$div;
-	if ($div.is(":animated")) return;
-
-	if (evt.data.show) evt.data.show(evt, $obj, $div);
-	$div.css("left", (this.SP ? 0 : (evt.pageX + this.PopupOffsetX)));
-	$div.css("top" ,                 evt.pageY + this.PopupOffsetY);
-	$div.showDelay();
-}
-
-$$.popup_hide = function(evt) {
-	const $obj = $(evt.target);
-	const $div = evt.data.$div;
-	if ($obj.data('timer')) {
-		clearTimeout( $obj.data('timer') );
-		$obj.data('timer', null);
-	}
-	$obj.off('mouseout');
-	$div.hide();
-	if (evt.data.hide) evt.data.hide(evt, $obj, $div);
-}
-
+		if (bound.has(obj)) return;
+		bound.add(obj);
+		obj.addEventListener('mouseleave', function(){
+			clearTimeout(timers.get(obj));
+			timers.delete(obj);
+			if (!div) return;
+			self.hide(div);
+			if (opt.hide) opt.hide(obj, div);
+		});
+	});
+};
