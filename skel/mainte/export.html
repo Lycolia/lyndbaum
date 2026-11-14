@@ -32,7 +32,7 @@
 			<select name="article_type">
 				<option value="*all*" selected>すべて 
 				<option value="">blogのみ 
-				<option value="wiki">コンテンツページのみ
+				<option value="page">固定ページのみ
 			</select>
 		</li>
 		<li><label><input type="checkbox" name="enable_only" value="1">非公開の記事を出力しない</label></li>
@@ -54,9 +54,11 @@
 
 <script-defer><!--
 	adiary.load_tags_list( '#tag-select' );
-	$("button.export").click(function(evt){
-		var type = $(evt.target).data('type');
-		$('#input-type').val(type ? type : '');
+	document.querySelectorAll('button.export').forEach(function(btn){
+		btn.addEventListener('click', function(evt){
+			var type = evt.currentTarget.dataset.type;
+			document.getElementById('input-type').value = type ? type : '';
+		});
 	});
 --></script-defer>
 

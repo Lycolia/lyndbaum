@@ -2,13 +2,9 @@
 <$ifsuperjump_clear(! Auth.ok,      '_sub/error_message_403', 'ログインしていません')>
 <$ifsuperjump_clear(! v.blog_admin, '_sub/error_message_403', 'ブログが存在しないか権限がありません')>
 <$return( if(v.blog_admin, begin_hash, begin_hash) )>
-	tag_edit = タグ
-	contents_edit = コンテンツ
  	usertag = オリジナル記法
 	header = HTMLヘッダ設定
 	_order = 1
 <$end>
-	tag_edit = タグ
-	contents_edit = コンテンツ
 	_order = 1
 <$end>

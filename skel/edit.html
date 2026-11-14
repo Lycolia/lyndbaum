@@ -1,5 +1,5 @@
 <@7>
-<@local(s,art,logs,t,edit_pkey,tags)>
+<@local(s,art,logs,t,edit_pkey,tags,up)>
 <$s = v.blog>
 
 <@> システムモード
@@ -35,7 +35,7 @@
 	<$art.com_ok  = s.com_ok>
 	<$art.nsfw    = s.nsfw>
 	<$art.ping    = s.ping>
-	<$art.wiki    = s.wiki>
+	<$art.page    = s.page>
 	<$art.parser  = s.parser>
 <$end>
 
@@ -52,9 +52,9 @@
 
 <@> スクリプトをロード
 <$v.regist_jslib("<@v.script_dir>codemirror.min.js")>
-<$v.regist_js("<@v.script_dir>edit-cm.js")>
-<$v.regist_js("<@v.script_dir>edit.js")>
-<$v.regist_js("<@v.script_dir>edit-helper.js")>
+<$v.regist_js("<@v.script_dir>edit-cm.min.js")>
+<$v.regist_js("<@v.script_dir>edit.min.js")>
+<$v.regist_js("<@v.script_dir>edit-helper.min.js")>
 
 <@> pasteの処理
 <@ifexec(form_.paste_txt, begin)>
@@ -90,15 +90,6 @@
 <$end>
 <$end>
 
-<@><!--下書きのロード=======================================================-->
-<article class="system notice" id="edit-lock-notice" style="display: none;">
-<h2>この記事を編集中の人が他にもいます</h2>
-<div class="body">
-	<ul id="edit-lockers"></ul>
-<button id="force-lock-check">確認</button> <span id="check-time"></span>
-</div>
-</article>
-
 <!--記事の編集===============================================================-->
 <@> 左に本文、右に公開などの枠を置く（WordPressと同じ並び）。
 <@> 右の枠は記事のフォームの中にある。削除のフォームと投稿情報はフォームの外なので、CSSで本文の下に置く
@@ -125,7 +116,7 @@
 	<button class="helper" type="button" data-type="list"   data-msg="箇条書きにしたい項目を１行ずつ入力">リスト</button>
 	<button class="helper" type="button" data-type="quote"  data-msg="引用したい文章を入力" data-sp-msg="引用元サイトがある場合、そのURLを入力してください" data-sp-val="http://" data-sp-match="^https?:\/\/.+">引用</button>
 	<button class="helper" type="button" data-type="anno"   data-msg="注釈にしたい文字列を入力">注釈</button>
-	<button class="helper" type="button" data-type="album"  data-url="<@v.myself>?media/&amp;popup=1">画像</button>
+	<button class="helper" type="button" data-type="media"  data-url="<@v.myself>?media/&amp;popup=1">画像</button>
 
 	<select id="other-helper" title="その他の機能を呼び出します。">
 		<option value="" selected>その他</option>
@@ -200,7 +191,6 @@
 	<h3>アイキャッチ画像</h3>
 	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
 	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image || s.iconfile, s.blog_image || s.iconfile, #'<@v.pubdist_dir>default-icon.png')>"></div>
-	<p id="eyecatch-note"></p>
 	<p class="edit-buttons">
 	<button type="button" id="eyecatch-pick" data-url="<@v.myself>?media/&amp;popup=1&amp;eyecatch=1">アイキャッチ画像を設定</button>
 	<button type="button" id="eyecatch-remove">アイキャッチ画像を削除</button>
@@ -219,17 +209,19 @@
 	</span>
 	</section>
 
-	<!--コンテンツページ=====================================================-->
+	<!--固定ページ=========================================================-->
 	<section class="edit-box" id="edit-content">
-	<h3>コンテンツページ</h3>
+	<h3>固定ページ</h3>
 	<ul class="checkbox">
-		<li><label><input type="checkbox" name="wiki" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.wiki, ' checked')>>コンテンツページにする</label>
+		<li><label><input type="checkbox" name="page" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.page, ' checked')>>固定ページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
 		<ul id="content-block" style="display: none">
-			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>">
+			<@> 親の選択肢は公開中の固定ページだけなので、今の親が非公開のときは、edit.jsが足す
+			<$up = v.load_content_parent(art.upnode)>
+			<li>親 <select name="upnode" id="upnode-select" data-default="<@art.upnode>" data-this-pkey="<@edit_pkey>" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>" data-parent-title="<@up.title>" data-parent-link_key="<@esc(up.link_key)>">
 				<option value="0">*トップ(root)</option>
 			</select></li>
-			<li>コンテンツkey<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(art.link_key))>" data-suggest="<@s.suggest_link_key>"><span class="help-text">"FrontPage", "top", "index"のいずれかを指定するとブログトップの固定記事になります。</span></li>
+			<li>パーマリンク名<input type="text" name="link_key_txt" id="link-key" class="w240" value="<@if(art.ctype, esc(replace(art.link_key, '^.*/', '')))>"><span class="help-text">名前に「/」は使えません。トップの"FrontPage", "top", "index"のいずれかを指定すると、トップページに出す固定ページになります。</span></li>
 		</ul>
 		</li>
 	</ul>
@@ -300,7 +292,7 @@
 	<input type="hidden" name="action" value="delete">
 	<input type="hidden" name="delete_pkey_ary" value="<@edit_pkey>">
 	<input type="hidden" name="title" value="<@art.title>">
-	<button type="submit" name="delete" id="del-submit" class="no-disable">この記事を削除する</button>
+	<button type="submit" name="delete" id="del-submit">この記事を削除する</button>
 </form>
 <$end>
 </div>
@@ -313,16 +305,12 @@
 <span id="new-tag-cancel">キャンセル</span>
 <span id="new-tag-close">閉じる</span>
 <span id="new-tag-create">「%t」を新規タグとして追加</span>
-<span id="eyecatch-note-chosen">選んだ画像を使います。</span>
-<span id="eyecatch-note-blog">ブログの画像を使います。</span>
-<span id="edit-confirm">他にこの記事を編集している人がいますが、編集を継続しますか？%u</span>
 <span id="msg-multiline">複数行を一度に処理できません。</span>
 <span id="msg-upload-error">アップロードに失敗しました。</span>
 <span id="msg-upload-fail">%n 個中 %f 個のアップロードに失敗しました。</span>
 <span id="image-dir"><@v.blogimg_dir()></span>
 <span id="image-attr"><$edit_pkey ||= 0><@replace_dest(s.image_attr, '%k', edit_pkey)></span>
 <span id="exif-tag"><@if(v.blog.exif_tag, ":#[exif:%d:%f:<@v.blog.exif_tag>]", ':#[exif:%d:%f:%271 %272 / %37386mm F%33437 %33434sec ISO%34855]')></span>
-<span id="edit-lock-interval"><@v.sys.edit_lock_interval || 0></span>
 
 <@> タグ追加フォーム
 <form id="tag-select-form">

@@ -49,7 +49,7 @@
 <@>
 <@> 本文（題名を含む）とコメントを、それぞれ別の枠にする（lyndbaum.css）
 <div id="article-box">
-<article data-id="art-<@t.pkey>" id="article" class="article article-main<@if(t.priority, " wiki")><@if(t.nsfw && !s.nsfw_force, " nsfw")><@if(t.ctype, " art-<@t.ctype>")>">
+<article data-id="art-<@t.pkey>" id="article" class="article article-main<@if(t.priority, " page")><@if(t.nsfw && !s.nsfw_force, " nsfw")><@if(t.ctype, " art-<@t.ctype>")>">
 <h2 class="article-title"><a href="<@permalink>" class="title"><@t.title></a></h2>
 <div class="body" id="s<@t.pkey>">
 <div class="body-header article-meta">
@@ -87,7 +87,7 @@
 <@t.backlinks></ul>
 </section>
 <$end>
-<script src="<@Basepath><@v.theme_dir>lyndbaum/lyndbaum/toc.js?<@get_lastmodified(v.theme_dir . 'lyndbaum/lyndbaum/toc.js')>" defer></script>
+<script src="<@Basepath><@v.theme_dir>lyndbaum/toc.js?<@get_lastmodified(v.theme_dir . 'lyndbaum/toc.js')>" defer></script>
 <@>$ARTICLE_BOTTOM:END$--------------------------------------------------------
 
 <@>$COMMENT_TOP$---------------------------------------------------------------

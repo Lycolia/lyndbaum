@@ -16,10 +16,10 @@
 		<th>タグを表示</th>
 		<td>
 			<select name="tag" id="tag-select" class="js-disable" data-target="#node-select" data-default="<@tag_escape_amp(x = ps.tag)>" data-url="<@Basepath><@v.pub_dir>taglist.json?<@v.blog.json_tm>">
-				<option value="">【コンテンツを表示】</option>
+				<option value="">【固定ページを表示】</option>
 				<option value=",">*トップ(root)</option>
 			</select>
-			<span class="help-text">コンテンツではなく指定したタグから下をリスト表示します。</span>
+			<span class="help-text">固定ページではなく指定したタグから下をリスト表示します。</span>
 		</td>
 	</tr>
 	<tr>
@@ -39,7 +39,7 @@
 		<th>記事を表示</th>
 		<td>
 			<input type="number" class="int w100 js-disable" data-target="#depth, #node-select, #tag-select" name="art_pkey" value="<@ps.art_pkey>" min="0">
-			<span class="help-text">コンテンツ等ではなく特定の記事（非公開でも可）に書かれたリスト（&lt;ul&gt;～&lt;/ul&gt;）を表示することができます。「投稿情報」にある記事番号を入力してください。コンテンツ等に戻す場合は値を空にします。</span>
+			<span class="help-text">固定ページ等ではなく特定の記事（非公開でも可）に書かれたリスト（&lt;ul&gt;～&lt;/ul&gt;）を表示することができます。「投稿情報」にある記事番号を入力してください。固定ページ等に戻す場合は値を空にします。</span>
 		</td>
 	</tr>
 	</tbody>

@@ -339,7 +339,7 @@ article {
 	border:			1px solid #ddd;		/* $c=border2 = auto:border */
 	background-color:	#fff;			/* $c=artbg */
 }
-article.wiki {
+article.page {
 	border:			2px solid #bbb;		/* $c=border */
 }
 

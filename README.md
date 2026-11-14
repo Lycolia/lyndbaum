@@ -2,7 +2,7 @@
   <img src="docs/assets/logo-vector.svg" height="64" width="64">
 </div>
 
-# Lyndbaum 4 - The ultimate self-hosted library system for own use
+# Lyndbaum - The ultimate lightweight self-hosted Knowledge Base Management System for Japanese
 
 本システムは個人用のブログやWikiとして特化したシステムを目指しています。
 
@@ -20,6 +20,7 @@
 - OGP、RSS2.0、IndexNowに対応しています
 - 記事中にリンクカードやYoutube、動画埋め込みが使えます
 - NSFWサイト・記事に対応し、年齢制限のあるコンテンツが作れます
+- 完全一致検索を搭載しており、検索語句と全く異なる結果が出てくることがありません
 - 単一アカウント機能
   - 管理者アカウントのみに制限したシンプルなシステムで、編集者や閲覧者などの機能は持ちません
 - 単一サイト機能
@@ -88,12 +89,9 @@ AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージ�
 
 ## JavaScript
 
-- jQuery (MIT)
-  - jQuery UI (MIT / GPLv2)
-  - dynatree (MIT)
-  - Color Picker (MIT / GPL)
 - [Lythumb-viewer](https://github.com/Lycolia/lythumb-viewer) (AGPLv3)
 - [Prism.js](https://prismjs.com/) (MIT)
+- [CodeMirror](https://codemirror.net/) (MIT)
 
 ## Perl
 
@@ -118,9 +116,9 @@ VLゴシックフォント（`pub/assets/dist/VL-PGothic-Regular.ttf`）を
 
 ## 画像アイコン
 
-- `pub/assets/dist/album-icon`以下のアイコンの多くはせりか氏の著作物です。
-- `pub/assets/dist/album-icon/pdf.png`は http://iconhoihoi.oops.jp/ の著作物です。
-- `pub/assets/dist/album-icon`以下の`g-\*.png`と`trashbox.png`はGNOME Desktopアイコンです。
+- `pub/assets/dist/media-icon`以下のアイコンの多くはせりか氏の著作物です。
+- `pub/assets/dist/media-icon/pdf.png`は http://iconhoihoi.oops.jp/ の著作物です。
+- `pub/assets/dist/media-icon`以下の`g-\*.png`と`trashbox.png`はGNOME Desktopアイコンです。
 - `pub/assets/dist/mahjong/`以下のファイルは「[麻雀豆腐](http://majandofu.com/mahjong-images)」の画像を利用しています。
 - `pub/assets/theme/base.css`のソーシャルボタンのXとFacebookのロゴは、各社の商標です。はてなブックマークのマーク（「B!ブックマーク」）は、はてなの公式のブックマークボタンのものです。
 

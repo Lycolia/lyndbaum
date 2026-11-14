@@ -49,17 +49,19 @@
 </div>
 <div style="display:none">
 <script-defer><!--
-$(function(){
-	$('#jugem-ext').click(function(){
-		const sb = $('#jugem-ext').prop('checked');
-		$('#jugem-btn')
-			.attr('value', sb ? '25_sb' : '20_jugem' )
-			.data('type',  sb ? 'sb'    : 'JUGEM');
-		$('#jugem-enable').attr('value', sb ? 0 : 1 );
-		if (sb) 	$('#jugem-warning').hide();
-			else	$('#jugem-warning').show();
+{
+	const ext = document.getElementById('jugem-ext');
+	ext.addEventListener('click', function(){
+		const sb  = ext.checked;
+		const btn = document.getElementById('jugem-btn');
+		btn.setAttribute('value',     sb ? '25_sb' : '20_jugem');
+		btn.setAttribute('data-type', sb ? 'sb'    : 'JUGEM');
+		document.getElementById('jugem-enable').setAttribute('value', sb ? 0 : 1);
+		const warn = document.getElementById('jugem-warning');
+		if (sb) 	adiary.hide(warn);
+			else	adiary.show(warn);
 	});
-});
+}
 --></script-defer>
 </div>
 <$break()>

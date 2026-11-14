@@ -174,9 +174,10 @@
 
 
 <script-defer><!--
-	var form = $secure('#search');
-	var sel = form.find('select');
-	sel.change(function(){
-		form.submit();
+	var form = adiary.secure('#search');
+	form.querySelectorAll('select').forEach(function(sel){
+		sel.addEventListener('change', function(){
+			form.requestSubmit();
+		});
 	});
 --></script-defer>

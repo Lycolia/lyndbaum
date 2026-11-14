@@ -1,15 +1,19 @@
 <@40.is_function>
 <@local(h,order)>
 <$h = begin_hash>
-	media/index = メディア
+	media/index = メディア管理
 	artlist = 記事一覧
 	trash = ゴミ箱
 	comlist = コメント一覧
+	tag_edit = タグ
+	contents_edit = 固定ページの表示順
 <$end>
 <$order = array()>
 <$ifpush(v.blog_admin, order, 'media/index')>
 <$ifpush(v.blog_admin, order, 'artlist')>
 <$ifpush(v.blog_admin, order, 'trash')>
 <$ifpush(v.blog_admin, order, 'comlist')>
+<$ifpush(v.blog_admin, order, 'tag_edit')>
+<$ifpush(v.blog_admin, order, 'contents_edit')>
 <$h._order = order>
 <$return(h)>

@@ -348,23 +348,35 @@ button + button
 	margin-left:	0;
 }
 
-/* 色選択ボックス */
-span.colorbox {
+/* 色選択ボックス（ブラウザーの色の窓。admin.js が input.color-picker の前に置く） */
+input.colorbox {
 	height:		1em;
 	width:		1em;
 	border:		1px solid #000;
 	display:	inline-block;
+	padding:	0;
+	box-sizing:	content-box;
+	background:	none;
+	cursor:		pointer;
 
 	vertical-align: 	middle;
 	border-radius:		4px;
 	margin-right:		4px;
 }
+input.colorbox::-webkit-color-swatch-wrapper {
+	padding:	0;
+}
+input.colorbox::-webkit-color-swatch {
+	border:		none;
+	border-radius:	3px;
+}
+input.colorbox::-moz-color-swatch {
+	border:		none;
+	border-radius:	3px;
+}
 .color-picker {
 	width:		70px;
 	vertical-align: middle;
-}
-.colorpicker {
-	z-index:	10000;
 }
 
 option:disabled {

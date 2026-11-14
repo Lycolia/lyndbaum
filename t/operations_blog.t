@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 主な操作の中身のテスト（ブログの設定、画像アルバム）
+# 主な操作の中身のテスト（ブログの設定、メディア管理）
 #-------------------------------------------------------------------------------
 # 実行: prove t/operations_blog.t
 #
@@ -77,7 +77,7 @@ subtest 'OGPの言語、カードの種類、版の表示' => sub {
 		print $fh shift;
 		close($fh);
 	};
-	$write->($org . "blog_image=pub/attachments/\@system/sys-blog_image.png\n");
+	$write->($org . "blog_image=pub/attach/\@system/sys-blog_image.png\n");
 	$b = body($app->get('guest', ''));
 	like($b, qr{<meta property="og:image" content="[^"]*/sys-blog_image\.png">}, 'og:imageはブログの画像');
 	like($b, qr{<meta name="twitter:card" content="summary_large_image">}, 'ブログの画像のtwitter:cardはsummary_large_image');
@@ -211,7 +211,7 @@ subtest 'ブログの自動作成' => sub {
 	system('rm', '-rf', (map { "$old->{dir}/data/db/$_" } qw(art com tag tagart rev lastrev trash trashcom link)), "$old->{dir}/data/blog") == 0 || die;
 	my $sys = "$old->{dir}/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
 	open(my $fh, '>:utf8', $sys) || die;
 	print $fh $conf;
 	close($fh);
@@ -254,21 +254,47 @@ subtest 'メンテナンス中のログイン画面' => sub {
 
 subtest 'タグの削除' => sub {
 	# seed() のタグ1（pkey=1）は記事1に付いている
-	my $r = $app->post('admin', 'set2/tag_edit', { action => 'set2/tag_edit', del_ary => 1 });
+	my $r = $app->post('admin', 'tag_edit', { action => 'tag_edit', del_ary => 1 });
 	ok(AppTest::is_reload($r), '削除できる');
 	is($app->get('guest', '&t=' . AppTest::_uri_escape('タグ1'))->{status}, 404, 'タグの一覧に記事が出ない');
 	like(body($app->get('guest', '&t=' . AppTest::_uri_escape('タグ2'))), qr{ownerの記事}, 'ほかのタグはそのまま');
 };
 
+subtest 'タグと固定ページの表示順の画面（ナビから開く）' => sub {
+	my $menu = body($app->get('admin', 'menu'));
+	foreach ([ 'タグ', 'tag_edit', 'タグの編集' ], [ '固定ページの表示順', 'contents_edit', '固定ページの表示順' ]) {
+		my ($label, $skel, $title) = @$_;
+		# 画面が出したナビのリンクを辿る
+		my ($href) = $menu =~ m{\n\t<li><a href="([^"]*)">\Q$label\E</a></li>\n};
+		ok($href, "ナビに「$label」がある");
+		$href =~ s/&amp;/&/g;
+		$href =~ s{^/lyndbaum\.cgi\?}{};	# AppTestはSCRIPT_NAMEと?を足して呼ぶ
+		is($href, $skel, "「$label」のリンク先");
+		my $r = $app->get('admin', $href);
+		is($r->{status}, 200, "$label：開ける");
+		like($r->{title} // '', qr{^\Q$title\E}, "$label：題名");
+		my $b = body($r);
+		like($b, qr{\n\t<li class="current"><a href="[^"]*\?\Q$skel\E">\Q$label\E</a></li>\n}, "$label：ナビの項目にcurrentが付く");
+		unlike($b, qr{<li class="current"><a href="[^"]*\?set2/">}, "$label：「その他の設定」にはcurrentが付かない");
+		unlike($b, qr{admin-tabs}, "$label：タブは出ない");
+		like($b, qr{<input type="hidden" name="action" value="\Q$skel\E">}, "$label：保存のactionは新しい名前");
+	}
+
+	# 「その他の設定」には、タグと固定ページの表示順が残っていない
+	my $b = body($app->get('admin', 'set2/'));
+	unlike($b, qr{set2/(?:tag_edit|contents_edit)|タグの編集|コンテンツツリーの編集}, '「その他の設定」から外れている');
+	is($app->get('admin', 'set2/tag_edit')->{status}, 302, '旧URLはトップへ送る（スケルトンが無い）');
+};
+
 #-------------------------------------------------------------------------------
-# 画像アルバム
+# メディア管理
 #-------------------------------------------------------------------------------
-subtest '画像アルバム' => sub {
+subtest 'メディア管理' => sub {
 	my $png = do {
 		open(my $fh, '<:raw', "$FindBin::Bin/../pub/assets/dist/default-icon.png") || die $!;
 		local $/; <$fh>;
 	};
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	require Satsuki::ImageFormat;
 	my $ext = Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg';	# 画像のサムネイルの形式
 
@@ -297,13 +323,13 @@ subtest '画像アルバム' => sub {
 	ok(json_ok($r), 'フォルダを作れる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => 'test/', to => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '移せる');
-	ok(!-e "$img/renamed.png" && -f "$dir/pub/attachments/other/renamed.png", 'ファイルが移る');
-	ok(-f "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
+	ok(!-e "$img/renamed.png" && -f "$dir/pub/attach/other/renamed.png", 'ファイルが移る');
+	ok(-f "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも移る');
 
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'renamed.png' });
 	ok(json_ok($r), '削除できる');
-	ok(!-e "$dir/pub/attachments/other/renamed.png", 'フォルダから消える');
-	ok(!-e "$dir/pub/attachments/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
+	ok(!-e "$dir/pub/attach/other/renamed.png", 'フォルダから消える');
+	ok(!-e "$dir/pub/attach/other/.thumbnail/renamed.png.$ext", 'サムネイルも消える');
 };
 
 subtest 'アップロードした画像のメタ情報' => sub {
@@ -316,7 +342,7 @@ subtest 'アップロードした画像のメタ情報' => sub {
 	my $xmp  = "http://ns.adobe.com/xap/1.0/\0<x:xmpmeta xmlns:x='adobe:ns:meta/'/>";
 	my $seg  = sub { "\xFF" . chr($_[0]) . pack('n', length($_[1]) + 2) . $_[1] };
 	$jpeg = "\xFF\xD8" . $seg->(0xE1, $exif) . $seg->(0xE1, $xmp) . $seg->(0xE5, 'x' x 100) . substr($jpeg, 2);
-	my $img = "$dir/pub/attachments/test";
+	my $img = "$dir/pub/attach/test";
 	my $read = sub { open(my $fh, '<:raw', shift) || return ''; local $/; <$fh> };
 
 	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/',
@@ -355,7 +381,7 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	my $post = sub { return $post_data->( $image->(@_) ) };
 	# 画像のサムネイルと同じく、AVIFを書けるならAVIF、書けなければJPEG
 	my ($ext, $format) = Satsuki::ImageFormat::can_write_avif() ? ('avif', 'avif') : ('jpg', 'jpeg');
-	my $th     = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
+	my $th     = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail/$AppTest::VIDEO_FILE";
 	my $poster = "$th.poster.$ext";
 	my $thumb  = "$th.$ext";
 
@@ -415,16 +441,16 @@ subtest '動画のサムネイルの大きさの上限' => sub {
 	}
 
 	# 名前の変更、移動、削除で、記事用のサムネイルもついて行く
-	my $tdir = "$dir/pub/attachments/$AppTest::IMAGE_FOLDER.thumbnail";
+	my $tdir = "$dir/pub/attach/$AppTest::IMAGE_FOLDER.thumbnail";
 	$r = $app->post('admin', '', { action => 'media/rename_file', folder => $AppTest::IMAGE_FOLDER, old => $AppTest::VIDEO_FILE, name => 'v2.mp4' });
 	ok(json_ok($r), '動画の名前を変えられる');
 	ok(-e "$tdir/v2.mp4.poster.$ext" && -e "$tdir/v2.mp4.$ext" && !-e $poster, 'サムネイルの名前も変わる');
 	$r = $app->post('admin', '', { action => 'media/move_files', from => $AppTest::IMAGE_FOLDER, to => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を移せる');
-	ok(-e "$dir/pub/attachments/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
+	ok(-e "$dir/pub/attach/other/.thumbnail/v2.mp4.poster.$ext" && !-e "$tdir/v2.mp4.poster.$ext", '記事用のサムネイルも移る');
 	$r = $app->post('admin', '', { action => 'media/delete_files', folder => 'other/', file_ary => 'v2.mp4' });
 	ok(json_ok($r), '動画を削除できる');
-	ok(!glob("$dir/pub/attachments/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
+	ok(!glob("$dir/pub/attach/other/.thumbnail/v2.mp4.*"), 'サムネイルも消える');
 };
 
 #-------------------------------------------------------------------------------

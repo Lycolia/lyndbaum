@@ -1,0 +1,49 @@
+@charset "UTF-8";
+/*******************************************************************************
+  lyndbaum（2カラム・右サイドバー）
+	共通の部分（theme/lyndbaum/lyndbaum.css）を読み込み、カラムの並べ方と引き出しを足したもの
+*******************************************************************************/
+@import url("../lyndbaum.css");
+
+/*--------------------------------------------------------------------
+■カラム（2カラム・右サイドバー）
+--------------------------------------------------------------------*/
+/* サイドバーAとBの包み（#sidebars）を1本のサイドバーにし、Aの下にBを重ねる。
+   広い画面では本文の右に置く。狭い画面（48rem未満）では、本文、サイドバーの順に縦に並べる。
+   幅は3カラムのテーマの右サイドバーと同じにする（48〜72rem未満は16rem、72rem以上は22.5rem） */
+@media (min-width: 48rem) {
+	#hatena-body > div {
+		grid-template-columns: minmax(0, 1fr) 16rem;
+		grid-template-areas: "main side";
+		column-gap: 1rem;
+	}
+	.main { grid-area: main; }
+	.site-sidebars { grid-area: side; }
+}
+@media (min-width: 72rem) {
+	#hatena-body > div { grid-template-columns: minmax(0, 1fr) 22.5rem; }
+}
+
+/* 狭い画面（48rem未満）では、サイドバーを右から出る引き出しにし、右の角の三本線のボタン（.sidebar-toggle-both）で開く
+   開け閉めはadiary.js（docs/仕様/引き出し.md）。JavaScriptが使えるとき、_frame.htmlがhas-drawerを付ける。付かなければ上の並び。
+   暗幕とスクロールの停止はbase.css。引き出しになっている間は--drawer: 1を付ける。
+   ボタンの形は共通の部分。ヘッダーの中身がボタンの下に入らないよう、ボタンのある側を空ける */
+@media (max-width: 47.99rem) {
+	.has-drawer .site-header { padding-right: 3.25rem; }
+	.has-drawer .sidebar-toggle-both { display: inline-flex; right: .5rem; }
+	.has-drawer .site-sidebars {
+		--drawer: 1;
+		position: fixed; top: var(--admin-bar-h, 0px); bottom: 0; right: 0; z-index: 210; width: min(22.5rem, 85vw);
+		overflow-y: auto; overscroll-behavior: contain; padding: 1rem;
+		background: var(--page-bg); border-left: 1px solid var(--border);
+		transform: translateX(100%); visibility: hidden;
+	}
+	/* 動きはボタンで開け閉めするときだけ。adiary.jsが、読み込んだ直後と幅を変えているあいだはdrawer-animateを外す */
+	.drawer-animate .site-sidebars { transition: transform .2s ease, visibility .2s; }
+	.has-drawer .site-sidebars.is-open { transform: none; visibility: visible; }
+	/* 追従する目次のボタン（toc.js）は、右の角のボタンの下に出す */
+	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + 3.25rem); }
+}
+@media (prefers-reduced-motion: reduce) {
+	.drawer-animate .site-sidebars { transition: none; }
+}

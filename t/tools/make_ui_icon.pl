@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 use strict;
 #-------------------------------------------------------------------------------
-# UIアイコン（ui-icon）の画像を作り直し、adiary.js に埋め込む
+# UIアイコン（ui-icon）の画像を作り直し、adiary.jsに埋め込む
 #-------------------------------------------------------------------------------
 # 実行: perl t/tools/make_ui_icon.pl [元の画像]
 #
 # 元の画像（既定は pub/assets/dist/ui-icon/ui-icon.png。PNGかGIF）を、
 # 2色のパレットのPNGにして、次の2つを置き換える。
-#	・pub/assets/js/adiary.js の「ui-iconの生成」の埋め込み（Base64）
+#	・tools/js/src/adiary.jsの「ui-iconの生成」の埋め込み（Base64）
 #	・pub/assets/dist/ui-icon/ui-icon.png（埋め込みと同じものにする）
 #
 # 元の画像は、左上の画素の色と透明な画素を背景、それ以外をアイコンとする。
@@ -27,7 +27,7 @@ use MIME::Base64 ();
 my $ROOT = "$FindBin::Bin/../..";
 my $SRC  = shift || "$ROOT/pub/assets/dist/ui-icon/ui-icon.png";
 my $DIST = "$ROOT/pub/assets/dist/ui-icon/ui-icon.png";
-my $JS   = "$ROOT/pub/assets/js/adiary.js";
+my $JS   = "$ROOT/tools/js/src/adiary.js";
 
 #-------------------------------------------------------------------------------
 # 元の画像を読む
@@ -100,4 +100,5 @@ my $b64 = MIME::Base64::encode_base64($png, '');
 	close($fh);
 }
 print "${w}x${h}, " . length($png) . " bytes\n";
-print "updated: pub/assets/js/adiary.js, pub/assets/dist/ui-icon/ui-icon.png\n";
+print "updated: tools/js/src/adiary.js, pub/assets/dist/ui-icon/ui-icon.png\n";
+print "pub/assets/js/adiary.min.jsを作り直すため、tools/jsでnpm run buildを実行してください\n";

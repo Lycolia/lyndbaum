@@ -150,78 +150,78 @@
 
 <!--JavaScript===============================================================-->
 <script>
-$(function(){
+(function(){
 
 // 設定中のモジュールを探し、デフォルト値を設定する
-var obj = $f('#<@id>');
-if (!obj.length) return;
-var li  = obj.find('>ul>li:first-child');
-var li2 = obj.find('ul>li>ul>li');
+var obj = frame_find('#<@id>');
+if (!obj) return;
+var li  = obj.querySelector(':scope >ul>li:first-child');
+var li2 = obj.querySelector(':scope ul>li>ul>li');
 
 if ('<@ps.width1>' == '') {
-	if (li.length)
-		$('#width1').val( li.outerWidth() );
+	if (li)
+		set_value('#width1', outer_width(li) );
 }
 if ('<@ps.width2>' == '') {
-	if (li2.length)
-		$('#width2').val( li2.outerWidth() );
+	if (li2)
+		set_value('#width2', outer_width(li2) );
 }
 if ('<@ps.height>' == '') {
-	$('#height').val( obj.outerHeight() );
+	set_value('#height', outer_height(obj) );
 }
 if ('<@ps.zindex>' == '') {
-	$('#zindex').val( obj.css('z-index') || 990 );
+	set_value('#zindex', css(obj, 'z-index') || 990 );
 }
 if (!<@ps.no_underl || 0>) {
-	var a = li.find('a');
-	if (li.height() == a.height()) $('#no-underl').prop('checked', true);
+	var a = li && li.querySelector(':scope a');
+	if (height(li) == height(a)) document.getElementById('no-underl').checked = true;
 }
 
 
 // マージンとpadding
 if ('<@ps.margin0>' == '')
-	$('#margin0').val( parse_px( obj.css('margin-top') ) );
+	set_value('#margin0', parse_px( css(obj, 'margin-top') ) );
 if ('<@ps.margin1>' == '')
-	$('#margin1').val( parse_px( obj.css('margin-right') ) );
+	set_value('#margin1', parse_px( css(obj, 'margin-right') ) );
 if ('<@ps.margin2>' == '')
-	$('#margin2').val( parse_px( obj.css('margin-bottom') ) );
+	set_value('#margin2', parse_px( css(obj, 'margin-bottom') ) );
 if ('<@ps.margin3>' == '')
-	$('#margin3').val( parse_px( obj.css('margin-left') ) );
+	set_value('#margin3', parse_px( css(obj, 'margin-left') ) );
 
 if ('<@ps.padding>' == '') {
-	var ul = obj.find('>ul').first();
-	$('#padding').val( parse_px( ul.css('padding-left') ) );
+	var ul = obj.querySelector(':scope >ul');
+	set_value('#padding', parse_px( css(ul, 'padding-left') ) );
 }
 if ('<@ps.item_padding>' == '') {
-	var a = obj.find('>ul>li>a').first();
-	$('#item-padding').val( parse_px( a.css('padding-left') ) );
+	var a = obj.querySelector(':scope >ul>li>a');
+	set_value('#item-padding', parse_px( css(a, 'padding-left') ) );
 }
 
 
-if ('<@ps.item_bg>' == '' && li.length) {
-	var col = parse_color(li.css('background-color'));
-	if (col) $('#item-bg').val(col);
+if ('<@ps.item_bg>' == '' && li) {
+	var col = parse_color(css(li, 'background-color'));
+	if (col) set_value('#item-bg', col);
 }
-if ('<@ps.border>' == '' && li.length) {
+if ('<@ps.border>' == '' && li) {
 	var col = get_border_color(li)
 	col = parse_color( col );
-	if (col) $('#border').val(col);
+	if (col) set_value('#border', col);
 }
-if ('<@ps.font>' == '' && li.length) {
-	var a = li.find('a:first-child');
-	var col = parse_color(a.css('color'));
-	if (col) $('#font').val(col);
+if ('<@ps.font>' == '' && li) {
+	var a = li.querySelector(':scope a:first-child');
+	var col = parse_color(css(a, 'color'));
+	if (col) set_value('#font', col);
 }
-if ('<@ps.arrow>' == '' && li.length) {
-	var col = parse_color(obj.css('color'));
-	if (col) $('#arrow').val(col);
+if ('<@ps.arrow>' == '' && li) {
+	var col = parse_color(css(obj, 'color'));
+	if (col) set_value('#arrow', col);
 }
 
 // 最後に処理
-if ('<@ps.select_bg>' == '' && li.length) {
-	li.addClass('hover');
+if ('<@ps.select_bg>' == '' && li) {
+	li.classList.add('hover');
 	delay_color_setting('#select-bg', li, 'background-color', 'hover');
 }
 //==============================================================================
-});
+})();
 </script>

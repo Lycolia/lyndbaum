@@ -86,69 +86,73 @@ description
 
 </div>
 <!--JavaScript===============================================================-->
-<script>$(function(){
-var sel  = $("#append-element");	// select box
-var form = $("#information-elements");
+<script>(function(){
+var sel  = document.getElementById('append-element');	// select box
+var form = document.getElementById('information-elements');
 var modules = [];
 var count = 0;
-form.sortable();
+adiary.sortable([ form ]);
 
-$("#information-modules > div[data-module-name]").each(function(i,ele){
-	var obj = $(ele);
-	var name = obj.data('module-name');
-	modules[ name ] = obj;
-	var opt = $('<option>');
-	opt.attr('value', name);
-	opt.text( obj.attr('title') );
-	sel.append( opt );
+document.querySelectorAll('#information-modules > div[data-module-name]').forEach(function(ele){
+	var name = ele.dataset.moduleName;
+	modules[ name ] = ele;
+	var opt = document.createElement('option');
+	opt.setAttribute('value', name);
+	opt.textContent = ele.getAttribute('title');
+	sel.appendChild( opt );
 });
-sel.change( function(){
-	var obj = $(this);
-	append_element( obj.val() );
-	obj.val('');
+sel.addEventListener('change', function(){
+	append_element( sel.value );
+	sel.value = '';
 });
 function append_element(name, val) {
 	if (name == '') return;
 	var mod= modules[ name ];
 	if (!mod) return;
 
-	if (val == undefined) val = mod.data('default');
-	var alt= mod.data('alt');
-	var tr = $('<tr>');
-	var th = $('<th>').html( alt ? alt : mod.attr('title') );
-	var td = $('<td>').html( mod.html() );
-	var cl = $('<td>').addClass('c');
-	var span = $('<span>').addClass('ui-icon ui-icon-closethick ui-button');
-	span.click(function(){ tr.remove() });
-	var inp = $('<input>').attr({type: 'hidden', name: 'ele_ary' });
-	inp.attr('value', count + ',' + name );
-	td.find('*[name]').each(function(){
-		var obj = $(this);
-		var key = obj.attr('name');
+	if (val == undefined) val = mod.dataset.default;
+	var alt= mod.dataset.alt;
+	var tr = document.createElement('tr');
+	var th = document.createElement('th');
+	th.innerHTML = alt ? alt : mod.getAttribute('title');
+	var td = document.createElement('td');
+	td.innerHTML = mod.innerHTML;
+	var cl = document.createElement('td');
+	cl.className = 'c';
+	var span = document.createElement('span');
+	span.className = 'ui-icon ui-icon-closethick ui-button';
+	span.addEventListener('click', function(){ tr.remove() });
+	var inp = document.createElement('input');
+	inp.setAttribute('type', 'hidden');
+	inp.setAttribute('name', 'ele_ary');
+	inp.setAttribute('value', count + ',' + name );
+	td.querySelectorAll('[name]').forEach(function(obj){
+		var key  = obj.getAttribute('name');
+		var type = obj.getAttribute('type');
 		// val設定
-		if (val && val != '' && name == 'bcounter' && obj.attr('type') == 'radio') {
-			if (val == obj.attr('value')) { obj.prop('checked', true); }
+		if (val && val != '' && name == 'bcounter' && type == 'radio') {
+			if (val == obj.getAttribute('value')) { obj.checked = true; }
 		}
-		if (val && val != '' && obj.attr('type') == 'text') {
-			obj.val( adiary.tag_decode(val) );
+		if (val && val != '' && type == 'text') {
+			obj.value = adiary.tag_decode(val);
 		}
 		if (val && val != '' && (name == 'free_txt' || name == 'freebr_txt')
-		 && obj[0].tagName == 'TEXTAREA') {
+		 && obj.tagName == 'TEXTAREA') {
 		 	if (name == 'free_txt')   val = val.replace(/<!--br-->/g, "\n");
 		 	if (name == 'freebr_txt') val = val.replace(/<br>/g,      "\n");
-			obj.val( val );
+			obj.value = val;
 		}
-		obj.attr('name', count + ',' + key);
+		obj.setAttribute('name', count + ',' + key);
 	});
 	count++;
 	cl.append(inp, span);
 	tr.append(th, td, cl);
-	form.append(tr);
+	form.appendChild(tr);
 }
 /// 初期化
 function init() {
-	var ele = $secure('#current-elements');
-	var list = ele.html().split(/\n/);
+	var ele = adiary.secure('#current-elements');
+	var list = ele.innerHTML.split(/\n/);
 	for (var i=0; i<list.length; i++) {
 		var x = list[i].split(",",2);
 		var name = x[0];
@@ -158,6 +162,6 @@ function init() {
 }
 init();
 ///
-})
+})();
 </script>
 

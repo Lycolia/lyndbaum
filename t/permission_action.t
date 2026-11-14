@@ -75,13 +75,11 @@ my @ACTIONS = (
 	  form => { mode => 'purge', pkey_ary => 3 } },
 	{ action => 'trash', min => 'admin', label => 'trash（空にする）',
 	  form => { mode => 'purge_all' } },
-	{ action => 'ajax_lock', min => 'admin', ok => \&json_any,
-	  form => { pkey => 1, sid => 'test' } },
 	{ action => 'ajax_revision', min => 'admin', ok => \&json_any,
 	  form => { pkey => 1 } },
 
 	#---------------------------------------------------------------
-	# 画像アルバム
+	# メディア管理
 	#---------------------------------------------------------------
 	{ action => 'media/upload_form', min => 'admin', ok => \&text_ret0,
 	  form => [ folder => $FOLDER, size => 120, file_ary => { filename => 'up.png', content => $PNG, type => 'image/png' } ] },
@@ -122,9 +120,9 @@ my @ACTIONS = (
 	  form => { load_items => 3 } },
 	{ action => 'set/editor', min => 'admin',
 	  form => { enable => 0 } },
-	{ action => 'set2/tag_edit', min => 'admin',
+	{ action => 'tag_edit', min => 'admin',
 	  form => { del_ary => 1 } },
-	{ action => 'set2/contents_edit', min => 'admin',
+	{ action => 'contents_edit', min => 'admin',
 	  form => { contents_txt_ary => '1,0,1,new-key' } },
 	{ action => 'set2/usertag', min => 'admin',
 	  form => { usertag_txt => "[mytag]\nhtml = <b>\$1</b>\n" } },

@@ -46,7 +46,7 @@ sub load_arts_list {
 		# エスケープした状態で保存されているのでエスケープして検索する必要がある
 		$ROBJ->tag_escape(@{ $h{search_words} });
 	}
-	# 種類で絞り込む（art:記事だけ、page:ページだけ、それ以外はすべて）
+	# 種類で絞り込む（art:記事だけ、page:固定ページだけ、それ以外はすべて）
 	my $type = $opt->{type};
 	if ($type eq 'art') {
 		$h{match}     = { ctype => '' };
@@ -233,7 +233,8 @@ sub edit_article {
 	if ($opt{edit_pkey})  { $self->call_event('ARTICLE_AFTER_EDIT', $art, $form); }
 			 else { $self->call_event('ARTICLE_AFTER_POST', $art, $form); }
 
-	$self->call_event('ARTICLE_STATE_CHANGE', [ $art->{pkey} ], !$opt{tag_state_change});
+	# パーマリンクを付け替えた子孫も、変わった記事に入れる（参照元の作り直しなど）
+	$self->call_event('ARTICLE_STATE_CHANGE', [ $art->{pkey}, @{ $opt{descendants} || [] } ], !$opt{tag_state_change});
 
 	if ($opt{comment_edit}) {
 		$self->call_event('COMMENTS_EDIT', [ $art->{pkey} ]);
@@ -258,7 +259,17 @@ sub edit_article {
 		push(@urls, $ROBJ->{ServerURL} . $self->{myself2} . $k);
 	}
 	if ($art->{enable}) { push(@urls, $art->{absolute_url}); }
+	push(@urls, @{ $opt{descendants_indexnow} || [] });
 	$self->send_indexnow(\@urls);
+
+	# 固定ページを非公開（下書きを含む）にしたら、公開中の子孫も非公開にする。公開中のページの親は、いつも公開中
+	if ($art->{ctype} ne '' && !$art->{enable}) {
+		my $nodes = $self->load_content_nodes();
+		my @pkeys = grep { $nodes->{$_}->{enable} } @{ $self->content_descendants($nodes, $art->{pkey}) };
+		if (@pkeys) {
+			$self->edit_articles('disable', \@pkeys);
+		}
+	}
 
 	# 正常終了
 	return wantarray ? (0, $art) : 0;
@@ -271,6 +282,7 @@ sub edit_article {
 # opt.iha_default	ip/host/agentのデフォルト値
 # opt.save_pkey		pkeyを指定して保存する
 # opt.tm		tmを直接指定する
+# opt.import		インポート。固定ページのパーマリンクを、親から作らずにそのまま受ける
 #ret:
 #	opt.first_visible	初めての公開
 #	opt.comment_edit	コメントのキャッシュ情報を書き換えた
@@ -349,25 +361,47 @@ sub regist_article {
 	$ctype =~ s/[^\w\-]//g;
 	if ($ctype ne '') {
 		# link_key/upnode の設定	※この２つは escpae しない
-		my $link_key = $form->{link_key} || $form->{link_key_txt};
-		# 前後の空白を除去
-		$ROBJ->normalize_string($link_key);
-
-		# 特殊文字除去		※ここを変更したら contents_edit も変更すること
-		if ($link_key =~ /^["',]/) {
-			$ROBJ->form_error('link_key', 'Can not use character "%s" in content key', '"\',');
-		} elsif ($link_key =~ m!((?:^|/)\.+/)!) {
-			$ROBJ->form_error('link_key', 'Can not use string "%s" in content key', "$1");
-		} elsif ($link_key =~ /^\s*$/) {
-			$ROBJ->form_error('link_key', 'Content key is empty');
-		} elsif ($link_key =~ m|^0\d*$|) {
-			$ROBJ->form_error('link_key', 'Content key can not numbers starting with "0"');
-		} elsif (my @err = $self->check_link_key_path($link_key)) {
+		my $upnode = int($form->{upnode});
+		my $cons   = $self->load_contents_cache();
+		my ($link_key, @err);
+		if ($opt->{import}) {
+			# インポートは、元のパーマリンクのまま受ける。親は後で付ける（import_build_tree）
+			$link_key = $form->{link_key} || $form->{link_key_txt};
+			$ROBJ->normalize_string($link_key);
+			@err = $self->check_link_key($link_key);
+			if ($upnode && !$cons->{$upnode}) {
+				$upnode = 0;
+			}
+		} else {
+			# パーマリンクは「親のパーマリンク/名前」。名前は欄（link_key_txt）から。
+			# 空なら題名（_action/edit.htmlがlink_keyに入れる）を使い、/は-にする
+			my $name = $form->{link_key_txt};
+			if ($name eq '') {
+				$name = $form->{link_key};
+				$name =~ s|/|-|g;
+			}
+			my $nodes = $self->load_content_nodes();
+			my $parent;
+			if ($upnode) {
+				$parent = $nodes->{$upnode};
+				if (!$parent) {
+					$ROBJ->form_error('upnode', 'The parent page is not found');
+				} elsif ($edit_pkey && ($upnode == $edit_pkey || grep { $_ == $upnode } @{ $self->content_descendants($nodes, $edit_pkey) })) {
+					$ROBJ->form_error('upnode', 'This page or its child page can not be the parent');
+					$parent = undef;
+				} elsif (!$parent->{enable} && $art{enable} && !$form->{draft}) {
+					# 公開中のページの親は、いつも公開中にする（親を非公開にすると、子も非公開になる）
+					$ROBJ->form_error('enable', 'The parent page is not published, so this page can not be published');
+				}
+			}
+			($link_key, @err) = $self->make_content_link_key($parent, $name);
+			if (!$parent) { $upnode = 0; }
+		}
+		if (@err) {
 			$ROBJ->form_error('link_key', @err);
 		}
 
 		# link_key の重複回避
-		my $cons = $self->load_contents_cache();
 		my %h = map { $cons->{$_}->{link_key} => 1 } keys(%$cons);
 		my $ary = $DB->select("art", {	# 非公開記事
 			flag => {enable => 0},
@@ -384,27 +418,23 @@ sub regist_article {
 			$i && ($link_key .= "$i");
 		}
 
-		# upnode判定
-		my $upnode = int($form->{upnode});
-		if ($upnode && !$cons->{$upnode}) {
-			$upnode = 0;
-		}
-
-		# 自己参照防止
-		if ($upnode eq $link_key) { $upnode=""; }
-
 		$art{link_key} = $link_key;
 		$art{upnode}   = $upnode;
 		$art{priority} = int($form->{priority});
 
 		# ctype
-		$ctype = 'wiki';
+		$ctype = 'page';
 	}
 	$art{ctype} = $ctype;
 	if ($ctype eq '') {
 		# 通常のblog記事
 		$art{priority} = 0;
 		$art{upnode}   = undef;
+
+		# 子のある固定ページは、ブログ記事にできない（子のパーマリンクの親がなくなる）
+		if ($edit_pkey && $old->{ctype} ne '' && @{ $DB->select_match("art", 'upnode', $edit_pkey, '-ctype', '', '*cols', ['pkey']) }) {
+			$ROBJ->form_error('page', 'This page has child pages, so it can not be changed to an article');
+		}
 	}
 
 	#-------------------------------------------------------------
@@ -566,6 +596,16 @@ sub regist_article {
 	}
 
 	#-------------------------------------------------------------
+	# 固定ページのパーマリンクが変わったら、子孫のパーマリンクを付け替える
+	#-------------------------------------------------------------
+	if ($edit_pkey && $ctype ne '' && !$opt->{import} && $art{link_key} ne $old->{link_key}) {
+		my $r = $self->update_descendant_link_keys([ $pkey ]);
+		$opt->{descendants} = $r->{pkeys};
+		$opt->{descendants_indexnow} = $r->{urls};
+		if ($r->{com}) { $opt->{comment_edit} = 1; }
+	}
+
+	#-------------------------------------------------------------
 	# タグ情報の書き換え
 	#-------------------------------------------------------------
 	if ($old->{tags} ne $tags || $old->{enable} != $art{enable}) {
@@ -591,13 +631,13 @@ sub regist_article {
 }
 
 #-------------------------------------------------------------------------------
-# ●コンテンツkeyがURLとして使えるか
+# ●パーマリンクがURLとして使えるか
 #-------------------------------------------------------------------------------
 # 使えなければ、form_errorに渡すメッセージと引数を返す
 #
 # ・/で始まるkeyや、://を含むkeyは、URLとして組み立てられない
 # ・数字だけのkeyは、記事番号（0始まり）か日付として解釈される
-# ・&で始まるkeyは、コンテンツとして解釈されない
+# ・&で始まるkeyは、固定ページとして解釈されない
 # ・先頭の階層がadiaryの置き場所にあるファイルやフォルダと同じだと、
 #   Webサーバーがファイルを先に返すか、アクセスを拒否する
 # ・nginxの設定（location /data、/__cache、~ \.cgi$）で拒否されるkey
@@ -629,6 +669,138 @@ sub check_link_key_path {
 		return ('"%s" is used by the system and can not be the top of a content key', $top);
 	}
 	return;
+}
+
+#-------------------------------------------------------------------------------
+# ●パーマリンクの検査
+#-------------------------------------------------------------------------------
+# 使えなければ、form_errorに渡すメッセージと引数を返す
+sub check_link_key {
+	my ($self, $link_key) = @_;
+	if ($link_key =~ /^["',]/) {
+		return ('Can not use character "%s" in content key', '"\',');
+	}
+	if ($link_key =~ m!((?:^|/)\.+/)!) {
+		return ('Can not use string "%s" in content key', "$1");
+	}
+	if ($link_key =~ /^\s*$/) {
+		return ('Content key is empty');
+	}
+	if ($link_key =~ m|^0\d*$|) {
+		return ('Content key can not numbers starting with "0"');
+	}
+	return $self->check_link_key_path($link_key);
+}
+
+#-------------------------------------------------------------------------------
+# ●固定ページの名前からパーマリンクを作る
+#-------------------------------------------------------------------------------
+# パーマリンクは、親があれば「親のパーマリンク/名前」、なければ「名前」。
+# 名前に/は使えない（親との間に、関係のない階層を挟めないように）
+#	$parent	親の固定ページ（link_keyを持つハッシュ）。なければundef
+# ret: (パーマリンク, 使えなければform_errorに渡すメッセージと引数)
+sub make_content_link_key {
+	my ($self, $parent, $name) = @_;
+	$self->{ROBJ}->normalize_string($name);
+	if ($name =~ /^\s*$/) {
+		return ('', 'Content key is empty');
+	}
+	if ($name =~ m|/|) {
+		return ('', 'Can not use character "%s" in the name of content key', '/');
+	}
+	if ($name =~ /^\.+$/) {
+		return ('', 'Can not use string "%s" in content key', $name);
+	}
+	if ($name =~ /^["',]/) {
+		return ('', 'Can not use character "%s" in content key', '"\',');
+	}
+	my $link_key = $parent ? "$parent->{link_key}/$name" : $name;
+	return ($link_key, $self->check_link_key($link_key));
+}
+
+#-------------------------------------------------------------------------------
+# ●固定ページの親子（公開していないものも含む）
+#-------------------------------------------------------------------------------
+# ret: { pkey => 固定ページ }。子のある固定ページには、children（子のpkeyの配列）が付く
+sub load_content_nodes {
+	my $self = shift;
+	my $ary = $self->{DB}->select_match("art", '-ctype', '',
+		'*cols', [qw(pkey upnode link_key priority enable tm coms_all title)]);
+	my %nodes = map { $_->{pkey} => $_ } @$ary;
+	foreach(@$ary) {
+		my $up = $nodes{ $_->{upnode} } || next;
+		push(@{ $up->{children} ||= [] }, $_->{pkey});
+	}
+	return \%nodes;
+}
+
+# 編集画面で、親の固定ページ（非公開のものも）。親の選択肢は公開中のものだけなので、非公開の親を足すのに使う
+sub load_content_parent {
+	my ($self, $pkey) = @_;
+	$pkey = int($pkey);
+	if (!$pkey) { return; }
+	return $self->{DB}->select_match_limit1("art", 'pkey', $pkey, '-ctype', '',
+		'*cols', [qw(pkey title link_key enable)]);
+}
+
+# 子孫のpkeyの配列。親が先に来る
+sub content_descendants {
+	my ($self, $nodes, $pkey) = @_;
+	my @list;
+	my %seen = ($pkey => 1);
+	my @queue = @{ $nodes->{$pkey}->{children} || [] };
+	while(@queue) {
+		my $k = shift(@queue);
+		if ($seen{$k}++) { next; }
+		push(@list,  $k);
+		push(@queue, @{ $nodes->{$k}->{children} || [] });
+	}
+	return \@list;
+}
+
+#-------------------------------------------------------------------------------
+# ●子孫のパーマリンクを、親のパーマリンクに合わせて付け替える
+#-------------------------------------------------------------------------------
+# $pkeys の固定ページのパーマリンクを変えた後に呼ぶ。子孫は「親のパーマリンク/今の名前（最後の/の後ろ）」になる
+# ret: { pkeys => 付け替えたpkeyの配列, urls => IndexNowに知らせるURL（公開中のページの新旧）, com => コメントを書き換えた }
+sub update_descendant_link_keys {
+	my ($self, $pkeys) = @_;
+	my $ROBJ = $self->{ROBJ};
+	my $DB   = $self->{DB};
+	my $nodes = $self->load_content_nodes();
+
+	my %ret = (pkeys => [], urls => []);
+	my %done;
+	foreach my $top (@$pkeys) {
+		foreach my $pkey (@{ $self->content_descendants($nodes, $top) }) {
+			if ($done{$pkey}++) { next; }
+			my $n    = $nodes->{$pkey};
+			my $up   = $nodes->{ $n->{upnode} };
+			my $old  = $n->{link_key};
+			my $name = $old =~ m|([^/]*)$| ? $1 : $old;
+			my $key  = "$up->{link_key}/$name";
+			if ($key eq $old) { next; }
+
+			# ほかのページと重なったら変えない（その子孫も、今のパーマリンクのまま親と合う）
+			if (!$DB->update_match("art", { link_key => $key }, 'pkey', $pkey)) {
+				$ROBJ->message('Content key "%s" is already used, so "%s" was not changed', $key, $n->{title});
+				next;
+			}
+			$n->{link_key} = $key;
+			push(@{ $ret{pkeys} }, $pkey);
+
+			my $elkey = $key;
+			$self->link_key_encode($elkey);
+			if ($n->{coms_all} && $DB->update_match("com", { a_elink_key => $elkey }, 'a_pkey', $pkey)) {
+				$ret{com} = 1;
+			}
+			if ($n->{enable}) {
+				$self->link_key_encode($old);
+				push(@{ $ret{urls} }, map { $ROBJ->{ServerURL} . $self->{myself2} . $_ } ($old, $elkey));
+			}
+		}
+	}
+	return \%ret;
 }
 
 #-------------------------------------------------------------------------------
@@ -803,7 +975,7 @@ sub load_article_now_json {
 #-------------------------------------------------------------------------------
 # 編集画面に入れておき、保存するときに今の記事と比べて、
 # ほかの画面（別のタブや端末）で先に保存されていないかを見る。
-# 記事一覧やコンテンツの編集はupdate_tmを変えずに書き換えるので、中身で比べる。
+# 記事一覧や固定ページの編集はupdate_tmを変えずに書き換えるので、中身で比べる。
 # コメント数や変換後の本文は、記事を書き換えなくても変わるので入れない。
 my @DigestCols = qw(title _text tags parser enable yyyymmdd tm update_tm com_ok nsfw
 		    ctype link_key upnode priority main_image description);
@@ -1261,10 +1433,10 @@ sub load_tag_tree {
 }
 
 ################################################################################
-# ■コンテンツ関連
+# ■固定ページ関連
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●blog/コンテンツツリーの生成
+# ●blog/固定ページのツリーの生成
 #-------------------------------------------------------------------------------
 sub update_contents_list {
 	my $self = shift;
@@ -1278,7 +1450,7 @@ sub update_contents_list {
 	my $dir = $self->{blog_dir} . 'arts/';
 	$ROBJ->mkdir($dir);
 
-	# コンテンツ情報JSON、キャッシュの生成
+	# 固定ページの情報のJSON、キャッシュの生成
 	{
 		my $all = $tree->{_all};
 		my $json= $self->generate_json($tree->{children}, ['title', 'pkey', 'upnode', 'link_key', 'children'], {pkey=>'key'});
@@ -1341,8 +1513,8 @@ sub update_contents_list {
 # を作り直す。表示のときはbacklinksを読むだけ（dea_backlinks）。
 # ・$pkeysが配列refなら、その記事のリンクと、その記事が関わる参照元だけを作り直す
 #   それ以外（引数なし、件数が渡されたとき）は、全記事を作り直す
-# ・参照元に出すのは、公開中のブログ記事（コンテンツは除く）。新しい順
-# ・コンテンツの記事には参照元を出さない
+# ・参照元に出すのは、公開中のブログ記事（固定ページは除く）。新しい順
+# ・固定ページには参照元を出さない
 sub update_backlinks {
 	my $self  = shift;
 	my $pkeys = shift;
@@ -1479,7 +1651,7 @@ sub generate_blog_json {
 }
 
 #-------------------------------------------------------------------------------
-# ●コンテンツツリーの取得
+# ●固定ページのツリーの取得
 #-------------------------------------------------------------------------------
 sub load_contents_tree {
 	my $self = shift;
@@ -1503,7 +1675,7 @@ sub load_contents_tree {
 		if ($pkey_max<$_->{pkey}) { $pkey_max=$_->{pkey}; }
 	}
 
-	# コンテンツツリーの生成
+	# 固定ページのツリーの生成
 	@contents = sort {$a->{priority} <=> $b->{priority}} @contents;
 	my %tree = map { $_->{pkey} => $_ } @contents;
 	$tree{0} = { children => [], _all=>\@contents, root=>1 };		# root node
@@ -2225,100 +2397,6 @@ sub update_plgset {
 		$up{"$head:$_"} = $h->{$_};
 	}
 	$self->update_cur_blogset(\%up);
-}
-
-################################################################################
-# ■編集ロック機能
-################################################################################
-#
-# 同じ記事をロックしている場合に、警告を出すシステム
-#
-#-------------------------------------------------------------------------------
-# ●ロックをかける
-#-------------------------------------------------------------------------------
-sub edit_lock {
-	my $self = shift;
-	my $pkey = shift;
-	my $sid  = shift;
-	my $opt  = shift || {};
-
-	my $ROBJ = $self->{ROBJ};
-	my $id   = $ROBJ->{Auth}->{id};
-	$sid  =~ s/[\x00-\x1f]//g;
-
-	if (!$self->{blog_admin}) { return -1; }
-	if ($pkey eq ''){ return -2; }
-	if ($self->{sys}->{edit_lock_interval} < 1) { return 1; }
-
-	# lock処理
-	my ($fh, $ary) = $self->load_lock_file( $pkey );
-	if (!$fh) { return 7; }
-	$ary = [ grep {$_->{id} ne $id || $_->{sid} ne $sid} @$ary ];
-
-	if($opt->{unlock}) {
-		$self->update_lock_file($fh, $ary);
-	} elsif ($sid ne '' && (!@$ary || $opt->{force})) {
-		push(@$ary, {
-			id => $id,
-			sid=> $sid,
-			tm => $ROBJ->{TM}
-		});
-		$self->update_lock_file($fh, $ary);
-		pop(@$ary);
-	} else {
-		close($fh);
-	}
-
-	# ロック状況を返す
-	my $json= $self->generate_json($ary, ['id', 'sid', 'tm']);
-	return (0, $json);
-}
-
-#-------------------------------------------------------------------------------
-# ●ロックファイルのロード
-#-------------------------------------------------------------------------------
-sub load_lock_file {
-	my $self = shift;
-	my $pkey = shift;
-	my $ROBJ = $self->{ROBJ};
-	$pkey =~ s/[^\w\-:]//g;
-
-	# 時間
-	my $interval = $self->{sys}->{edit_lock_interval};
-
-	# tmpwatch
-	my $dir =  $self->{blog_dir} . 'lock/';
-	$ROBJ->mkdir($dir);
-	$ROBJ->tmpwatch( $dir, $interval+10 );
-
-	# lock処理
-	my $file = $dir . $pkey;
-	my ($fh,$lines) = $ROBJ->fedit_readlines($file);
-	if (!$fh) { return; }
-
-	my @ary;
-	my $obs_time = $ROBJ->{TM} - ($interval + 5);
-	foreach(@$lines) {
-		my %h;
-		chomp($_);
-		($h{id}, $h{sid}, $h{tm}) = split("\t", $_);
-		if ($h{tm} < $obs_time) { next; }
-		push(@ary, \%h);
-	}
-	return ($fh, \@ary);
-}
-
-#-------------------------------------------------------------------------------
-# ●ロックファイルのアップデート
-#-------------------------------------------------------------------------------
-sub update_lock_file {
-	my $self = shift;
-	my $fh   = shift;
-	my $ary  = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	my @lines = map { "$_->{id}\t$_->{sid}\t$_->{tm}\n" } @$ary;
-	return $ROBJ->fedit_writelines($fh, \@lines);
 }
 
 ################################################################################

@@ -248,14 +248,14 @@ sub make_thumbnail {
 		if (!$r) { next; }
 
 		# サムネイル生成に失敗したとき
-		my $icon = $self->{album_icons} . $self->{album_allow_ext}->{'..'};
+		my $icon = $self->{media_icons} . $self->{media_allow_ext}->{'..'};
 		if ($_ =~ m/\.(\w+)$/) {
 			my $ext = $1;
 			$ext =~ tr/A-Z/a-z/;
-			my $exts = $self->load_album_allow_ext();
-			my $file = $self->{album_allow_ext}->{$ext};
+			my $exts = $self->load_media_allow_ext();
+			my $file = $self->{media_allow_ext}->{$ext};
 			if ($file) {
-				$icon = $self->{album_icons} . $file;
+				$icon = $self->{media_icons} . $file;
 			}
 		}
 		$ROBJ->file_copy($icon, $thumb);	# アイコンをコピー
@@ -303,13 +303,13 @@ sub make_thumbnail_for_image {
 #	$dest : 書き出す実パス。拡張子が .avif ならAVIF、ほかはJPEG
 #	$size : 長い辺の大きさ。これより小さい画像は縮めない
 #	ret   : 成功なら0
-# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら album_avif_quality（既定65）、JPEGなら album_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
+# 回転してメタ情報を消し、4:2:0で書く。画質はAVIFなら media_avif_quality（既定65）、JPEGなら media_jpeg_quality（既定80）。JPEGはプログレッシブ（Satsuki::ImageFormat::make_thumbnail）
 #
 sub make_jpeg_thumbnail {
 	my ($self, $src, $dest, $size) = @_;
 	require Satsuki::ImageFormat;
 	return Satsuki::ImageFormat::make_thumbnail($src, $dest, $size, {
-		quality => ($dest =~ /\.avif$/i ? $self->{album_avif_quality} : $self->{album_jpeg_quality})	# 空なら make_thumbnail の既定値
+		quality => ($dest =~ /\.avif$/i ? $self->{media_avif_quality} : $self->{media_jpeg_quality})	# 空なら make_thumbnail の既定値
 	});
 }
 
@@ -324,7 +324,7 @@ sub make_thumbnail_for_notimage {
 
 	# サイズ処理
 	my $size  = 120;
-	my $fsize = $self->{album_font_size};
+	my $fsize = $self->{media_font_size};
 	if($fsize < 6) { $fsize = 6; }
 	my $fpixel = int($fsize*1.3333 + 0.999);
 	my $f_height = $fpixel*3 +2;	# bottom padding = 2
@@ -336,8 +336,8 @@ sub make_thumbnail_for_notimage {
 	$img->ReadImage('xc:white');
 
 	# 拡張子アイコンの読み込み
-	my $exts = $self->load_album_allow_ext();
-	my $icon_dir  = $self->{album_icons};
+	my $exts = $self->load_media_allow_ext();
+	my $icon_dir  = $self->{media_icons};
 	my $icon_file = $exts->{'.'};
 	if ($self->is_image($file)) {
 		$icon_file = $exts->{'.img'};	# 画像読み込みエラー時
@@ -362,8 +362,8 @@ sub make_thumbnail_for_notimage {
 	};
 
 	# 画像情報の書き込み
-	my $album_file = $self->{album_font};
-	if ($self->{album_font} && -r $album_file) {
+	my $media_file = $self->{media_font};
+	if ($self->{media_font} && -r $media_file) {
 		my @st = stat("$dir$file");
 		my $tm = $ROBJ->print_tmf("%Y/%m/%d %H:%M", $st[9]);
 		my $fs = $self->size_format($st[7]);
@@ -380,7 +380,7 @@ sub make_thumbnail_for_notimage {
 		my $text = "$name\r\n$tm\r\n$fs";
 		$img->Annotate(
 			text => $text,
-			font => $album_file,
+			font => $media_file,
 			x => 3,
 			y => ($size - $f_height + $fpixel),	# 最初の行の baseline 基準なので1行下げる
 			pointsize => $fsize
@@ -527,7 +527,7 @@ sub do_upload {
 
 	# 中間拡張子が許可されていなければ、中間の . を _ に置き換える
 	#   photo.edited.jpg → photo_edited.jpg
-	if (! $self->album_check_ext($file_name) && $file_name =~ /^(.+)\.([^\.]+)$/) {
+	if (! $self->media_check_ext($file_name) && $file_name =~ /^(.+)\.([^\.]+)$/) {
 		my $base = $1;
 		my $ext  = $2;
 		$base =~ tr/./_/;
@@ -540,7 +540,7 @@ sub do_upload {
 	$file_name =~ s!^\.!_!;
 
 	# 拡張子チェック
-	if (! $self->album_check_ext($file_name)) {
+	if (! $self->media_check_ext($file_name)) {
 		$ROBJ->message("File extension error : %s", $file_h->{name});
 		return 3;
 	}
@@ -725,7 +725,7 @@ sub rebuild_arts_using_files {
 # 動画の1コマは、管理画面でブラウザーが切り出してPNGで送る（サーバーではコマンドを動かさない）
 # サーバーは、それを画像のサムネイルと同じ処理（make_jpeg_thumbnail）で、AVIFかJPEG（thumbnail_ext）にする
 #   記事に出すサムネイル         → .thumbnail/動画名.poster.avif（.poster.jpg）
-#   画像アルバムの一覧に出すもの → .thumbnail/動画名.avif（.jpg）
+#   メディア管理の一覧に出すもの → .thumbnail/動画名.avif（.jpg）
 # PNGで、大きさが決めた範囲のものだけを受け付ける。保存する名前はここで決める
 #
 my $VIDEO_POSTER_MAX = 960;	# 記事用のサムネイルの長い辺（記事での既定の表示480pxの2倍）
@@ -854,7 +854,7 @@ sub create_folder {
 	my $dir  = $self->image_folder_to_dir( $form->{folder} ); # 値check付
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 
 	my $r = $ROBJ->mkdir("$dir$name") ? 0 : 1;
 	$ROBJ->mkdir("$dir$name/.thumbnail");
@@ -875,7 +875,7 @@ sub rename_folder {
 	my $name = $self->chop_slash( $form->{name} );
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 
 	return rename("$dir$old", "$dir$name") ? 0 : 1;
 }
@@ -928,7 +928,7 @@ sub move_files {
 		#---------------------------------
 		# 許可していない拡張子
 		#---------------------------------
-		if (!$self->album_check_ext($des)) {
+		if (!$self->media_check_ext($des)) {
 			push(@fail, $_);
 			next;
 		}
@@ -981,7 +981,7 @@ sub rename_file {
 	my $name = $form->{name};
 	if ( !$self->check_file_name($old ) ) { return -2; }
 	if ( !$self->check_file_name($name) ) { return -1; }
-	if ( !$self->album_check_ext($name) ) { return -1; }
+	if ( !$self->media_check_ext($name) ) { return -1; }
 	if (-e "$dir$name") { return 1; }	# 同じ名前のファイルを上書きしない
 
 	my $r  = rename("$dir$old", "$dir$name");
@@ -1054,7 +1054,7 @@ sub delete_folder {
 	}
 
 	my $dir = $self->image_folder_to_dir( $folder );
-	# 「..」などを取り除いた結果、アルバムの根元を指すときは消さない
+	# 「..」などを取り除いた結果、メディア管理の根元を指すときは消さない
 	if ($dir eq $self->blogimg_dir()) {
 		return -1;
 	}
@@ -1065,7 +1065,7 @@ sub delete_folder {
 }
 
 #-------------------------------------------------------------------------------
-# ■アルバム関連サブルーチン
+# ■メディア管理関連サブルーチン
 #-------------------------------------------------------------------------------
 sub load_image_magick {
 	eval { require Image::Magick; };
@@ -1129,7 +1129,7 @@ sub chop_slash {
 sub is_image {
 	my ($self, $f) = @_;
 	$f =~ tr/A-Z/a-z/;
-	return ($f =~ m/\.(\w+)$/ && $self->{album_image_ext}->{$1});
+	return ($f =~ m/\.(\w+)$/ && $self->{media_image_ext}->{$1});
 }
 
 #-------------------------------------------------------------------------------
@@ -1143,23 +1143,23 @@ sub is_video {
 #-------------------------------------------------------------------------------
 # ○許可拡張子か判定
 #-------------------------------------------------------------------------------
-sub album_check_ext {
+sub media_check_ext {
 	my ($self, $f) = @_;
 	# if ($self->{trust_mode}) { return 1; }	## 危険すぎるので無効に
-	$self->load_album_allow_ext();
+	$self->load_media_allow_ext();
 
 	# 空の拡張子も確かめる（x.php. や x.php..png で確認が止まらないように）
 	while($f =~ /^(.*)\.([^\.]*)$/) {
 		$f = $1;
-		if (!$self->album_check_ext_one($2)) { return 0; }
+		if (!$self->media_check_ext_one($2)) { return 0; }
 	}
 	return 1;
 }
 
-sub album_check_ext_one {
+sub media_check_ext_one {
 	my ($self, $ext) = @_;
 	$ext =~ tr/A-Z/a-z/;
-	if ($self->{album_image_ext}->{$ext} || $self->{album_allow_ext}->{$ext}) { return 1; }
+	if ($self->{media_image_ext}->{$ext} || $self->{media_allow_ext}->{$ext}) { return 1; }
 
 	# 特殊な文字を含むか、数字で始まる
 	return ($ext =~ /[^\w]/ || $ext =~ /^\d/);
@@ -1168,12 +1168,12 @@ sub album_check_ext_one {
 #-------------------------------------------------------------------------------
 # ○その他拡張子のロード
 #-------------------------------------------------------------------------------
-sub load_album_allow_ext {
+sub load_media_allow_ext {
 	my $self = shift;
-	if (!$self->{album_allow_ext}->{'.'}) {
+	if (!$self->{media_allow_ext}->{'.'}) {
 		$self->{ROBJ}->call('media/_load_extensions');
 	}
-	return $self->{album_allow_ext};
+	return $self->{media_allow_ext};
 }
 
 ################################################################################
@@ -1212,6 +1212,14 @@ sub edit_articles {
 		return (0,0);
 	}
 	$keylist = [ map { int($_) } @$keylist ];
+
+	# 固定ページの親子。公開中のページの親は、いつも公開中にする
+	if ($mode eq 'delete' || $mode eq 'enable' || $mode eq 'disable') {
+		$keylist = $self->filter_content_keylist($mode, $keylist);
+		if (!@$keylist) {
+			return wantarray ? (($mode eq 'delete' ? 1 : 0), 0) : ($mode eq 'delete' ? 1 : 0);
+		}
+	}
 
 	# IndexNow。公開をやめる記事（削除、非公開）は公開していたもの、公開する記事は下書きでないものを、変える前に集める
 	my %indexnow;
@@ -1364,6 +1372,49 @@ sub edit_articles {
 	return wantarray ? (0, $cnt) : 0;
 }
 
+#-------------------------------------------------------------------------------
+# ●一括操作の対象を、固定ページの親子に合わせる
+#-------------------------------------------------------------------------------
+# delete  : 子のある固定ページは、子孫も全部一緒に消すときだけ、ゴミ箱へ移す
+# enable  : 親が非公開の固定ページは、親も一緒に公開するときだけ公開する
+# disable : 非公開にする固定ページの、公開中の子孫も非公開にする
+sub filter_content_keylist {
+	my ($self, $mode, $keylist) = @_;
+	my $ROBJ  = $self->{ROBJ};
+	my $nodes = $self->load_content_nodes();
+	my %in    = map { $_ => 1 } @$keylist;
+
+	if ($mode eq 'delete') {
+		return [ grep {
+			my $n = $nodes->{$_};
+			my $ok = !$n || !grep { !$in{$_} } @{ $self->content_descendants($nodes, $_) };
+			if (!$ok) { $ROBJ->message('"%s" has child pages, so it can not be moved to the trash', $n->{title}); }
+			$ok;
+		} @$keylist ];
+	}
+	if ($mode eq 'enable') {
+		# 公開されるか：公開中か、下書きでなく一緒に公開する
+		my $on = sub { my $n = shift; $n->{enable} || ($in{ $n->{pkey} } && $n->{tm} ne '') };
+		return [ grep {
+			my $n  = $nodes->{$_};
+			my $ok = 1;
+			my %seen;
+			for(my $up = $n && $nodes->{ $n->{upnode} }; $up && !$seen{ $up->{pkey} }++; $up = $nodes->{ $up->{upnode} }) {
+				if (!&$on($up)) { $ok = 0; last; }
+			}
+			if (!$ok) { $ROBJ->message('The parent page of "%s" is not published, so it can not be published', $n->{title}); }
+			$ok;
+		} @$keylist ];
+	}
+	# disable
+	my @add;
+	foreach(@$keylist) {
+		if (!$nodes->{$_}) { next; }
+		push(@add, grep { $nodes->{$_}->{enable} && !$in{$_}++ } @{ $self->content_descendants($nodes, $_) });
+	}
+	return [ @$keylist, @add ];
+}
+
 ################################################################################
 # ■ゴミ箱
 ################################################################################
@@ -1449,6 +1500,21 @@ sub restore_articles {
 	my $com_cols = $self->table_info_cols( $self->com_table_info() );
 	my $arts = $DB->select_match("trash", 'pkey', $keylist, '*cols', $art_cols);
 
+	# 固定ページは、親を先に戻す（親子を一緒に戻すとき）
+	{
+		my %in = map { $_->{pkey} => $_ } @$arts;
+		my %depth;
+		my $depth;
+		$depth = sub {
+			my $t = shift;
+			if (exists $depth{ $t->{pkey} }) { return $depth{ $t->{pkey} }; }
+			$depth{ $t->{pkey} } = 0;	# 循環しないように
+			my $up = $t->{ctype} ne '' && $in{ $t->{upnode} };
+			return ($depth{ $t->{pkey} } = $up ? &$depth($up) + 1 : 0);
+		};
+		$arts = [ sort { &$depth($a) <=> &$depth($b) } @$arts ];
+	}
+
 	my @restored;
 	my $com_cnt = 0;
 	foreach my $art (@$arts) {
@@ -1457,8 +1523,25 @@ sub restore_articles {
 			$ROBJ->message("Article already exists: %s", $art->{title});
 			next;
 		}
+		# 親のない固定ページは戻さない（パーマリンクが、ない親のパスで始まってしまう）。
+		# 親があれば、パーマリンクを「親の今のパーマリンク/名前」にする（ゴミ箱にある間に親が変わっていることがある）
+		if ($art->{ctype} ne '' && $art->{upnode}) {
+			my $up = $DB->select_match_limit1("art", 'pkey', $art->{upnode}, '-ctype', '', '*cols', ['pkey', 'link_key', 'enable']);
+			if (!$up) {
+				$ROBJ->message('The parent page of "%s" is not found, so it can not be restored', $art->{title});
+				next;
+			}
+			my $name = $art->{link_key} =~ m|([^/]*)$| ? $1 : $art->{link_key};
+			$art->{link_key} = "$up->{link_key}/$name";
+			if (!$up->{enable}) { $art->{enable} = 0; }	# 公開中のページの親は、いつも公開中
+		}
 		# content keyが他の記事に使われていたら既定のkeyにする
 		if ($DB->select_match_limit1("art", 'link_key', $art->{link_key}, '*cols', ['pkey'])) {
+			if ($art->{ctype} ne '' && $art->{upnode}) {	# 子の固定ページは、親のパスで始まらないkeyにできない
+				$ROBJ->message('Content key "%s" is already used', $art->{link_key});
+				$ROBJ->message("Can't restore: %s", $art->{title});
+				next;
+			}
 			$ROBJ->message("Content key '%s' is already used. Changed to '%s'.", $art->{link_key}, "0$pkey");
 			$art->{link_key} = "0$pkey";
 		}
@@ -1492,7 +1575,7 @@ sub restore_articles {
 		push(@restored, $pkey);
 	}
 
-	# イベント処理（タグ一覧、コンテンツ一覧、RSS等の再生成）
+	# イベント処理（タグ一覧、固定ページの一覧、RSS等の再生成）
 	if (@restored) {
 		$self->call_event('ARTICLES_RESTORE',     \@restored);
 		$self->call_event('ARTICLE_STATE_CHANGE', \@restored);
@@ -1751,10 +1834,10 @@ sub tag_edit {
 }
 
 ################################################################################
-# ■コンテンツの編集処理
+# ■固定ページの編集処理
 ################################################################################
 #-------------------------------------------------------------------------------
-# ●コンテンツの編集
+# ●固定ページの編集
 #-------------------------------------------------------------------------------
 sub contents_edit {
 	my $self = shift;
@@ -1762,46 +1845,91 @@ sub contents_edit {
 	my $ROBJ = $self->{ROBJ};
 	my $DB   = $self->{DB};
 
-	# タグリスト
-	my %cons;
-	{
-		my $ary = $DB->select_match("art",
-			'enable', 1,
-			'-ctype', '',
-			'*cols', ['pkey', 'title', 'link_key', 'priority', 'upnode', 'coms_all']
-		);
-		%cons = map { $_->{pkey} => $_ } @$ary;
+	# 固定ページ。ツリーに出るのは公開中のものだけ
+	my $nodes = $self->load_content_nodes();
+	my %cons  = map { $_->{pkey} => $_ } grep { $_->{enable} } values(%$nodes);
+
+	# 送られたもの（pkey,upnode,priority,名前）。親が先に来る（contents-edit.jsのsearch_nodes）
+	my @edits;
+	my %new_up;
+	foreach(@{ $form->{contents_txt_ary} || [] }) {
+		my ($pkey,$upnode,$priority,$name) = split(',',$_,4);
+		$pkey = int($pkey);
+		if (!$cons{$pkey}) { next; }
+		$upnode = int($upnode);
+		if ($upnode && !$cons{$upnode}) {	# 親は公開中の固定ページか根
+			$upnode = int($cons{$pkey}->{upnode});
+		}
+		push(@edits, [$pkey, $upnode, int($priority), $name]);
+		$new_up{$pkey} = $upnode;
+	}
+	# 親を辿って自分に戻るもの（ツリーではできない）があれば、保存しない
+	foreach my $pkey (keys(%new_up)) {
+		my %seen;
+		for(my $up = $new_up{$pkey}; $up; $up = exists $new_up{$up} ? $new_up{$up} : $cons{$up} && $cons{$up}->{upnode}) {
+			if ($up == $pkey || $seen{$up}++) {
+				$ROBJ->message('The tree of pages is broken, so it was not saved');
+				return 1;
+			}
+		}
 	}
 
-	# タグの編集
-	my $edits = $form->{contents_txt_ary};
+	# 使われているパーマリンク（ブログ記事の0付きの番号も含む）
+	my %used = map { $_->{link_key} => $_->{pkey} } @{ $DB->select_match("art", '*cols', ['pkey', 'link_key']) };
+
+	# 親から順に、親のパーマリンクと名前からパーマリンクを作る
+	my @changed;	# パーマリンクを変えたpkey
+	my @urls;	# IndexNowに知らせるURL
 	my $com_edit;
-	foreach(@$edits) {
-		my ($pkey,$upnode,$priority,$link_key) = split(',',$_,4);
-		$ROBJ->normalize_string($link_key);
-		if ($link_key =~ /^[\"\',]/ || $link_key =~ /^\s*$/ || $link_key =~ m|^[\d&]| || $self->check_link_key_path($link_key)) {
-			$link_key = '';
+	foreach(@edits) {
+		my ($pkey,$upnode,$priority,$name) = @$_;
+		my $org    = $cons{$pkey};
+		my $parent = $upnode ? $cons{$upnode} : undef;
+		my ($link_key, @err) = $self->make_content_link_key($parent, $name);
+		if (!@err && exists($used{$link_key}) && $used{$link_key} != $pkey) {
+			@err = ('Content key "%s" is already used', $link_key);
 		}
-		my $org = $cons{ $pkey };
+		if (@err) {
+			# このページは、親も名前もパーマリンクも変えない（並び順だけ保存する）
+			$ROBJ->message('The content key of "%s" was not saved', $org->{title});
+			$ROBJ->message(@err);
+			($upnode, $link_key) = (int($org->{upnode}), $org->{link_key});
+		}
+
 		my %h;
-		if ($upnode != $org->{upnode} && ($cons{$upnode} || $upnode==0)) {
-			$h{upnode} = $upnode;
-		}
-		if ($link_key ne '' && $link_key ne $org->{link_key}) {
-			$h{link_key} = $link_key;
-		}
-		if ($priority != $org->{priority}) {
-			$h{priority} = $priority;
-		}
+		if ($upnode != int($org->{upnode})) { $h{upnode}   = $upnode;   }
+		if ($link_key ne $org->{link_key})  { $h{link_key} = $link_key; }
+		if ($priority != $org->{priority})  { $h{priority} = $priority; }
 		if (!%h) { next; }
 
-		$DB->update_match("art", \%h, 'pkey', $pkey);
-		if (exists($h{link_key}) && $cons{$pkey}->{coms_all}) {
-			my $elkey = $h{link_key};
-			$self->link_key_encode($elkey);
-			my $r = $DB->update_match("com", { a_elink_key=>$elkey }, 'a_pkey', $pkey);
-			if ($r) { $com_edit=1; }
+		if (!$DB->update_match("art", \%h, 'pkey', $pkey)) {
+			$ROBJ->message('The content key of "%s" was not saved', $org->{title});
+			next;
 		}
+		$org->{upnode}   = $upnode;
+		$org->{priority} = $priority;
+		if (!exists($h{link_key})) { next; }
+
+		delete $used{ $org->{link_key} };
+		$used{$link_key} = $pkey;
+		my $old = $org->{link_key};
+		$org->{link_key} = $link_key;
+		push(@changed, $pkey);
+
+		my $elkey = $link_key;
+		$self->link_key_encode($elkey);
+		if ($org->{coms_all} && $DB->update_match("com", { a_elink_key=>$elkey }, 'a_pkey', $pkey)) {
+			$com_edit = 1;
+		}
+		$self->link_key_encode($old);
+		push(@urls, map { $ROBJ->{ServerURL} . $self->{myself2} . $_ } ($old, $elkey));
+	}
+
+	# ツリーに出ない非公開の子孫も、親のパーマリンクに合わせる
+	if (@changed) {
+		my $r = $self->update_descendant_link_keys(\@changed);
+		push(@urls, @{ $r->{urls} });
+		if ($r->{com}) { $com_edit = 1; }
 	}
 
 	# イベント処理
@@ -1811,6 +1939,7 @@ sub contents_edit {
 		$self->call_event('COMMENT_STATE_CHANGE', $a_pkeys);
 	}
 	$self->call_event('ARTCOM_STATE_CHANGE', $a_pkeys);
+	$self->send_indexnow(\@urls);
 
 	return 0;
 }

@@ -12,7 +12,7 @@
 <$s = v.sys>
 <$ifexec(POST, begin)>
 	<$s = Form>
-	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.album_jpeg_quality, s.album_avif_quality)>
+	<$tag_escape(s.ping_servers_txt, s.http_timeout, s.reload_time, s.clip_dots, s.max_sessions, s.pass_min, s.session_days, s.fail_count_ip, s.fail_count, s.fail_minute, s.upload_max_mb, s.post_max_mb, s.media_jpeg_quality, s.media_avif_quality)>
 <$end>
 
 <@> 今の値（既定値か、ユーザー設定か、保存した値）。ユーザー設定で範囲の外にしてあるときは、欄を止めて送らない
@@ -22,6 +22,7 @@
 <$fc = if(s.fail_count   ne '', s.fail_count,   Auth.fail_count)>
 <$fm = if(s.fail_minute  ne '', s.fail_minute,  Auth.fail_minute)>
 <$mb = if(s.upload_max_mb ne '', s.upload_max_mb, v.uplaod_files_max / 1048576)>
+<$pb = if(s.post_max_mb   ne '', s.post_max_mb,   v.form_post_max    / 1048576)>
 
 <!--=========================================================================-->
 <article class="system setting">
@@ -32,13 +33,6 @@
 
 	<table class="blog-setting">
 	<tbody>
-	<tr>
-		<th>同時編集の確認</th>
-		<td<@err.c_reload_time>>
-			<input type="number" name="edit_lock_interval" min="0" max="300" class="w50" value="<@if(s.edit_lock_interval eq '', 0, s.edit_lock_interval)>">秒（0-9秒＝無効。推奨：30秒）
-			<span class="help-text">同じ記事を複数編集したとき確認メッセージを出すシステムです。情報共有CMSなどに利用できます。使用する場合は編集状況の確認間隔（秒）を設定してください。</span>
-		</td>
-	</tr>
 	<tr>
 		<th>同時ログイン数</th>
 		<td<@err.c_max_sessions>>
@@ -76,7 +70,7 @@
 <$else>
 			<input type="number" name="pass_min" min="8" max="64" class="w50" value="<@pm>">文字（8-64）
 <$end>
-			<span class="help-text">新しく決めるパスワードに効きます。今のパスワードはそのまま使えます。</span>
+			<span class="help-text">今後新たに設定するパスワードに適用されます。</span>
 		</td>
 	</tr>
 	<tr>
@@ -90,28 +84,45 @@
 		</td>
 	</tr>
 	<tr>
-		<th>多重ログイン</th>
+		<th>ログアウト時にすべてのセッションをクリア</th>
 		<td>
-			<label><input type="checkbox" name="all_logout" value="1"<@if(if(s.all_logout ne '', s.all_logout, Auth.all_logout), ' checked')>>ログアウトするとき、ほかの端末のログインもすべて切る</label>
+			<label><input type="checkbox" name="all_logout" value="1"<@if(if(s.all_logout ne '', s.all_logout, Auth.all_logout), ' checked')>>ログアウト時にすべてのセッションからログアウトするようにする</label>
+		</td>
+	</tr>
+	</tbody>
+	</table>
+
+	<h3>ログインの制限</h3>
+	同一IDから同一IDに対し何回までログイン試行を許容するか。制限に達したとき、どの程度の時間ログインを制限するか。
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>同一IPからの試行回数</th>
+		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
+<@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
+			<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="fail_count_ip" min="3" max="100" class="w50" value="<@fi>">回（3-100）
+<$end>
 		</td>
 	</tr>
 	<tr>
-		<th>ログインの失敗</th>
-		<td<@err.c_fail_count_ip><@err.c_fail_count><@err.c_fail_minute>>
-<@ifexec(!POST && (fi < 3 || fi > 100), begin, begin)>
-			同じIPから<input type="number" class="w50" value="<@fi>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）、
-<$else>
-			同じIPから<input type="number" name="fail_count_ip" min="3" max="100" class="w50" value="<@fi>">回（3-100）、
-<$end>
+		<th>同一IDへの試行回数</th>
+		<td>
 <@ifexec(!POST && (fc < 3 || fc > 100), begin, begin)>
-			1つのアカウントで<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）失敗したら、
+			<input type="number" class="w50" value="<@fc>" disabled>回（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
-			1つのアカウントで<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）失敗したら、
+			<input type="number" name="fail_count" min="3" max="100" class="w50" value="<@fc>">回（3-100）
 <$end>
+		</td>
+	</tr>
+	<tr>
+		<th>ログインを制限する時間</th>
+		<td>
 <@ifexec(!POST && (fm < 1 || fm > 1440), begin, begin)>
 			<input type="number" class="w60" value="<@fm>" disabled>分（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
 <$else>
-			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）ログインできなくする
+			<input type="number" name="fail_minute" min="1" max="1440" class="w60" value="<@fm>">分（1-1440）
 <$end>
 		</td>
 	</tr>
@@ -123,6 +134,17 @@
 	<table class="blog-setting">
 	<tbody>
 	<tr>
+		<th>投稿の上限</th>
+		<td<@err.c_post_max_mb>>
+<@ifexec(!POST && (pb != int(pb) || pb < 1 || pb > 64), begin, begin)>
+			<input type="number" class="w60" value="<@pb>" disabled>MB（lyndbaum.user.cgiで範囲の外にしているので、ここでは変えられません）
+<$else>
+			<input type="number" name="post_max_mb" min="1" max="64" class="w60" value="<@pb>">MB（1-64）
+<$end>
+			<span class="help-text">記事の保存など、一度に送るフォームの上限です。日本語はURLエンコードされて1文字9バイトになります（8MBで約93万字）。</span>
+		</td>
+	</tr>
+	<tr>
 		<th>アップロードの上限</th>
 		<td<@err.c_upload_max_mb>>
 <@ifexec(!POST && (mb != int(mb) || mb < 1 || mb > 2048), begin, begin)>
@@ -130,15 +152,14 @@
 <$else>
 			<input type="number" name="upload_max_mb" min="1" max="2048" class="w60" value="<@mb>">MB（1-2048）
 <$end>
-			<span class="help-text">1回に送る合計の上限です。Webサーバーの設定（nginxのclient_max_body_sizeなど）にも上限があり、低いほうが効きます。</span>
+			<span class="help-text">一度にアップロードできるファイルの上限です。</span>
 		</td>
 	</tr>
 	<tr>
 		<th>サムネイルの品質</th>
-		<td<@err.c_album_jpeg_quality><@err.c_album_avif_quality>>
-			JPEG <input type="number" name="album_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.album_jpeg_quality ne '', s.album_jpeg_quality, v.album_jpeg_quality)>">
-			AVIF <input type="number" name="album_avif_quality" min="1" max="100" class="w50" value="<@if(s.album_avif_quality ne '', s.album_avif_quality, v.album_avif_quality)>">（1-100）
-			<span class="help-text">これから作るサムネイルに効きます。今あるサムネイルは変わりません。</span>
+		<td<@err.c_media_jpeg_quality><@err.c_media_avif_quality>>
+			JPEG <input type="number" name="media_jpeg_quality" min="1" max="100" class="w50" value="<@if(s.media_jpeg_quality ne '', s.media_jpeg_quality, v.media_jpeg_quality)>">
+			AVIF <input type="number" name="media_avif_quality" min="1" max="100" class="w50" value="<@if(s.media_avif_quality ne '', s.media_avif_quality, v.media_avif_quality)>">（1-100）
 		</td>
 	</tr>
 	</tbody>

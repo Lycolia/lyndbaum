@@ -82,6 +82,40 @@ subtest '直前の保存' => sub {
 	is($app->post('admin', '', { action => 'ajax_revision', last => 99999 })->{status}, 404, '無い記事は404');
 };
 
+subtest 'ほかの画面で先に保存されていたら保存しない' => sub {
+	my $app = AppTest->new()->setup()->seed();
+	my $digest = sub { (body($app->get('admin', '/01?edit')) =~ m{<input type="hidden" name="edit_digest" value="([0-9a-f]+)" id="edit-digest">})[0] // '' };
+	my $text   = sub { (body($app->get('guest', '/01')) =~ /(画面[AB]の本文|本文1)/)[0] // '' };
+	my %edit   = (%ART, edit_pkey_int => 1, ymd => '2026-10-01');
+
+	my $digest_a = $digest->();	# 画面Aで開く
+	my $digest_b = $digest->();	# 画面Bで開く
+	like($digest_a, qr/^[0-9a-f]{32}$/, '編集画面に今の記事の要約が入る');
+	is($digest_b, $digest_a, '保存する前に開き直しても、要約は変わらない');
+
+	my $r = $app->post('admin', '', { %edit, edit_digest => $digest_b, title => '画面Bの題名', body_txt => "画面Bの本文\n" });
+	ok(AppTest::is_reload($r), '画面Bは保存できる');
+	isnt($digest->(), $digest_a, '保存すると要約が変わる');
+
+	$r = $app->post('admin', '', { %edit, edit_digest => $digest_a, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(!AppTest::is_reload($r), '画面Aは、開いた後に画面Bで保存されたので保存しない');
+	like(body($r), qr{ほかの画面（別のタブや端末）で先に保存されていたため、保存しませんでした}, 'そのことを知らせる');
+	is($text->(), '画面Bの本文', '記事は画面Bで保存したまま');
+
+	# 画面のJS（edit.js）は、保存の前に今の記事の要約をajax_revisionで取り、編集画面の要約と比べる
+	my $now = $app->post('admin', '', { action => 'ajax_revision', now => 1 })->{json};
+	is($now->{digest}, $digest->(), 'ajax_revisionの要約は、編集画面を開き直したときの要約と同じ');
+	isnt($now->{digest}, $digest_a, '画面Aの要約とは違う（画面で知らせられる）');
+
+	# 「上書きして保存」は、今の記事の要約に差し替えて送る
+	$r = $app->post('admin', '', { %edit, edit_digest => $now->{digest}, title => '画面Aの題名', body_txt => "画面Aの本文\n" });
+	ok(AppTest::is_reload($r), '今の記事の要約を付けると、上書きして保存できる');
+	is($text->(), '画面Aの本文', '画面Aの内容になる');
+
+	$r = $app->post('admin', '', { %edit, title => 'digestなし', body_txt => "本文1\n" });
+	ok(AppTest::is_reload($r), '要約を付けないときは確かめない');
+};
+
 subtest 'ゴミ箱' => sub {
 	my $r = $app->post('admin', '', { action => 'delete', delete_pkey_ary => 1, title => '' });
 	ok(AppTest::is_reload($r), 'ゴミ箱へ移せる');
@@ -406,8 +440,8 @@ subtest 'リンクカードは編集のたびに取得しない' => sub {
 subtest 'ダッシュボード' => sub {
 	my $r = $app->post('admin', '', { %ART, title => '記事の下書き', body_txt => "下書き\n", draft => 1 });
 	ok(AppTest::is_reload($r), '記事の下書きを保存できる');
-	$r = $app->post('admin', '', { %ART, title => 'ページの下書き', body_txt => "下書き\n", draft => 1, wiki => 1, link_key_txt => 'draft-page' });
-	ok(AppTest::is_reload($r), 'ページの下書きを保存できる');
+	$r = $app->post('admin', '', { %ART, title => '固定ページの下書き', body_txt => "下書き\n", draft => 1, page => 1, link_key_txt => 'draft-page' });
+	ok(AppTest::is_reload($r), '固定ページの下書きを保存できる');
 
 	my $b = body($app->get('admin', 'menu'));
 	unlike($b, qr{<p>ユーザー }, 'ユーザーのカードを出さない');
@@ -419,7 +453,7 @@ subtest 'ダッシュボード' => sub {
 		push(@rows, { query => $query =~ s/&amp;/&/gr, label => $label, count => $count });
 	}
 	is_deeply([ map { $_->{label} } @rows ], [qw(
-		記事の下書き 公開中の記事 非公開の記事 ページの下書き 公開中のページ 非公開のページ
+		記事の下書き 公開中の記事 非公開の記事 固定ページの下書き 公開中の固定ページ 非公開の固定ページ
 		ゴミ箱 承認待ちのコメント 承認済みのコメント
 	)], '概要の項目と順番');
 
@@ -431,22 +465,22 @@ subtest 'ダッシュボード' => sub {
 		is($_->{count}, $n, "$_->{label}の件数は、一覧（?$_->{query}）と同じ");
 	}
 	is($count{'記事の下書き'},   1, '記事の下書きを数える');
-	is($count{'ページの下書き'}, 1, 'ページの下書きを数える');
+	is($count{'固定ページの下書き'}, 1, '固定ページの下書きを数える');
 
 	# 記事一覧の「下書き」には、下書きだけが出る
 	my $drafts = body($app->get('admin', 'artlist&enable=draft'));
 	like($drafts, qr{記事の下書き}, '記事一覧の下書きに、記事の下書きが出る');
-	like($drafts, qr{ページの下書き}, '記事一覧の下書きに、ページの下書きが出る');
+	like($drafts, qr{固定ページの下書き}, '記事一覧の下書きに、固定ページの下書きが出る');
 	unlike($drafts, qr{editorの記事}, '記事一覧の下書きに、公開の記事は出ない');
 	my $all = body($app->get('admin', 'artlist'));
 	like($all, qr{記事の下書き}, '記事一覧の「すべて」には、下書きも出る');
-	like($all, qr{ページの下書き}, '記事一覧の「すべて」には、ページの下書きも出る');
+	like($all, qr{固定ページの下書き}, '記事一覧の「すべて」には、固定ページの下書きも出る');
 	like($all, qr{ownerの記事}, '記事一覧の「すべて」には、公開の記事も出る');
 
 	# 公開列は、下書き・公開・非公開を文字で出す
 	my %state = $all =~ m{>([^<]+)</a></td>\s*<td class="c"><label[^>]*>[^<]*</label></td>\s*<td class="c"><label[^>]*>([^<]*)</label></td>}g;
 	is($state{'記事の下書き'}, '下書き', '下書きの公開状態は「下書き」');
-	is($state{'ページの下書き'}, '下書き', 'ページの下書きの公開状態も「下書き」');
+	is($state{'固定ページの下書き'}, '下書き', '固定ページの下書きの公開状態も「下書き」');
 	is($state{'ownerの記事'}, '公開', '公開の記事の公開状態は「公開」');
 	is($state{'下書きの記事'}, '非公開', '非公開の記事の公開状態は「非公開」');	# インポートした下書きは非公開になる
 	unlike(body($app->get('admin', 'artlist&enable=0')), qr{記事の下書き}, '記事一覧の「非公開」には、下書きは出ない');
@@ -455,6 +489,20 @@ subtest 'ダッシュボード' => sub {
 	my @write = $b =~ m{<a class="button-primary" href="([^"]*)">}g;
 	is(scalar(@write), 1, '書くのボタンは1つ');
 	like($write[0] // '', qr{\?edit$}, '書くの行き先は編集画面');
+};
+
+#-------------------------------------------------------------------------------
+# 投稿の上限（既定8MB。URLエンコードした後の大きさにかかる）
+#-------------------------------------------------------------------------------
+subtest '長い本文の記事' => sub {
+	# 日本語10万字はURLエンコードで約900KB。前の上限（512KB）では保存できなかった
+	my $body = ('長い本文' x 25000) . "\n";
+	my $r = $app->post('admin', '', { %ART, title => '長い本文の記事', body_txt => $body });
+	ok(AppTest::is_reload($r), '512KBを超える本文でも保存できる');
+	my ($pkey) = body($app->get('admin', 'artlist')) =~ m{title="(\d+)">長い本文の記事<};
+	ok($pkey, '記事一覧に出る');
+	my $n = () = body($app->get('guest', '/0' . ($pkey // ''))) =~ /長い本文/g;
+	cmp_ok($n, '>=', 25000, '本文が切れずに出る');
 };
 
 done_testing();

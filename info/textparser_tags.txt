@@ -46,7 +46,7 @@ qt = >title
 niconico    = ニコニコ動画, ASCII, 1, <module name="nico" vid="$1">
 
 #------------------------------------------------------------------------------
-# 画像プラグイン／画像アルバム
+# 画像プラグイン／メディア管理
 #------------------------------------------------------------------------------
 # plugin image
 # plugin exif
@@ -54,11 +54,11 @@ niconico    = ニコニコ動画, ASCII, 1, <module name="nico" vid="$1">
 # ただの画像
 img        = 画像, image
 
-# アルバム管理画像
-image:L      = 画像アルバム, image, 2,  ${image}$1$2
+# メディア管理の画像
+image:L      = メディア管理の画像, image, 2,  ${image}$1$2
 # サムネイル。AVIFのサムネイル（.avif）があれば、Tag_image.pmがそちらにする
-image:S      = 画像アルバム, image, 2,  ${image}$1.thumbnail/$2.jpg
-image:S#link = 画像アルバム, image, 2,  ${image}$1$2
+image:S      = メディア管理の画像, image, 2,  ${image}$1.thumbnail/$2.jpg
+image:S#link = メディア管理の画像, image, 2,  ${image}$1$2
 # 画像へのテキストリンク（#textlinkがあると、画像を出さずにリンクの文字を出す。Tag_image.pm）
 image:T          = 画像へのリンク, image, 2,  ${image}$1$2
 image:T#textlink = 画像へのリンク, image, 2,  ${image}$1$2

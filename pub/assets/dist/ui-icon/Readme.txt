@@ -1,6 +1,6 @@
 These files not use by CSS files.
 
-"ui-icon.png"     is embedded "pub/assets/js/adiary.js" in base64 format.
+"ui-icon.png"     is embedded "tools/js/src/adiary.js" in base64 format.
 "error-close.gif" is embedded "pub/assets/theme/base.css" in base64 format.
 
 ui-icon.png

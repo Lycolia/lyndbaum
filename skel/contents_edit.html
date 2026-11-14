@@ -1,0 +1,42 @@
+<@7>
+<@local(s,err)>
+<$ifbreak(!v.blog_admin)>
+<$err=FormError>
+
+<@> システムモード
+<$v.system_mode("固定ページの表示順")>
+
+<$v.regist_csslib("<@v.script_dir>dynatree/skin/ui.dynatree.css")>
+<$v.regist_jslib ("<@v.script_dir>tree.min.js")>
+<$v.regist_js    ("<@v.script_dir>contents-edit.min.js")>
+
+<!--=========================================================================-->
+<@> 階層ツリー
+<@call("_sub/menu_tree")>
+
+<!--=========================================================================-->
+<article class="system setting">
+<h2><@v.title></h2>
+<div class="body">
+	<p class="error" id="load-error" style="display: none"><strong class="error">固定ページが存在しないか情報をロードできません。</strong></p>
+
+	<form action="<@v.myself>?<@v.skeleton>" method="POST" id="form">
+	<input type="hidden" name="action" value="<@v.skeleton>">
+	<div id="div-in-form"></div>
+
+	<p>パーマリンク名を編集するときは、ダブルクリック等で編集ボックスを出し、編集後にEnterを押してください。名前に「/」は使えません。表示はページ名ですが、ダブルクリックではパーマリンク名が出ます。</p>
+
+	<div><button id="close-button" type="button">ノードを閉じる</button></div>
+
+	<div class="treebox" id="tree" data-url="<@Basepath><@v.pub_dir>contents.json?<@v.blog.json_tm>"></div>
+
+	<button type="submit" id="submit">変更を保存する</button>
+	<button type="button" id="reset">リセット</button><br>
+	</form>
+
+</div>
+</article>
+
+<div style="display: none">
+<span id="name-error">パーマリンクの名前に「/」は使えません。</span>
+</div>

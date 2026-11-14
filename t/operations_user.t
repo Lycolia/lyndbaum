@@ -1,7 +1,7 @@
 use strict;
 use utf8;
 #-------------------------------------------------------------------------------
-# 主な操作の中身のテスト（ユーザー、パスワード、アップデート処理、システムの設定、編集画面の設定、ページ送り）
+# 主な操作の中身のテスト（ユーザー、パスワード、アップデート処理、システムの設定、ディレクトリ使用量、編集画面の設定、ページ送り）
 #-------------------------------------------------------------------------------
 # 実行: prove t/operations_user.t
 #
@@ -209,7 +209,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 
 	my $sys = "$dir/data/system_config.dat";
 	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.31/m;
+	$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
 	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
 	print $fh $conf;
 	close($fh);
@@ -246,7 +246,7 @@ subtest 'アップデートが必要なときの知らせ' => sub {
 	is($app->get('guest', $art)->{headers}->{'cache-control'}, 'no-cache', 'ログインしていない人の記事は、no-cacheのまま');
 };
 
-subtest '4.31より古いデータからのアップデート' => sub {
+subtest '4.42より古いデータからのアップデート' => sub {
 	my $sys = "$dir/data/system_config.dat";
 	my $set_version = sub {
 		my $conf = read_file($sys);
@@ -257,18 +257,67 @@ subtest '4.31より古いデータからのアップデート' => sub {
 	};
 	my $update = sub { return $app->post('admin', 'system/update', { action => 'system/update' }); };
 
-	$set_version->('4.30');
+	$set_version->('4.41');
 	my $b = body($app->get('admin', 'system/update'));
-	like($b, qr{このデータの版（4\.30）からは、直接アップデートできません}, '画面で知らせる');
+	like($b, qr{このデータの版（4\.41）からは、直接アップデートできません}, '画面で知らせる');
 	like($b, qr{value="system/update"[^>]*disabled}, 'ボタンを押せない');
 
 	ok(!AppTest::is_reload($update->()), '直接送っても断る');
-	like(read_file($sys), qr/^VERSION=4\.30$/m, '版はそのまま');
+	like(read_file($sys), qr/^VERSION=4\.41$/m, '版はそのまま');
 
-	$set_version->('4.31');
-	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.31なら知らせない');
-	ok(AppTest::is_reload($update->()), '4.31からはアップデートできる');
-	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+	$set_version->('4.42');
+	{	# 4.43より前の名前で保存したサムネイルの品質。新しい名前の行は消しておく
+		my $conf = read_file($sys);
+		$conf =~ s/^media_\w+_quality=.*\n?//mg;
+		$conf =~ s/\n?\z/\nalbum_jpeg_quality=70\nalbum_avif_quality=50\n/;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf;
+		close($fh);
+	}
+	# 4.43より前の添付ファイルのフォルダ（pub/attachments/）と、そこを指すパスを書いた記事とブログの設定
+	my $att     = "$dir/pub/attach";
+	my $old_att = "$dir/pub/attachments";
+	my $img     = "$AppTest::IMAGE_FOLDER$AppTest::IMAGE_FILE";
+	ok(AppTest::is_reload($app->post('admin', '', { action => 'edit', parser => 'markdown', enable => 1, ymd => '2026-10-01',
+		title => '古い添付ファイルのパス', body_txt => "![](pub/attachments/$img)\n", page => 1, link_key_txt => 'old-attach' })), '古いパスを書いた記事を保存できる');
+	rename($att, $old_att) || die "$att: $!";
+	my $setting = "$dir/data/blog/setting.dat";
+	my $set_org = read_file($setting);
+	{
+		open(my $fh, '>:utf8', $setting) || die "$setting: $!";
+		print $fh $set_org . "blog_image=pub/attachments/\@system/sys-blog_image.png\n";
+		close($fh);
+	}
+
+	unlike(body($app->get('admin', 'system/update')), qr{直接アップデートできません}, '4.42なら知らせない');
+	ok(AppTest::is_reload($update->()), '4.42からはアップデートできる');
+	ok(-f "$att/$img" && !-e $old_att, '添付ファイルのフォルダをpub/attach/に移す');
+	like(read_file($setting), qr{^blog_image=pub/attach/\@system/sys-blog_image\.png$}m, 'ブログの設定のパスを書き換える');
+	{
+		my $b = body($app->get('guest', '/old-attach'));
+		unlike($b, qr{pub/attachments/}, '記事に古いパスが残らない');
+		my ($src) = $b =~ m{<img[^>]*src="[^"]*?(pub/attach/[^"]+)"};
+		is($src, "pub/attach/$img", '記事の画像は新しいパスを指す');
+		ok(defined $src && -f "$dir/$src", '記事の画像のパスにファイルがある');
+		my $art = join('', map { read_file($_) } glob("$dir/data/db/{art,rev,lastrev,trash}/*.dat"));
+		unlike($art, qr{pub/attachments/}, 'DBに古いパスが残らない');
+	}
+	{	# 後のテストのため、ブログの設定を戻す
+		open(my $fh, '>:utf8', $setting) || die "$setting: $!";
+		print $fh $set_org;
+		close($fh);
+	}
+	my $conf = read_file($sys);
+	like($conf, qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+	like($conf, qr/^media_jpeg_quality=70$/m, 'JPEGの品質を新しい名前に移す');
+	like($conf, qr/^media_avif_quality=50$/m, 'AVIFの品質を新しい名前に移す');
+	unlike($conf, qr/^album_/m, '古い名前は消す');
+	{	# 後のテストのため、移した行を消して既定値に戻す
+		$conf =~ s/^media_\w+_quality=.*\n?//mg;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf;
+		close($fh);
+	}
 };
 
 #-------------------------------------------------------------------------------
@@ -301,19 +350,20 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	$field->('fail_count_ip', 15, '同じIPからの失敗の回数は、何も保存していなければ既定値');
 	$field->('fail_count', 100, 'アカウントの失敗の回数は、何も保存していなければ既定値');
 	$field->('upload_max_mb', 64, 'アップロードの上限は、何も保存していなければ既定値');
-	$field->('album_avif_quality', 65, 'AVIFの品質は、何も保存していなければ既定値');
+	$field->('post_max_mb', 8, '投稿の上限は、何も保存していなければ既定値');
+	$field->('media_avif_quality', 65, 'AVIFの品質は、何も保存していなければ既定値');
 
 	# 範囲の外は保存できない（ほかの欄は今の値のまま送る。前のテストの保存で、今の値が入っていることがある）
 	$app->insert_user('syslock');
 	$app->insert_user('passmin');
 	$app->login('passmin');
 	# 書き戻すと行の順番が変わるので、この項目の行だけを比べる
-	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count_ip|fail_count|fail_minute|upload_max_mb|album_jpeg_quality|album_avif_quality)=/ } split(/\n/, read_file($sys))) };
+	my $saved = sub { join("\n", sort grep { /^(?:pass_min|session_days|all_logout|fail_count_ip|fail_count|fail_minute|upload_max_mb|post_max_mb|media_jpeg_quality|media_avif_quality)=/ } split(/\n/, read_file($sys))) };
 	my $before = $saved->();
 	foreach my $bad ([pass_min => 7], [pass_min => 65], [session_days => 0], [session_days => 366],
 		[fail_count_ip => 0], [fail_count_ip => 2], [fail_count_ip => 101],
 		[fail_count => 0], [fail_count => 2], [fail_count => 101], [fail_minute => 0], [fail_minute => 1441],
-		[upload_max_mb => 0], [upload_max_mb => 2049], [album_jpeg_quality => 0], [album_avif_quality => 101]) {
+		[upload_max_mb => 0], [upload_max_mb => 2049], [post_max_mb => 0], [post_max_mb => 65], [media_jpeg_quality => 0], [media_avif_quality => 101]) {
 		ok(!AppTest::is_reload($save->(@$bad)), "$bad->[0]=$bad->[1] は保存できない");
 	}
 	$field->('pass_min', 8, '保存できなかったときは前の値のまま');
@@ -324,7 +374,7 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	is($saved->(), $before, '管理者でなければ保存できない');
 
 	# 値が効く
-	ok(AppTest::is_reload($save->(pass_min => 20, fail_count_ip => 4, fail_count => 3, fail_minute => 5, upload_max_mb => 1, album_avif_quality => 40, session_days => 30, all_logout => 1)), '保存できる');
+	ok(AppTest::is_reload($save->(pass_min => 20, fail_count_ip => 4, fail_count => 3, fail_minute => 5, upload_max_mb => 1, post_max_mb => 1, media_avif_quality => 40, session_days => 30, all_logout => 1)), '保存できる');
 	$field->('pass_min', 20, '保存した値が欄に出る');
 	like(read_file($sys), qr/^session_days=30$/m, '保存した値がファイルに入る');
 	like(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'ONにした項目が欄に出る');
@@ -360,12 +410,18 @@ subtest 'システム設定：ログイン、アップロード、画像' => sub
 	# アップロードの上限
 	my $r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', size => 120,
 		file_ary => { filename => 'sysmax.txt', content => 'x' x (1048576 + 1024), type => 'text/plain' } ]);
-	ok(!-e "$dir/pub/attachments/test/sysmax.txt", '保存した上限（1MB）を超えると受け付けない');
+	ok(!-e "$dir/pub/attach/test/sysmax.txt", '保存した上限（1MB）を超えると受け付けない');
+
+	# 投稿の上限（URLエンコードした後の大きさ。日本語は1文字9バイト）
+	my %art = (action => 'edit', parser => 'markdown', enable => 1, ymd => '2026-10-01');
+	ok(!AppTest::is_reload($app->post('admin', '', { %art, title => '上限を超える記事', body_txt => 'あ' x 120000 })), '保存した投稿の上限（1MB）を超えると保存しない');
+	ok(AppTest::is_reload($app->post('admin', '', { %art, title => '上限の内の記事', body_txt => 'あ' x 100000 })), '投稿の上限（1MB）の内なら保存できる');
 
 	# 空にすると既定値に戻す
-	ok(AppTest::is_reload($save->(pass_min => '', fail_count_ip => '', fail_count => '', fail_minute => '', upload_max_mb => '', album_avif_quality => '', session_days => '', all_logout => 0)), '空で保存できる');
+	ok(AppTest::is_reload($save->(pass_min => '', fail_count_ip => '', fail_count => '', fail_minute => '', upload_max_mb => '', post_max_mb => '', media_avif_quality => '', session_days => '', all_logout => 0)), '空で保存できる');
 	$field->('pass_min', 8, '空にすると既定値に戻る');
 	$field->('upload_max_mb', 64, '空にすると既定値に戻る（上限）');
+	$field->('post_max_mb', 8, '空にすると既定値に戻る（投稿の上限）');
 	$field->('fail_count_ip', 15, '空にすると既定値に戻る（同じIP）');
 	unlike(body($app->get('admin', 'system/setting')), qr{name="all_logout"[^>]*checked}, 'OFFにできる');
 };
@@ -395,238 +451,34 @@ subtest '標準記法の記事' => sub {
 	like(body($app->get('admin', "/0$pkey?edit")), qr{この記事の記法（default）は選べません。}, '標準記法の記事の編集画面に、知らせを出す');
 };
 
-subtest 'マルチサイトと複数ユーザーの列を消すアップデート（4.33）' => sub {
-	my $snap = $app->snapshot();
-	my $write = sub {
-		my ($file, $text) = @_;
-		open(my $fh, '>:utf8', $file) || die "$file: $!";
-		print $fh $text;
+subtest '同時編集の確認の残りを消すアップデート（4.43）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $lock = "$dir/data/blog/lock";
+	my $update = sub {	# 4.42のデータにして、アップデート処理を行う
+		my $add = shift // '';
+		my $conf = read_file($sys);
+		$conf =~ s/^VERSION=.*$/VERSION=4.42/m;
+		open(my $fh, '>:utf8', $sys) || die "$sys: $!";
+		print $fh $conf . $add;
 		close($fh);
-	};
-	require Satsuki::Base;
-	my $ROBJ = Satsuki::Base->new();
-	my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
-	my $header = sub { (split(/\n/, read_file("$dir/data/db/$_[0]/#index.dat")))[3] };
-
-	# 4.32のデータの形にする。列を足し、記事、ゴミ箱の記事、ユーザーに値を入れる
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.32の記事', body_txt => "本文\n" })), '記事を書く');
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.32のゴミ箱の記事', body_txt => "本文\n" })), 'ゴミ箱に入れる記事を書く');
-	my %pkey;
-	my $list = body($app->get('admin', 'artlist'));
-	foreach my $t ('4.32の記事', '4.32のゴミ箱の記事') {
-		($pkey{$t}) = $list =~ m{href="[^"]*/0(\d+)\?edit"[^>]*>\Q$t\E<};
-	}
-	ok(AppTest::is_reload($app->post('admin', '', { action => 'delete', delete_pkey_ary => $pkey{'4.32のゴミ箱の記事'}, title => '' })), 'ゴミ箱に入れる');
-	foreach(qw(name id ip host agent)) {
-		$DB->add_column('art',   { name => $_, type => 'text', index => ($_ eq 'name' || $_ eq 'id') });
-		$DB->add_column('trash', { name => $_, type => 'text' });
-	}
-	$DB->add_column('trash', { name => 'deleted_id', type => 'text' });
-	$DB->add_column('_users', { name => 'isadmin', type => 'flag', index => 1 });
-	$DB->add_column('_users', { name => 'disable', type => 'flag' });
-	my %old = (name => 'old name', id => 'admin', ip => '192.0.2.1', host => 'old.example', agent => 'OldAgent');
-	$DB->begin();
-	$DB->update_match('art',   { %old }, 'pkey', $pkey{'4.32の記事'});
-	$DB->update_match('trash', { %old, deleted_id => 'admin' }, 'pkey', $pkey{'4.32のゴミ箱の記事'});
-	$DB->update_match('_users', { isadmin => 1, disable => 0 }, 'id', 'admin');
-	is($DB->commit(), 0, '古い値を入れる');
-	like($header->('art'), qr/\bagent\b/, '作った状態の確認：列がある');
-
-	my $sys = "$dir/data/system_config.dat";
-	my $sc  = read_file($sys);
-	$sc =~ s/^VERSION=.*$/VERSION=4.32/m;
-	$write->($sys, $sc);
-	my $bs  = "$dir/data/blog/setting.dat";
-	$write->($bs, "p:dea_art-info:author=1\n" . read_file($bs));
-
-	# アップデート処理の前も、新しいコードで動く
-	is($app->get('admin', 'system/update')->{status}, 200, 'アップデート処理の画面が出る');
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
-
-	unlike(read_file($bs), qr/^p:dea_art-info:author=/m, '「投稿者の表示」の設定が消える');
-	foreach my $t (qw(art trash)) {
-		my $h = "\t" . $header->($t) . "\t";
-		unlike($h, qr/\t(?:name|id|ip|host|agent|deleted_id)\t/, "$t の列が消える");
-		my $file = sprintf("$dir/data/db/$t/%05d.dat", $pkey{ $t eq 'art' ? '4.32の記事' : '4.32のゴミ箱の記事' });
-		my $row = read_file($file);
-		unlike($row, qr/^(?:name|id|ip|host|agent|deleted_id)=/m, "$t の行から値が消える");
-		like($row, qr/^title=4\.32の/m, "$t の行の題名は残る");
-	}
-	unlike("\t" . $header->('_users') . "\t", qr/\t(?:isadmin|disable)\t/, '_users の列が消える');
-	like(read_file("$dir/data/db/_users/00001.dat"), qr/^id=admin$/m, '管理者の行は残る');
-
-	# 処理の後も動く
-	is($app->get('admin', 'menu')->{status}, 200, '管理者として動く');
-	my $edit = body($app->get('admin', "/0$pkey{'4.32の記事'}?edit"));
-	unlike($edit, qr/OldAgent|192\.0\.2\.1/, '編集画面に古い値が出ない');
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '4.33の記事', body_txt => "本文\n" })), '記事を書ける');
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, edit_pkey_int => $pkey{'4.32の記事'}, title => '4.32の記事を直した', body_txt => "本文2\n" })), '記事を直せる');
-	like(body($app->get('admin', 'trash')), qr{4\.32のゴミ箱の記事}, 'ゴミ箱に出る');
-	ok(AppTest::is_reload($app->post('admin', '', { action => 'trash', mode => 'restore', pkey_ary => $pkey{'4.32のゴミ箱の記事'} })), 'ゴミ箱から戻せる');
-	is($app->get('guest', "/0$pkey{'4.32のゴミ箱の記事'}")->{status}, 200, '戻した記事が見られる');
-	like(read_file("$dir/pub/rss.xml"), qr{<dc:creator>[^<]+</dc:creator>}, 'RSSに管理者の名前が出る');
-
-	ok(!json_ok($app->post('guest', '', { action => '_ajax_login', adiary_id => 'admin', pass => 'wrong-pass' })), '違うパスワードではログインできない');
-	$app->restore($snap);
-};
-
-subtest '操作の記録の削除の記録を消すアップデート（4.34）' => sub {
-	my $snap = $app->snapshot();
-	require Satsuki::Base;
-	my $ROBJ = Satsuki::Base->new();
-	my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
-	my $count = sub {
-		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
-		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
-		return scalar(@{ $DB->select_match('_users_log', 'type', $_[0]) });
+		return $app->post('admin', 'system/update', { action => 'system/update' });
 	};
 
-	$DB->begin();
-	foreach(qw(login logout regist update delete)) {
-		$DB->insert('_users_log', { id => 'admin', type => $_, tm => 1000000000 });
-	}
-	is($DB->commit(), 0, '各種類の記録を入れる');
-	my %before = map { $_ => $count->($_) } qw(login logout regist update);
-	foreach(qw(login logout regist update delete)) {
-		ok(0 < $count->($_), "作った状態の確認：$_ の記録がある");
-	}
-
-	my $sys  = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.33/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
-	close($fh);
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
-
-	is($count->('delete'), 0, 'delete の記録が消える');
-	foreach(qw(login logout regist update)) {
-		is($count->($_), $before{$_}, "$_ の記録は残る");
-	}
-
-	my $b = body($app->get('admin', 'user/log'));
-	like($b, qr{<option value="regist"}, '種類の選択肢に追加が残る');
-	like($b, qr{<option value="update"}, '種類の選択肢に変更が残る');
-	unlike($b, qr{<option value="delete"}, '種類の選択肢から削除が消える');
-	$app->restore($snap);
-};
-
-subtest '目次のある記事を作り直すアップデート（4.37）' => sub {
 	my $snap = $app->snapshot();
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '目次の記事', body_txt => "[*toc]\n\n# 見出し\n" })), '目次のある記事を書く');
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '目次の無い記事', body_txt => "本文\n" })), '目次の無い記事を書く');
-
-	require Satsuki::Base;
-	require Encode;
-	my $load = sub {	# DBの値はバイト列なので、文字列にして比べる
-		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
-		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
-		return ($DB, { map { Encode::decode_utf8($_->{title}) => { pkey => $_->{pkey}, text => Encode::decode_utf8($_->{text}), description => Encode::decode_utf8($_->{description}) } } @{ $DB->select_match('art', '*cols', ['pkey', 'title', 'text', 'description']) } }, $ROBJ);
-	};
-	my ($DB, $arts, $ROBJ) = $load->();	# $ROBJ は $DB が使うので持っておく
-	my $toc   = $arts->{'目次の記事'};
-	my $plain = $arts->{'目次の無い記事'};
-	like($toc->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>\s*<ul class="toc">}, '書いた記事の目次は、見出し付きの nav で囲まれる');
-	is($toc->{description}, '見出し 見出し', '記事の概要に「目次」の見出しは入れない');
-	like(body($app->get('guest', "/0$toc->{pkey}")), qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '公開画面にも出る');
-
-	# 4.36までの形の目次に戻す
-	(my $old = $toc->{text}) =~ s{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>\s*(.*?)\s*</nav>}{$1}s;
-	unlike($old, qr{toc-box|toc-title}, '作った状態の確認：古い形の目次にした');
-	like($old, qr{<ul class="toc">}, '作った状態の確認：目次の箇条書きは残す');
-	$DB->begin();
-	$DB->update_match('art', { text => Encode::encode_utf8($old) }, 'pkey', $toc->{pkey});
-	$DB->update_match('art', { text => Encode::encode_utf8('<p>作り直さない</p>') }, 'pkey', $plain->{pkey});
-	is($DB->commit(), 0, '保存したHTMLを古い形にする');
-
-	my $sys  = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.36/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
+	mkdir($lock) || die "$lock: $!";
+	open(my $fh, '>', "$lock/1") || die "$lock/1: $!";
+	print $fh "admin\t2026/11/13 10:00:00\t1700000000\n";
 	close($fh);
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	ok(AppTest::is_reload($update->("edit_lock_interval=30\n")), 'アップデート処理を行える');
 	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
-
-	(undef, $arts) = $load->();
-	like($arts->{'目次の記事'}->{text}, qr{<nav class="toc-box" aria-label="目次">\s*<div class="toc-title">目次</div>}, '目次のある記事は作り直す');
-	is($arts->{'目次の無い記事'}->{text}, '<p>作り直さない</p>', '目次の無い記事は作り直さない');
+	unlike(read_file($sys), qr/^edit_lock_interval=/m, 'システム設定の間隔を消す');
+	ok(!-e $lock, 'ブログのlock/を消す');
 	$app->restore($snap);
-};
 
-subtest '直前の保存のテーブルを作るアップデート（4.38）' => sub {
-	my $snap = $app->snapshot();
-	require File::Path;
-	File::Path::remove_tree("$dir/data/db/lastrev");
-	ok(!-e "$dir/data/db/lastrev", '作った状態の確認：テーブルが無い');
-
-	my $sys  = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.37/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
-	close($fh);
-
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, edit_pkey_int => 1, title => '処理の前に直す', body_txt => "処理の前\n" })), '処理の前でも記事を直せる');
-	ok(!-e "$dir/data/db/lastrev", '処理の前には直前の保存を入れない');
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	$snap = $app->snapshot();
+	ok(!-e $lock, '作った状態の確認：lock/が無い');
+	ok(AppTest::is_reload($update->()), 'lock/も間隔も無いときも、アップデート処理を行える');
 	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
-	ok(-e "$dir/data/db/lastrev/#index.dat", 'テーブルができる');
-
-	$app->post('admin', '', { %ART, edit_pkey_int => 1, title => '処理の後に直す', body_txt => "処理の後\n" });
-	my $last = $app->post('admin', '', { action => 'ajax_revision', last => 1 })->{json};
-	is($last->{title}, '処理の前に直す', '処理の後は直前の保存を入れる');
-	$app->restore($snap);
-};
-
-subtest '注釈のある記事を作り直すアップデート（4.39）' => sub {
-	my $snap = $app->snapshot();
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '注釈の記事', body_txt => "# 大\n\n## 中1\n\n本文((注釈A))\n\n## 中2\n\n本文((注釈B))\n" })), '注釈のある記事を書く');
-	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '注釈の無い記事', body_txt => "本文\n" })), '注釈の無い記事を書く');
-
-	require Satsuki::Base;
-	require Encode;
-	my $load = sub {	# DBの値はバイト列なので、文字列にして比べる
-		my $ROBJ = Satsuki::Base->new();	# アップデート処理は別のプロセスなので、毎回読み直す
-		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
-		return ($DB, { map { Encode::decode_utf8($_->{title}) => { pkey => $_->{pkey}, text => Encode::decode_utf8($_->{text}) } } @{ $DB->select_match('art', '*cols', ['pkey', 'title', 'text']) } }, $ROBJ);
-	};
-	my ($DB, $arts, $ROBJ) = $load->();	# $ROBJ は $DB が使うので持っておく
-	my $note  = $arts->{'注釈の記事'};
-	my $plain = $arts->{'注釈の無い記事'};
-	my $new_form = qr{注釈A</p>\s*</footer>\s*<h4 id="[^"]+"><a [^>]+>中2</a>};	# 見出しのIDは保存のときに付く
-	like($note->{text}, $new_form, '書いた記事の注釈の一覧は、次の見出しの手前に出る');
-	like(body($app->get('guest', "/0$note->{pkey}")), $new_form, '公開画面にも出る');
-
-	# 4.38までの形（#の節の終わりにまとめて出す）に戻す
-	(my $old = $note->{text}) =~ s{\s*<footer>\s*(<p class="footnote">.*?注釈A</p>)\s*</footer>}{}s;
-	my $first = $1;
-	$old =~ s{<footer>}{<footer>\n$first};
-	unlike($old, $new_form, '作った状態の確認：古い形の注釈の一覧にした');
-	$DB->begin();
-	$DB->update_match('art', { text => Encode::encode_utf8($old) }, 'pkey', $note->{pkey});
-	$DB->update_match('art', { text => Encode::encode_utf8('<p>作り直さない</p>') }, 'pkey', $plain->{pkey});
-	is($DB->commit(), 0, '保存したHTMLを古い形にする');
-
-	my $sys  = "$dir/data/system_config.dat";
-	my $conf = read_file($sys);
-	$conf =~ s/^VERSION=.*$/VERSION=4.38/m;
-	open(my $fh, '>:utf8', $sys) || die "$sys: $!";
-	print $fh $conf;
-	close($fh);
-
-	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
-	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
-
-	(undef, $arts) = $load->();
-	like($arts->{'注釈の記事'}->{text}, $new_form, '注釈のある記事は作り直す');
-	is($arts->{'注釈の無い記事'}->{text}, '<p>作り直さない</p>', '注釈の無い記事は作り直さない');
 	$app->restore($snap);
 };
 
@@ -697,6 +549,92 @@ subtest '操作の記録' => sub {
 };
 
 #-------------------------------------------------------------------------------
+# ディレクトリ使用量（?system/disk）
+#-------------------------------------------------------------------------------
+subtest 'ディレクトリ使用量' => sub {
+	require Satsuki::Base;
+	require File::Path;
+	my $att = "$dir/pub/attach";
+	ok(-d $att && !-l $att, 'テストの添付ファイルのフォルダは、本物へのリンクではない');
+
+	# 画面の表を { 見出し => { 行の名前 => ファイル数（表示のまま） } } にする
+	my $tables = sub {
+		my %t;
+		foreach (split(m{<h3>}, shift)) {
+			my ($h) = m{^([^<]*)</h3>} or next;
+			$t{$h}{$1} = $2 while (m{<td>([^<]*)</td><td class="r">[^<]*</td><td class="r">([^<]*)</td>}g);
+		}
+		return \%t;
+	};
+	my $num = sub { my $n = int(shift); 1 while ($n =~ s/^(-?\d+)(\d{3})/$1,$2/); $n };
+
+	# システム管理のタブのリンクを辿る
+	my ($link) = body($app->get('admin', 'system/check')) =~ m{<a href="[^"?]*\?([^"]*)">ディレクトリ使用量</a>};
+	is($link, 'system/disk', 'システム管理のタブにリンクがある');
+	my $b = body($app->get('admin', $link));
+	unlike($b, qr{class="warning"}, '読めないフォルダが無ければ警告は出ない');
+	my $t0 = $tables->($b);
+	is_deeply([ sort keys(%$t0) ], [ sort('全体', '添付ファイル', 'データベース') ], '表は全体、添付ファイル、データベースの3つ');
+	is_deeply([ sort keys(%{ $t0->{'全体'} }) ], [ sort('__cache/', 'pub/attach/', 'data/db/', '合計') ], '全体は3つのフォルダと合計');
+	ok(exists $t0->{'データベース'}{'data/db/art/'}, 'データベースはテーブルごとに出る');
+	is_deeply([ grep { !m{^data/db/\w+/$} } keys(%{ $t0->{'データベース'} }) ], [], 'データベースにはテーブルのフォルダの行だけが出る');
+
+	# 元のファイル1000個、サムネイル2個、ゴミ箱2個（ゴミ箱の中のサムネイルはゴミ箱に数える）、リンク2つを足す
+	my $put = sub { my $f = shift; open(my $fh, '>', $f) || die "$f: $!"; print $fh 'x' x (shift // 0); close($fh); };
+	File::Path::make_path("$att/disk/.thumbnail", "$att/.trashbox/.thumbnail");
+	$put->("$att/disk/$_.txt") foreach (1..1000);
+	$put->("$att/disk/.thumbnail/$_.jpg") foreach (1..2);
+	$put->("$att/.trashbox/a.png");
+	$put->("$att/.trashbox/.thumbnail/a.png.jpg");
+	symlink("$dir/data/db", "$att/disk/link-dir") || die $!;
+	symlink("$dir/lyndbaum.cgi", "$att/disk/link-file") || die $!;
+
+	my $t1 = $tables->(body($app->get('admin', $link)));
+	my $diff = sub {
+		my ($h, $row, $add) = @_;
+		my $before = $t0->{$h}{$row} =~ s/,//gr;
+		is($t1->{$h}{$row}, $num->($before + $add), "${h}：${row}は${add}個増え、桁区切りで出る");
+	};
+	$diff->('添付ファイル', 'サムネイル以外', 1000);
+	$diff->('添付ファイル', 'サムネイル', 2);
+	$diff->('添付ファイル', 'ゴミ箱', 2);
+	$diff->('添付ファイル', '合計', 1004);
+	$diff->('全体', 'pub/attach/', 1004);
+	$diff->('全体', '合計', 1004);
+	like($t1->{'全体'}{'合計'}, qr{^\d{1,3}(?:,\d{3})+$}, '1000を超えるファイル数に桁区切りが入る');
+
+	# 大きさはファイルの大きさの合計。リンクは辿らず、数えもしない
+	my $o = bless({}, 'Satsuki::Base');
+	my $s0 = $o->get_dir_size("$att/disk", 1);
+	$put->("$att/disk/sub.txt", 1234);
+	File::Path::make_path("$att/disk/d1/d2");
+	$put->("$att/disk/d1/d2/deep.txt", 10);
+	my $s = $o->get_dir_size("$att/disk", 1, '.thumbnail');
+	is($s->{size}  - $s0->{size},  1244, '大きさはファイルの大きさの合計');
+	is($s->{files} - $s0->{files}, 2, '足したファイルの数だけ増える');
+	is_deeply({ map { $_->{name} => $_->{files} } @{ $s->{list} } }, { '' => 1001, 'd1/' => 1 }, '内訳は指定の深さのフォルダごと。深いところのファイルはその行に入り、直下のファイルはnameが空');
+	is($s->{split}{'.thumbnail'}{files}, 2, '別に数えるフォルダは内訳に入れない');
+	is_deeply($o->get_dir_size("$att/none"), { size => 0, files => 0, errors => 0, list => [], split => {} }, '無いフォルダは0で、読めないものに数えない');
+	is(join(' ', map { $o->num_format($_) } (0, 999, 1000, 1234567, -1234)), '0 999 1,000 1,234,567 -1,234', 'num_formatの桁区切り');
+
+	# 読めないフォルダがあると警告を出す（rootはどのフォルダも読めてしまう）
+	SKIP: {
+		skip('rootでは読めないフォルダを作れない', 2) if ($> == 0);
+		mkdir("$att/disk/ng");
+		chmod(0, "$att/disk/ng");
+		$b = body($app->get('admin', $link));
+		chmod(0755, "$att/disk/ng");
+		like($b, qr{<strong class="warning">読めないフォルダがありました。}, '読めないフォルダがあると警告が出る');
+		is($o->get_dir_size("$att/disk")->{errors}, 0, '読めるように戻すと数えない');
+	}
+
+	# 後のテストに残さない
+	File::Path::remove_tree("$att/disk");
+	unlink("$att/.trashbox/a.png", "$att/.trashbox/.thumbnail/a.png.jpg");
+	is_deeply($tables->(body($app->get('admin', $link))), $t0, '足したものを消すと元の表に戻る');
+};
+
+#-------------------------------------------------------------------------------
 # 編集画面の設定（保存すると、送らなかったflagが0になるので最後に置く）
 #-------------------------------------------------------------------------------
 subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub {
@@ -742,7 +680,7 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 		local $/; <$fh>;
 	};
 	require Satsuki::ImageFormat;
-	my $thumb = "$dir/pub/attachments/test/.thumbnail/size.png." . (Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg');
+	my $thumb = "$dir/pub/attach/test/.thumbnail/size.png." . (Satsuki::ImageFormat::can_write_avif() ? 'avif' : 'jpg');
 	$r = $app->post('admin', '', [ action => 'media/upload_form', folder => 'test/', size => 640,
 		file_ary => { filename => 'size.png', content => $png, type => 'image/png' } ]);
 	like($r->{body}, qr/^ret=0$/m, 'アップロードできる');
@@ -752,7 +690,7 @@ subtest '編集画面の画像の既定値とサムネイルの大きさ' => sub
 	$r = $app->post('admin', '', { action => 'media/remake_thumbnail', folder => 'test/', file_ary => 'size.png', size => 640 });
 	ok(json_ok($r), '再生成できる');
 	is(join('x', Satsuki::ImageFormat::get_size($thumb)), '150x150', '再生成でも設定の大きさで作る');
-	unlike(body($app->get('admin', 'media/')), qr{name="size"|thumbnail-size}, 'メディアでサムネイルの大きさを選ばせない');
+	unlike(body($app->get('admin', 'media/')), qr{name="size"|thumbnail-size}, 'メディア管理でサムネイルの大きさを選ばせない');
 };
 
 #-------------------------------------------------------------------------------

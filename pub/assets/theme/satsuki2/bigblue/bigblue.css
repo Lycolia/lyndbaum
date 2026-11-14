@@ -433,8 +433,8 @@ article div.body {
 }
 
 /* コンテンツ記事 */
-article.wiki div.body {
-	background-color:	#f8f8ff;		/* $c=wikibg */
+article.page div.body {
+	background-color:	#f8f8ff;		/* $c=pagebg */
 }
 /* 記事ヘッダ */
 div.art-info {
@@ -604,8 +604,8 @@ dt { font-weight:	bold; }
 	margin:			0px;
 	padding:		2px;
 	background-image:	linear-gradient(to bottom,
-					#f0f1f7,	/* $c=thbg0 = auto:wikibg */
-					#d2d9ea);	/* $c=thbg1 = auto:wikibg */
+					#f0f1f7,	/* $c=thbg0 = auto:pagebg */
+					#d2d9ea);	/* $c=thbg1 = auto:pagebg */
 	background-color:	#d2d9ea;		/* $c=thbg1 */
 	border:			1px solid #ccc;		/* $c=border */
 }
@@ -621,7 +621,7 @@ dt { font-weight:	bold; }
 
 	border-radius:		8px;
 	border:			1px solid #ccc;		/* $c=border */
-	background-color:	#f8f8ff;		/* $c=combg = wikibg */
+	background-color:	#f8f8ff;		/* $c=combg = pagebg */
 	box-shadow:		1px 1px 2px rgba(0,0,0, 0.4);
 }
 #com div.caption a {
@@ -859,7 +859,7 @@ article:not(.edit) #editarea {
 }
 
 table.blog-setting {
-	background-color:	#f8f8fa;	/* $c=blogsetbg = auto:wikibg */
+	background-color:	#f8f8fa;	/* $c=blogsetbg = auto:pagebg */
 }
 
 
@@ -914,7 +914,7 @@ div.popup-help div.additional {
 ●jQuery UI, popup-info/dialog（テーマREADME/記事のタグヘルパー等）
 --------------------------------------------------------------------*/
 .ui-dialog {
-	background-color:	#f8f8ff;		/* $c=wikibg */
+	background-color:	#f8f8ff;		/* $c=pagebg */
 	border:			2px solid #7291a9;	/* $c=h2bg */
 	border-radius:		10px;
 	box-shadow:		8px 8px 4px 4px rgba(60,60,100,0.75);

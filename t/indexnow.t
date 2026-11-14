@@ -136,11 +136,11 @@ subtest '下書き' => sub {
 };
 
 subtest 'link_keyを変えたとき' => sub {
-	ok(AppTest::is_reload(post('admin', '', { %ART, title => '名前の付いたページ', body_txt => "本文\n", wiki => 1, link_key_txt => 'old-page' })), 'ページを公開する');
+	ok(AppTest::is_reload(post('admin', '', { %ART, title => '名前の付いたページ', body_txt => "本文\n", page => 1, link_key_txt => 'old-page' })), 'ページを公開する');
 	is_deeply(sent_urls(), [ "${SERVER}old-page" ], 'ページのURLを送る');
 	my $pkey = pkey_of('名前の付いたページ');
 
-	ok(AppTest::is_reload(post('admin', '', { %ART, edit_pkey_int => $pkey, title => '名前の付いたページ', body_txt => "本文\n", wiki => 1, link_key_txt => 'new-page' })), 'link_keyを変える');
+	ok(AppTest::is_reload(post('admin', '', { %ART, edit_pkey_int => $pkey, title => '名前の付いたページ', body_txt => "本文\n", page => 1, link_key_txt => 'new-page' })), 'link_keyを変える');
 	is_deeply(sent_urls(), [ "${SERVER}new-page", "${SERVER}old-page" ], '古いURLと新しいURLを1回で送る');
 };
 

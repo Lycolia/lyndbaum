@@ -44,7 +44,9 @@ my @SCREENS = (
 	[ 'artlist'             , 'admin', '記事一覧' ],
 	[ 'artlist&enable=draft', 'admin', '記事一覧' ],	# 下書きの絞り込み
 	[ 'comlist'             , 'admin', 'コメント一覧' ],
-	[ 'media/'              , 'admin', 'メディア' ],
+	[ 'media/'              , 'admin', 'メディア管理' ],
+	[ 'tag_edit'            , 'admin', 'タグの編集' ],
+	[ 'contents_edit'       , 'admin', '固定ページの表示順' ],
 
 	# ブログの設定
 	[ 'set/'                , 'admin' , 'ブログの基本設定' ],
@@ -53,8 +55,6 @@ my @SCREENS = (
 
 	# その他の設定
 	[ 'set2/'               , 'admin', 'その他の設定' ],
-	[ 'set2/tag_edit'       , 'admin', 'タグの編集' ],
-	[ 'set2/contents_edit'  , 'admin', 'コンテンツの表示順設定' ],
 	[ 'set2/usertag'        , 'admin', '記法タグのカスタマイズ' ],
 	[ 'set2/header'         , 'admin' , 'ヘッダ設定' ],
 
@@ -87,6 +87,7 @@ my @SCREENS = (
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
 	[ 'system/check'        , 'admin' , 'システム管理メニュー' ],
+	[ 'system/disk'         , 'admin' , 'ディレクトリ使用量' ],
 	[ 'system/copyright'    , 'admin' , '著作権表示' ],
 
 	# 補助の画面

@@ -1,0 +1,89 @@
+<@7>
+<@local(row,list_rows,err,w,c,a,db,th,tr,t)>
+
+<@> システムモード
+<$v.system_mode("ディレクトリ使用量")>
+
+<@> 階層ツリー、権限チェック、エラー表示
+<@call("_sub/menu_tree")>
+
+<@> 1行分。argv : 表に出すパス, 使用量, ファイル数
+<$row = begin>
+<tr>
+	<td><@argv#0></td><td class="r"><@size_format(argv#1)></td><td class="r"><@num_format(argv#2)></td>
+</tr>
+<$end>
+<@> get_dir_size()のlistの行。argv : 前に付けるパス, list
+<@> 直下のファイル（nameが''）は出さない
+<$list_rows = begin>
+<@forexec(t, argv#1, begin)>
+<@ifexec(t.name ne '', begin)>
+<@exec(row, esc(argv#0 . t.name), t.size, t.files)>
+<$end>
+<$end>
+<$end>
+
+<@> 使用量はファイルの大きさの合計。errは読めなかったフォルダの数
+<$w  = call('_sub/load_writable_dirs')>
+<$c  = get_dir_size(w.Cache)>
+<$a  = get_dir_size(v.blogimg_dir(), 0, '.thumbnail', '.trashbox')>
+<$db = get_dir_size(DB.dir, 1)>
+<$th = a.split.('.thumbnail')>
+<$tr = a.split.('.trashbox')>
+<$err = c.errors + a.errors + db.errors>
+
+<!--=========================================================================-->
+<article class="system">
+<h2><@v.title></h2>
+<div class="body">
+
+<p>主にファイルが増減するディレクトリの使用量です。</p>
+
+<@ifexec(err, begin)>
+<p><strong class="warning">読めないフォルダがありました。読めた分だけを数えています</strong></p>
+<$end>
+
+<h3>全体</h3>
+
+<table class="mono">
+<thead>
+<tr>
+	<th>パス</th><th>使用量</th><th>ファイル数</th>
+</tr>
+</thead><tbody>
+<@exec(row, esc(w.Cache), c.size, c.files)>
+<@exec(row, esc(v.blogimg_dir()), a.size, a.files)>
+<@exec(row, esc(DB.dir), db.size, db.files)>
+<@exec(row, '合計', c.size + a.size + db.size, c.files + a.files + db.files)>
+</tbody>
+</table>
+
+<h3>添付ファイル</h3>
+
+<table class="mono">
+<thead>
+<tr>
+	<th>種類</th><th>使用量</th><th>ファイル数</th>
+</tr>
+</thead><tbody>
+<@exec(row, 'サムネイル以外', a.size - th.size - tr.size, a.files - th.files - tr.files)>
+<@exec(row, 'サムネイル', th.size, th.files)>
+<@exec(row, 'ゴミ箱', tr.size, tr.files)>
+<@exec(row, '合計', a.size, a.files)>
+</tbody>
+</table>
+
+<h3>データベース</h3>
+
+<table class="mono">
+<thead>
+<tr>
+	<th>パス</th><th>使用量</th><th>ファイル数</th>
+</tr>
+</thead><tbody>
+<@exec(list_rows, DB.dir, db.list)>
+</tbody>
+</table>
+
+</div>
+</article>

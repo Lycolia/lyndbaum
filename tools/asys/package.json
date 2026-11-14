@@ -1,0 +1,11 @@
+{
+  "name": "lyndbaum-asys",
+  "private": true,
+  "description": "pub/assets/js/asys.min.jsを作る",
+  "scripts": {
+    "build": "cd src && terser 00_start.js 20_PrefixStorage.js 30_init.js 40_dialog.js 41_ajax.js 42_popup.js 45_sortable.js 50_dom.js 60_dom-special.js 70_subroutines.js 80_defer.js 99_run_init.js -c -m --source-map \"includeSources,url='asys.min.js.map'\" -o ../../../pub/assets/js/asys.min.js"
+  },
+  "devDependencies": {
+    "terser": "5.51.2"
+  }
+}

@@ -831,7 +831,7 @@ sub import_events {
 # $art->{ctype}		コンテンツタイプ
 # $art->{priority}	優先度, 重要度（整数値）
 # $art->{upnode}	親記事
-# $art->{link_key}	コンテンツキー
+# $art->{link_key}	パーマリンク
 #
 #
 # $c = $coms->[$n]	$n 番目の書き込み
@@ -926,7 +926,8 @@ sub save_article {
 		my $ctype    = $art->{ctype};
 		my $priority = int( $art->{priority} );
 		my $upnode   = $art->{upnode};
-		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='wiki'; }
+		if ($ctype eq 'wiki') { $art->{ctype}=$ctype='page'; }	# 4.42までのエクスポートは、固定ページをwikiで書き出している
+		if ($priority && $ctype eq '') { $art->{ctype}=$ctype='page'; }
 
 		# save pkey
 		$pkey = ($pkey<1 || ($pkeys->{$pkey} && $opt->{avoid_pkey_collision})) ? 0 : $pkey;
@@ -956,6 +957,7 @@ sub save_article {
 		my %op;
 		$op{save_pkey} = $pkey;
 		$op{tm} = $art->{tm};
+		$op{import} = 1;	# 固定ページのパーマリンクは、元のまま受ける
 		my $ret = $self->regist_article( $art, \%op );
 		if (!ref($ret)) {
 			$session && $session->msg("Save article failed(%d) : %s", $ret, $art->{title} );
@@ -1195,7 +1197,7 @@ sub import_img {
 		$fname =~ s/%([0-9A-Fa-f][0-9A-Fa-f])/$1/g;
 
 		if (!$img_l) { next; }
-		my ($r, $saved) = $self->save_image_to_album($dir, $fname, $img_l);
+		my ($r, $saved) = $self->save_image_to_media($dir, $fname, $img_l);
 		if ($r) {
 			$msg  .= "  Save '$fname' fail!\n";
 			next;	# save fail
@@ -1219,7 +1221,7 @@ sub import_img {
 				my $img = $self->load_image_magick();
 				eval {
 					$self->read_image( $img, $file );
-					$img->Set( quality => ($self->{album_jpeg_quality} || 80) );
+					$img->Set( quality => ($self->{media_jpeg_quality} || 80) );
 					$img->Write( $thumb_file );
 				};
 				if ($@) { last; }
@@ -1295,9 +1297,9 @@ sub get_imgdata {
 }
 
 #-------------------------------------------------------------------------------
-# ●画像データをアルバムに保存
+# ●画像データをメディア管理に保存
 #-------------------------------------------------------------------------------
-sub save_image_to_album {
+sub save_image_to_media {
 	my $self = shift;
 	my $dir  = shift;
 	my $name = shift;

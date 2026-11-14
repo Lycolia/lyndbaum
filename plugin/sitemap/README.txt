@@ -6,6 +6,7 @@
 
 サイト内のすべての記事の permalink を含む、サイトマップを生成します。
 
+サイトマップのURLは「ブログのURL?sitemap」です（例：https://example.com/?sitemap）。
 検索エンジンへは、Google Search Consoleなどで、サイトマップのURLを登録してください。
 （検索エンジンへの更新の通知（ping）は、受け口が止まったため4.09で削除しました）
 

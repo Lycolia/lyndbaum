@@ -36,12 +36,12 @@
 <@p></ul>
 <$end.function>
 <@>-------------------------------------------------------------------
-<@>コンテンツリスト
+<@>固定ページの一覧
 <@>-------------------------------------------------------------------
 <@ifexec(root && root.pkey, begin, begin)>
 <div class="hatena-moduletitle"><a href="<@v.myself2><@root.elink_key>"><@root.title></a></div>
 <$else>
-<div class="hatena-moduletitle"><@ps.title || 'コンテンツ'></div>
+<div class="hatena-moduletitle"><@ps.title || '固定ページ'></div>
 <$end>
 <div class="hatena-modulebody">
 <@ifexec(root, begin)>

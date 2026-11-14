@@ -37,7 +37,7 @@
 
 
   <$ifexec(##logs==-1, begin)>
-	<@> 検索などで見つからないときと、/99 のような数字だけのURL（コンテンツの名前として探す）で無いときは404
+	<@> 検索などで見つからないときと、/99 のような数字だけのURL（固定ページのパーマリンクとして探す）で無いときは404
 	<$ifset_status(v.query ne '' || v.pinfo ne '', 404)>
 	<$message("該当する記事がありません")>
   <$end>
@@ -150,7 +150,7 @@
 	<span class="search-caption">日付で絞り込み</span>
 	<$qx = q><$replace_dest(qx, '&amp;d=\d+', '')>
 	<@foreach_hash(t,ret.narrow_ymd,begin)>
-		<@ifexec(t.key == 0, begin)><a href="<@url>&amp;w=1">コンテンツ(<@t.val>)</a><$next()><$end>
+		<@ifexec(t.key == 0, begin)><a href="<@url>&amp;w=1">固定ページ(<@t.val>)</a><$next()><$end>
 		<a href="<@v.myself>?<@qx>&amp;d=<@t.key>"><@if(t.key < 10000, "<@t.key>年", int(substr(t.key,4,2)) . '月')>(<@t.val>)</a>
 	<$end>
 	</div>
@@ -214,7 +214,7 @@
 <$url=ServerURL . permalink>
 <$encode_uricom(url)>
 <!--=========================================================================-->
-<article id="art-<@t.pkey>" class="article<@if(t.priority, " wiki")><@if(t.nsfw && !s.nsfw_force, " nsfw")><@if(t.ctype, " art-<@t.ctype>")>">
+<article id="art-<@t.pkey>" class="article<@if(t.priority, " page")><@if(t.nsfw && !s.nsfw_force, " nsfw")><@if(t.ctype, " art-<@t.ctype>")>">
 <h2><@if(!t.priority, #'<a class="date" href="<@v.myself2><@t.elink_key>"><span class="y"><@t.year></span><span class="sep">/</span><span class="m"><@t.mon></span><span class="sep">/</span><span class="d"><@t.day></span><span class="wd">(<@t.wday_name>)</span></a>')><a href="<@v.myself2><@t.elink_key>" class="title"><@t.title></a></h2>
 <div class="body" id="s<@t.pkey>">
 <div class="body-header">

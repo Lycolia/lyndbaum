@@ -233,8 +233,8 @@ article + article {
 	margin-top:		2em;
 }
 
-article.wiki {
-	background-color:	#fafaf2;		/* $c=wikibg */
+article.page {
+	background-color:	#fafaf2;		/* $c=pagebg */
 }
 /* 記事タイトル */
 article h2 {
@@ -508,7 +508,7 @@ dt { font-weight:	bold; }
 	margin:			1em 0;
 	padding:		1.5em 1.5em 1em 1.5em;
 
-	background-color:	#fafaf8;		/* $c=combg     = wikibg */
+	background-color:	#fafaf8;		/* $c=combg     = pagebg */
 	border:			1px solid #ccc;		/* $c=comborder = artborder */
 	border-radius:		8px;
 }

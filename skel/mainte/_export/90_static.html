@@ -28,7 +28,7 @@
 		<$end>
 	</ul>
 
-	<p>※コンテンツkey「index」が存在すれば、その記事が最初に表示されます。</p>
+	<p>※パーマリンク「index」の固定ページがあれば、その記事が最初に表示されます。</p>
 
 	<button class="export" type="button" name="file" value="90_static" data-log-target="#static-session-log" id="static-export">HTML化して出力</button>
 	<button class="export" type="button" name="file" value="90_static" data-log-target="#static-session-log" id="static-export-format" data-type="format">初期化だけ行う</button><br>
@@ -39,32 +39,32 @@
 
 <div style="display:none">
 <script-defer><!--
-let $buttons;
-adiary.session($('#static-export, #static-export-format'), {
-	myself: $secure('#static-session-log').data('myself'),
+let buttons;
+adiary.session('#static-export, #static-export-format', {
+	myself: adiary.secure('#static-session-log').dataset.myself,
 	load_formdata: function(btn) {
-		var fd = $('#export-form').serialize();
-		fd += '&' + $.param({
-			file: btn.val(),
-			enable_only: 1,
-		});
-		return fd;
+		var fd = new URLSearchParams();
+		for(const [k, v] of new FormData( document.getElementById('export-form') ))
+			if (typeof(v) === 'string') fd.append(k, v);
+		fd.append('file', btn.value);
+		fd.append('enable_only', 1);
+		return fd.toString();
 	},
 	success: function(data) {
 		if (!data) return;
 		var ma = data.match(/^ret=(\d+)/);
 		if (!ma || ma && ma[1] == 0) return;
 
-		text = data.replace(/^ret=[^\n]/, "Error code: " + ma[1]);
-		$('#static-session-log').text( text );
+		var text = data.replace(/^ret=[^\n]/, "Error code: " + ma[1]);
+		document.getElementById('static-session-log').textContent = text;
 	},
 	init:	function(){
-		$buttons = $("#export-form button:enabled");
-		$buttons.prop('disabled', true);
+		buttons = document.querySelectorAll("#export-form button:enabled");
+		buttons.forEach(function(x){ x.disabled = true });
 	},
 	complete: function(){
-		$buttons.prop('disabled', false);
-		$buttons = undefined;
+		buttons.forEach(function(x){ x.disabled = false });
+		buttons = undefined;
 	}
 });
 --></script-defer>
@@ -99,7 +99,6 @@ adiary.session($('#static-export, #static-export-format'), {
 
 <$theme_dir = v.static_theme_dir || 'theme/'>
 <$files_dir = v.static_files_dir || 'files/'>
-<$DevelopJS = false>
 
 <@>/////////////////////////////////////////////////////////////////////////////
 <@> JavaScript to theme/
@@ -110,8 +109,6 @@ adiary.session($('#static-export, #static-export-format'), {
 
 	<$files = begin_array>
 		adiary.min.js
-		jquery-ui.min.js
-		highlight.pack.js
 	<$end>
 	<$forexec(t, files, begin)>
 		<$session.msg("\tcopy to '<@dir><@t>'")>
@@ -171,8 +168,6 @@ adiary.session($('#static-export, #static-export-format'), {
 	<$end>
 
 	<$dirs = begin_array>
-		highlight-js/
-		jquery-ui/
 		ui-icon/
 	<$end>
 	<$forexec(t, dirs, begin)>
@@ -192,11 +187,11 @@ adiary.session($('#static-export, #static-export-format'), {
 
 
 <@>/////////////////////////////////////////////////////////////////////////////
-<@> アルバムデータのコピー
+<@> メディア管理のデータのコピー
 <@>/////////////////////////////////////////////////////////////////////////////
 
 <$dir = export_dir . files_dir>
-<$session.msg("Album files copy to '<@dir>'")>
+<$session.msg("Media files copy to '<@dir>'")>
 <$dir_copy(v.blogimg_dir(), dir)>
 
 <$dir_delete("<@dir>.trashbox/")>

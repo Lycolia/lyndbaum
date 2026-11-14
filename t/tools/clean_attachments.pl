@@ -7,15 +7,15 @@ use strict;
 # サイトを動かしたままでよいが、Webサーバーと同じユーザーで動かす（ファイルの持ち主が変わらないように）。
 #
 # 使い方:
-#   perl t/tools/clean_attachments.pl <pub/attachments/>               … 数えて出すだけ。何も変えない
-#   perl t/tools/clean_attachments.pl <pub/attachments/> --run         … 原本のメタ情報を消し、AVIFのサムネイルを作る
-#   perl t/tools/clean_attachments.pl <pub/attachments/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
+#   perl t/tools/clean_attachments.pl <pub/attach/>               … 数えて出すだけ。何も変えない
+#   perl t/tools/clean_attachments.pl <pub/attach/> --run         … 原本のメタ情報を消し、AVIFのサムネイルを作る
+#   perl t/tools/clean_attachments.pl <pub/attach/> --remove-old  … AVIFのサムネイルがある画像と動画の、JPEGのサムネイルを消す
 #
 #   --thumb-size=320  サムネイルの長い辺（既定は data/blog/setting.dat の edit_thumb_size。無ければ320）
-#   --quality=60      サムネイルの画質（既定はシステム設定の album_avif_quality。無ければ65）
+#   --quality=60      サムネイルの画質（既定はシステム設定の media_avif_quality。無ければ65）
 #   --force           --run で、AVIFのサムネイルがあっても作り直す（大きさや画質を変えたとき）
-#   --data=<data/>    記事のデータの場所（既定は <pub/attachments/>/../../data/）
-#   --conf=<file>     設定ファイル（既定は <pub/attachments/>/../../lyndbaum.user.cgi）
+#   --data=<data/>    記事のデータの場所（既定は <pub/attach/>/../../data/）
+#   --conf=<file>     設定ファイル（既定は <pub/attach/>/../../lyndbaum.user.cgi）
 #
 # 手順:
 #   1. --run で、原本を片付けてAVIFのサムネイルを作る。前のJPEGのサムネイルは残すので、記事はそのまま見られる
@@ -26,7 +26,7 @@ use strict;
 #   管理画面の ?system/update の「動画のサムネイル」で、ブラウザーで作り直す（AVIFになる）。
 #   --remove-old では、AVIFで作り直した動画のJPEGのサムネイル（.poster.jpg と .jpg）を消す
 # - ゴミ箱（.trashbox）は触らない
-# - 原本の更新日時は元のままにする（画像アルバムの日付が変わらないように）
+# - 原本の更新日時は元のままにする（メディア管理の日付が変わらないように）
 #
 use FindBin;
 use lib "$FindBin::Bin/../../lib";
@@ -46,12 +46,12 @@ $data =~ s|/?$|/|;
 my $root = "$dir../../";
 my $conf = $opt{conf} || "${root}lyndbaum.user.cgi";
 
-my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（設定の album_image_ext）
+my %IMAGE = map { $_ => 1 } qw(jpg jpeg png apng webp gif avif);	# サムネイルを作る形式（設定の media_image_ext）
 my %CLEAN = map { $_ => 1 } qw(jpg jpeg png apng webp);		# メタ情報を消す形式
 my %VIDEO = map { $_ => 1 } qw(mp4 m4v webm ogv);		# 動画（SatsukiApp::adiary の is_video）
 
 sub usage {
-	die "usage: $0 <pub/attachments/> [--run [--force] | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>] [--conf=<file>]\n";
+	die "usage: $0 <pub/attach/> [--run [--force] | --remove-old] [--thumb-size=N] [--quality=N] [--data=<data/>] [--conf=<file>]\n";
 }
 
 #-------------------------------------------------------------------------------
@@ -78,7 +78,7 @@ if ($opt{'remove-old'}) {
 #-------------------------------------------------------------------------------
 my $avif = Satsuki::ImageFormat::can_write_avif();
 my $size = $opt{'thumb-size'} || thumb_size_setting() || 320;
-my $quality = $opt{quality} || album_avif_quality_setting() || 65;
+my $quality = $opt{quality} || media_avif_quality_setting() || 65;
 if (!$avif) { print "ImageMagickでAVIFを書けないので、サムネイルは作らない\n"; }
 
 my ($n, $cleaned, $saved, $thumbs, @fail) = (0, 0, 0, 0);
@@ -144,18 +144,18 @@ sub thumb_size_setting {
 }
 
 #-------------------------------------------------------------------------------
-# ○AVIFのサムネイルの画質（album_avif_quality。アップロードのときと同じ）
+# ○AVIFのサムネイルの画質（media_avif_quality。アップロードのときと同じ）
 #-------------------------------------------------------------------------------
 # 画面で保存した値（システム設定）を先に見る
-sub album_avif_quality_setting {
+sub media_avif_quality_setting {
 	if (open(my $sys, '<', "${data}system_config.dat")) {
 		while(<$sys>) {
-			if (/^album_avif_quality=(\d+)\s*$/) { return $1; }
+			if (/^media_avif_quality=(\d+)\s*$/) { return $1; }
 		}
 	}
 	open(my $fh, '<', $conf) || return;
 	while(<$fh>) {
-		if (/^<\$v\.album_avif_quality\s*=\s*(\d+)\s*>/) { return $1; }
+		if (/^<\$v\.media_avif_quality\s*=\s*(\d+)\s*>/) { return $1; }
 	}
 	return;
 }

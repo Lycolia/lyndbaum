@@ -59,12 +59,7 @@
 	</tr>
 	<tr>
 		<td colspan="2">
-			<label><input type="checkbox" name="wiki" value="1"<@if(s.wiki, ' checked')>>コンテンツページにする</label>
-		</td>
-	</tr>
-	<tr>
-		<td colspan="2">
-			<label><input type="checkbox" name="suggest_link_key" value="1"<@if(s.suggest_link_key, ' checked')>>コンテンツkeyを親ノードのkeyから自動設定する</label>
+			<label><input type="checkbox" name="page" value="1"<@if(s.page, ' checked')>>固定ページにする</label>
 		</td>
 	</tr>
 	</tbody>
@@ -86,7 +81,7 @@
 			<option value="<@size>" selected><@size>px</option>
 			<$end>
 		</select>
-		<span class="help-text">画像のサムネイルの長い辺の大きさです。編集画面とメディアのどちらから上げても、この大きさで作ります。変えても、上げてある画像のサムネイルは作り直しません（メディアのサムネイルの再生成で作り直せます）。</span></td>
+		<span class="help-text">画像のサムネイルの長い辺の大きさです。編集画面とメディア管理のどちらから上げても、この大きさで作ります。変えても、上げてある画像のサムネイルは作り直しません（メディア管理のサムネイルの再生成で作り直せます）。</span></td>
 	</tr>
 	<tr><th>画像の貼り付け</th>
 		<td>
@@ -170,12 +165,3 @@
 <input type="number" value="<@size>" class="w50" min="60" max="800">px （60～800）
 </div>
 </div>
-
-<script-defer><!--
-$('#set-sanchor-number').click(function(){
-	$('#sec-anchor').val('%n');
-	$('#subsec-anchor').val('%n.%s');
-});
---></script-defer>
-
-

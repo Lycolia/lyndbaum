@@ -73,21 +73,20 @@
 	upload_max_mb:min = 1
 	upload_max_mb:max = 2048
 
-	album_jpeg_quality = JPEGサムネイルの品質
-	album_jpeg_quality:type = int
-	album_jpeg_quality:min = 1
-	album_jpeg_quality:max = 100
+	post_max_mb = 投稿の上限
+	post_max_mb:type = int
+	post_max_mb:min = 1
+	post_max_mb:max = 64
 
-	album_avif_quality = AVIFサムネイルの品質
-	album_avif_quality:type = int
-	album_avif_quality:min = 1
-	album_avif_quality:max = 100
+	media_jpeg_quality = JPEGサムネイルの品質
+	media_jpeg_quality:type = int
+	media_jpeg_quality:min = 1
+	media_jpeg_quality:max = 100
 
-	edit_lock_interval = 同時編集の確認間隔
-	edit_lock_interval:type = int
-	edit_lock_interval:default = 60
-	edit_lock_interval:min = 0
-	edit_lock_interval:max = 300
+	media_avif_quality = AVIFサムネイルの品質
+	media_avif_quality:type = int
+	media_avif_quality:min = 1
+	media_avif_quality:max = 100
 
 	clip_append = 文末省略時の付加文字列
 	clip_append:default   = ...
@@ -97,8 +96,6 @@
 
 <$end>
 <$ifbreak(form_error())>
-
-<$ifset(h.edit_lock_interval < 10, h.edit_lock_interval, 0)>
 
 <@> IndexNowの鍵。有効にして鍵が無いときと、作り直すときだけ作る
 <$v.set_indexnow_key(h)>
