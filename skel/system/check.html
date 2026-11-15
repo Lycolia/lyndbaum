@@ -2,7 +2,7 @@
 <@local(x,w,fs_row,lib_none)>
 
 <@> システムモード
-<$v.system_mode("システム管理メニュー")>
+<$v.system_mode("システムチェック")>
 
 <@> 階層ツリー、権限チェック、エラー表示
 <@call("_sub/menu_tree")>
@@ -26,11 +26,13 @@
 </tr><tr>
 	<td>Server</td><td><@esc(ENV.SERVER_SOFTWARE)></td>
 </tr><tr>
-	<td>Perl</td><td><@h.perl_version></td>
+	<td>Perl</td><td>v<@h.perl_version></td>
 </tr><tr>
 	<td>Runtime</td><td><@CGI_mode></td>
 </tr><tr>
-	<td>Version</td><td><@v.OUTVERSION></td>
+	<td>System version</td><td>v<@v.OUTVERSION></td>
+</tr><tr>
+	<td>System data version</td><td>v<@sprintf('%.2f', v.sys.VERSION)></td>
 </tr><tr>
 	<td>Locale</td><td><@Locale> (<@CodeLib>)</td>
 </tr>
@@ -119,10 +121,10 @@
 
 <@> サーバーの中のパス（$0、Perlの場所）やドメイン（ServerURL）は、人に渡すと害があるので出さない。値はタブで16文字目にそろえる
 <textarea cols="74" rows="19" wrap="soft" readonly class="w100p mono" style="font-size:100%;">
-System		<@v.SYSTEM_NAME> <@v.OUTVERSION>
-Data version	<@sprintf('%.2f', v.sys.VERSION)>
-Satsuki		<@VERSION>
-Perl		<@h.perl_version>
+System		<@v.SYSTEM_NAME> v<@v.OUTVERSION>
+Data version	v<@sprintf('%.2f', v.sys.VERSION)>
+Satsuki		v<@VERSION>
+Perl		v<@h.perl_version>
 OS		<@esc(h.os_name)> (<@h.os>)
 Server		<@esc(ENV.SERVER_SOFTWARE)>
 Runtime		<@CGI_mode>
