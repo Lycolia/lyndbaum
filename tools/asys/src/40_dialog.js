@@ -750,7 +750,11 @@ $$.form_dialog = function(h) {
 		minWidth:  this.DialogMinWidth  || 200,
 		minHeight: this.DialogMinHeight || 100,
 		title:   h.title || (title ? title.textContent : ''),
-		buttons: buttons
+		buttons: buttons,
+		open: function(){	// 開いたら、すぐ打てるように最初の入力欄にフォーカスする
+			const inp = form.querySelector('textarea, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"])');
+			if (inp) inp.focus();
+		}
 	});
 }
 
