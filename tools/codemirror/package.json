@@ -7,6 +7,7 @@
     "build": "esbuild entry.js --bundle --minify --format=iife --legal-comments=none --banner:js=\"/*! CodeMirror 6 (MIT License, https://codemirror.net/) bundled for Lyndbaum: tools/codemirror */\" --outfile=../../pub/assets/js/codemirror.min.js"
   },
   "devDependencies": {
+    "@codemirror/autocomplete": "6.20.4",
     "@codemirror/commands": "6.11.1",
     "@codemirror/lang-html": "6.4.12",
     "@codemirror/lang-markdown": "6.5.2",

@@ -7,9 +7,16 @@
 //
 // lyndbaumMarkdown(tag_names) … CM.markdown()の引数（tag_namesはサーバーのタグ定義のキー）
 // lyndbaumHighlight            … 足した記法の色分け
+// lyndbaumEditKeys             … リストの記号を続けるEnter、太字・強調・リンクのショートカット（Ctrl+B/I/K）
+// lyndbaumPasteURL             … 文字を選んでURLを貼ったら、[文字](URL)にする
+// lyndbaumCloseBrackets        … ( [ を打ったら閉じるカッコを足す
 import {Table, Strikethrough, TaskList, InlineContext} from "@lezer/markdown";
 import {Tag, tags as t} from "@lezer/highlight";
-import {HighlightStyle} from "@codemirror/language";
+import {HighlightStyle, syntaxTree} from "@codemirror/language";
+import {EditorSelection, EditorState, Prec} from "@codemirror/state";
+import {EditorView, keymap} from "@codemirror/view";
+import {markdownLanguage, insertNewlineContinueMarkupCommand, deleteMarkupBackward} from "@codemirror/lang-markdown";
+import {closeBrackets, closeBracketsKeymap} from "@codemirror/autocomplete";
 
 const tag = {
 	name:   Tag.define(),	// タグの名前（image:S など）
@@ -209,7 +216,141 @@ export function lyndbaumMarkdown(tag_names) {
 	};
 	return {
 		extensions: [ Table, Strikethrough, TaskList, config ],
-		addKeymap: false,
-		pasteURLAsLink: false
+		addKeymap: false,	// lyndbaumEditKeysを使う
+		pasteURLAsLink: false	// lyndbaumPasteURLを使う
 	};
 }
+
+//##############################################################################
+// ■編集の補助（Markdownの記事だけ。edit-cm.jsがlyndbaumMarkdown()と一緒に入れる）
+//##############################################################################
+//------------------------------------------------------------------------------
+// ●太字・強調で囲む（選択が無ければ記号だけ入れて、カーソルを間に置く）
+//------------------------------------------------------------------------------
+// 複数行を選んでいれば、行ごとに囲む（記法ヘルパーと同じ）。空白だけの行は囲まない。
+// 行の前後の空白は囲みの外に出す（「** 文字**」は太字にならないため）
+export function lyndbaum_wrap(state, mark) {
+	return state.changeByRange(function(range) {
+		if (range.empty) return {
+			changes: { from: range.from, insert: mark + mark },
+			range:   EditorSelection.cursor(range.from + mark.length)
+		};
+		const text  = state.sliceDoc(range.from, range.to);
+		const lines = text.split("\n").map(function(line) {
+			const m = /^(\s*)(.*?)(\s*)$/.exec(line);
+			return m[2] == '' ? line : m[1] + mark + m[2] + mark + m[3];
+		});
+		const out = lines.join("\n");
+		if (lines.length == 1 && out != text) {
+			// 1行なら、囲んだ中身を選んだままにする
+			const lead = /^\s*/.exec(text)[0].length;
+			const body = text.trim().length;
+			const from = range.from + lead + mark.length;
+			return { changes: { from: range.from, to: range.to, insert: out }, range: EditorSelection.range(from, from + body) };
+		}
+		return { changes: { from: range.from, to: range.to, insert: out }, range: EditorSelection.range(range.from, range.from + out.length) };
+	});
+}
+
+//------------------------------------------------------------------------------
+// ●リンク（選択があれば [選択](|)、無ければ [|]()）
+//------------------------------------------------------------------------------
+// 複数行の選択はリンクにしない（記法ヘルパーのリンクと同じ）
+export function lyndbaum_link(state) {
+	let multi = false;
+	const spec = state.changeByRange(function(range) {
+		if (range.empty) return {
+			changes: { from: range.from, insert: '[]()' },
+			range:   EditorSelection.cursor(range.from + 1)
+		};
+		if (state.sliceDoc(range.from, range.to).indexOf("\n") >= 0) { multi = true; return { range }; }
+		return {
+			changes: [ { from: range.from, insert: '[' }, { from: range.to, insert: ']()' } ],
+			range:   EditorSelection.cursor(range.to + 3)
+		};
+	});
+	return multi ? null : spec;
+}
+
+function key_command(make) {
+	return function(view) {
+		if (view.state.readOnly) return true;	// ブラウザのキー（ブックマークなど）には渡さない
+		const spec = make(view.state);
+		if (spec) view.dispatch(view.state.update(spec, { scrollIntoView: true, userEvent: 'input' }));
+		return true;
+	};
+}
+// Enter：リストと引用の記号を続ける（lang-markdownのmarkdownKeymapと同じ）。空の項目でEnterすると
+//   記号を消す。lang-markdownの既定では、2つ目の項目が空のときは、記号を消さずに項目の間に空行を
+//   入れる（各項目が<p>になる）ので、それはしない（nonTightLists: false）
+// Backspace：記号の直後なら、記号を消す
+// defaultKeymapのEnter、Backspace、Mod-i（構文の親を選ぶ）より先に効かせる
+export const lyndbaumEditKeys = Prec.high(keymap.of([
+	{ key: 'Enter',     run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
+	{ key: 'Backspace', run: deleteMarkupBackward },
+	{ key: 'Mod-b', run: key_command(function(s){ return lyndbaum_wrap(s, '**') }), preventDefault: true },
+	{ key: 'Mod-i', run: key_command(function(s){ return lyndbaum_wrap(s, '*')  }), preventDefault: true },
+	{ key: 'Mod-k', run: key_command(lyndbaum_link), preventDefault: true }
+]));
+
+//------------------------------------------------------------------------------
+// ●文字を選んでURLを貼ったら、[文字](URL)にする
+//------------------------------------------------------------------------------
+// lang-markdownのpasteURLAsLinkと同じ形で、Lyndbaumに合わせて変える。
+// ・URLは http:// https:// ftp:// で始まり、空白を含まないもの
+// ・URLに ( ) があれば [文字](<URL>) にする
+// ・選んだ文字が、コード、リンク、さつき記法のタグ、目次などの中にあるとき、選択の中で
+//   記法が始まる・終わるとき、[ ] や改行を含むときは、普通に貼る。注釈の中はリンクにする
+// 選択が無いときや、条件に合わないときはnullを返す（普通に貼る）
+const NON_PLAIN = /code|horizontalrule|html|link|comment|processing|escape|entity|image|url|^Lyndbaum(?!Annotation$)/i;
+export function lyndbaum_paste_url(state, text) {
+	const main = state.selection.main;
+	if (main.empty || state.selection.ranges.length > 1) return null;
+	const url = (text || '').trim();
+	if (!/^(?:https?|ftp):\/\/[^\s<>]+$/i.test(url)) return null;
+	const label = state.sliceDoc(main.from, main.to);
+	if (/[\[\]\n]/.test(label)) return null;
+	if (!markdownLanguage.isActiveAt(state, main.from, 1)) return null;
+
+	let plain = true;
+	syntaxTree(state).iterate({
+		from: main.from, to: main.to,
+		enter: function(node) {
+			if (!plain) return false;
+			if (node.to <= main.from || main.to <= node.from) return false;	// 選択に接するだけ
+			if (main.from < node.from || node.to < main.to) { plain = false; return false; }	// 選択の中で始まる・終わる
+			if (NON_PLAIN.test(node.name)) { plain = false; return false; }
+		}
+	});
+	if (!plain) return null;
+
+	const dest = /[()]/.test(url) ? '<' + url + '>' : url;
+	return {
+		changes: [ { from: main.from, insert: '[' }, { from: main.to, insert: '](' + dest + ')' } ],
+		selection: EditorSelection.cursor(main.to + 4 + dest.length),	// )の後ろ
+		userEvent: 'input.paste',
+		scrollIntoView: true
+	};
+}
+export const lyndbaumPasteURL = EditorView.domEventHandlers({
+	paste: function(evt, view) {
+		if (view.state.readOnly || !evt.clipboardData) return false;
+		const spec = lyndbaum_paste_url(view.state, evt.clipboardData.getData('text/plain'));
+		if (!spec) return false;
+		evt.preventDefault();
+		view.dispatch(spec);
+		return true;
+	}
+});
+
+//------------------------------------------------------------------------------
+// ●閉じるカッコを足す
+//------------------------------------------------------------------------------
+// ( [ だけ。' " は日本語の文で邪魔になり、` はフェンス（```）を打つと6つになるので入れない。
+// 次の文字が空白、行末、)]}:;> のときだけ閉じる（closeBracketsの既定。文の途中では閉じない）。
+// 文字を選んで打つと、選択を囲む
+export const lyndbaumCloseBrackets = [
+	EditorState.languageData.of(function(){ return [{ closeBrackets: { brackets: ['(', '['] } }] }),
+	closeBrackets(),
+	Prec.high(keymap.of(closeBracketsKeymap))	// Backspaceで対を消す（defaultKeymapより先に）
+];

@@ -7,7 +7,7 @@ import {syntaxHighlighting, defaultHighlightStyle} from "@codemirror/language";
 import {search, searchKeymap, openSearchPanel, closeSearchPanel, searchPanelOpen} from "@codemirror/search";
 import {markdown} from "@codemirror/lang-markdown";
 import {html} from "@codemirror/lang-html";
-import {lyndbaumMarkdown, lyndbaumHighlight} from "./lyndbaum-markdown.js";
+import {lyndbaumMarkdown, lyndbaumHighlight, lyndbaumEditKeys, lyndbaumPasteURL, lyndbaumCloseBrackets} from "./lyndbaum-markdown.js";
 
 window.CM6 = {
 	EditorView, keymap,
@@ -16,5 +16,5 @@ window.CM6 = {
 	syntaxHighlighting, defaultHighlightStyle,
 	search, searchKeymap, openSearchPanel, closeSearchPanel, searchPanelOpen,
 	markdown, html,
-	lyndbaumMarkdown, lyndbaumHighlight
+	lyndbaumMarkdown, lyndbaumHighlight, lyndbaumEditKeys, lyndbaumPasteURL, lyndbaumCloseBrackets
 };

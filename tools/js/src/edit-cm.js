@@ -9,8 +9,11 @@
 // setSelectionRange()、focus()、readOnlyをCodeMirrorにつなぐ。edit.jsとedit-helper.jsは
 // 今までどおりtextareaとして読み書きできる。送るとき（new FormData(form)を含む）は、
 // formdataイベントで本文を入れ直す。
-// 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れ、
-// 字下げやリストの記号を足さない。URLを貼っても、リンクの記法にしない。
+// 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れる。
+// Markdownの記事だけは、書きやすくする（tools/codemirror/lyndbaum-markdown.js）：
+//   Enterでリストと引用の記号を続ける（空の項目でEnterすると記号を消す）、
+//   Ctrl+B（太字）、Ctrl+I（強調）、Ctrl+K（リンク）、( [ を打つと閉じるカッコを足す、
+//   文字を選んでURLを貼ると[文字](URL)にする。
 // CodeMirrorは見えている行の付近だけをDOMにするので、ブラウザのページ内検索は
 // 画面外の行に届かない。編集欄の中のCtrl+Fか「検索」ボタン（#edit-search、スマホ向け）で、
 // CodeMirrorの検索・置換の欄を出す。
@@ -34,14 +37,20 @@ adiary.ready(function(){
 	//----------------------------------------------------------------------
 	// ●記法の色分け（edit-helper.jsのHelpersと同じ判定）
 	//----------------------------------------------------------------------
-	// Markdownは、Lyndbaumの記法に合わせて読む（tools/codemirror/lyndbaum-markdown.js）。
+	// Markdownは、Lyndbaumの記法に合わせて読み、編集の補助を入れる（tools/codemirror/lyndbaum-markdown.js）。
+	// 記法を切り替えると、補助も外れる
 	// さつき記法のタグは、サーバーのタグ定義にある名前だけをタグとして色分けする（data-satsuki-tags）
 	const parsel  = adiary.secure('#select-parser');
 	const lang    = new CM.Compartment();
 	const tag_names = (ta.getAttribute('data-satsuki-tags') || '').split(/\s+/).filter(Boolean);
 	function lang_ext() {
 		const parser = parsel && parsel.value || '';
-		if (parser.match(/^markdown/i))      return CM.markdown( CM.lyndbaumMarkdown(tag_names) );
+		if (parser.match(/^markdown/i))      return [
+			CM.markdown( CM.lyndbaumMarkdown(tag_names) ),
+			CM.lyndbaumEditKeys,
+			CM.lyndbaumPasteURL,
+			CM.lyndbaumCloseBrackets
+		];
 		if (parser.match(/^(?:simple|html)/i)) return CM.html({ autoCloseTags: false });
 		return [];
 	}
