@@ -36,7 +36,7 @@ Helpers.push({
 	regexp:	/^markdown/i,
 	escape: true,
 	url:	'https://adiary.org/v3man/Markdown/syntax',
-	head:	{ func: 'block',	tag:  '#$0',	form_type: 'text' },
+	head:	{ func: 'block',	tag:  '# $0',	form_type: 'text' },
 	strong:	{ func: 'inline',	tag: '**$0**' },
 	link:	{ func: 'inline',	tag: '[$1]($0)' },
 	anno:	{ func: 'inline',	tag: '(($0))'	},
