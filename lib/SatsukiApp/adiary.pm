@@ -11,7 +11,7 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'The ultimate lightweight self-hosted Knowledge Base Management System for Japanese';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.43;
+our $VERSION    = 4.44;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
@@ -1756,6 +1756,10 @@ sub load_theme {
 	$self->{theme}      = $theme;
 	$self->{template}   = $1;
 	$self->{theme_name} = $name;
+
+	# テンプレートの直下の共通のCSS（lyndbaum/lyndbaum.cssなど）。_frame.htmlが、テーマのCSSの前に<link>で読む。
+	# 静的なHTMLのエクスポートは、HTMLを作る間だけtheme_dirを置き換えるので、ここで本当のフォルダを見て覚えておく
+	$self->{theme_common_css} = -r "$dir$self->{template}.css" ? "$self->{template}/$self->{template}.css" : '';
 
 	# スケルトンテンプレートの登録
 	$ROBJ->delete_skeleton($self->{theme_skeleton_level});

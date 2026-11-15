@@ -1,9 +1,9 @@
 @charset "UTF-8";
 /*******************************************************************************
   lyndbaum（3カラム）
-	共通の部分（theme/lyndbaum/lyndbaum.css）を読み込み、カラムの並べ方と引き出しを足したもの
+	共通の部分（theme/lyndbaum/lyndbaum.css）に、カラムの並べ方と引き出しを足したもの。
+	共通の部分は、このファイルの前にskel/_frame.htmlが<link>で読み込む
 *******************************************************************************/
-@import url("../lyndbaum.css");
 
 /*--------------------------------------------------------------------
 ■カラム（3カラム）
@@ -63,7 +63,7 @@
 		transform: translateX(100%); visibility: hidden;
 	}
 	/* 追従する目次のボタン（toc.js）は、右の角のボタンの下に出す */
-	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + 3.25rem); }
+	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + var(--page-pad) + 2.75rem); }
 }
 @media (prefers-reduced-motion: reduce) {
 	.drawer-animate .site-sidebar { transition: none; }

@@ -9,8 +9,14 @@
 // setSelectionRange()、focus()、readOnlyをCodeMirrorにつなぐ。edit.jsとedit-helper.jsは
 // 今までどおりtextareaとして読み書きできる。送るとき（new FormData(form)を含む）は、
 // formdataイベントで本文を入れ直す。
-// 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れ、
-// 字下げやリストの記号を足さない。URLを貼っても、リンクの記法にしない。
+// 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れる。
+// Markdownの記事だけは、書きやすくする（tools/codemirror/lyndbaum-markdown.js）：
+//   Enterでリストと引用の記号を続ける（空の項目でEnterすると記号を消す）、
+//   Ctrl+B（太字）、Ctrl+I（強調）、Ctrl+K（リンク）、( [ を打つと閉じるカッコを足す、
+//   文字を選んでURLを貼ると[文字](URL)にする。
+// CodeMirrorは見えている行の付近だけをDOMにするので、ブラウザのページ内検索は
+// 画面外の行に届かない。編集欄の中のCtrl+Fか「検索」ボタン（#edit-search、スマホ向け）で、
+// CodeMirrorの検索・置換の欄を出す。
 // codemirror.min.jsが読めないときは、textareaのまま。
 'use strict';
 adiary.ready(function(){
@@ -31,14 +37,20 @@ adiary.ready(function(){
 	//----------------------------------------------------------------------
 	// ●記法の色分け（edit-helper.jsのHelpersと同じ判定）
 	//----------------------------------------------------------------------
-	// Markdownは、Lyndbaumの記法に合わせて読む（tools/codemirror/lyndbaum-markdown.js）。
+	// Markdownは、Lyndbaumの記法に合わせて読み、編集の補助を入れる（tools/codemirror/lyndbaum-markdown.js）。
+	// 記法を切り替えると、補助も外れる
 	// さつき記法のタグは、サーバーのタグ定義にある名前だけをタグとして色分けする（data-satsuki-tags）
 	const parsel  = adiary.secure('#select-parser');
 	const lang    = new CM.Compartment();
 	const tag_names = (ta.getAttribute('data-satsuki-tags') || '').split(/\s+/).filter(Boolean);
 	function lang_ext() {
 		const parser = parsel && parsel.value || '';
-		if (parser.match(/^markdown/i))      return CM.markdown( CM.lyndbaumMarkdown(tag_names) );
+		if (parser.match(/^markdown/i))      return [
+			CM.markdown( CM.lyndbaumMarkdown(tag_names) ),
+			CM.lyndbaumEditKeys,
+			CM.lyndbaumPasteURL,
+			CM.lyndbaumCloseBrackets
+		];
 		if (parser.match(/^(?:simple|html)/i)) return CM.html({ autoCloseTags: false });
 		return [];
 	}
@@ -65,6 +77,32 @@ adiary.ready(function(){
 	}));
 
 	//----------------------------------------------------------------------
+	// ●検索・置換
+	//----------------------------------------------------------------------
+	// キーは検索に関わるものだけ（Ctrl+F、F3/Ctrl+G、Shift+F3/Shift+Ctrl+G、ESC）。
+	// Ctrl+D（次の一致を選ぶ）、Ctrl+Alt+G（行へ移る）、Ctrl+Shift+Lは入れない
+	const search_keys = CM.searchKeymap.filter(function(k){
+		return k.key.match(/^(?:Mod-f|F3|Mod-g|Escape)$/);
+	});
+	const search_phrases = CM.EditorState.phrases.of({
+		'Find':				'検索',
+		'Replace':			'置換',
+		'next':				'次へ',
+		'previous':			'前へ',
+		'all':				'すべて選択',
+		'match case':			'大文字と小文字を区別',
+		'regexp':			'正規表現',
+		'by word':			'単語単位',
+		'replace':			'置換',
+		'replace all':			'すべて置換',
+		'close':			'閉じる',
+		'current match':		'現在の一致',
+		'on line':			'行',
+		'replaced match on line $':	'$行目を置換しました',
+		'replaced $ matches':		'$件を置換しました'
+	});
+
+	//----------------------------------------------------------------------
 	// ●作る
 	//----------------------------------------------------------------------
 	const readonly = new CM.Compartment();
@@ -77,8 +115,13 @@ adiary.ready(function(){
 				CM.EditorView.lineWrapping,
 				CM.EditorState.tabSize.of(8),
 				tab_keys,
+				// 単語単位は使わない（ひらがなや漢字も単語の文字なので、文の中の語が見つからない）。
+				// チェックボックスはadmin.cssで隠す
+				CM.search({ top: true, wholeWord: false }),
+				search_phrases,
 				CM.keymap.of([
 					{ key: 'Enter', run: CM.insertNewline },
+					...search_keys,
 					...CM.defaultKeymap,
 					...CM.historyKeymap
 				]),
@@ -90,6 +133,18 @@ adiary.ready(function(){
 		})
 	});
 	box.classList.toggle('readonly', ta_readonly.get.call(ta));
+
+	// 「検索」ボタン。開いているときに押すと閉じる
+	const search_btn = document.getElementById('edit-search');
+	if (search_btn) {
+		search_btn.style.display = '';
+		search_btn.addEventListener('click', function(){
+			if (CM.searchPanelOpen(view.state))
+				CM.closeSearchPanel(view);
+			else
+				CM.openSearchPanel(view);
+		});
+	}
 
 	if (parsel) parsel.addEventListener('change', function(){
 		view.dispatch({ effects: lang.reconfigure( lang_ext() ) });

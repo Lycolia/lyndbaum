@@ -112,7 +112,7 @@
 	<div id="edit-helper">
 	<button class="helper" type="button" data-type="head"   data-msg="見出しを作ります">見出し</button>
 	<button class="helper" type="button" data-type="strong" data-msg="太字にしたい文字列を入力">太字</button>
-	<button class="helper" type="button" data-type="link"   data-msg="リンクを生成" data-msg0="リンク先" data-val0="http://" data-match0="^(?:https?:\/\/.+|/)" data-msg1="リンク文字列">Link</button>
+	<button class="helper" type="button" data-type="link"   data-msg="リンクを生成" data-msg0="リンク先" data-val0="https://" data-match0="^(?:https?:\/\/.+|/)" data-msg1="リンク文字列">Link</button>
 	<button class="helper" type="button" data-type="list"   data-msg="箇条書きにしたい項目を１行ずつ入力">リスト</button>
 	<button class="helper" type="button" data-type="quote"  data-msg="引用したい文章を入力" data-sp-msg="引用元サイトがある場合、そのURLを入力してください" data-sp-val="http://" data-sp-match="^https?:\/\/.+">引用</button>
 	<button class="helper" type="button" data-type="anno"   data-msg="注釈にしたい文字列を入力">注釈</button>
@@ -123,6 +123,7 @@
 		<option class="helper" data-type="toc">目次</option>
 		<option class="helper" data-type="cont">続きを読む</option>
 		<option class="helper" data-type="details" data-msg="折りたたむ文章を入力" data-sp-msg="見出し（いつも見える部分）を入力。空なら「詳細」と出ます">折りたたみ</option>
+		<option class="helper" data-type="strike" data-msg="打ち消し線を引きたい文字列を入力">打ち消し線</option>
 	</select>
 
 	<select class="helper" data-type="color" title="選択した文字列に色を付けます。" data-msg="色を変更したい文字列を入力">
@@ -175,6 +176,8 @@
 	<@ifexec(edit_pkey, begin)>
 	<button type="button" id="edit-revision" data-title="更新履歴">履歴</button>
 	<$end>
+	<@> 本文の検索・置換（CodeMirrorのときだけedit-cm.jsが出す。スマホにはCtrl+Fがないため）
+	<button type="button" id="edit-search" style="display: none">検索</button>
 	</div>
 	</div>
 

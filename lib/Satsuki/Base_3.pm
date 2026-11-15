@@ -65,7 +65,38 @@ sub get_system_info {
 	$v =~ s/(\d+)\.(\d\d\d)(\d\d\d)/$1.'.'. ($2+0).'.'.($3+0)/e;
 	$h{perl_version} = $v;
 	$h{os}           = $^O;
+	$h{os_name}      = $self->get_os_name();
 	return \%h;
+}
+
+#-------------------------------------------------------------------------------
+# ●OSの名前とバージョン
+#-------------------------------------------------------------------------------
+# Debian、RHEL、FreeBSD（13以降）などは/etc/os-releaseにある。
+# 人に渡すこともあるので、NAMEとVERSION_ID（Ubuntuなら26.04）までにする。
+# PRETTY_NAMEはUbuntuなどで細かい版（26.04.1）まで入るので使わない。
+# ないときはunameのOS名だけ。リリースはLinuxではカーネルの細かい版になるので出さない。
+#
+sub get_os_name {
+	my ($self, $dir) = @_;
+	$dir //= '/etc';
+
+	my %r;
+	if (open(my $fh, '<', "$dir/os-release")) {
+		while(my $line = <$fh>) {
+			if ($line !~ /^\s*([A-Z_]+)=(.*?)\s*$/) { next; }
+			my ($key, $val) = ($1, $2);
+			$val =~ s/^(["'])(.*)\1$/$2/;
+			$r{$key} = $val;
+		}
+		close($fh);
+	}
+	my $name = join(' ', grep { $_ ne '' } ($r{NAME}, $r{VERSION_ID}));
+	if ($name ne '') { return $name; }
+
+	require POSIX;
+	my ($sys) = POSIX::uname();
+	return $sys ne '' ? $sys : $^O;
 }
 
 sub check_lib {

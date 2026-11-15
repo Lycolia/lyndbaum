@@ -726,6 +726,38 @@ article#edit > div.body {
 	#edit #editarea-cm {
 		height:		10rem;
 	}
+	/* 検索・置換の欄（edit-cm.js）を開いたときは、本文の高さを保ち、欄の分だけ枠を伸ばす */
+	#edit #editarea-cm:has(.cm-search) {
+		height:		auto;
+	}
+	#edit #editarea-cm:has(.cm-search) .cm-scroller {
+		height:		10rem;
+	}
+}
+/* 検索・置換の欄（edit-cm.js）。CodeMirrorの既定（入力欄とボタンは70%、文字は80%で、
+   9.8pxと11.2px）では小さく、指でも押しにくいので、入力欄、ボタン、文字を12pxにする */
+#editarea-cm .cm-search .cm-textfield,
+#editarea-cm .cm-search .cm-button,
+#editarea-cm .cm-search label {
+	font-size:		12px;
+}
+#editarea-cm .cm-search .cm-textfield,
+#editarea-cm .cm-search .cm-button {
+	padding:		0.2em 0.5em;
+	background-image: none;
+}
+#editarea-cm .cm-search [name=close] {
+	font-size:		20px;
+	padding:		0 0.4em;
+}
+/* 単語単位は使わない（edit-cm.js）。ひらがなや漢字も単語の文字なので、文の中の語が見つからない */
+#editarea-cm .cm-search label:has(> input[name=word]) {
+	display:		none;
+}
+/* 「すべて選択」は使わない。複数の選択（allowMultipleSelections）を有効にしていないので、
+   押しても文書の中の最初の一致が1つ選ばれるだけになる */
+#editarea-cm .cm-search button[name=select] {
+	display:		none;
 }
 /* 下書きを開く：1行にまとめる */
 #draft-notice {

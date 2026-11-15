@@ -86,7 +86,7 @@ my @SCREENS = (
 	[ 'user/log'            , 'admin' , '操作の記録' ],
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
-	[ 'system/check'        , 'admin' , 'システム管理メニュー' ],
+	[ 'system/check'        , 'admin' , 'システムチェック' ],
 	[ 'system/disk'         , 'admin' , 'ディレクトリ使用量' ],
 	[ 'system/copyright'    , 'admin' , '著作権表示' ],
 
