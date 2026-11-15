@@ -11,6 +11,9 @@
 // formdataイベントで本文を入れ直す。
 // 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れ、
 // 字下げやリストの記号を足さない。URLを貼っても、リンクの記法にしない。
+// CodeMirrorは見えている行の付近だけをDOMにするので、ブラウザのページ内検索は
+// 画面外の行に届かない。編集欄の中のCtrl+Fか「検索」ボタン（#edit-search、スマホ向け）で、
+// CodeMirrorの検索・置換の欄を出す。
 // codemirror.min.jsが読めないときは、textareaのまま。
 'use strict';
 adiary.ready(function(){
@@ -65,6 +68,32 @@ adiary.ready(function(){
 	}));
 
 	//----------------------------------------------------------------------
+	// ●検索・置換
+	//----------------------------------------------------------------------
+	// キーは検索に関わるものだけ（Ctrl+F、F3/Ctrl+G、Shift+F3/Shift+Ctrl+G、ESC）。
+	// Ctrl+D（次の一致を選ぶ）、Ctrl+Alt+G（行へ移る）、Ctrl+Shift+Lは入れない
+	const search_keys = CM.searchKeymap.filter(function(k){
+		return k.key.match(/^(?:Mod-f|F3|Mod-g|Escape)$/);
+	});
+	const search_phrases = CM.EditorState.phrases.of({
+		'Find':				'検索',
+		'Replace':			'置換',
+		'next':				'次へ',
+		'previous':			'前へ',
+		'all':				'すべて選択',
+		'match case':			'大文字と小文字を区別',
+		'regexp':			'正規表現',
+		'by word':			'単語単位',
+		'replace':			'置換',
+		'replace all':			'すべて置換',
+		'close':			'閉じる',
+		'current match':		'現在の一致',
+		'on line':			'行',
+		'replaced match on line $':	'$行目を置換しました',
+		'replaced $ matches':		'$件を置換しました'
+	});
+
+	//----------------------------------------------------------------------
 	// ●作る
 	//----------------------------------------------------------------------
 	const readonly = new CM.Compartment();
@@ -77,8 +106,13 @@ adiary.ready(function(){
 				CM.EditorView.lineWrapping,
 				CM.EditorState.tabSize.of(8),
 				tab_keys,
+				// 単語単位は使わない（ひらがなや漢字も単語の文字なので、文の中の語が見つからない）。
+				// チェックボックスはadmin.cssで隠す
+				CM.search({ top: true, wholeWord: false }),
+				search_phrases,
 				CM.keymap.of([
 					{ key: 'Enter', run: CM.insertNewline },
+					...search_keys,
 					...CM.defaultKeymap,
 					...CM.historyKeymap
 				]),
@@ -90,6 +124,18 @@ adiary.ready(function(){
 		})
 	});
 	box.classList.toggle('readonly', ta_readonly.get.call(ta));
+
+	// 「検索」ボタン。開いているときに押すと閉じる
+	const search_btn = document.getElementById('edit-search');
+	if (search_btn) {
+		search_btn.style.display = '';
+		search_btn.addEventListener('click', function(){
+			if (CM.searchPanelOpen(view.state))
+				CM.closeSearchPanel(view);
+			else
+				CM.openSearchPanel(view);
+		});
+	}
 
 	if (parsel) parsel.addEventListener('change', function(){
 		view.dispatch({ effects: lang.reconfigure( lang_ext() ) });

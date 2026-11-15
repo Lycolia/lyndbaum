@@ -4,6 +4,7 @@ import {EditorView, keymap} from "@codemirror/view";
 import {EditorState, Compartment, Prec} from "@codemirror/state";
 import {defaultKeymap, history, historyKeymap, insertNewline} from "@codemirror/commands";
 import {syntaxHighlighting, defaultHighlightStyle} from "@codemirror/language";
+import {search, searchKeymap, openSearchPanel, closeSearchPanel, searchPanelOpen} from "@codemirror/search";
 import {markdown} from "@codemirror/lang-markdown";
 import {html} from "@codemirror/lang-html";
 import {lyndbaumMarkdown, lyndbaumHighlight} from "./lyndbaum-markdown.js";
@@ -13,6 +14,7 @@ window.CM6 = {
 	EditorState, Compartment, Prec,
 	defaultKeymap, history, historyKeymap, insertNewline,
 	syntaxHighlighting, defaultHighlightStyle,
+	search, searchKeymap, openSearchPanel, closeSearchPanel, searchPanelOpen,
 	markdown, html,
 	lyndbaumMarkdown, lyndbaumHighlight
 };
