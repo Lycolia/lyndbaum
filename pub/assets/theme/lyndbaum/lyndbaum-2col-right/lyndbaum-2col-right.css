@@ -30,7 +30,7 @@
    ボタンの形は共通の部分。ヘッダーの中身がボタンの下に入らないよう、ボタンのある側を空ける */
 @media (max-width: 47.99rem) {
 	.has-drawer .site-header { padding-right: 3.25rem; }
-	.has-drawer .sidebar-toggle-both { display: inline-flex; right: .5rem; }
+	.has-drawer .sidebar-toggle-both { display: inline-flex; right: var(--page-pad); }
 	.has-drawer .site-sidebars {
 		--drawer: 1;
 		position: fixed; top: var(--admin-bar-h, 0px); bottom: 0; right: 0; z-index: 210; width: min(22.5rem, 85vw);
@@ -42,7 +42,7 @@
 	.drawer-animate .site-sidebars { transition: transform .2s ease, visibility .2s; }
 	.has-drawer .site-sidebars.is-open { transform: none; visibility: visible; }
 	/* 追従する目次のボタン（toc.js）は、右の角のボタンの下に出す */
-	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + 3.25rem); }
+	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + var(--page-pad) + 2.75rem); }
 }
 @media (prefers-reduced-motion: reduce) {
 	.drawer-animate .site-sidebars { transition: none; }

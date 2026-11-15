@@ -63,7 +63,7 @@
 		transform: translateX(100%); visibility: hidden;
 	}
 	/* 追従する目次のボタン（toc.js）は、右の角のボタンの下に出す */
-	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + 3.25rem); }
+	.has-drawer .toc-float { top: calc(var(--admin-bar-h, 0px) + var(--page-pad) + 2.75rem); }
 }
 @media (prefers-reduced-motion: reduce) {
 	.drawer-animate .site-sidebar { transition: none; }

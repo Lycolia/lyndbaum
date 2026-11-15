@@ -26,7 +26,7 @@
    ボタンの形は共通の部分。ヘッダーの中身がボタンの下に入らないよう、ボタンのある側を空ける */
 @media (max-width: 71.99rem) {
 	.has-drawer .site-header { padding-left: 3.25rem; }
-	.has-drawer .sidebar-toggle-both { display: inline-flex; left: .5rem; }
+	.has-drawer .sidebar-toggle-both { display: inline-flex; left: var(--page-pad); }
 	.has-drawer .site-sidebars {
 		--drawer: 1;
 		position: fixed; top: var(--admin-bar-h, 0px); bottom: 0; left: 0; z-index: 210; width: min(22.5rem, 85vw);

@@ -22,6 +22,8 @@
 	--accent: #4450c8;
 	--accent-soft: #e9ebfd;
 	--strong: #c30;
+	/* ページの外側の余白。引き出しのボタンも、この分だけ画面の角から離して、ヘッダーの枠の角に重ねる */
+	--page-pad: 1rem;
 }
 
 /*--------------------------------------------------------------------
@@ -29,7 +31,7 @@
 --------------------------------------------------------------------*/
 body {
 	margin: 0;
-	padding: 1rem;
+	padding: var(--page-pad);
 	background: var(--page-bg);
 	color: var(--text);
 	font-family: "メイリオ", sans-serif;
@@ -51,7 +53,7 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 	padding: 1rem 1.25rem;
 }
 @media (max-width: 40rem) {
-	body { padding: .5rem; }
+	:root { --page-pad: .5rem; }
 	.site-header,
 	.article-main, .backlinks, .comments, .article-summary, .main > article.system, .hatena-module { padding: .75rem 1rem; }
 }
@@ -96,14 +98,16 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 
 /* サイドバーを引き出しにして開くボタン（_skel/_header.html）。開け閉めはadiary.js（docs/仕様/引き出し.md）。
    出すかどうかはテーマごとのCSSが決める（base.cssで、ふだんは出さない）。
-   ボタンはヘッダーの外にあり、画面の上の角に貼り付ける（ログイン中は管理バーの下） */
+   ボタンはヘッダーの外にあり、画面の上の角に貼り付ける（ログイン中は管理バーの下）。
+   角からはページの余白（--page-pad）だけ離し、スクロールしていないときにヘッダーの枠の角に重ねる。
+   base.cssのbutton + buttonの間隔は、前のボタンが隠れていても（display: none）HTMLで隣り合えば当たるので、margin: 0で消す */
 .sidebar-toggle {
-	position: fixed; top: calc(var(--admin-bar-h, 0px) + .5rem); z-index: 190;
+	position: fixed; top: calc(var(--admin-bar-h, 0px) + var(--page-pad)); z-index: 190; margin: 0;
 	padding: .35rem; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 0; cursor: pointer;
 	box-shadow: 0 1px 4px rgb(0 0 0 / .15);
 }
-.sidebar-toggle-left { left: .5rem; }
-.sidebar-toggle-right { right: .5rem; }
+.sidebar-toggle-left { left: var(--page-pad); }
+.sidebar-toggle-right { right: var(--page-pad); }
 .sidebar-toggle:hover { background: var(--bg); }
 .sidebar-toggle svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .sidebar-toggle[aria-expanded="true"] { color: var(--link); border-color: var(--link); }
