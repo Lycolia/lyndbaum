@@ -1757,6 +1757,10 @@ sub load_theme {
 	$self->{template}   = $1;
 	$self->{theme_name} = $name;
 
+	# テンプレートの直下の共通のCSS（lyndbaum/lyndbaum.cssなど）。_frame.htmlが、テーマのCSSの前に<link>で読む。
+	# 静的なHTMLのエクスポートは、HTMLを作る間だけtheme_dirを置き換えるので、ここで本当のフォルダを見て覚えておく
+	$self->{theme_common_css} = -r "$dir$self->{template}.css" ? "$self->{template}/$self->{template}.css" : '';
+
 	# スケルトンテンプレートの登録
 	$ROBJ->delete_skeleton($self->{theme_skeleton_level});
 	$ROBJ->delete_skeleton($self->{theme_design_skeleton_level});

@@ -5,7 +5,9 @@
 /* マークアップはtheme/lyndbaum/_skel/のスケルトンで組む（デザインの保存時に生成される）
    管理画面はテーマを使わないので、ここでは公開画面だけを扱う
    カラムの並べ方と引き出しは、テーマごとのCSSで決める（3カラムはlyndbaum/lyndbaum.css、
-   2カラムはlyndbaum-2col-left/、lyndbaum-2col-right/）。テーマごとのCSSが、このファイルを読み込む。
+   2カラムはlyndbaum-2col-left/、lyndbaum-2col-right/）。
+   このファイルは、テーマごとのCSSの前にskel/_frame.htmlが<link>で読み込む（load_themeが、テンプレートの直下の
+   <テンプレート名>.cssを見つけて覚える）。テーマごとのCSSから@importすると、表示が遅れるので使わない。
    静的なHTMLへのエクスポートでは、テンプレートの直下のファイルも写すので、共通のものはここに置く */
 :root {
 	--text: #222;

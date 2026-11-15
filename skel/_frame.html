@@ -42,6 +42,11 @@
 <@ifexec(v.system_mode, begin, begin)>
 <link rel="stylesheet" href="<@Basepath><@v.script_dir>design.css?<@get_lastmodified(v.script_dir . 'design.css')>">
 <$else>
+<@> テンプレートの直下に共通のCSS（lyndbaum/lyndbaum.cssなど）があれば、テーマのCSSの前に読む（load_themeが見つけて覚える）。
+<@> テーマのCSSから@importで読むと、テーマのCSSが届くまで取りに行けず、表示が遅れるので、<link>で同時に取りに行かせる
+<@ifexec(v.theme_common_css, begin)>
+<link rel="stylesheet" href="<@Basepath><@v.theme_dir><@v.theme_common_css>?<@get_lastmodified(v.theme_dir . v.theme_common_css)>" id="theme-common-css">
+<$end>
 <link rel="stylesheet" href="<@Basepath><@v.theme_dir><@v.theme>/<@v.theme_name>.css?<@get_lastmodified("<@v.theme_dir><@v.theme>/<@v.theme_name>.css")>" id="theme-css">
 <$end>
 <@>
