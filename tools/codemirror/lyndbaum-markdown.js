@@ -272,6 +272,73 @@ export function lyndbaum_link(state) {
 	return multi ? null : spec;
 }
 
+//------------------------------------------------------------------------------
+// ●Enterでリストと引用の記号を続ける
+//------------------------------------------------------------------------------
+// lang-markdownのinsertNewlineContinueMarkupは、番号付きの項目の続きの行（「1. a」の次の
+// 「   b」）でEnterすると、記号の無い行を足すだけなのに、後ろの「2.」を「3.」にする。
+// 項目を足していないので、カーソルの行より後ろの変更（番号の振り直し）を捨てる
+const continue_markup = insertNewlineContinueMarkupCommand({ nonTightLists: false });
+export function enter_continue_markup(view) {
+	const state = view.state;
+	let tr = null;
+	if (!continue_markup({ state, dispatch: function(t){ tr = t } }) || !tr) return false;
+
+	const main = state.selection.main;
+	const line = state.doc.lineAt(main.head);
+	let item = syntaxTree(state).resolveInner(main.head, -1);
+	while (item && item.name != 'ListItem') item = item.parent;
+	const continued = state.selection.ranges.length == 1 && item && item.parent.name == 'OrderedList'
+		&& state.doc.lineAt(item.from).number < line.number;
+	if (!continued) { view.dispatch(tr); return true; }
+
+	const changes = [];
+	tr.changes.iterChanges(function(from, to, _from, _to, insert) {
+		if (from <= line.to) changes.push({ from, to, insert });
+	});
+	view.dispatch({ changes, selection: tr.selection, scrollIntoView: true, userEvent: 'input' });
+	return true;
+}
+
+//------------------------------------------------------------------------------
+// ●Backspaceで番号付きの項目の記号を消したら、後ろの番号を振り直す
+//------------------------------------------------------------------------------
+// lang-markdownのdeleteMarkupBackwardは、「2. 」を空白にする（最初の項目なら消す）だけで、
+// 後ろの「3.」を残す。後ろの同じ段の項目を、番号が1ずつ続いている間だけ1ずつ減らす
+// （lang-markdownがEnterで使うrenumberListと同じ止め方。外に出されていないので書く）
+function item_number(state, item) {
+	return /^(\s*)(\d+)(?=[.)])/.exec(state.sliceDoc(item.from, item.from + 12));
+}
+export function renumber_after_delete(state) {
+	const main = state.selection.main;
+	if (!main.empty || state.selection.ranges.length > 1) return [];
+	let item = syntaxTree(state).resolveInner(main.head, -1);
+	while (item && !(item.name == 'ListItem' && item.parent && item.parent.name == 'OrderedList')) item = item.parent;
+	if (!item) return [];
+	// カーソルが、その項目の行の「番号.」か「番号. 」の直後にあるときだけ（記号が消えるとき）
+	if (!/^\d+[.)] ?$/.test(state.sliceDoc(item.from, main.head))) return [];
+
+	const changes = [];
+	let prev = +item_number(state, item)[2];
+	for (let node = item.nextSibling; node && node.name == 'ListItem'; node = node.nextSibling) {
+		const m = item_number(state, node);
+		if (!m || +m[2] != prev + 1) break;
+		changes.push({ from: node.from + m[1].length, to: node.from + m[0].length, insert: String(prev) });
+		prev = +m[2];
+	}
+	return changes;
+}
+export function delete_markup_renumber(view) {
+	const state = view.state;
+	let tr = null;
+	if (!deleteMarkupBackward({ state, dispatch: function(t){ tr = t } }) || !tr) return false;
+	view.dispatch(
+		{ changes: tr.changes, selection: tr.selection, scrollIntoView: true, userEvent: 'delete' },
+		{ changes: renumber_after_delete(state) }	// どちらも押す前の文書の位置
+	);
+	return true;
+}
+
 function key_command(make) {
 	return function(view) {
 		if (view.state.readOnly) return true;	// ブラウザのキー（ブックマークなど）には渡さない
@@ -282,12 +349,13 @@ function key_command(make) {
 }
 // Enter：リストと引用の記号を続ける（lang-markdownのmarkdownKeymapと同じ）。空の項目でEnterすると
 //   記号を消す。lang-markdownの既定では、2つ目の項目が空のときは、記号を消さずに項目の間に空行を
-//   入れる（各項目が<p>になる）ので、それはしない（nonTightLists: false）
-// Backspace：記号の直後なら、記号を消す
+//   入れる（各項目が<p>になる）ので、それはしない（nonTightLists: false）。番号付きの項目の続きの行
+//   では番号を振り直さない（enter_continue_markup）
+// Backspace：記号の直後なら、記号を消す。番号付きの項目なら、後ろの番号を振り直す
 // defaultKeymapのEnter、Backspace、Mod-i（構文の親を選ぶ）より先に効かせる
 export const lyndbaumEditKeys = Prec.high(keymap.of([
-	{ key: 'Enter',     run: insertNewlineContinueMarkupCommand({ nonTightLists: false }) },
-	{ key: 'Backspace', run: deleteMarkupBackward },
+	{ key: 'Enter',     run: enter_continue_markup },
+	{ key: 'Backspace', run: delete_markup_renumber },
 	{ key: 'Mod-b', run: key_command(function(s){ return lyndbaum_wrap(s, '**') }), preventDefault: true },
 	{ key: 'Mod-i', run: key_command(function(s){ return lyndbaum_wrap(s, '*')  }), preventDefault: true },
 	{ key: 'Mod-k', run: key_command(lyndbaum_link), preventDefault: true }
