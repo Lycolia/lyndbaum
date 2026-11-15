@@ -22,6 +22,8 @@
 </tr>
 </thead><tbody>
 <tr>
+	<td>OS</td><td><@esc(h.os_name)></td>
+</tr><tr>
 	<td>Server</td><td><@esc(ENV.SERVER_SOFTWARE)></td>
 </tr><tr>
 	<td>Perl</td><td><@h.perl_version></td>
@@ -121,7 +123,7 @@ System		<@v.SYSTEM_NAME> <@v.OUTVERSION>
 Data version	<@sprintf('%.2f', v.sys.VERSION)>
 Satsuki		<@VERSION>
 Perl		<@h.perl_version>
-OS		<@h.os>
+OS		<@esc(h.os_name)> (<@h.os>)
 Server		<@esc(ENV.SERVER_SOFTWARE)>
 Runtime		<@CGI_mode>
 Locale		<@Locale> (<@CodeLib>)

@@ -65,7 +65,45 @@ sub get_system_info {
 	$v =~ s/(\d+)\.(\d\d\d)(\d\d\d)/$1.'.'. ($2+0).'.'.($3+0)/e;
 	$h{perl_version} = $v;
 	$h{os}           = $^O;
+	$h{os_name}      = $self->get_os_name();
 	return \%h;
+}
+
+#-------------------------------------------------------------------------------
+# ●OSの名前とバージョン
+#-------------------------------------------------------------------------------
+# Debian、RHEL、FreeBSD（13以降）などは/etc/os-releaseにある。
+# DebianのPRETTY_NAMEには小数点以下の版がないので、/etc/debian_versionを添える。
+# ないときはunameのOS名とリリース。unameの2番目はホスト名なので出さない。
+#
+sub get_os_name {
+	my ($self, $dir) = @_;
+	$dir //= '/etc';
+
+	my %r;
+	if (open(my $fh, '<', "$dir/os-release")) {
+		while(my $line = <$fh>) {
+			if ($line !~ /^\s*([A-Z_]+)=(.*?)\s*$/) { next; }
+			my ($key, $val) = ($1, $2);
+			$val =~ s/^(["'])(.*)\1$/$2/;
+			$r{$key} = $val;
+		}
+		close($fh);
+	}
+	my $name = $r{PRETTY_NAME} || join(' ', grep { $_ ne '' } ($r{NAME}, $r{VERSION_ID}));
+	if ($name ne '') {
+		if ($r{ID} eq 'debian' && open(my $fh, '<', "$dir/debian_version")) {
+			my $ver = <$fh>;
+			close($fh);
+			$ver =~ s/\s+$//;
+			if ($ver =~ /^\d/ && index($name, $ver) < 0) { $name .= " / $ver"; }
+		}
+		return $name;
+	}
+
+	require POSIX;
+	my ($sys, undef, $release) = POSIX::uname();
+	return $sys ne '' ? "$sys $release" : $^O;
 }
 
 sub check_lib {
