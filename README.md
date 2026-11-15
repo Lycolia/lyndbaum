@@ -28,7 +28,7 @@
 - ドメイン変更時に面倒な設定不要！
   - 動作中のドメインを自動で判別して動作するため、WordPressのような地獄はありません
 
-# 動作環境
+## 動作環境
 
 DBは使っていないので、Perlが動く環境であれば概ねどこでも動くと思われます。
 
@@ -39,9 +39,9 @@ DBは使っていないので、Perlが動く環境であれば概ねどこで�
   - AVIFが扱える場合、画像のサムネイルをAVIFで出すことができます
 - Net::SSLeay Ver1.92以降
 
-# 動作確認環境
+## 動作確認環境
 
-## CGIモード
+### CGIモード
 
 以下のさくらのレンタルサーバーで動作することを確認しています。
 
@@ -53,7 +53,7 @@ DBは使っていないので、Perlが動く環境であれば概ねどこで�
 | Image::Magick | 6.9.12                   | AVIF非対応 |
 | Net::SSLeay   | 1.92                     |            |
 
-## FCGIモード
+### FCGIモード
 
 以下の環境の自宅サーバーで動作を確認しています。
 
@@ -64,6 +64,10 @@ DBは使っていないので、Perlが動く環境であれば概ねどこで�
 | Perl          | v5.40.1            |          |
 | Image::Magick | 7.1.2              | AVIF対応 |
 | Net::SSLeay   | 1.94               |          |
+
+### 閲覧環境
+
+最新のMicrosoft EdgeとAndroid Edgeで確認しています。
 
 <!--WIP
 次のどれかの構成で動かします。
@@ -81,7 +85,7 @@ Perl標準モジュールのほかに、使い方によって次のモジュー�
 
 。
 
-# インストール方法
+## インストール方法
 
 1. 解凍してでてきたファイルをサーバ上の任意の位置に置く
 2. lyndbaum.cgiに実行属性を付ける（`lyndbaum.cgi`とそのフォルダは755か705。777ではCGIが動かないサーバーがある）
@@ -93,7 +97,7 @@ Perl標準モジュールのほかに、使い方によって次のモジュー�
 
 詳細は[オンラインマニュアル](http://adiary.org/v3man/)を参照してください。
 
-# 著作権表示(Copyright)
+## 著作権表示(Copyright)
 
 - Copyright (C)2013-2025 nabe@abk.
 - Copyright (C)2024-2026 Lycolia Rizzim.
@@ -102,7 +106,7 @@ Perl標準モジュールのほかに、使い方によって次のモジュー�
 
 AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージョンの下で本プログラム（システム）を再配布することが可能です。
 
-# 謝辞
+## 謝辞
 
 このプログラムは[nabe-abk/adiary](https://github.com/nabe-abk/adiary)のフォークです。
 原典となる著作権表記はオリジナルのREADMEである、[README.original.md](README.original.md)に記しています。
@@ -113,17 +117,17 @@ AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージ�
 
 主な変更点については[変更履歴](docs/変更履歴.md)に記載しています。
 
-# 利用著作物
+## 利用著作物
 
 以下のものをライセンスに基づき使用しています。
 
-## JavaScript
+### JavaScript
 
 - [Lythumb-viewer](https://github.com/Lycolia/lythumb-viewer) (AGPLv3)
 - [Prism.js](https://prismjs.com/) (MIT)
 - [CodeMirror](https://codemirror.net/) (MIT)
 
-## Perl
+### Perl
 
 `lib/Digest/`に同梱しています。
 
@@ -131,20 +135,20 @@ AGPL(AFFERO GENERAL PUBLIC LICENSE) Version 3またはそれ以降のバージ�
 - Digest::HMAC (Perl)
 - Digest::HMAC_MD5 (Perl)
 
-## プラグインとテーマ
+### プラグインとテーマ
 
 - `plugin/`以下に存在するプラグインはそれぞれ個別の著作物です。
 - `pub/assets/theme/`以下に存在するテーマファイルはそれぞれ個別の著作物です。
 
 ライセンスについては、各ディレクトリ内のREADME等を参照してください。
 
-## フォント
+### フォント
 
 VLゴシックフォント（`pub/assets/dist/VL-PGothic-Regular.ttf`）を
 ライセンスに基づき同梱しています。
 フォントのライセンスは`pub/assets/dist/VLGothic/`以下を参照してください。
 
-## 画像アイコン
+### 画像アイコン
 
 - `pub/assets/dist/media-icon`以下のアイコンの多くはせりか氏の著作物です。
 - `pub/assets/dist/media-icon/pdf.png`は http://iconhoihoi.oops.jp/ の著作物です。
