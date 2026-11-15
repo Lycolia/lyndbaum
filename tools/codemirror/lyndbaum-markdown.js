@@ -146,9 +146,11 @@ function close_bracket(cx, next, pos) {
 // ●注釈 ((…))
 //------------------------------------------------------------------------------
 // 閉じる位置は、Markdown.pmと同じ正規表現で開くときに決める（中の ( ) は1段まで）。
+// Markdown.pmの[^()]++（強欲な量指定子）はJSで書けない。[^()]+にすると、閉じる ))の無い
+// 段落で文字の区切り方を総当たりしてタブが固まるので、1文字ずつ読む（一致する範囲は同じ）。
 // 中のインラインの記法（リンクなど）はそのまま読む
 const Annotation = { resolve: 'LyndbaumAnnotation', mark: 'LyndbaumAnnotationMark' };
-const ANNOTATION = /^\(\(((?:[^()]+|\([^()]*\))*)\)\)/;
+const ANNOTATION = /^\(\(((?:[^()]|\([^()]*\))*)\)\)/;
 const annotation_close = new WeakMap();		// InlineContext → 閉じる位置のSet
 function annotation_parser(cx, next, pos) {
 	if (next != C_PAREN && next != C_PAREN_CLOSE) return -1;
