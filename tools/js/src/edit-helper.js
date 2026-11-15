@@ -48,6 +48,7 @@ Helpers.push({
 	toc:	{ func: 'insert',	tag: "\n[*toc]\n" },
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	details: { func: 'block',	start: "<details>$1\n", end: "\n</details>", sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },	// 中身にMarkdownが効くように、空行で挟む
+	strike:	{ func: 'inline',	tag: '~~$0~~' },
 	media:	{ func: 'media' },
 	image:	{
 		original:	'[image:L:%d:%f:%c]',
@@ -84,6 +85,7 @@ Helpers.push({
 	toc:	null,
 	cont:	{ func: 'insert',	tag: "\n====\n" },
 	details: { func: 'block',	start: '<details>$1', end: '</details>', sp: true, arg_format: '<summary>$1</summary>', arg_esc: true },
+	strike:	{ func: 'inline',	tag: '<del>$0</del>' },
 	media:	{ func: 'media' },
 	image:	{
 		//	%a : image attribute
