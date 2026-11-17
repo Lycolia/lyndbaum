@@ -16,7 +16,7 @@ package SatsukiApp::adiary;
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
 	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 },	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとサイトのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとサイトの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
-	{ ver => 4.45, rebuild=>1, plugin=>1, theme=>1 }	# 見出しの段を一段上げた（サイト名h1→div、記事タイトルと画面の名前h2→h1、本文h3〜→h2〜）。全記事、デザインのスケルトン、テーマの色の調整のCSSを作り直す
+	{ ver => 4.45, func => 'sys_update_445', rebuild=>1, plugin=>1, theme=>1 }	# 見出しの段を一段上げた（サイト名h1→div、記事タイトルと画面の名前h2→h1、本文h3〜→h2〜）。全記事、デザインのスケルトン、テーマの色の調整のCSSを作り直す。サイドバーのモジュールと外枠のクラス、idからhatenaを外したので、フリー入力のモジュールに保存したクラスを移す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート
@@ -217,6 +217,25 @@ sub sys_update_443 {
 		}
 		if ($DB->commit()) { $ROBJ->message("Blog database error(%s)", $table); }
 	}
+}
+
+#-------------------------------------------------------------------------------
+# ●システムアップデート for Ver4.45
+#-------------------------------------------------------------------------------
+# サイドバーのモジュールのクラスをhatena-moduleからside-moduleにしたので、フリー入力（des_freetext）の設定に保存したクラスを移す
+# スケルトンやプラグインが出すクラスは、プラグインの再インストールで作り直される。この設定は入力された値なので、ここで書き換える
+sub sys_update_445 {
+	my $self = shift;
+	my $blog = $self->{blog};
+	if (!$blog) { return; }
+
+	my %up;
+	foreach(keys(%$blog)) {
+		if ($_ !~ /^p:des_freetext(?:,\d+)?:class$/ || ref($blog->{$_})) { next; }
+		my $v = $blog->{$_};
+		if ($v =~ s/(?<![\w-])hatena-module(?![\w-])/side-module/g) { $up{$_} = $v; }
+	}
+	if (%up) { $self->update_blogset($blog, \%up); }
 }
 
 1;

@@ -13,14 +13,14 @@ module_type=sidebar
 module_id=side-system-info
 
 *sample_html=<<HTML
-<div class="hatena-module" id="<@id>">
-<div class="hatena-moduletitle">System info</div>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>">
+<div class="side-module-title">System info</div>
+<div class="side-module-body">
 Total time : 99.9 ms<br>
 DB time : 9.9 ms<br>
 Runtime : CGI-Perl<br>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 HTML
 
 *module_html=<<HTML

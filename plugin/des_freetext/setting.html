@@ -9,20 +9,20 @@
 	</tr>
 	<tr>
 		<th>モジュールクラス</th>
-		<td><input type="text" class="w300" name="class" value="<@if(ps.class eq '', 'hatena-module', ps.class)>"><span class="help-text">モジュール全体に出力するクラスを指定します。スペース区切り。</span></td>
+		<td><input type="text" class="w300" name="class" value="<@if(ps.class eq '', 'side-module', ps.class)>"><span class="help-text">モジュール全体に出力するクラスを指定します。スペース区切り。</span></td>
 	</tr>
 	<tr>
 		<th>タイトル出力</th>
 		<td>
 			<label><input type="checkbox" name="title_none" value="1"<@if(ps.title_none,' checked')>>出力しない</label>
-			<span class="help-text">モジュールタイトル&lt;div class="hatena-moduletitle"&gt;を出力しないようにします。</span>
+			<span class="help-text">モジュールタイトル&lt;div class="side-module-title"&gt;を出力しないようにします。</span>
 		</td>
 	</tr>
 	<tr>
 		<th>modulebody出力</th>
 		<td>
 			<label><input type="checkbox" name="body_none" value="1"<@if(ps.body_none,' checked')>>出力しない</label>
-			<span class="help-text">&lt;div class="hatena-modulebody"&gt;を出力しないようにします。</span>
+			<span class="help-text">&lt;div class="side-module-body"&gt;を出力しないようにします。</span>
 		</td>
 	</tr>
 	<tr>

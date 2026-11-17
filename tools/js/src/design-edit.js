@@ -430,7 +430,7 @@ function init_module(obj) {
 
 	// モジュールに title 属性を設定
 	if (!obj.getAttribute('title')) {
-		var title = children([obj], '.hatena-moduletitle');
+		var title = children([obj], '.side-module-title');
 		title = title.length ? title.map(function(x){ return x.textContent }).join('') : '';
 		title = title || modules[name].getAttribute('title') ||  mdata(obj, 'module-name') || '(unknown)';
 		obj.setAttribute('title', title);

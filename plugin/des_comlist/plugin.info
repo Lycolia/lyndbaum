@@ -14,10 +14,10 @@ load_module_html_in_edit=1
 module_id=side-recent-comment
 
 *sample_html=<<HTML
-<div class="hatena-module" id="<@id>">
-<div class="hatena-moduletitle">最近のコメント</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module" id="<@id>">
+<div class="side-module-title">最近のコメント</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 	<li><a href="#" title="2013-07-31">記事タイトル</a> <span class="author" title="2013/07/20 19:25">なまえ</span></li>
 	<li><a href="#" title="2013-07-15">記事タイトル</a> <span class="author" title="2013/07/20 19:25">なまえ</span></li>
 	<li><a href="#" title="2013-07-13">記事タイトル</a> <span class="author" title="2013/07/20 18:41">なまえ</span></li>
@@ -30,12 +30,12 @@ HTML
 
 *module_html=<<HTML
 <!--最近のコメント=======================================-->
-<div class="hatena-module" id="<@id>" data-module-name="<@this>">
-<div class="hatena-moduletitle">最近のコメント</div>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>" data-module-name="<@this>">
+<div class="side-module-title">最近のコメント</div>
+<div class="side-module-body">
 <@v.load_plgset('<@this>', 'html')>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 HTML
 
 

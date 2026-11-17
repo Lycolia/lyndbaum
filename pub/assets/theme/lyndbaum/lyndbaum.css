@@ -49,7 +49,7 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 
 /* 枠：ヘッダー、記事、コメント、サイドバーの各モジュールなどを、地の色の上に置く */
 .site-header,
-.article-main, .backlinks, .comments, .article-summary, .main > article.system, .hatena-module {
+.article-main, .backlinks, .comments, .article-summary, .main > article.system, .side-module {
 	background: var(--bg);
 	border: 1px solid var(--border);
 	padding: 1rem 1.25rem;
@@ -57,9 +57,9 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 @media (max-width: 40rem) {
 	:root { --page-pad: .5rem; }
 	.site-header,
-	.article-main, .backlinks, .comments, .article-summary, .main > article.system, .hatena-module { padding: .75rem 1rem; }
+	.article-main, .backlinks, .comments, .article-summary, .main > article.system, .side-module { padding: .75rem 1rem; }
 }
-.article-main, .backlinks, .comments, .article-summary, .main > article.system, .hatena-module { margin-bottom: 1rem; }
+.article-main, .backlinks, .comments, .article-summary, .main > article.system, .side-module { margin-bottom: 1rem; }
 
 /*--------------------------------------------------------------------
 ■ヘッダー
@@ -89,11 +89,11 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 ■カラム（共通）
 --------------------------------------------------------------------*/
 /* 並べ方と、どの幅で引き出しにするかは、テーマごとのCSS。ここでは、狭い画面の縦の並び（本文、サイドバーの順）だけを決める */
-#hatena-body { margin: 0; padding: 0; }
-#hatena-body > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 1rem; }
-#hatena-body > div > * { min-width: 0; }
+#columns { margin: 0; padding: 0; }
+#columns > div { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; padding-top: 1rem; }
+#columns > div > * { min-width: 0; }
 /* デバッグ表示などは全幅にする。サイドバーAとBは、包み（#sidebars）の中にある */
-#hatena-body > div > :not(.main):not(.site-sidebars) { grid-column: 1 / -1; }
+#columns > div > :not(.main):not(.site-sidebars) { grid-column: 1 / -1; }
 .main { float: none; width: auto; margin: 0; padding: 0; }
 .site-sidebar { min-width: 0; font-size: .95rem; }
 .site-sidebars:focus, .site-sidebar:focus { outline: none; }
@@ -129,19 +129,19 @@ div.messages div.warn, div.messages div.message { color: var(--strong); }
 /*--------------------------------------------------------------------
 ■サイドバーのモジュール
 --------------------------------------------------------------------*/
-.hatena-moduletitle {
+.side-module-title {
 	margin: 0 0 .5rem;
 	padding-bottom: .25rem;
 	border-bottom: 1px solid var(--border);
 	font-size: 1rem;
 	font-weight: bold;
 }
-.hatena-moduletitle a { color: inherit; }
-.hatena-modulebody { overflow-wrap: anywhere; }
-.hatena-modulebody > :last-child { margin-bottom: 0; }
-.hatena-modulebody img { max-width: 100%; height: auto; }
-ul.hatena-section, ul.hatena-section ul { list-style: none; margin: 0; padding: 0; }
-ul.hatena-section ul { padding-left: 1rem; }
+.side-module-title a { color: inherit; }
+.side-module-body { overflow-wrap: anywhere; }
+.side-module-body > :last-child { margin-bottom: 0; }
+.side-module-body img { max-width: 100%; height: auto; }
+ul.side-module-list, ul.side-module-list ul { list-style: none; margin: 0; padding: 0; }
+ul.side-module-list ul { padding-left: 1rem; }
 span.qt { color: var(--muted); font-size: .85rem; }
 #side-search form { display: flex; flex-wrap: wrap; gap: .25rem; }
 #side-search input.search-box { flex: 1 1 8rem; width: auto; min-width: 0; }

@@ -39,7 +39,7 @@
 }
 <@>
 <@>
-<@id>>.hatena-modulebody {
+<@id>>.side-module-body {
 <@ifexec(ps.padding0 ne '', begin)>
 	padding:		<@ps.padding0>px <@ps.padding1>px <@ps.padding2>px <@ps.padding3>px;
 <$end>

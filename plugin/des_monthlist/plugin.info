@@ -14,10 +14,10 @@ load_module_html_in_edit=1
 module_id=side-month-list
 
 *sample_html=<<HTML
-<div class="hatena-module" id="<@id>">
-<div class="hatena-moduletitle">過去ログ</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module" id="<@id>">
+<div class="side-module-title">過去ログ</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 	<li><details open><summary class="month-list-year"><a href="#">2013年</a> <span class="qt">(<span>8</span>)</span></summary>
 	<ul id="month-list-2013">
 		<li><a href="#">2013年08月</a> <span class="count">(<span>2</span>)</span></li>
@@ -47,12 +47,12 @@ HTML
 
 *module_html=<<HTML
 <!--月別記事数リスト=====================================-->
-<div class="hatena-module" id="<@id>" data-module-name="<@this>">
-<div class="hatena-moduletitle">過去ログ</div>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>" data-module-name="<@this>">
+<div class="side-module-title">過去ログ</div>
+<div class="side-module-body">
 <@v.load_plgset('<@this>', 'html')>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 HTML
 
 

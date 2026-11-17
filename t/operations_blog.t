@@ -519,7 +519,7 @@ subtest 'des_searchboxの検索タイプの選択' => sub {
 	my $r = $app->post('admin', '', { action => 'design/edit', side_a_ary => 'des_searchbox' });
 	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
 
-	my $side = sub { (body($_[0]) =~ m{(<div class="hatena-module" id="side-search".*?</form>)}s)[0] // '' };
+	my $side = sub { (body($_[0]) =~ m{(<div class="side-module" id="side-search".*?</form>)}s)[0] // '' };
 	$r = $app->get('guest', '?q=x');
 	like($side->($r), qr/class="search-radio"/, '既定ではラジオを出す');
 	like($side->($r), qr{</button><br>\n<span class="search-radio">}, '既定のHTMLは今までどおり');

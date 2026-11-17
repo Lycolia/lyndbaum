@@ -20,20 +20,20 @@ JS=js/<@this>.js
 EVENTS
 
 *sample_html=<<HTML
-<div class="hatena-module" id="<@id>">
-<div class="hatena-moduletitle">メモ</div>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>">
+<div class="side-module-title">メモ</div>
+<div class="side-module-body">
 <textarea rows="5">自由にメモしておけるテキストエリアです
 データは、cookieに保存されます。</textarea>
 </div>
-</div> <!-- hatena-module -->
+</div> <!-- side-module -->
 HTML
 
 *module_html=<<HTML
 <$x = v.load_plgset('<@this>')>
-<div class="hatena-module" id="<@id>" data-module-name="<@this>">
-<div class="hatena-moduletitle">メモ</div>
-<div class="hatena-modulebody"><textarea rows="5"></textarea>
+<div class="side-module" id="<@id>" data-module-name="<@this>">
+<div class="side-module-title">メモ</div>
+<div class="side-module-body"><textarea rows="5"></textarea>
 </div>
-</div> <!-- hatena-module -->
+</div> <!-- side-module -->
 HTML

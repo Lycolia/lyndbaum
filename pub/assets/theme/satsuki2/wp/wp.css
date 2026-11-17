@@ -17,13 +17,13 @@ body
 	font-size:		12pt;
 	line-height:		120%;
 }
-#hatena-body {
+#columns {
 	position:		relative;
 	margin:			1em 8px 0 8px;
 }
 #header>div:first-child,
 #footer>div:last-child,
-#hatena-body,
+#columns,
 #side-b {
 	/* この部分変更時は ddmenu も変更すること */
 	min-width:		800px;
@@ -33,7 +33,7 @@ body
 }
 /* 本文とサイドバーをGridで並べる（HTMLは本文、サイドバーの順。JavaScriptで入れ替えない）。
    サイドバーの枠（#sidebar）を消して、サイドバーAを本文の横に、サイドバーBを下の段（フッタの上）に置く */
-#hatena-body > div {
+#columns > div {
 	display:		grid;
 	grid-template-columns:	minmax(0, 1fr) 240px;
 	grid-template-areas:	"main side-a" "side-b side-b";
@@ -41,7 +41,7 @@ body
 	align-items:		start;
 }
 /* 本文とサイドバーのほか（デバッグ表示など）は、幅いっぱいに出す */
-#hatena-body > div > :not(.main):not(#sidebar) {
+#columns > div > :not(.main):not(#sidebar) {
 	grid-column:		1 / -1;
 }
 /* 記事部 */
@@ -79,7 +79,7 @@ body
 	line-height:		120%;
 }
 #footer, #footer a:link, #footer a:visited,
-#hatena-body #side-b a:link, #hatena-body #side-b a:visited {
+#columns #side-b a:link, #columns #side-b a:visited {
 	color:			#fff;		/* $c=footerfont */
 }
 
@@ -96,7 +96,7 @@ body
 /* $option:title=sidebar-position
 $option=left-sidebar
 @media screen and (min-width: 641px) {
-	#hatena-body > div {
+	#columns > div {
 		grid-template-columns:	240px minmax(0, 1fr);
 		grid-template-areas:	"side-a main" "side-b side-b";
 	}
@@ -665,11 +665,11 @@ div.messages div.message {
 ■sidebar
 *******************************************************************************/
 /* sidebar の 1項目 */
-div.hatena-module {
+div.side-module {
 	margin:			0 0 1.3em 0;
 	padding:		0;
 }
-div.hatena-moduletitle {
+div.side-module-title {
 	font-size:		14pt;
 	color:			#000;		/* $c=fixfont */
 	font-weight:		bold;
@@ -682,13 +682,13 @@ div.hatena-moduletitle {
 				-1px -1px 1px #f8f8f8,
 				4px 2px 2px rgba(0,0,0,0.6);
 }
-div.hatena-moduletitle a, 
-div.hatena-moduletitle a:link, 
-div.hatena-moduletitle a:visited {
+div.side-module-title a, 
+div.side-module-title a:link, 
+div.side-module-title a:visited {
 	color:			inherit;
 }
 
-div.hatena-modulebody {
+div.side-module-body {
 	margin:			0.3em 0.5em 0.3em 0.5em;
 }
 #sidebar, #side-b p {
@@ -696,20 +696,20 @@ div.hatena-modulebody {
 	margin-bottom:		0.5em;
 }
 /* Informationのタイトルを出さない */
-div#side-information div.hatena-moduletitle {
+div#side-information div.side-module-title {
 	display:		none;
 }
 
 /* コンテンツ */
-div.side-contents-list div.hatena-moduletitle a {
+div.side-contents-list div.side-module-title a {
 	text-decoration:	none;
 }
 
 /* 枠と背景 */
-#sidebar div.hatena-module {
+#sidebar div.side-module {
 	background-color:	#f3f3f3;	/* $c=modulebg = bg */
 }
-#sidebar div.hatena-module {
+#sidebar div.side-module {
 	border:			0px solid #bbb;		/* $c=border */
 }
 
@@ -717,14 +717,14 @@ div.side-contents-list div.hatena-moduletitle a {
 /*
 $option3:title=sidebar-type
 $option3=sidebar-box
-#sidebar div.hatena-module {
+#sidebar div.side-module {
 	border-width:	1px;
 	border-radius:	6px;
 	padding:	10px;
 }
 -------------------- */
 /* $option3=sidebar-box-shadow
-#sidebar div.hatena-module {
+#sidebar div.side-module {
 	border-width:	1px;
 	border-radius:	6px;
 	padding:	10px;
@@ -735,7 +735,7 @@ $option3=sidebar-box
 }
 -------------------- */
 /* $option3=sidebar-box-shadow2
-#sidebar div.hatena-module {
+#sidebar div.side-module {
 	border-width:	1px;
 	border-radius:	6px;
 	padding:	10px;
@@ -784,14 +784,14 @@ table.calendar td.day-selected {
 ●sidebar：タグ
 --------------------------------------------------------------------*/
 /* タイトル一覧など */
-ul.hatena-section {
+ul.side-module-list {
 	list-style-type:	none;
 	margin:			0.3em 0em 0.3em 0.3em;
 	padding:		0px;
 }
 
 /* 2段目のリスト */
-ul.hatena-section ul {
+ul.side-module-list ul {
 	list-style-type:	none;
 	margin:			0 0 0.2em 1em;
 	padding:		0px;
@@ -802,13 +802,13 @@ ul.hatena-section ul {
 *******************************************************************************/
 /* 本文の下の段に置き、フッタと同じ色の帯にして、フッタとつなげる（JavaScriptでフッタに動かさない）。
    帯の色は border-image で左右だけ画面の端まで伸ばす（横にスクロールさせない） */
-#hatena-body #side-b {
+#columns #side-b {
 	grid-area:		side-b;
 	font-size:		10pt;
 	line-height:		120%;
 	color:			#fff;		/* $c=footerfont */
 	border-image:		conic-gradient(#333 0 0) fill 0 // 0 100vmax;	/* $c=footerbg */
-	margin:			31px 0 0 0;	/* 前の #hatena-body の下の余白（1px）とフッタの上の余白（30px） */
+	margin:			31px 0 0 0;	/* 前の #columns の下の余白（1px）とフッタの上の余白（30px） */
 	padding:		50px 0 20px 0;	/* 前のフッタの上の余白（20px）とサイドバーBの上の余白（30px） */
 	text-align:		left;
 }
@@ -816,8 +816,8 @@ ul.hatena-section ul {
 	margin-top:		0;
 	padding-top:		0;
 }
-/* 前はフッタに動かしていたので、サイドバーの枠と背景（#sidebar div.hatena-module）は付けない */
-#hatena-body #side-b .hatena-module {
+/* 前はフッタに動かしていたので、サイドバーの枠と背景（#sidebar div.side-module）は付けない */
+#columns #side-b .side-module {
 	background:		none;
 	border:			none;
 	border-radius:		0;
@@ -827,15 +827,15 @@ ul.hatena-section ul {
 	margin:			0 24px 0 0;
 	float:			left;
 }
-#hatena-body #side-b .hatena-module:last-child {
+#columns #side-b .side-module:last-child {
 	border-right:		none;
 }
-#hatena-body #side-b:after {
+#columns #side-b:after {
 	content:		"";
 	display:		block;
 	clear:			both;
 }
-#hatena-body #side-b .hatena-moduletitle {
+#columns #side-b .side-module-title {
 	color:			#fff;		/* $c=footerfont */
 	text-shadow:		 1px -1px 1px #000,
 				 1px  1px 1px #000,
@@ -843,7 +843,7 @@ ul.hatena-section ul {
 				-1px -1px 1px #000,
 				4px 2px 2px rgba(255,255,255,0.4);
 }
-#hatena-body #side-b .hatena-modulebody {
+#columns #side-b .side-module-body {
 	margin:			0.5em 1em;
 }
 
@@ -996,7 +996,7 @@ nav.tree {
 /* 前のスマホ用のCSS（sphone.css）を移したもの。
    本文の枠はGridにせず、前と同じく本文、サイドバーの順に縦に並べる */
 @media screen and (max-width: 640px) {
-	#hatena-body > div {
+	#columns > div {
 		display:		block;
 	}
 
@@ -1008,13 +1008,13 @@ nav.tree {
 	}
 	#header>div:first-child,
 	#footer>div:last-child,
-	#hatena-body,
+	#columns,
 	#side-b {
 		width:			auto;
 		min-width:		1px;	/* for GC bugs */
 		max-width:		none;
 	}
-	#hatena-body {
+	#columns {
 		padding:		0 4px;
 	}
 	.main {
@@ -1070,7 +1070,7 @@ nav.tree {
 	span.switch-icon {
 		margin-right:		1em;
 	}
-	#sidebar ul.hatena-section {
+	#sidebar ul.side-module-list {
 		line-height:		200%;
 	}
 	#side-search input.search-box {

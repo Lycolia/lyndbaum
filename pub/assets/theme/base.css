@@ -1335,10 +1335,10 @@ span.tag span.ui-icon-close,
 }
 /* サイドバーのタグ、過去ログ、コンテンツの開閉
    開閉の印の幅だけ子を余分に下げ、親の文字より子が下がって見えるようにする */
-.hatena-module details {
+.side-module details {
 	padding-left:		1em;
 }
-.hatena-module summary {
+.side-module summary {
 	margin-left:		-1em;
 	cursor:			pointer;
 }

@@ -11,7 +11,7 @@
 /* サイドバーAとBの包み（#sidebars）を1本のサイドバーにし、Aの下にBを重ねる。
    広い画面では本文の左に置く。72rem未満の画面では、本文、サイドバーの順に縦に並べる */
 @media (min-width: 72rem) {
-	#hatena-body > div {
+	#columns > div {
 		grid-template-columns: 22.5rem minmax(0, 1fr);
 		grid-template-areas: "side main";
 		column-gap: 1rem;

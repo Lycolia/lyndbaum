@@ -19,7 +19,7 @@
 <$tree  = node.children>
 <$depth = argv#1><@>prefix
 <$p = "\t" %x depth>
-<@p><ul id="<@id>-<@if(node.root,'root',node.pkey)>"<@if(depth == 0, ' class="hatena-section"')>>
+<@p><ul id="<@id>-<@if(node.root,'root',node.pkey)>"<@if(depth == 0, ' class="side-module-list"')>>
 <@forexec(t, tree, begin.forexec)>
 <$ifnext(!ps.disp_noart_tag && !t.qtall)>
 <@ifexec(t.children && t.qt<t.qtall, begin.children, begin.children)>
@@ -41,12 +41,12 @@
 <@>タグリスト
 <@>-------------------------------------------------------------------
 <@ifexec(root && root.pkey, begin, begin)>
-<div class="hatena-moduletitle"><a href="<@v.myself2><@root.elink_key>"><@root.name></a></div>
+<div class="side-module-title"><a href="<@v.myself2><@root.elink_key>"><@root.name></a></div>
 <$else>
-<div class="hatena-moduletitle"><@ps.title || 'タグ'></div>
+<div class="side-module-title"><@ps.title || 'タグ'></div>
 <$end>
-<div class="hatena-modulebody">
+<div class="side-module-body">
 <@ifexec(root, begin)>
 <@exec(sub, root, 0)>
 <$end>
-</div> <!-- hatena-modulebody -->
+</div> <!-- side-module-body -->

@@ -543,6 +543,64 @@ subtest '見出しの段を上げるアップデート（4.45）' => sub {
 	$app->restore($snap);
 };
 
+subtest 'サイドバーのクラスからhatenaを外すアップデート（4.45）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $set  = "$dir/data/blog/setting.dat";
+	my $snap = $app->snapshot();
+	my $edit = sub {	# ファイルの中身を書き換える
+		my ($file, $func) = @_;
+		local $_ = read_file($file);
+		my $n = $func->();
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $_;
+		close($fh);
+		return $n;
+	};
+	my $old = qr/hatena-(?:module|section|body)/;
+	my @mods = qw(des_freetext des_artlist des_comlist des_monthlist des_taglist des_contents_list des_searchbox);
+
+	ok(AppTest::is_reload($app->post('admin', 'design/edit', [ action => 'design/edit',
+		header_ary => 'deh_login', header_ary => 'deh_title', art_h_ary => 'dea_art-info', map { (side_a_ary => $_) } @mods ])), 'サイドバーにモジュールを置く');
+	my $r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_freetext', title => 'フリー', class => 'side-module my-box', free_txt => '中身' });
+	like($r->{body}, qr/^ret=0$/m, 'フリー入力のクラスを保存できる');
+	my $b = body($app->get('guest', '/'));
+	like($b, qr{<div id="columns">}, '外枠のidはcolumns');
+	like($b, qr{<div class="side-module my-box"[^>]*>\s*<div class="side-module-title">フリー</div>\s*<div class="side-module-body">}, 'フリー入力のモジュールが新しいクラスで出る');
+	like($b, qr{<ul class="side-module-list">}, '一覧のモジュールが新しいクラスで出る');
+	unlike($b, $old, '古いクラス、idは出ない');
+
+	# 4.44までの形にする。保存したデザインのスケルトン、プラグインの雛形の写し、設定（生成した一覧のHTML、フリー入力のクラス）を古い名前にする
+	my @files = grep { -f $_ } ($set, glob("$dir/data/blog/{skel,skel_theme/*}/{*.html,_format/*.html}"));
+	my $n = 0;
+	foreach my $f (@files) {
+		$n += $edit->($f, sub {
+			my $c = 0;
+			$c += s/side-module-title/hatena-moduletitle/g;
+			$c += s/side-module-body/hatena-modulebody/g;
+			$c += s/side-module-list/hatena-section/g;
+			$c += s/side-module/hatena-module/g;
+			return $c;
+		});
+	}
+	cmp_ok($n, '>', 0, '保存したファイルを古い名前にする');
+	like(read_file($set), qr/^p:des_freetext(?:,\d+)?:class=hatena-module my-box$/m, '作った状態の確認：フリー入力のクラスが古い名前');
+	like(body($app->get('guest', '/')), qr{<div class="hatena-module my-box"}, '作った状態の確認：古いクラスが出る');
+
+	$edit->($sys, sub { s/^VERSION=.*$/VERSION=4.44/m });
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+
+	like(read_file($set), qr/^p:des_freetext(?:,\d+)?:class=side-module my-box$/m, 'フリー入力のクラスを新しい名前に移す');
+	foreach my $f (grep { -f $_ } ($set, glob("$dir/data/blog/{skel,skel_theme/*}/{*.html,_format/*.html}"))) {
+		unlike(read_file($f), $old, substr($f, length($dir) + 1) . 'に古い名前が残らない');
+	}
+	$b = body($app->get('guest', '/'));
+	like($b, qr{<div class="side-module my-box"[^>]*>\s*<div class="side-module-title">フリー</div>}, 'フリー入力のモジュールが新しいクラスで出る');
+	like($b, qr{<ul class="side-module-list">}, '一覧のモジュールが新しいクラスで出る');
+	unlike($b, $old, '古いクラス、idは出ない');
+	$app->restore($snap);
+};
+
 subtest 'RSSと書き出しの投稿者は管理者の表示名' => sub {
 	my $snap = $app->snapshot();
 	ok(json_ok($app->post('admin', '', { action => '_ajax_self_change_name', name => 'A&B 管理者' })), '管理者の名前を変える');

@@ -26,19 +26,19 @@ body
 	border-right:		1px solid #4a5973;	/* $c=border2 */
 	border-left:		1px solid #4a5973;	/* $c=border2 */
 }
-#hatena-body {
+#columns {
 	margin:			0 0 1em 0;
 	padding-bottom:		2em;
 }
 /* 本文とサイドバーをGridで並べる（HTMLは本文、サイドバーの順。JavaScriptで入れ替えない） */
-#hatena-body > div {
+#columns > div {
 	display:		grid;
 	grid-template-columns:	minmax(0, 1fr) auto;
 	grid-template-areas:	"main side";
 	align-items:		start;
 }
 /* 本文とサイドバーのほか（デバッグ表示など）は、幅いっぱいに出す */
-#hatena-body > div > :not(.main):not(#sidebar) {
+#columns > div > :not(.main):not(#sidebar) {
 	grid-column:		1 / -1;
 }
 /* 記事部 */
@@ -308,9 +308,9 @@ div.body-footer {
 ■sidebar内の配置設定
 --------------------------------------------------------------------*/
 /* sidebar の 1項目 */
-div.hatena-module {
+div.side-module {
 }
-div.hatena-moduletitle {
+div.side-module-title {
 	color:			#fff;		/* $c=fixmodulefont */
 	font-weight:		bold;
 	text-align:		center;
@@ -321,37 +321,37 @@ div.hatena-moduletitle {
 	margin:			0;
 	padding:		2px 0 2px 0;
 }
-div.hatena-modulebody {
+div.side-module-body {
 	margin:			5px;
 }
-div.hatena-module a {
+div.side-module a {
 	text-decoration:	none;
 }
 
 /* タイトル一覧など */
-ul.hatena-section {
+ul.side-module-list {
 	list-style-type:	none;
 	margin:			0.3em 0em 0.3em 0.3em;
 	padding:		0px;
 }
-.hatena-module:not(.side-contents-list) ul.hatena-section li
+.side-module:not(.side-contents-list) ul.side-module-list li
 {
 	border-bottom:		1px solid #e5ebfa;	/* $c=moduleborder = auto:border */
 	margin:			4px 0;
 	padding-bottom:		3px;
 	line-height:		130%;
 }
-.hatena-module:not(.side-contents-list) ul.hatena-section ul li:first-child {
+.side-module:not(.side-contents-list) ul.side-module-list ul li:first-child {
 	border-top:		1px solid #e5ebfa;	/* $c=moduleborder */
 	padding-top:		3px;
 }
-.hatena-module:not(.side-contents-list) ul.hatena-section li:last-child {
+.side-module:not(.side-contents-list) ul.side-module-list li:last-child {
 	border-bottom:		none;
 	padding-bottom:		0;
 	margin-bottom:		0;
 }
 /* 2段目のリスト */
-ul.hatena-section ul {
+ul.side-module-list ul {
 	list-style-type:	none;
 	margin:			0 0 0.2em 1em;
 	padding:		0px;
@@ -362,14 +362,14 @@ ul.hatena-section ul {
 	margin-bottom:		0.5em;
 }
 
-div.hatena-moduletitle a,
-div.hatena-moduletitle a:link,
-div.hatena-moduletitle a:visited {
+div.side-module-title a,
+div.side-module-title a:link,
+div.side-module-title a:visited {
 	color:			inherit;
 }
 
 /* コンテンツリスト */
-.hatena-module.side-contents-list ul.hatena-section {
+.side-module.side-contents-list ul.side-module-list {
 	line-height:		160%;
 }
 
@@ -598,7 +598,7 @@ article.system.search div.body {
 /*--------------------------------------------------------------------
 ●sidebar：カレンダー
 --------------------------------------------------------------------*/
-#side-calendar .hatena-modulebody {
+#side-calendar .side-module-body {
 	padding:		2px 0;
 }
 table.calendar {
@@ -845,7 +845,7 @@ nav.tree {
 /* 前のスマホ用のCSS（sphone.css）を移したもの。
    本文の枠はGridにせず、前と同じく本文、サイドバーの順に縦に並べる */
 @media screen and (max-width: 640px) {
-	#hatena-body > div {
+	#columns > div {
 		display:		block;
 	}
 
@@ -868,7 +868,7 @@ nav.tree {
 		max-width:		none;
 		width:			auto;
 	}
-	#hatena-body {
+	#columns {
 		margin:			0;
 		width:			auto;
 		max-height:		auto;
@@ -923,7 +923,7 @@ nav.tree {
 	span.switch-icon {
 		margin-right:		1em;
 	}
-	#sidebar ul.hatena-section {
+	#sidebar ul.side-module-list {
 		line-height:		200%;
 	}
 	#side-search input.search-box {

@@ -165,22 +165,22 @@ body {
 }
 
 /* 記事部 + サイドバー */
-#hatena-body {
+#columns {
     margin:                 0 auto;
     /* 100% - ヘッダー - main.main パディング - フッター */
     min-height:             calc(100% - 46px - 80px);
 }
 
-/* #hatena-body直下のdiv */
+/* #columns直下のdiv */
 /* 本文とサイドバーをGridで並べる（HTMLは本文、サイドバーの順。JavaScriptで入れ替えない） */
-#hatena-body>div {
+#columns>div {
     height:                 100%;
     display:                grid;
     grid-template-columns:  300px minmax(0, 1fr);
     grid-template-areas:    "side main";
 }
 /* 本文とサイドバーのほか（デバッグ表示など）は、幅いっぱいに出す */
-#hatena-body>div>:not(.main):not(#sidebar) {
+#columns>div>:not(.main):not(#sidebar) {
     grid-column:            1 / -1;
 }
 
@@ -872,75 +872,75 @@ hr#com-form-separator {
 /* ■ サイドバー */
 /* --------------------------------------------------------- */
 /* サイドバーの１項目 */
-.hatena-module {
+.side-module {
     margin:                 20px 0 0 0;
     padding:                0px 20px;
     color:                  white;
 }
 
-.hatena-module:focus {
+.side-module:focus {
     background-color:       #4e4a4a;
 }
 
-.hatena-module:first-child {
+.side-module:first-child {
     margin-top:             0;
     padding-top:            20px;
 }
 
 /* タイトル部 */
-.hatena-moduletitle {
+.side-module-title {
     color:                  #5bbdbf;
     font-size:              16px;
     font-weight:            bold;
     line-height:            24px;
 }
 
-.hatena-moduletitle a {
+.side-module-title a {
     color:                  #5bbdbf;
 }
 
-.hatena-moduletitle a:hover {
+.side-module-title a:hover {
 }
 
 
 
-.hatena-modulebody {
+.side-module-body {
     margin-top:             6px;
     font-size:              14px;
     line-height:            20px;
     color:                  white;
 }
 
-.hatena-modulebody a, .hatena-modulebody a:link 
-.hatena-modulebody a:visited {
+.side-module-body a, .side-module-body a:link 
+.side-module-body a:visited {
     color:                  white;
 }
 
-.hatena-module a:hover {
+.side-module a:hover {
 }
 
-.hatena-module ul {
+.side-module ul {
     list-style-type:        none;
     margin-left:            0;
 }
 
 /* コンテンツの子要素 */
-.hatena-modulebody ul ul {
+.side-module-body ul ul {
     margin-bottom:          0px;
     margin-left:            1em;
 }
 
-div.hatena-module:not(.system-module) li {
+div.side-module:not(.system-module) li {
 }
 
-.hatena-module .search-box {
+.side-module .search-box {
     width:                  calc(100% - 20px);
     border:                 1px solid #2472a4;
     border-radius:          16px;
     background-color:       #fcfcfc;
 }
 
-.hatena-module .search-box:focus {
+.side-module .search-box:focus {
     background-color:       #fcfcfc;
 }
 
@@ -1069,9 +1069,9 @@ div[data-module-name="dem_searchbox,1"] .search-box {
 /* サイドバー: Information */
 #sidebar #side-information {
 }
-#side-information .hatena-moduletitle {
+#side-information .side-module-title {
 }
-#side-information .hatena-modulebody {
+#side-information .side-module-body {
 }
 #side-information a {
 }
@@ -1269,7 +1269,7 @@ h2.ui-accordion-header {
 /* 前のスマホ用のCSS（sphone.css）を移したもの。
    本文の枠はGridにせず、前と同じく本文、サイドバーの順に縦に並べる */
 @media screen and (max-width: 640px) {
-	#hatena-body > div {
+	#columns > div {
 		display:		block;
 	}
 
@@ -1344,13 +1344,13 @@ h2.ui-accordion-header {
 	span.switch-icon {
 		margin-right:		1em;
 	}
-	#sidebar ul.hatena-section {
+	#sidebar ul.side-module-list {
 		line-height:		200%;
 	}
 	#side-search input.search-box {
 		width:			180px;
 	}
-	.hatena-module {
+	.side-module {
 		max-width:		300px;
 		margin-left:		auto;
 		margin-right:		auto;

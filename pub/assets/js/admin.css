@@ -960,17 +960,17 @@ div.messages:empty {
 	top:			calc(var(--admin-bar-height) + 1.25rem);
 	font-size:		13px;
 }
-#admin-side .hatena-module {
+#admin-side .side-module {
 	margin:			0 0 1rem;
 	background-color:	var(--admin-card);
 	border:			1px solid var(--admin-border);
 }
-#admin-side .hatena-moduletitle {
+#admin-side .side-module-title {
 	padding:		0.4rem 0.75rem;
 	font-weight:		bold;
 	border-bottom:		1px solid var(--admin-border-light);
 }
-#admin-side .hatena-modulebody {
+#admin-side .side-module-body {
 	padding:		0.5rem 0.75rem;
 }
 #admin-side button {
@@ -1089,7 +1089,7 @@ div.messages:empty {
 		flex-direction:		column;
 	}
 	body.media #media > .body,
-	body.media #admin-side .side-folder-tree .hatena-modulebody {
+	body.media #admin-side .side-folder-tree .side-module-body {
 		flex:			1;
 		min-height:		0;
 		display:		flex;

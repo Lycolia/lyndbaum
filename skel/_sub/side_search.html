@@ -13,9 +13,9 @@
 <@>
 <!--検索====================================================-->
 <$ps = v.load_plgset(name)>
-<div class="hatena-module" id="<@id>" data-module-name="<@name>">
-<@if(!ps.title_none, '<div class="hatena-moduletitle">検索</div>')>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>" data-module-name="<@name>">
+<@if(!ps.title_none, '<div class="side-module-title">検索</div>')>
+<div class="side-module-body">
 <form method="GET" action="<@v.myself>">
 <input type="search" class="search-box w80" name="q" value="<@tag_escape(x = Query.q)>" required>
 <$ifset(exists(Query.all), all, Query.all, ps.all)>
@@ -31,5 +31,5 @@
 </span>
 <$end>
 </form>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->

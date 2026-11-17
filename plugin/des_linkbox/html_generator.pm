@@ -10,10 +10,10 @@ sub {
 	my $title = $set->{title} || 'link list';
 	my $html = <<HTML;
 <!--Links======================================-->
-<div class="hatena-module side-link-list" data-module-name="$name" id="$id">
-<div class="hatena-moduletitle">$title</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module side-link-list" data-module-name="$name" id="$id">
+<div class="side-module-title">$title</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 HTML
 
 
@@ -30,8 +30,8 @@ HTML
 
 	$html .= <<HTML;
 </ul>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 HTML
 	return $html;
 }
