@@ -15,7 +15,8 @@ package SatsukiApp::adiary;
 ################################################################################
 my $UPDATE_MIN_VERSION = 4.42;	# これより古いデータからのアップデートはできない
 my @update_versions = (
-	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 }	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとサイトのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとサイトの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
+	{ ver => 4.43, func => 'sys_update_443', system=>1, rebuild=>1, plugin=>1, theme=>1 },	# 同時編集の確認を削除したので、システム設定のedit_lock_intervalとサイトのlock/を消す。システム設定のalbum_*_qualityをmedia_*_qualityに移す。添付ファイルのフォルダをpub/attachments/からpub/attach/にしたので、フォルダと保存したパスを移し、全記事とデザインのスケルトンを作り直す。固定ページの内部の名前をwikiからpageにしたので、記事のctypeとサイトの設定を移し、テーマの色の調整のCSSを作り直す。記事ヘッダの日時の設定を消す。satsuki2系のテーマの色の調整のfixhelpfontを、ヘルプの文字の色helpfontに移す
+	{ ver => 4.45, rebuild=>1, plugin=>1, theme=>1 }	# 見出しの段を一段上げた（サイト名h1→div、記事タイトルと画面の名前h2→h1、本文h3〜→h2〜）。全記事、デザインのスケルトン、テーマの色の調整のCSSを作り直す
 );
 #-------------------------------------------------------------------------------
 # ●システムアップデート

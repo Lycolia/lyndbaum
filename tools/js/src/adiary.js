@@ -595,7 +595,7 @@ adiary.word_highlight = function(id) {
 	}
 	if (!words.length) return;
 
-	const target = document.querySelectorAll("#articles article h2 .title, #articles article div.body div.body-main, #articles span.tags");
+	const target = document.querySelectorAll("#articles article h1 .title, #articles article div.body div.body-main, #articles span.tags");
 	let h_cnt = 0;
 	rec_childnodes(target);
 

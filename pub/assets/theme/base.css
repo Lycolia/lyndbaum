@@ -133,8 +133,34 @@ table.plugins button {
 /*--------------------------------------------------------------------
 ●記法関連
 --------------------------------------------------------------------*/
-h5, h6 {
+h4, h5, h6 {
 	font-size:	100%;
+}
+/* 見出しの段を一段上げた（4.45。サイト名h1→div、記事タイトルh2→h1、本文h3〜→h2〜）。
+   テーマのCSSが書いていない所は、前のタグのブラウザの既定の見た目のままにする。
+   :where()で強さを0にして、テーマのCSSが書いた所はそちらが勝つようにする */
+:where(.site-title) {
+	font-size:	2em;
+	font-weight:	bold;
+	margin-block:	0.67em;
+}
+:where(article h1) {
+	font-size:	1.5em;
+	margin-block:	0.83em;
+}
+:where(article h2) {
+	font-size:	1.17em;
+	margin-block:	1em;
+}
+:where(article h3) {
+	font-size:	1em;
+	margin-block:	1.33em;
+}
+:where(article h4) {
+	margin-block:	1.67em;
+}
+:where(article h5, article h6) {
+	margin-block:	2.33em;
 }
 pre {
 	white-space:	pre-wrap;
@@ -254,7 +280,7 @@ pre {
 	z-index:	1;
 }
 /* 記事からはみ出し防止 */
-h3, h4, .clear,
+h2, h3, .clear,
 div.body-footer {
 	clear:		both;
 }
@@ -822,7 +848,7 @@ html:has(.admin-bar) {
 	}
 	/* ログインのリンクとタイトルがボタンの下に入らないよう、右を空ける（タイトルの下線などは幅いっぱいのまま） */
 	.has-drawer body:has(#sidebar) #nav-header,
-	.has-drawer body:has(#sidebar) #header h1 {
+	.has-drawer body:has(#sidebar) #header .site-title {
 		padding-right:		3rem;
 	}
 	.has-drawer #sidebar {

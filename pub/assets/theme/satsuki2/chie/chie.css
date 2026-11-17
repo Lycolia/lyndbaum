@@ -333,17 +333,17 @@ dd                          { padding-left: 1.5em;
 /* --------------------------------------------------------- */
 /* ■ 見出し (日記帳タイトル) */
 /* --------------------------------------------------------- */
-h1 a:link, h1 a:hover, h1 a:visited {
+.site-title a:link, .site-title a:hover, .site-title a:visited {
 
     color:                  white;
     text-decoration:        none;
     font-weight:            normal;
 }
 
-h1:before {
+.site-title:before {
 }
 
-h1:after {
+.site-title:after {
 }
 
 
@@ -420,7 +420,7 @@ article.system:last-child {
 /* 記事タイトル部 */
 /* コメント入力部タイトル */
 /* --------------------------------------------------------- */
-h2 {
+h1 {
     font-size:              28px;
     line-height:            36px;
     padding:                25px 0px;
@@ -434,20 +434,20 @@ div.caption {
     margin-bottom:          4px;
 }
 
-h2 a:link, h2 a:visited, h2 a:hover,
-div.caption span, article.system h2 {
+h1 a:link, h1 a:visited, h1 a:hover,
+div.caption span, article.system h1 {
     font-weight:            bold;
     color:                  #404040;
     text-decoration:        none;
 }
 
-h2 a.date {
+h1 a.date {
     font-size:              20px;
     line-height:            28px;
     margin-right:           4px;
 }
 
-h2 a.date:hover {
+h1 a.date:hover {
     text-decoration:        none;
 }
 
@@ -537,12 +537,53 @@ div.body-main section p {
 /* ● 記事：基本設定 */
 /* --------------------------------------------------------- */
 /* 見出し */
-article h3 {
+article h2 {
     font-size:              24px;
     line-height:            32px;
     font-weight:            bold;
     color:                  #404040;
     margin:                 24px 0 8px 0;
+}
+
+h2 a:link, h2 a:visited, h2 a:hover {
+    color:                  #404040;
+    text-decoration:        none;
+}
+
+h2:before {
+/*     counter-increment:      sec; */
+/*     content:                counters(sec, ".") "."; */
+}
+
+h2 span.sanchor {
+    display:                none;
+}
+
+h2 span.timestamp {
+    font-size:              16px;
+    color:                  #404040;
+}
+
+h2 code {
+    font-size:              24px;
+    line-height:            32px;
+}
+
+/* 小見出し */
+article h3 {
+    font-size:              20px;
+    line-height:            28px;
+    font-weight:            bold;
+    color:                  #404040;
+    margin:                 24px 0 8px 0;
+    text-decoration:        none;
+}
+
+h3:before {
+/*     counter-increment:      sec2; */
+/*     content:                counters(sec, ".") "." */
+/*                             counters(sec2, ".") ". "; */
+/*     margin-right:           -5px; */
 }
 
 h3 a:link, h3 a:visited, h3 a:hover {
@@ -550,64 +591,23 @@ h3 a:link, h3 a:visited, h3 a:hover {
     text-decoration:        none;
 }
 
-h3:before {
-/*     counter-increment:      sec; */
-/*     content:                counters(sec, ".") "."; */
+h3 span {
 }
 
 h3 span.sanchor {
-    display:                none;
 }
 
 h3 span.timestamp {
     font-size:              16px;
-    color:                  #404040;
 }
 
 h3 code {
-    font-size:              24px;
-    line-height:            32px;
-}
-
-/* 小見出し */
-article h4 {
-    font-size:              20px;
-    line-height:            28px;
-    font-weight:            bold;
-    color:                  #404040;
-    margin:                 24px 0 8px 0;
-    text-decoration:        none;
-}
-
-h4:before {
-/*     counter-increment:      sec2; */
-/*     content:                counters(sec, ".") "." */
-/*                             counters(sec2, ".") ". "; */
-/*     margin-right:           -5px; */
-}
-
-h4 a:link, h4 a:visited, h4 a:hover {
-    color:                  #404040;
-    text-decoration:        none;
-}
-
-h4 span {
-}
-
-h4 span.sanchor {
-}
-
-h4 span.timestamp {
-    font-size:              16px;
-}
-
-h4 code {
     font-size:              20px;
     line-height:            28px;
 }
 
 /* 小々見出し */
-article h5 {
+article h4 {
     font-size:              18px;
     line-height:            26px;
     font-weight:            bold;
@@ -615,19 +615,19 @@ article h5 {
     color:                  #404040;
 }
 
-h5:before {
+h4:before {
 /*     counter-increment:      sec3; */
 /*     content:                counters(sec, ".") "." */
 /*                             counters(sec2, ".") "." */
 /*                             counters(sec3, ".") ". "; */
 }
 
-h5 a:link, h5 a:visited, h5 a:hover {
+h4 a:link, h4 a:visited, h4 a:hover {
     color:                  #404040;
     text-decoration:        none;
 }
 
-h5 code {
+h4 code {
     font-size:              18px;
     line-height:            26px;
 }
@@ -1121,7 +1121,7 @@ div[data-module-name="dem_searchbox,1"] .search-box {
 /* --------------------------------------------------------- */
 /* ● システム関連 */
 /* --------------------------------------------------------- */
-article.system h2 {
+article.system h1 {
     border-top:             1px solid #e1e4e5;
     margin-bottom:          0;
 }
@@ -1200,7 +1200,7 @@ textarea[readonly], textarea[readonly]:focus {
 }
 
 
-h3.ui-accordion-header {
+h2.ui-accordion-header {
     background-color:       transparent;
 }
 
@@ -1372,12 +1372,12 @@ h3.ui-accordion-header {
 	/*--------------------------------------------------------------------
 	■記事部の設定
 	--------------------------------------------------------------------*/
-	h2 {
+	h1 {
 		padding:		1em 0 0 0;
 		font-size:		18pt;
 		line-height:		1;
 	}
-	h2 a.date {
+	h1 a.date {
 		font-size:		12pt;
 		display:		block;
 	}

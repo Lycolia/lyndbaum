@@ -12,6 +12,7 @@ a		href, name
 p
 span
 br
+h2
 h3
 h4
 h5

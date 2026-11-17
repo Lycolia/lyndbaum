@@ -74,7 +74,7 @@
 <$end>
 <@ifexec(@logs, begin)>
 <article class="system notice" id="draft-notice">
-<h2>下書きを開く</h2>
+<h1>下書きを開く</h1>
 <div class="body">
 	<select name="open_draft" id="select-draft">
 	<@forexec(t, logs, begin)>
@@ -94,7 +94,7 @@
 <@> 左に本文、右に公開などの枠を置く（WordPressと同じ並び）。
 <@> 右の枠は記事のフォームの中にある。削除のフォームと投稿情報はフォームの外なので、CSSで本文の下に置く
 <article class="system edit" id="edit">
-<h2 ><@v.title></h2>
+<h1 ><@v.title></h1>
 <div class="body edit-layout">
 
 <form method="POST" name="edit" class="no-enter-submit">
@@ -191,7 +191,7 @@
 	<!--アイキャッチ画像=====================================================-->
 	<@> 選んでいなければサイトの画像を使う（edit.js）。本文の画像は拾わない
 	<section class="edit-box" id="edit-eyecatch">
-	<h3>アイキャッチ画像</h3>
+	<h2>アイキャッチ画像</h2>
 	<input type="hidden" name="ogp" id="ogp-input" value="<@art.main_image>">
 	<div id="eyecatch-preview" data-blog-image="<@Basepath><@if(s.blog_image || s.iconfile, s.blog_image || s.iconfile, #'<@v.pubdist_dir>default-icon.png')>"></div>
 	<p class="edit-buttons">
@@ -202,7 +202,7 @@
 
 	<!--タグ=================================================================-->
 	<section class="edit-box" id="edit-tags-box">
-	<h3>タグ</h3>
+	<h2>タグ</h2>
 	<span id="edit-tags">
 	<span id="tags"><$tags = split(',', art.tags)>
 	<@forexec(t, tags, begin)>
@@ -214,7 +214,7 @@
 
 	<!--固定ページ=========================================================-->
 	<section class="edit-box" id="edit-content">
-	<h3>固定ページ</h3>
+	<h2>固定ページ</h2>
 	<ul class="checkbox">
 		<li><label><input type="checkbox" name="page" value="1" data-target="#content-block" class="js-switch"<@if(art.ctype || art.page, ' checked')>>固定ページにする</label>
 		<input type="hidden" name="priority" value="<@art.priority>">
@@ -232,7 +232,7 @@
 
 	<!--公開=================================================================-->
 	<section class="edit-box" id="edit-publish">
-	<h3>公開</h3>
+	<h2>公開</h2>
 	<@ifexec(edit_pkey, begin)>
 	<p class="edit-open-link"><a href="<@v.myself2><@art.elink_key>">記事を開く</a></p>
 	<$end>

@@ -174,7 +174,7 @@ button:disabled
 /* ○○さん */
 a.welcome-name { margin: 0px 4px 0px 4px; }
 
-h1
+.site-title
 {
 	font-size:		20pt;
 	font-weight:		bold;
@@ -182,11 +182,11 @@ h1
 	padding:		60px 10px;
 	margin:			0;
 }
-h1 a, h1 a:link, h1 a:hover, h1 a:visited {
+.site-title a, .site-title a:link, .site-title a:hover, .site-title a:visited {
 	color:			#fff;		/* $c=titlefont */
 	text-decoration:	inherit;
 }
-h1 img, h1 a img {
+.site-title img, .site-title a img {
 	border:			none;
 }
 
@@ -276,7 +276,7 @@ article.page {
 	background-color:	#fafaf2;		/* $c=pagebg = auto:artbg*/
 }
 /* 記事タイトル */
-article h2 {
+article h1 {
 	color:			#600;			/* $c=h2font = auto:artlink */
 	font-size:		100%;
 	line-height:		100%;
@@ -285,28 +285,28 @@ article h2 {
 	margin:			0 0 1em 0;
 	padding:		0.5em 0 0.5em 8px;
 }
-article h2 a.title {
+article h1 a.title {
 	font-size:		120%;
 	line-height:		100%;
 	display:		block;
 	margin-left:		-1px;
 }
-article h2 a:link,
-article h2 a:visited
+article h1 a:link,
+article h1 a:visited
 {
 	text-decoration:	none;
 }
-article h2 a:hover {
+article h1 a:hover {
 	text-decoration:	underline;
 }
 
-article h2 a.date,
-article h2 .art-info {
+article h1 a.date,
+article h1 .art-info {
 	font-size:		80%;
 	line-height:		100%;
 	font-weight:		normal;
 }
-article h2 * {
+article h1 * {
 	display:		inline;
 }
 
@@ -372,7 +372,7 @@ span.tag:not(:last-child) {
 ■記事見出し
 --------------------------------------------------------------------*/
 /* 見出し */
-.body h3 {
+.body h2 {
 	font-size:		110%;
 	font-weight:		bold;
 
@@ -380,31 +380,31 @@ span.tag:not(:last-child) {
 	margin-top:		1em;
 	border-left:		4px solid #c66;		/* $c=h2border */
 }
-.body h3 span.timestamp {
+.body h2 span.timestamp {
 	font-size:		90%;
 	font-weight:		normal;
 }
-.body h3 a {
+.body h2 a {
 	text-decoration:	none;
 }
+.body h2, .body h2 a, .body h2 a:link, .body h2 a:visited,
 .body h3, .body h3 a, .body h3 a:link, .body h3 a:visited,
-.body h4, .body h4 a, .body h4 a:link, .body h4 a:visited,
-h5, h6 {
+h4, h5, h6 {
 	color:			#600;			/* $c=h2font */
 }
 
 /* 小見出し */
-div.body h4 {
+div.body h3 {
 	font-size:		100%;
 	font-weight:		bold;
 	border-bottom:		1px solid #c66;	/* $c=h2border */
 }
-div.body h5 {
+div.body h4 {
 	font-size:		100%;
 	font-weight:		bold;
 }
 /* 小見出しへのリンク */
-div.body h4 a, div.body h5 a {
+div.body h3 a, div.body h4 a {
 	font-size:		inherit;
 	color:			inherit;
 	text-decoration:	inherit;
@@ -694,7 +694,7 @@ article.system {
 	margin:			1em 0;
 	padding:		1em;
 }
-article.system h2 {
+article.system h1 {
 	color:			#000;			/* $c=fixfont */
 }
 
@@ -902,7 +902,7 @@ nav.tree {
 			-1px  1px 0px #666,
 			 3px  3px 2px #888;
 	}
-	h1 {
+	.site-title {
 		padding:		40px 6px 24px 6px;
 		margin:			0;
 	}

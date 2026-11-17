@@ -13,9 +13,9 @@ our $SYSTEM_DESCRIPTION = 'The ultimate lightweight self-hosted Knowledge Base M
 # データ管理上数値しか解釈できないので文字列にしてはならない
 our $VERSION    = 4.45;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
-our $BRANCH_VERSION = '';
+our $BRANCH_VERSION = '-dev';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.43;
+our $DATA_VERSION = 4.45;
 ################################################################################
 # ■システム内部イベント
 ################################################################################

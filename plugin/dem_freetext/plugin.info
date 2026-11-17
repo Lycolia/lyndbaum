@@ -1,6 +1,6 @@
 ######################################################################
 title=フリー入力
-version=1.10
+version=1.11
 #					(C)2018 nabe@abk
 ######################################################################
 author=nabe@abk
@@ -24,7 +24,7 @@ HTML
 <$txt = if(ps.free_txt ne '', ps.free_txt, 'テキストを入力できます。')>
 <@ifexec(ps.title, begin, begin)>
 <article class="system message" data-module-name="<@this>" id="<@id>">
-<h2><@ps.title></h2>
+<h1><@ps.title></h1>
 <div class="body">
 <@txt>
 </div></article>

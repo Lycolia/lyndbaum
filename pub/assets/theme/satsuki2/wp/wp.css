@@ -181,7 +181,7 @@ a.welcome-name { margin: 0px 4px 0px 4px; }
 
 
 /* 見出し */
-h1
+.site-title
 {
 	font-size:		24pt;
 	font-weight:		bold;
@@ -191,11 +191,11 @@ h1
 	margin:			0;
 	padding:		4px 0 50px 0;
 }
-h1 a, h1 a:link, h1 a:visited {
+.site-title a, .site-title a:link, .site-title a:visited {
 	color:			#000;		/* $c=titlefont = fixfont */
 	text-decoration:	none;
 }
-h1 img, h1 a img {
+.site-title img, .site-title a img {
 	border:			none;
 }
 
@@ -364,23 +364,23 @@ article {
 
 
 /* 記事タイトル */
-article h2 {
+article h1 {
 	font-size:		24pt;
 	line-height:		120%;
 }
-h2, h2 a, h2 a:link, h2 a:visited {
+h1, h1 a, h1 a:link, h1 a:visited {
 	color:			#000;			/* $c=fixfont */
 	text-decoration:	none;
 }
-h2 a:hover {
+h1 a:hover {
 	text-decoration:	underline;
 }
 
-article h2 {
+article h1 {
 	margin:			0;
 	padding:		0;
 }
-article h2 a.date {
+article h1 a.date {
 	display:		block;
 	font-weight:		normal;
 	font-size:		12px;
@@ -467,35 +467,35 @@ span.tag:not(:last-child) {
 ■記事見出し
 --------------------------------------------------------------------*/
 /* 見出し */
-div.body h3 {
+div.body h2 {
 	font-size:		16pt;
 	font-weight:		bold;
 	border-left:		6px solid #111;		/* $c=h3 = main */
 	padding:		16px 6px;
 }
-div.body h3 span.timestamp {
+div.body h2 span.timestamp {
 	font-size:		12pt;
 	font-weight:		normal;
 }
-div.body h3,
-div.body h3 a,
-div.body h3 a:link,
-div.body h3 a:visited {
+div.body h2,
+div.body h2 a,
+div.body h2 a:link,
+div.body h2 a:visited {
 	color:			#111;			/* $c=h3 = main */
 	text-decoration:	none;
 }
 /* 小見出し */
-div.body h4 {
+div.body h3 {
 	font-size:		14pt;
 	font-weight:		bold;
 	border-bottom:		4px solid #ddd;		/* $c=h4border = border2 */
 }
-div.body h5 {
+div.body h4 {
 	font-size:		100%;
 	font-weight:		bold;
 }
 /* 小見出しへのリンク */
-div.body h4 a, div.body h5 a {
+div.body h3 a, div.body h4 a {
 	font-size:		inherit;
 	color:			inherit;
 	text-decoration:	inherit;
@@ -861,7 +861,7 @@ article.system {
 	background-color:	#eef;			/* $c=sysbg */
 	border:			1px solid #bbb;		/* $c=border */
 }
-article.system h2 {
+article.system h1 {
 	font-size:		16pt;
 }
 article.system div.body {
@@ -1155,7 +1155,7 @@ nav.tree {
 	article {
 		padding:		6px;
 	}
-	article h2 {
+	article h1 {
 		font-size:		14pt;
 	}
 	article div.body {
@@ -1163,10 +1163,10 @@ nav.tree {
 		font-size:		11pt;
 		line-height:		140%;
 	}
-	div.body h3 {
+	div.body h2 {
 		font-size:		12pt;
 	}
-	div.body h4 {
+	div.body h3 {
 		font-size:		11pt;
 	}
 	#com {

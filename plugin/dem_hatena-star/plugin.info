@@ -1,6 +1,6 @@
 ######################################################################
 title=はてなスター
-version=1.00
+version=1.01
 #					(C)2016 nabe
 ######################################################################
 author=nabe@abk
@@ -35,9 +35,9 @@ Hatena.Star.Token = '<@v.load_plgset('<@this>', 'token')>';
 Hatena.Star.SiteConfig = {
 	entryNodes: {
 		'article.article': {
-			uri: 'h2 a.title',
-			title: 'h2 a.title',
-			container: 'h2'
+			uri: 'h1 a.title',
+			title: 'h1 a.title',
+			container: 'h1'
 		}
 	}
 };

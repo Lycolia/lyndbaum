@@ -6,7 +6,7 @@
 [*toc]
 --- expected
 <section>
-<h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
+<h2 id="見出し"><a href="/0001#見出し">見出し</a></h2>
 <nav class="toc-box" aria-label="目次">
 <div class="toc-title">目次</div>
 <ul class="toc">
@@ -129,7 +129,7 @@
 </footer>
 </section>
 <section>
-<h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
+<h2 id="見出し"><a href="/0001#見出し">見出し</a></h2>
 
 <p>次<span class="footnote"><a title="注釈C" href="/0001#fn-fn3" id="fnt-fn3">*3</a></span></p>
 <footer>
@@ -194,19 +194,19 @@ A((同じ))とB((同じ))
 本文((注釈C))
 --- expected
 <section>
-<h3 id="大"><a href="/0001#大">大</a></h3>
+<h2 id="大"><a href="/0001#大">大</a></h2>
 <p>前文<span class="footnote"><a title="注釈A" href="/0001#fn-fn1" id="fnt-fn1">*1</a></span></p>
 <footer>
 	<p class="footnote"><a href="/0001#fnt-fn1" id="fn-fn1">*1</a> : 注釈A</p>
 </footer>
-<h4 id="中1"><a href="/0001#中1">中1</a></h4>
+<h3 id="中1"><a href="/0001#中1">中1</a></h3>
 <p>本文<span class="footnote"><a title="注釈B" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
 <footer>
 	<p class="footnote"><a href="/0001#fnt-fn2" id="fn-fn2">*2</a> : 注釈B</p>
 </footer>
-<h5 id="小"><a href="/0001#小">小</a></h5>
+<h4 id="小"><a href="/0001#小">小</a></h4>
 <p>注釈なし</p>
-<h4 id="中2"><a href="/0001#中2">中2</a></h4>
+<h3 id="中2"><a href="/0001#中2">中2</a></h3>
 <p>本文<span class="footnote"><a title="注釈C" href="/0001#fn-fn3" id="fnt-fn3">*3</a></span></p>
 <footer>
 	<p class="footnote"><a href="/0001#fnt-fn3" id="fn-fn3">*3</a> : 注釈C</p>
@@ -227,7 +227,7 @@ B((同じ))
 <footer>
 	<p class="footnote"><a href="/0001#fnt-fn1" id="fn-fn1">*1</a> : 同じ</p>
 </footer>
-<h4 id="中"><a href="/0001#中">中</a></h4>
+<h3 id="中"><a href="/0001#中">中</a></h3>
 <p>B<span class="footnote"><a title="同じ" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
 <footer>
 	<p class="footnote"><a href="/0001#fnt-fn2" id="fn-fn2">*2</a> : 同じ</p>
@@ -246,7 +246,7 @@ B((同じ))
 <section>
 <p>前<span class="footnote"><a title="注釈A" href="/0001#fn-fn1" id="fnt-fn1">*1</a></span></p>
 <blockquote>
-<h4 id="引用の見出し"><a href="/0001#引用の見出し">引用の見出し</a></h4>
+<h3 id="引用の見出し"><a href="/0001#引用の見出し">引用の見出し</a></h3>
 <p>引用<span class="footnote"><a title="注釈B" href="/0001#fn-fn2" id="fnt-fn2">*2</a></span></p>
 </blockquote>
 <footer>
@@ -274,9 +274,9 @@ B((同じ))
 
 [*toc]
 --- expected
-<h3 id="a"><a href="/0001#a">A</a></h3>
-<h5 id="c"><a href="/0001#c">C</a></h5>
-<h4 id="b"><a href="/0001#b">B</a></h4>
+<h2 id="a"><a href="/0001#a">A</a></h2>
+<h4 id="c"><a href="/0001#c">C</a></h4>
+<h3 id="b"><a href="/0001#b">B</a></h3>
 <nav class="toc-box" aria-label="目次">
 <div class="toc-title">目次</div>
 <ul class="toc">
@@ -294,7 +294,7 @@ B((同じ))
 
 [*toc]
 --- expected
-<h4 id="見出し"><a href="/0001#見出し">見出し</a></h4>
+<h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
 <nav class="toc-box" aria-label="目次">
 <div class="toc-title">目次</div>
 <ul class="toc">
@@ -324,8 +324,8 @@ B((同じ))
 	</ul></li>
 </ul>
 </nav>
-<h3 id="a1b2c3d4"><a href="/0001#a1b2c3d4">見出し</a></h3>
-<h4 id="x&quot;y"><a href="/0001#x&quot;y">引用符</a></h4>
+<h2 id="a1b2c3d4"><a href="/0001#a1b2c3d4">見出し</a></h2>
+<h3 id="x&quot;y"><a href="/0001#x&quot;y">引用符</a></h3>
 
 === 引用の中の見出しは目次に入れない
 --- input
@@ -341,7 +341,7 @@ B((同じ))
 	<li><a href="/0001#見出し">見出し</a></li>
 </ul>
 </nav>
-<h3 id="見出し"><a href="/0001#見出し">見出し</a></h3>
+<h2 id="見出し"><a href="/0001#見出し">見出し</a></h2>
 <blockquote>
-<h4 id="引用の中の見出し"><a href="/0001#引用の中の見出し">引用の中の見出し</a></h4>
+<h3 id="引用の中の見出し"><a href="/0001#引用の中の見出し">引用の中の見出し</a></h3>
 </blockquote>

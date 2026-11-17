@@ -21,7 +21,7 @@ sub new {
 	my $self = bless({}, shift);
 	$self->{ROBJ} = shift;
 
-	$self->{section_hnum} = 3;	# H3から使用する
+	$self->{section_hnum} = 2;	# Hタグをどのレベルから使い始めるか
 	$self->{tab_width} = 4;		# タブの幅
 	$self->{escape_spchar} = 1;	# タグではない <, > をエスケープする
 

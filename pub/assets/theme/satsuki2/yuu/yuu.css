@@ -182,7 +182,7 @@ a.welcome-name { margin: 0px 4px 0px 4px; }
 
 
 /* 見出し */
-h1
+.site-title
 {
 	font-size:		24pt;
 	font-weight:		bold;
@@ -195,18 +195,18 @@ h1
 
 	border-bottom:		1px solid #3a2faf;	/* $c=border */
 }
-h1 a, h1 a:link, h1 a:visited {
+.site-title a, .site-title a:link, .site-title a:visited {
 	color:			#e86b4f;		/* $c=link */
 	text-decoration:	none;
 }
-h1 img, h1 a img {
+.site-title img, .site-title a img {
 	border:			none;
 }
 
 /*
 $option2:title=header
 $option2=header-image
-h1 {
+.site-title {
 	margin-top:		-10px;
 	background-image:	url('title.png');
 	background-position:	0 top;
@@ -300,14 +300,14 @@ article.page {
 }
 
 /* 記事タイトル */
-h2, h2 a, h2 a:link, h2 a:visited {
+h1, h1 a, h1 a:link, h1 a:visited {
 	color:			#fff;			/* $c=fixfont2 */
 	text-decoration:	none;
 }
-h2 a.title {
+h1 a.title {
 	font-family:		"HGP創英角ﾎﾟｯﾌﾟ体",sens-serif;
 }
-article h2 {
+article h1 {
 	font-size:		14pt;
 	margin:			0;
 	padding:		18px 32px 30px 12px;
@@ -318,7 +318,7 @@ article h2 {
 				#000);		/* $c=artbg */
 	text-align:		right;
 }
-article:not(.system) h2:after {
+article:not(.system) h1:after {
 	position:		absolute;
 	right:			12px;
 	top:			4px;
@@ -330,12 +330,12 @@ article:not(.system) h2:after {
 	height:			33px;
 }
 
-article.page h2 {
+article.page h1 {
 	background-image:	linear-gradient(to bottom,
 				#3a2faf,	/* $c=headerbg0 */
 				#112);		/* $c=pagebg */
 }
-article h2 a.date {
+article h1 a.date {
 	position:		absolute;
 	right:			32px;
 	top:			0px;
@@ -412,11 +412,11 @@ span.tag:not(:last-child) {
 ■記事見出し
 --------------------------------------------------------------------*/
 /* 見出し */
-div.body h3 {
+div.body h2 {
 	font-size:		120%;
 	font-weight:		bold;
 }
-div.body h3 a:before {
+div.body h2 a:before {
 	display:		inline-block;
 	content:		"";
 
@@ -425,28 +425,28 @@ div.body h3 a:before {
 	box-shadow:		2px 2px 1px 1px rgba(60,60,60,0.3);
 }
 
-div.body h3 span.timestamp {
+div.body h2 span.timestamp {
 	font-size:		10pt;
 	font-weight:		normal;
 }
-div.body h3,
-div.body h3 a,
-div.body h3 a:link,
-div.body h3 a:visited {
+div.body h2,
+div.body h2 a,
+div.body h2 a:link,
+div.body h2 a:visited {
 	color:			#e86b4f;		/* $c=h3 */
 	text-decoration:	none;
 }
 /* 小見出し */
+div.body h3 {
+	font-size:		100%;
+	font-weight:		bold;
+}
 div.body h4 {
 	font-size:		100%;
 	font-weight:		bold;
 }
-div.body h5 {
-	font-size:		100%;
-	font-weight:		bold;
-}
 /* 小見出しへのリンク */
-div.body h4 a, div.body h5 a {
+div.body h3 a, div.body h4 a {
 	color:			#e86b4f;		/* $c=h3 */
 	font-size:		inherit;
 	text-decoration:	inherit;
@@ -716,7 +716,7 @@ article.system {
 	color:			#fff;		/* $c=fixfont2 */
 	background-color:	#223;		/* $c=sysbg */
 }
-article.system h2 {
+article.system h1 {
 	padding-top:		10px;
 	text-align:		left;
 	font-family:		sens-serif;

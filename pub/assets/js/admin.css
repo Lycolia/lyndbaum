@@ -256,20 +256,20 @@ article.system {
 	border:			1px solid var(--admin-border);
 	box-shadow:		0 1px 1px rgba(0,0,0,0.04);
 }
-article.system > h2 {
+article.system > h1 {
 	margin:			0;
 	padding:		0.45rem 1rem;
 	font-size:		1.05rem;
 	font-weight:		bold;
 	border-bottom:		1px solid var(--admin-border-light);
 }
-article.system > h2 a {
+article.system > h1 a {
 	text-decoration:	none;
 }
 article.system div.body {
 	padding:		0.6rem 1rem 0.8rem;
 }
-article.system div.body h3 {
+article.system div.body h2 {
 	margin:			1.25rem -1rem 0.75rem;
 	padding:		0.4rem 1rem;
 	font-size:		1rem;
@@ -277,11 +277,11 @@ article.system div.body h3 {
 	border-top:		1px solid var(--admin-border-light);
 	border-bottom:		1px solid var(--admin-border-light);
 }
-article.system div.body > h3:first-child {
+article.system div.body > h2:first-child {
 	margin-top:		-0.75rem;
 	border-top:		none;
 }
-article.system div.body h4 {
+article.system div.body h3 {
 	margin:			1rem 0 0.5rem;
 	font-size:		1rem;
 }
@@ -344,7 +344,7 @@ a.button-primary:hover, a.button-primary:focus {
 }
 
 /* 箱のない見出し（ページのタイトル） */
-.main > h2 {
+.main > h1 {
 	margin:			0 0 1rem;
 	font-size:		1.4rem;
 	font-weight:		normal;
@@ -675,7 +675,7 @@ article#edit {
 	border:			none;
 	box-shadow:		none;
 }
-article#edit > h2 {
+article#edit > h1 {
 	padding:		0 0 0.5rem;
 	font-size:		1.3rem;
 	border-bottom:		none;
@@ -765,7 +765,7 @@ article#edit > div.body {
 	flex-wrap:		wrap;
 	align-items:		center;
 }
-#draft-notice > h2 {
+#draft-notice > h1 {
 	padding:		0.4rem 0 0.4rem 1rem;
 	font-size:		1rem;
 	border-bottom:		none;
@@ -792,7 +792,7 @@ article#edit > div.body {
 	background-color:	var(--admin-card);
 	border:			1px solid var(--admin-border);
 }
-#edit .edit-box > h3 {
+#edit .edit-box > h2 {
 	margin:			0;
 	padding:		0.3rem 0.75rem;
 	font-size:		0.95rem;
@@ -800,7 +800,7 @@ article#edit > div.body {
 	border-top:		none;
 	border-bottom:		1px solid var(--admin-border-light);
 }
-#edit .edit-box > :not(h3):not(input) {
+#edit .edit-box > :not(h2):not(input) {
 	margin:			0.5rem 0.75rem;
 }
 #edit .edit-box ul.checkbox ul {
@@ -1033,7 +1033,7 @@ div.messages:empty {
 	border-top:		1px solid var(--admin-border-light);
 	font-size:		13px;
 }
-#media-footer h4 {
+#media-footer h3 {
 	margin:			0.5rem 0 0.25rem;
 	font-size:		13px;
 }

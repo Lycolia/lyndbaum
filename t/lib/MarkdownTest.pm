@@ -45,7 +45,7 @@ sub new_parser {
 
 	my $md = $ROBJ->loadpm('TextParser::Markdown');
 	my %conf = (
-		section_hnum     => 3,
+		section_hnum     => 2,
 		tab_width        => 4,
 		md_in_htmlblk    => 1,
 		sectioning       => 1,

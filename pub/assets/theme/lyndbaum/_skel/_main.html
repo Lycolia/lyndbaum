@@ -54,7 +54,7 @@
 <$q .= if(ret.q, '&amp;q=' . ret.q, '')>
 <$q .= if(Query.all, '&amp;all=1')>
 <$q .= if(ret.yyyymm, '&amp;d=' . ret.yyyymm, '')>
-<h2>検索条件</h2>
+<h1>検索条件</h1>
 <div class="body">
 	<form method="GET" action="<@v.myself>" id="top-search-form">
 	<@>### フリーワード ###
@@ -178,7 +178,7 @@
 <@><!--========================================================================-->
 <@ifexec(@Message, begin)>
 <article class="system message">
-<h2>メッセージ</h2>
+<h1>メッセージ</h1>
 <div class="body">
 	<div class="messages"><@join("\n", Message)></div>
 
@@ -215,7 +215,7 @@
 <$encode_uricom(url)>
 <!--=========================================================================-->
 <article id="art-<@t.pkey>" class="article article-summary<@if(t.priority, " page")><@if(t.nsfw && !s.nsfw_force, " nsfw")><@if(t.ctype, " art-<@t.ctype>")>">
-<h2 class="summary-title"><a href="<@v.myself2><@t.elink_key>" class="title"><@t.title></a></h2>
+<h1 class="summary-title"><a href="<@v.myself2><@t.elink_key>" class="title"><@t.title></a></h1>
 <div class="body" id="s<@t.pkey>">
 <div class="body-header article-meta">
 <@>$ARTICLE_TOP:END$-----------------------------------------------------------

@@ -487,6 +487,62 @@ subtest '同時編集の確認の残りを消すアップデート（4.43）' =>
 	$app->restore($snap);
 };
 
+subtest '見出しの段を上げるアップデート（4.45）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $snap = $app->snapshot();
+	my $edit = sub {	# ファイルの中身を書き換える
+		my ($file, $func) = @_;
+		local $_ = read_file($file);
+		my $n = $func->();
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $_;
+		close($fh);
+		return $n;
+	};
+
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '見出しの段の記事', body_txt => "# 大見出し\n\n本文\n\n## 小見出し\n" })), '見出しのある記事を書く');
+	my ($key) = body($app->get('admin', '')) =~ m{/(\d+)"[^>]*>見出しの段の記事<};
+	ok($key, '記事のURL');
+	my $h2 = qr{<h2 id="[^"]+"><a [^>]*>大見出し</a></h2>};
+	my $h3 = qr{<h3 id="[^"]+"><a [^>]*>小見出し</a></h3>};
+	my $title = qr{<h1[^>]*>(?:(?!</h1>).)*見出しの段の記事}s;
+	my $b = body($app->get('guest', "/$key"));
+	like($b, $h2, '新しく書いた記事は、本文の見出しがh2から始まる');
+	like($b, $h3, '次の段はh3');
+	like($b, $title, '記事のタイトルはh1');
+	unlike($b, qr{<h1[^>]*id="page-title"}, 'サイトのタイトルはh1にしない');
+	like($b, qr{<div id="page-title" class="site-title"}, 'サイトのタイトルはdiv');
+
+	# デザインの編集画面と同じく、保存する場所（save_ary）を送らずに保存すると、_articleと_mainも作る
+	ok(AppTest::is_reload($app->post('admin', 'design/edit', [ action => 'design/edit',
+		header_ary => 'deh_login', header_ary => 'deh_title', art_h_ary => 'dea_art-info', side_a_ary => 'des_searchbox' ])), 'デザインを保存する');
+	my @skel = grep { -f $_ } glob("$dir/data/blog/{skel,skel_theme/*}/{_article,_main}.html");
+	is(scalar(@skel), 4, '保存したデザインのスケルトン（標準とlyndbaumの_article、_main）がある');
+	like(body($app->get('guest', "/$key")), $title, '保存したデザインでも、記事のタイトルはh1');
+
+	# 4.44までの形にする。DBの本文はh3から、保存したデザインのスケルトンは記事のタイトルがh2
+	my $af = sprintf("$dir/data/db/art/%05d.dat", int($key));
+	ok($edit->($af, sub { s{<(/?)h([23])\b}{"<$1h" . ($2+1)}ge }), '本文の見出しをh3からにする');
+	foreach my $f (@skel) {
+		ok($edit->($f, sub { s{<(/?)h1\b}{<$1h2}g }), '記事のタイトルをh2にする');
+	}
+	$b = body($app->get('guest', "/$key"));
+	like($b, qr{<h3 id="[^"]+"><a [^>]*>大見出し</a></h3>}, '作った状態の確認：本文の見出しがh3から');
+	unlike($b, $title, '作った状態の確認：記事のタイトルがh1でない');
+	unlike(body($app->get('guest', '/')), $title, '作った状態の確認：一覧でも記事のタイトルがh1でない');
+
+	$edit->($sys, sub { s/^VERSION=.*$/VERSION=4.44/m });
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+
+	$b = body($app->get('guest', "/$key"));
+	like($b, $h2, '記事を作り直して、本文の見出しがh2からになる');
+	like($b, $h3, '次の段はh3になる');
+	like($b, $title, 'デザインを作り直して、記事のタイトルがh1になる');
+	like(body($app->get('guest', '/')), $title, '一覧でも記事のタイトルがh1になる');
+	$app->restore($snap);
+};
+
 subtest 'RSSと書き出しの投稿者は管理者の表示名' => sub {
 	my $snap = $app->snapshot();
 	ok(json_ok($app->post('admin', '', { action => '_ajax_self_change_name', name => 'A&B 管理者' })), '管理者の名前を変える');
@@ -565,8 +621,8 @@ subtest 'ディレクトリ使用量' => sub {
 	# 画面の表を { 見出し => { 行の名前 => ファイル数（表示のまま） } } にする
 	my $tables = sub {
 		my %t;
-		foreach (split(m{<h3>}, shift)) {
-			my ($h) = m{^([^<]*)</h3>} or next;
+		foreach (split(m{<h2>}, shift)) {
+			my ($h) = m{^([^<]*)</h2>} or next;
 			$t{$h}{$1} = $2 while (m{<td>([^<]*)</td><td class="r">[^<]*</td><td class="r">([^<]*)</td>}g);
 		}
 		return \%t;

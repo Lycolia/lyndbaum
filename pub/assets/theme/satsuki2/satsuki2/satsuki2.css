@@ -19,7 +19,7 @@ body
 	line-height:		130%;
 }
 /* 見出し */
-h1
+.site-title
 {
 	font-size:		20pt;
 	font-weight:		normal;
@@ -28,12 +28,12 @@ h1
 	padding:		0 0.5em;
 	margin:			0.6em 0 0 0;
 }
-h1 a, h1 a:link, h1 a:visited {
+.site-title a, .site-title a:link, .site-title a:visited {
 	color:			inherit;
 	font-weight:		inherit;
 	text-decoration:	inherit;
 }
-h1 img, h1 a img {
+.site-title img, .site-title a img {
 	border:			none;
 }
 
@@ -202,7 +202,7 @@ article {
 }
 
 /* 記事タイトル */
-article h2 {
+article h1 {
 	background-color:	#adb8ff;		/* $c=main2 = auto:main */
 	padding:		2px 8px 2px 8px;
 	font-size:		100%;
@@ -212,7 +212,7 @@ article h2 {
 	border-bottom:		none;
 	border-radius:		8px 8px 0 0;
 }
-article h2 a.date {
+article h1 a.date {
 	font-size:		80%;
 	text-decoration:	none;
 	margin-right:		1em;
@@ -342,7 +342,7 @@ span.tag:not(:last-child) {
 ■記事見出し
 --------------------------------------------------------------------*/
 /* 見出し */
-div.body h3 {
+div.body h2 {
 	font-size:		120%;
 	font-weight:		bold;
 	padding:		4px 0px 4px 8px;
@@ -352,25 +352,25 @@ div.body h3 {
 	border-radius:		0 6px 6px 0;
 	box-shadow:		4px 4px 2px 2px rgba(0,0,0, 0.4);
 }
-div.body h3 span.timestamp {
+div.body h2 span.timestamp {
 	font-size:		100%;
 	font-weight:		normal;
 }
-div.body h3 a {
+div.body h2 a {
 	text-decoration:	none;
 }
 /* 小見出し */
-div.body h4 {
+div.body h3 {
 	font-size:		100%;
 	font-weight:		bold;
 	border-bottom:		1px solid #6b75b8;	/* $c=border */
 }
-div.body h5 {
+div.body h4 {
 	font-size:		100%;
 	font-weight:		bold;
 }
 /* 小見出しへのリンク */
-div.body h4 a, div.body h5 a {
+div.body h3 a, div.body h4 a {
 	font-size:		inherit;
 	color:			inherit;
 	text-decoration:	inherit;
@@ -629,7 +629,7 @@ article.system div.body {
 article.system div.body {
 	padding-bottom:		1em;
 }
-article.system div.body h3 {
+article.system div.body h2 {
 	background-color:	#ccf;			/* $c=main */
 }
 /*--------------------------------------------------------------------
@@ -738,7 +738,7 @@ nav.tree {
 /*
 $option2:title=border-size
 $option2=1px-border
-article h2, article div.body,#com {
+article h1, article div.body,#com {
 	border-width:		1px;
 }
 -------------------- */
