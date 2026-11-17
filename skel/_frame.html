@@ -72,7 +72,7 @@
 <@if(canonical_url, #'<link rel="canonical" href="<@canonical_url>">\n')>
 <@>
 <@forexec(t, v.load_rss_files(), begin)>
-<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.pub_dir><@t>" />
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.pub_dir><@t>">
 <$end>
 <@> ショートカットアイコン
 <link rel="icon" href="<@Basepath><@if(s.iconfile, s.iconfile, #'<@v.pubdist_dir>default-icon.png')>">
