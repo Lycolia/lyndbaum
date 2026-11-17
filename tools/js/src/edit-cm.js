@@ -101,6 +101,14 @@ adiary.ready(function(){
 		'replaced match on line $':	'$行目を置換しました',
 		'replaced $ matches':		'$件を置換しました'
 	});
+	// 「前へ」を「次へ」の左に置く（既定は「次へ」「前へ」の順）。
+	// 並びを変える設定がないので、欄が出た後でボタンを入れ替える
+	const search_order = CM.EditorView.updateListener.of(function(update){
+		const next = update.view.dom.querySelector('.cm-search button[name=next]');
+		const prev = update.view.dom.querySelector('.cm-search button[name=prev]');
+		if (next && prev && (next.compareDocumentPosition(prev) & Node.DOCUMENT_POSITION_FOLLOWING))
+			next.before(prev);
+	});
 
 	//----------------------------------------------------------------------
 	// ●作る
@@ -119,6 +127,7 @@ adiary.ready(function(){
 				// チェックボックスはadmin.cssで隠す
 				CM.search({ top: true, wholeWord: false }),
 				search_phrases,
+				search_order,
 				CM.keymap.of([
 					{ key: 'Enter', run: CM.insertNewline },
 					...search_keys,
