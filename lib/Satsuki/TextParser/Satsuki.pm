@@ -183,6 +183,8 @@ sub html_tag {
 	my ($self, $tag, $ary) = @_;
 	my ($name, $class) = split('\.', $tag->{html});
 	if ($class ne '') { $class=" class=\"$class\""; }
+	# 閉じタグの無い要素（[clear]の<br>、[wbr]）
+	if ($name =~ /^(?:br|wbr|hr|img)$/) { return "<$name$class$tag->{attribute}>"; }
 	if (!@$ary) { return "<$name$class$tag->{attribute}></$name>"; }
 	return "<$name$class$tag->{attribute}>" . join(':', @$ary) . "</$name>";
 }

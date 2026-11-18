@@ -67,7 +67,6 @@ image:360    = 360度写真,    image, 2,  ${image}$1$2
 
 # 通常ファイル
 file        = ファイル, ASCII, 3,  ${image}$2$3
-file#5      = ファイル, ASCII, 4,  ${image}$3$4
 
 # exif
 exif#link = 画像へのリンク, ASCII, 2, ${image}$1$2
@@ -94,7 +93,7 @@ file:m4v  = >video
 # inline comment
 comment = comment,, 1, <!--#1-->
 # inline class
-class = class, ASCII, 2, <span class="$1">#2</span>
+class = class, ASCII, 2, <span class="#1">#2</span>
 
 # ルビ
 ruby = ルビ, ASCII, 2, <ruby>#1<rp>(</rp><rt>#2</rt><rp>)</rp></ruby>

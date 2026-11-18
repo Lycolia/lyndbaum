@@ -302,12 +302,6 @@ B((同じ))
 </ul>
 </nav>
 
-=== バナーの後に文章が続く段落は p で囲む
---- input
-[info:お知らせ] 本文
---- expected
-<p><div class="notice_banner info">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"></path></svg></div>    <div class="message">お知らせ</div></div> 本文</p>
-
 === 目次のリンクも見出しの識別子を使う
 --- input
 [*toc]
@@ -345,3 +339,198 @@ B((同じ))
 <blockquote>
 <h3 id="引用の中の見出し"><a href="/0001#引用の中の見出し">引用の中の見出し</a></h3>
 </blockquote>
+
+=== 目次は、いちばん外側の [*toc] だけの行（行末の空白は許す）
+--- input
+[*toc]  
+
+# A
+--- expected
+
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
+<ul class="toc">
+	<li><a href="/0001#a">A</a></li>
+</ul>
+</nav>
+
+
+<h2 id="a"><a href="/0001#a">A</a></h2>
+
+=== コードスパンの中の [*toc] は文字のまま
+--- input
+`[*toc]` と書く
+
+# A
+--- expected
+<p><code>[*toc]</code> と書く</p>
+
+<h2 id="a"><a href="/0001#a">A</a></h2>
+
+=== 行の途中の [*toc] は文字のまま
+--- input
+前 [*toc] 後
+
+# A
+--- expected
+<p>前 [*toc] 後</p>
+
+<h2 id="a"><a href="/0001#a">A</a></h2>
+
+=== リストと引用の中、行頭に空白のある [*toc] は文字のまま
+--- input
+- [*toc]
+
+> [*toc]
+
+ [*toc]
+
+# A
+--- expected
+<ul>
+<li>[*toc]</li>
+</ul>
+<blockquote>
+[*toc]
+</blockquote>
+<p>[*toc]</p>
+
+<h2 id="a"><a href="/0001#a">A</a></h2>
+
+=== 段落の直後の [*toc] は、段落の後に目次を出す
+--- input
+文章
+[*toc]
+
+# A
+--- expected
+<p>文章</p>
+
+<nav class="toc-box" aria-label="目次">
+<div class="toc-title">目次</div>
+<ul class="toc">
+	<li><a href="/0001#a">A</a></li>
+</ul>
+</nav>
+
+
+<h2 id="a"><a href="/0001#a">A</a></h2>
+
+=== リンクと画像のURLの中の [ ] はタグにしない
+--- input
+[a](https://example.com/[bf:x]) と [b](<https://example.com/[bf:y]>) と ![c](a[1].png)
+--- expected
+<p><a href="https://example.com/[bf:x]">a</a> と <a href="https://example.com/[bf:y]">b</a> と <img src="a[1].png" alt="c" /></p>
+
+=== 引数の無い [this] は文字のまま
+--- input
+[this] と [this:#abc] と [this:#abc:文字]
+--- expected
+<p>[this] と <a href="/0001#abc" class="tag-adiary-this" title="記事内リンク">#abc</a> と <a href="/0001#abc" class="tag-adiary-this" title="記事内リンク">文字</a></p>
+
+=== URLのタグの :bookmark と :image は、リンクの文字になる
+--- input
+[https://example.com/:bookmark] と [https://example.com/:image] と [https://example.com/:文字]
+--- expected
+<p><a href="https://example.com/">bookmark</a> と <a href="https://example.com/">image</a> と <a href="https://example.com/">文字</a></p>
+
+=== ファイルのタグは、ファイル名の後ろを全部リンクの文字にする
+--- input
+[file:pdf:dir/:a.pdf:x:y] と [file:pdf:dir/:a.pdf]
+--- expected
+<p><a href="pub/attach/dir/a.pdf" class="tag-file" title="ファイル">x:y</a> と <a href="pub/attach/dir/a.pdf" class="tag-file" title="ファイル">a.pdf</a></p>
+
+=== 動画の大きさの指定は source にしない
+--- input
+[video:a.webm:a.mp4:w320:h180]
+--- expected
+<p><video width="320" height="180" controls preload="none"><source src="a.webm" type="video/webm"><source src="a.mp4" type="video/mp4">(Browser not support video tag) <a class="video" href="a.webm">a.webm</a></video></p>
+
+=== 音声には幅と高さを付けない
+--- input
+[audio:a.ogg:a.mp3] と [file:mp3:dir/:a.mp3]
+--- expected
+<p><audio controls preload="none"><source src="a.ogg" type="audio/ogg"><source src="a.mp3" type="audio/mpeg">(Browser not support audio tag) <a class="audio" href="a.ogg">a.ogg</a></audio> と <audio controls preload="none"><source src="pub/attach/dir/a.mp3" type="audio/mpeg">(Browser not support audio tag) <a class="audio" href="pub/attach/dir/a.mp3">pub/attach/dir/a.mp3</a></audio></p>
+
+=== class のタグのクラス名はそのまま出す
+--- input
+[class:x y:文字]
+--- expected
+<p><span class="x y">文字</span></p>
+
+=== [clear] と [wbr] は閉じタグを出さない
+--- input
+a[clear]b[wbr]c と [bf:x]
+--- expected
+<p>a<br class="clear">b<wbr>c と <strong>x</strong></p>
+
+=== [comment:…] はHTMLコメントにする
+--- input
+a[comment:見えない]b
+--- expected
+<p>a<!--見えない-->b</p>
+
+=== バナーの後に文章が続くときは、段落を分ける
+--- input
+[info:お知らせ] 本文
+--- expected
+<div class="notice_banner info">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"></path></svg></div>    <div class="message">お知らせ</div></div>
+<p>本文</p>
+
+=== 文章の途中のバナーは、前後で段落を分ける
+--- input
+前 [warn:注意] 後
+--- expected
+<p>前</p>
+<div class="notice_banner warn">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M12 5.99 19.53 19H4.47zM12 2 1 21h22zm1 14h-2v2h2zm0-6h-2v4h2z"></path></svg></div>    <div class="message">注意</div></div>
+<p>後</p>
+
+=== 段落の途中の行のバナーも、前後で段落を分ける
+--- input
+1行目
+[error:だめ]
+3行目
+--- expected
+<p>1行目</p>
+<div class="notice_banner error">    <div><svg width="25" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m3.59-13L12 10.59 8.41 7 7 8.41 10.59 12 7 15.59 8.41 17 12 13.41 15.59 17 17 15.59 13.41 12 17 8.41z"></path></svg></div>    <div class="message">だめ</div></div>
+<p>3行目</p>
+
+=== バナーを並べても段落にしない
+--- input
+[info:a] [warn:b]
+--- expected
+<div class="notice_banner info">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"></path></svg></div>    <div class="message">a</div></div> <div class="notice_banner warn">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M12 5.99 19.53 19H4.47zM12 2 1 21h22zm1 14h-2v2h2zm0-6h-2v4h2z"></path></svg></div>    <div class="message">b</div></div>
+
+=== リストの項目の中のバナーは、そのまま出す（段落が無い）
+--- input
+- 文章 [info:お知らせ]
+--- expected
+<ul>
+<li>文章 <div class="notice_banner info">    <div><svg width="25" viewBox="0 0 24 24" aria-label="fontSize small"><path d="M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8"></path></svg></div>    <div class="message">お知らせ</div></div></li>
+</ul>
+
+=== バナーの中の太字は [bf:…] で書く（** は効かない）
+--- input
+[error:**太字** と [bf:太字] と [リンク](https://example.com/)]
+--- expected
+<div class="notice_banner error">    <div><svg width="25" viewBox="0 0 24 24"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2m0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8m3.59-13L12 10.59 8.41 7 7 8.41 10.59 12 7 15.59 8.41 17 12 13.41 15.59 17 17 15.59 13.41 12 17 8.41z"></path></svg></div>    <div class="message">**太字** と <strong>太字</strong> と <a href="https://example.com/">リンク</a></div></div>
+
+=== 文章の途中のキャプション付きの画像も、前後で段落を分ける
+--- input
+前 [image:S:adiary/2026/01/:a.png:代替:#説明] 後
+--- expected
+<p>前</p>
+<figure><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a><figcaption>説明</figcaption></figure>
+<p>後</p>
+
+=== 計算のタグ
+--- input
+[calc:1+2*3] [calcx:x=3][calc:x*2] [calc:length("abc")] [poland:1+2*3]
+--- expected
+<p><span class="calc" title="1+2*3">7</span> <span class="calc" title="x*2">6</span> <span class="calc" title="length(abc)">3</span> 1 2 3 * +</p>
+
+=== 計算の変数で、タグの内部の変数は書き換わらない
+--- input
+[calcx:image="X/"][calc:myself][image:S:adiary/2026/01/:a.png:代替]
+--- expected
+<p><span class="calc" title="myself"></span><a href="pub/attach/adiary/2026/01/a.png" class="tag-image-S" title="代替" data-lythumb="k1"><img alt="代替" src="pub/attach/adiary/2026/01/.thumbnail/a.png.jpg"></a></p>

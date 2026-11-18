@@ -62,7 +62,7 @@ function find_close(cx, pos) {
 function tag_name_length(body, names) {
 	if (/^&[^#]/.test(body)) return names.has('filter') ? 1 : 0;	// [&URL]
 	if (body[0] == '$') return 1;					// [$変数]
-	if (/^\*toc\d*(?::|$)/.test(body)) return -1;			// [*toc]（Markdownパーサーが処理する）
+	if (body == 'this') return 0;					// 引数の無い[this]は文字のまま
 	// \: は区切りにしない
 	const parts = body.replace(/\\[\[\]]/g, 'xx').replace(/\\:/g, '\x00\x00').split(':');
 	let cmd = parts.shift();
@@ -78,7 +78,6 @@ function tag_element(cx, from, to, names, verb) {
 	const body  = cx.slice(from + open, to - open);
 	const len   = tag_name_length(body, names);
 	if (len == 0) return null;
-	if (len < 0) return cx.elt('LyndbaumToc', from, to);
 
 	const ch = [ cx.elt('LyndbaumTagMark', from, from + open) ];
 	const name_end = from + open + len;
@@ -441,6 +440,25 @@ function underscore_run(cx, next, pos) {
 }
 
 //------------------------------------------------------------------------------
+// ●目次（いちばん外側の、[*toc] だけの行。行の途中やリスト、引用の中の [*toc] は文字）
+//------------------------------------------------------------------------------
+function is_toc_line(cx, line) {
+	return cx.depth == 1 && line.pos == 0 && /^\[\*toc\d*(?::.*?)?\][ \t]*$/.test(line.text);
+}
+const Toc = {
+	name: 'LyndbaumToc',
+	before: 'FencedCode',
+	parse(cx, line) {
+		if (!is_toc_line(cx, line)) return false;
+		cx.addElement(cx.elt('LyndbaumToc', cx.lineStart, cx.lineStart + line.text.replace(/[ \t]+$/, '').length));
+		cx.nextLine();
+		return true;
+	},
+	// 段落の直後の行でも目次にする
+	endLeaf(cx, line) { return is_toc_line(cx, line); }
+};
+
+//------------------------------------------------------------------------------
 // ●CM.markdown()の引数
 //------------------------------------------------------------------------------
 export function lyndbaumMarkdown(tag_names) {
@@ -450,14 +468,14 @@ export function lyndbaumMarkdown(tag_names) {
 			{ name: 'LyndbaumTag' },
 			{ name: 'LyndbaumTagName',        style: tag.name  },
 			{ name: 'LyndbaumTagMark',        style: tag.mark  },
-			{ name: 'LyndbaumToc',            style: tag.quiet },
+			{ name: 'LyndbaumToc',            block: true, style: tag.quiet },
 			{ name: 'LyndbaumHeadingId',      style: tag.quiet },
 			{ name: 'LyndbaumSeeMore',        block: true, style: tag.quiet },
 			{ name: 'LyndbaumFootnote',       style: tag.note  },
 			{ name: 'LyndbaumAnnotation' },
 			{ name: 'LyndbaumAnnotationMark', style: tag.mark  }
 		],
-		parseBlock: [ PlainLine, SeeMore, Rule, PipeTable ],
+		parseBlock: [ PlainLine, Toc, SeeMore, Rule, PipeTable ],
 		parseInline: [
 			{ name: 'LyndbaumBracket',    parse: bracket_parser(names), before: 'Link' },
 			{ name: 'LyndbaumClose',      parse: close_bracket,         before: 'LinkEnd' },

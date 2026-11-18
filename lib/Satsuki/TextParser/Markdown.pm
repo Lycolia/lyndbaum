@@ -91,6 +91,10 @@ sub parse {
 	if ($self->{satsuki_footnote} && $self->{satsuki_obj}) {
 		$self->{satsuki_obj}->init_footnote();
 	}
+	# [S] 計算のタグ（[calc:…]）の変数も、記事ごとに空にする
+	if ($self->{satsuki_obj}) {
+		$self->{satsuki_obj}->{calc_vars} = {};
+	}
 
 	# parse main
 	$lines = $self->parse_block ($lines);
@@ -102,6 +106,9 @@ sub parse {
 	my $all = join("\n", @$lines);
 	$all =~ s/\n\Q$FOOTNOTE_MARK\E//g;	# 注釈の一覧を出さなかった目印
 	$all =~ s|\n+\n</section>\x02|\n</section>\x02\n|g;
+
+	# [S] 段落の中のブロック要素（バナー、キャプション付きの画像）の前後で、段落を分ける
+	$self->split_block_in_paragraph(\$all);
 
 	# Markdown脚注の出力
 	$self->output_markdown_footnotes(\$all);
@@ -344,11 +351,11 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# [S] Satsuki macro
 		#---------------------------------------------------------------
-		if ($self->{satsuki_tags} && $self->{satsuki_obj}) {
-			if ($x =~ m!(.*?)\[\*toc(\d*)(?:|:(.*?))\](.*)!) {
-				if ($1 ne '') { push(@ary,$1); }
-				push(@ary,'',"<toc>depth=$2:$3</toc>\x01");
-				if ($3 ne '') { push(@ary,$4); }
+		# 目次は、いちばん外側の、[*toc]だけの行（行の途中、リストや引用の中の[*toc]は文字のまま）
+		if (!$nest && $self->{satsuki_tags} && $self->{satsuki_obj}) {
+			if ($x =~ m!^\[\*toc(\d*)(?:|:(.*?))\]\s*$!) {
+				$self->p_block_end(\@ary, \@p_block, $pmode);
+				push(@ary,'',"<toc>depth=$1:$2</toc>\x01");
 				next;
 			}
 		}
@@ -729,6 +736,33 @@ sub split_table_row {
 	return @cells;
 }
 
+#-------------------------------------------------------------------------------
+# [S] 段落の中のブロック要素の前後で、段落を分ける
+#-------------------------------------------------------------------------------
+# 文章と同じ段落に書いたバナー（[info:…]など）とキャプション付きの画像は、<p>の中に<div>や<figure>が
+# 入ってしまうので、その前後で<p>を閉じて開き直す。空になった段落は出さない
+sub split_block_in_paragraph {
+	my ($self, $all) = @_;
+	# バナーは中に<div>があるので、対になった<div>を数える
+	my $block = qr{(?:<div class="notice_banner\b[^>]*>(?:(?:(?!</?div\b).)++|(?<bdiv><div\b[^>]*>(?:(?:(?!</?div\b).)++|(?&bdiv))*</div>))*</div>|<figure>(?:(?!</?figure\b).)*</figure>)}s;
+	my $text = sub {
+		my $t = shift;
+		$t =~ s/^(?:\s|<br \/>)+//;
+		$t =~ s/(?:\s|<br \/>)+$//;
+		return $t eq '' ? () : ("<p>$t</p>");
+	};
+	$$all =~ s{<p>((?:(?!</?p\b).)*?)</p>}{
+		my $inner = $1;
+		my @out;
+		my $pos = 0;
+		while ($inner =~ /($block)/g) {
+			push(@out, &$text(substr($inner, $pos, $-[1] - $pos)), $1);
+			$pos = $+[1];
+		}
+		$pos ? join("\n", @out, &$text(substr($inner, $pos))) : "<p>$inner</p>";
+	}seg;
+}
+
 sub p_block_end {
 	my $self = shift;
 	my $ary  = shift;
@@ -816,6 +850,9 @@ sub parse_inline {
 			$_ =~ s/\(\(((?:[^()]++|\([^()]*\))*)\)\)/ $self->satsuki_footnote_ref($satsuki->footnote($1, \@footnote, \%note_hash)) /eg;
 		}
 
+		# URLの中の[ ]は、タグとして読まれないように隠す（最後にun_escapeで戻す）
+		my $hide_bracket = sub { $_[0] =~ s/([\[\]])/"\x03" . ord($1) . "\x03"/eg; };
+
 		# リンクの文字の中の画像（[![代替](画像)](URL)）を<img>にする
 		my $inner_img = sub {
 			my $t = shift;
@@ -824,6 +861,7 @@ sub parse_inline {
 				my $alt = $1;
 				my $src = defined $2 ? $2 : $3;
 				$self->tag_escape($src);
+				&$hide_bracket($src);
 				"<img src=\"$src\" alt=\"$alt\" />";
 			}eg;
 			return $t;
@@ -839,6 +877,7 @@ sub parse_inline {
 			if (!$is_img) { $text = &$inner_img($text); }
 
 			$self->tag_escape($url);
+			&$hide_bracket($url);
 			$is_img ? "<img src=\"$url\" alt=\"$text\" />"
 				: "<a href=\"$url\">$text</a>";
 		}eg;
@@ -858,6 +897,7 @@ sub parse_inline {
 			}
 
 			$self->tag_escape($url);
+			&$hide_bracket($url);
 			$is_img ? "<img src=\"$url\" alt=\"$text\" />"
 				: "<a href=\"$url\">$text</a>";
 		}eg;
@@ -938,7 +978,8 @@ sub parse_inline {
 		# escape special charactor "<" ">"
 		# HTMLに無いタグ名（<M>、<x86 Panther Lake>など）は文字として表示する
 		if ($self->{escape_spchar}) {
-			$_ =~ s!(.*?)(</[\w\-]+>|<[\w\-]+(?:\s+[\w\-]+(?:\s*=\s*(?:[^\s\"]+|"[^\"]*"))?)*\s*/?>|$)!
+			# タグが出したコメント（[comment:文字]の<!--文字-->）は、コメントのまま通す
+			$_ =~ s!(.*?)(</[\w\-]+>|<\!--.*?-->|<[\w\-]+(?:\s+[\w\-]+(?:\s*=\s*(?:[^\s\"]+|"[^\"]*"))?)*\s*/?>|$)!
 				my $t   = $1;
 				my $tag = $2;
 				my ($name) = $tag =~ m|^</?([\w\-]+)|;
