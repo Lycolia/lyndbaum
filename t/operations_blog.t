@@ -626,4 +626,67 @@ subtest '検索画面のタグの絞り込みの木' => sub {
 	unlike($b, qr{木の記事B}, 'ほかの記事は出ない');
 };
 
+#-------------------------------------------------------------------------------
+# 検索画面の絞り込みの並び。タグはタグの編集画面の表示順、日付は新しい順
+#-------------------------------------------------------------------------------
+subtest '検索画面の絞り込みの並び' => sub {
+	my %art = (parser => 'markdown', enable => 1, com_ok => 1);
+	my @arts = (
+		[ '順の記事A', '2024-03-05', 'YB', 'YP::k2' ],
+		[ '順の記事B', '2025-02-01', 'YA', 'YP::k1' ],
+		[ '順の記事C', '2025-07-01', 'YA' ],
+	);
+	foreach (@arts) {
+		my ($title, $ymd, @tags) = @$_;
+		my $r = $app->post('admin', '', [ %art, action => 'edit', ymd => $ymd, title => $title, body_txt => "本文\n", map { (tag_ary => $_) } @tags ]);
+		ok(AppTest::is_reload($r), "$title を書ける");
+	}
+	my $q = '?q=' . AppTest::_uri_escape('順の記事');
+	# 絞り込みの欄のリンクの文字を、出た順に取り出す
+	my $names = sub {
+		my ($b, $class) = @_;
+		my ($div) = $b =~ m{<div class="narrow \Q$class\E"[^>]*>(.*?)\n\t<div class="(?:narrow |hits)}s;
+		return join(' ', ($div // '') =~ m{>([^<>]+)\(\d+\)</a>}g);
+	};
+
+	# タグ。表示順を決めていない間は、作った順（名前順ではない）
+	is($names->(body($app->get('guest', $q)), 'narrow-tag'), 'YB YP YA k2 k1', '表示順を決める前は、作った順に出る');
+
+	# タグの編集で表示順を決める（pkeyは、タグのキャッシュの行の番号）
+	my %pkey;
+	{
+		open(my $fh, '<:utf8', $app->dir . '/data/blog/tag_cache.txt') || die;
+		my $i = 0;
+		while (my $line = <$fh>) {
+			chomp($line);
+			my @a = split("\t", $line);
+			if (defined $a[6]) { $pkey{$a[6]} = $i; }
+			$i++;
+		}
+		close($fh);
+	}
+	ok($pkey{YA} && $pkey{YB} && $pkey{YP} && $pkey{'YP::k1'} && $pkey{'YP::k2'}, 'タグのpkeyが分かる');
+	my $r = $app->post('admin', 'tag_edit', [ action => 'tag_edit',
+		tag_ary => "$pkey{YA},0,1,YA",
+		tag_ary => "$pkey{YP},0,2,YP",
+		tag_ary => "$pkey{YB},0,3,YB",
+		tag_ary => "$pkey{'YP::k1'},$pkey{YP},1,k1",
+		tag_ary => "$pkey{'YP::k2'},$pkey{YP},2,k2",
+	]);
+	ok(AppTest::is_reload($r), 'タグの表示順を変えられる');
+	my $b = body($app->get('guest', $q));
+	is($names->($b, 'narrow-tag'), 'YA YP YB k1 k2', 'タグの編集で決めた順に出る（子も）');
+
+	# 日付。年も月も新しい順
+	is($names->($b, 'narrow-ymd'), '2025年 2024年', '年は新しい順に出る');
+	my ($href) = $b =~ m{<a href="([^"]*)">2025年\(2\)</a>};
+	ok($href, '2025年のリンクがある');
+	$href =~ s/&amp;/&/g;
+	$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	$b = body($app->get('guest', $href));
+	like($b, qr{全<span>2</span>件}, "リンク（$href）を辿ると2件に絞られる");
+	is($names->($b, 'narrow-ymd'), '7月 2月', '月は新しい順に出る');
+	like($b, qr{順の記事C.*順の記事B}s, '記事も新しい順に出る');
+};
+
 done_testing();
