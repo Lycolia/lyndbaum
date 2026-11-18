@@ -610,6 +610,35 @@ export function delete_markup_renumber(view) {
 	return true;
 }
 
+//------------------------------------------------------------------------------
+// ●コードフェンスの中のEnterで、行頭の字下げを続ける
+//------------------------------------------------------------------------------
+// リストの項目の中のフェンスは、項目の内容の開始位置まで字下げして書く。Enterのたびに字下げを
+// 打ち直さなくて済むように、今の行の行頭の空白を次の行にも入れる（コードの字下げも続く）。
+// フェンスを開く行と閉じる行でも同じ。カーソルが字下げの途中にあれば、カーソルの前の分だけ入れる。
+// 行頭が空白でない行（引用の中のフェンスの「> 」など）では、改行だけになる
+export function enter_in_fence(state) {
+	if (state.readOnly) return null;
+	const main = state.selection.main;
+	if (state.selection.ranges.length > 1) return null;
+	let node = syntaxTree(state).resolveInner(main.from, -1);
+	while (node && node.name != 'FencedCode') node = node.parent;
+	if (!node) return null;
+	const line   = state.doc.lineAt(main.from);
+	const indent = /^[ \t]*/.exec(line.text.slice(0, main.from - line.from))[0];
+	return {
+		changes:   { from: main.from, to: main.to, insert: state.lineBreak + indent },
+		selection: EditorSelection.cursor(main.from + 1 + indent.length)
+	};
+}
+function enter_markdown(view) {
+	if (enter_continue_markup(view)) return true;
+	const spec = enter_in_fence(view.state);
+	if (!spec) return false;
+	view.dispatch(view.state.update(spec, { scrollIntoView: true, userEvent: 'input' }));
+	return true;
+}
+
 function key_command(make) {
 	return function(view) {
 		if (view.state.readOnly) return true;	// ブラウザのキー（ブックマークなど）には渡さない
@@ -622,15 +651,94 @@ function key_command(make) {
 //   記号を消す。lang-markdownの既定では、2つ目の項目が空のときは、記号を消さずに項目の間に空行を
 //   入れる（各項目が<p>になる）ので、それはしない（nonTightLists: false）。番号付きの項目の続きの行
 //   では番号を振り直さない（enter_continue_markup）
+//   コードフェンスの中では、行頭の字下げを続ける（enter_in_fence）
 // Backspace：記号の直後なら、記号を消す。番号付きの項目なら、後ろの番号を振り直す
 // defaultKeymapのEnter、Backspace、Mod-i（構文の親を選ぶ）より先に効かせる
 export const lyndbaumEditKeys = Prec.high(keymap.of([
-	{ key: 'Enter',     run: enter_continue_markup },
+	{ key: 'Enter',     run: enter_markdown },
 	{ key: 'Backspace', run: delete_markup_renumber },
 	{ key: 'Mod-b', run: key_command(function(s){ return lyndbaum_wrap(s, '**') }), preventDefault: true },
 	{ key: 'Mod-i', run: key_command(function(s){ return lyndbaum_wrap(s, '*')  }), preventDefault: true },
 	{ key: 'Mod-k', run: key_command(lyndbaum_link), preventDefault: true }
 ]));
+
+//------------------------------------------------------------------------------
+// ●TAB、Shift+TABでリストの項目の段を変える（edit-cm.jsのTABの処理から呼ぶ）
+//------------------------------------------------------------------------------
+// 文字を選んでいないときだけ。段を変えたらtrueを返す（falseなら、edit-cm.jsが普通の字下げをする）。
+// ・TAB：カーソルが項目の記号の中か直後（「- 」「1. 」「- [ ] 」の後ろまで）にあれば、1段下げる。
+//   いちばん外側のリストの最初の項目は下げない（行頭に空白のあるリストは文章になるため）
+// ・Shift+TAB：カーソルが項目の行のどこにあっても、1段上げる
+// 番号付きの項目は、移った先の段に合わせて番号を付け直す（同じ段の前の項目の次の番号。
+// 無ければ1）。後ろの項目は、番号が1ずつ続いている間だけ、TABなら元の段の項目を1ずつ減らし、
+// Shift+TABなら移った先の段の項目を1ずつ増やす。
+// 段は行頭のスペースの数で見る（空行で区切る）。行頭に文字のタブがある行は扱わない
+const LIST_INDENT = 2;
+function list_line(text) {
+	const m = /^( *)(?:-|(\d+)\.)(?: +(?:\[[ xX]\] +)?|$)/.exec(text);
+	return m && { indent: m[1].length, num: m[2] === undefined ? null : +m[2], numlen: (m[2] || '').length, end: m[0].length };
+}
+export function list_indent(state, less) {
+	const main = state.selection.main;
+	if (!main.empty || state.selection.ranges.length > 1) return null;
+	const doc  = state.doc;
+	const line = doc.lineAt(main.head);
+	const cur  = list_line(line.text);
+	if (!cur) return null;
+	if (less ? cur.indent == 0 : main.head - line.from > cur.end) return null;
+
+	// この行から始まる項目だけ（コードフェンスの中の行などは、項目として読まれない）
+	let item = syntaxTree(state).resolveInner(line.from + cur.indent, 1);
+	while (item && item.name != 'ListItem') item = item.parent;
+	if (!item || doc.lineAt(item.from).number != line.number) return null;
+	if (!less && !item.prevSibling && item.parent.parent && item.parent.parent.name == 'Document') return null;
+
+	const indent  = less ? Math.max(0, cur.indent - LIST_INDENT) : cur.indent + LIST_INDENT;
+	const changes = [ less
+		? { from: line.from, to: line.from + cur.indent - indent }
+		: { from: line.from, insert: ' '.repeat(LIST_INDENT) }
+	];
+	// 行頭にカーソルがあるときは、足した字下げの後ろへ動かす（そのままだと字下げの前に残る）
+	const spec = { changes };
+	if (!less && main.head == line.from) spec.selection = EditorSelection.cursor(line.from + LIST_INDENT);
+	if (cur.num === null) return spec;
+
+	// 移った先の段での番号
+	let num = 1;
+	for (let n = line.number - 1; n >= 1; n--) {
+		const text = doc.line(n).text;
+		if (/^\s*$/.test(text)) break;
+		const ind = /^ */.exec(text)[0].length;
+		if (ind > indent) continue;
+		const prev = ind == indent && list_line(text);
+		if (prev && prev.num !== null) num = prev.num + 1;
+		break;
+	}
+	if (num != cur.num)
+		changes.push({ from: line.from + cur.indent, to: line.from + cur.indent + cur.numlen, insert: String(num) });
+
+	// 後ろの項目
+	const level = less ? indent : cur.indent;
+	const delta = less ? 1 : -1;
+	let expect  = less ? num : cur.num + 1;
+	for (let n = line.number + 1; n <= doc.lines; n++) {
+		const next = doc.line(n);
+		if (/^\s*$/.test(next.text)) break;
+		const ind = /^ */.exec(next.text)[0].length;
+		if (ind > level) continue;
+		const l = ind == level && list_line(next.text);
+		if (!l || l.num !== expect) break;
+		changes.push({ from: next.from + ind, to: next.from + ind + l.numlen, insert: String(l.num + delta) });
+		expect++;
+	}
+	return spec;
+}
+export function lyndbaumListIndent(view, less) {
+	const spec = list_indent(view.state, less);
+	if (!spec) return false;
+	view.dispatch(view.state.update(spec, { scrollIntoView: true, userEvent: less ? 'delete.dedent' : 'input.indent' }));
+	return true;
+}
 
 //------------------------------------------------------------------------------
 // ●文字を選んでURLを貼ったら、[文字](URL)にする

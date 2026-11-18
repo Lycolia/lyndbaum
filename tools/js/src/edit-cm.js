@@ -12,6 +12,8 @@
 // 見た目はプレーンテキストのまま（記法の色分けだけ）。Enterは改行だけを入れる。
 // Markdownの記事だけは、書きやすくする（tools/codemirror/lyndbaum-markdown.js）：
 //   Enterでリストと引用の記号を続ける（空の項目でEnterすると記号を消す）、
+//   TABとShift+TABでリストの項目の段を変える、
+//   コードフェンスの中のEnterで行頭の字下げを続ける、
 //   Ctrl+B（太字）、Ctrl+I（強調）、Ctrl+K（リンク）、( [ を打つと閉じるカッコを足す、
 //   文字を選んでURLを貼ると[文字](URL)にする。
 // CodeMirrorは見えている行の付近だけをDOMにするので、ブラウザのページ内検索は
@@ -43,9 +45,12 @@ adiary.ready(function(){
 	const parsel  = adiary.secure('#select-parser');
 	const lang    = new CM.Compartment();
 	const tag_names = (ta.getAttribute('data-satsuki-tags') || '').split(/\s+/).filter(Boolean);
+	function is_markdown() {
+		return !!(parsel && parsel.value || '').match(/^markdown/i);
+	}
 	function lang_ext() {
 		const parser = parsel && parsel.value || '';
-		if (parser.match(/^markdown/i))      return [
+		if (is_markdown())                   return [
 			CM.markdown( CM.lyndbaumMarkdown(tag_names) ),
 			CM.lyndbaumEditKeys,
 			CM.lyndbaumPasteURL,
@@ -56,22 +61,47 @@ adiary.ready(function(){
 	}
 
 	//----------------------------------------------------------------------
-	// ●TABで文字のタブを入れる（adiary.jsのtextareaと同じ）
+	// ●TABでスペースの字下げを入れ、Shift+TABで字下げを減らす
 	//----------------------------------------------------------------------
-	// フォーカスした直後とESCの後のTABは、次の欄へ移る
+	// 文字を選んでいないときのTABは、カーソルの位置に、次の区切りの桁までスペースを入れる。
+	// 文字を選んでいるときのTABは、選んだ行の頭を1段下げる。
+	// Shift+TABは、カーソルのある行、選んだ行の頭の字下げを1段減らす。
+	// フォーカスした直後とESCの後のTAB、Shift+TABは、隣の欄へ移る。
+	// 文字のタブは入れない（adiary.jsのtextareaとは違う）。
+	// Markdownの記事では、リストの項目の記号の所でTABを打つと項目を1段下げ、項目の行でShift+TABを
+	// 打つと1段上げる。番号も付け直す（tools/codemirror/lyndbaum-markdown.jsのlyndbaumListIndent）
+	const indent = '  ';
 	let tab_stop = false;
 	const tab_keys = CM.Prec.highest(CM.EditorView.domEventHandlers({
 		focus: function() { tab_stop = true; },
 		keydown: function(evt, view) {
-			if (view.state.readOnly) return false;
+			const state = view.state;
+			if (state.readOnly) return false;
 			if (evt.keyCode == 27) { tab_stop = true; return false; }
+			// Shiftなどを押しただけでは、tab_stopを下ろさない（下ろすと、直後のShift+TABで前の欄へ戻れない）
+			if (evt.key == 'Shift' || evt.key == 'Control' || evt.key == 'Alt' || evt.key == 'Meta') return false;
 			if (tab_stop) {
 				tab_stop = false;
-				return false;	// TABはブラウザに任せて次の欄へ（trueを返すと止められる）
+				return false;	// TABはブラウザに任せて隣の欄へ（trueを返すと止められる）
 			}
-			if (evt.shiftKey || evt.keyCode != 9 || evt.ctrlKey || evt.altKey || evt.metaKey) return false;
+			if (evt.keyCode != 9 || evt.isComposing || evt.ctrlKey || evt.altKey || evt.metaKey) return false;
 			evt.preventDefault();
-			view.dispatch(view.state.replaceSelection("\t"), { scrollIntoView: true, userEvent: 'input' });
+			if (is_markdown() && CM.lyndbaumListIndent(view, evt.shiftKey)) return true;
+			if (evt.shiftKey) {
+				CM.indentLess(view);
+				return true;
+			}
+			if (state.selection.ranges.some(function(r){ return !r.empty })) {
+				CM.indentMore(view);
+				return true;
+			}
+			// カーソルの桁を数える（文字のタブはtabSizeの桁まで進む）
+			const head = state.selection.main.head;
+			const line = state.doc.lineAt(head);
+			let col = 0;
+			for (const ch of line.text.slice(0, head - line.from))
+				col += (ch == "\t") ? state.tabSize - col % state.tabSize : 1;
+			view.dispatch(state.replaceSelection( indent.slice(col % indent.length) ), { scrollIntoView: true, userEvent: 'input' });
 			return true;
 		}
 	}));
@@ -122,6 +152,7 @@ adiary.ready(function(){
 				CM.history(),
 				CM.EditorView.lineWrapping,
 				CM.EditorState.tabSize.of(8),
+				CM.indentUnit.of(indent),
 				tab_keys,
 				// 単語単位は使わない（ひらがなや漢字も単語の文字なので、文の中の語が見つからない）。
 				// チェックボックスはadmin.cssで隠す
