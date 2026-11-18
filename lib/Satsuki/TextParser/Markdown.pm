@@ -234,14 +234,14 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# [GFM] Fenced code blocks
 		#---------------------------------------------------------------
-		if ($self->{gfm_ext} && $x =~ /^(```+|~~~+)([^`]*?)\s*$/) {
+		if ($self->{gfm_ext} && $x =~ /^(```+)([^`]*?)\s*$/) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			my $fence = $1;
 			my ($lang,$file) = split(':', $2, 2);
 			my @code;
 			while(@$lines) {
 				$x = shift(@$lines);
-				if (substr($x,0,length($fence)) eq $fence && $x =~ /^[`~]+\s*$/) { last; }
+				if (substr($x,0,length($fence)) eq $fence && $x =~ /^`+\s*$/) { last; }
 				$self->escape_in_code($x);
 				push(@code, "$x\x02");
 			}
@@ -262,15 +262,6 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# リストと脚注の中は見出しにしない（文字のまま）
 		my $no_heading = $self->{in_list} || $self->{in_footnote};
-
-		# ==/--
-		# [M] 2個以上の連なりで文末にスペース以外の文字がない
-		if (!$no_heading && $x =~ /^===*\s*$/ && $#p_block == 0) {
-			$x = '# '  . pop(@p_block);
-		}
-		if (!$no_heading && $x =~ /^---*\s*$/ && $#p_block == 0) {
-			$x = '## ' . pop(@p_block);
-		}
 
 		if (!$no_heading && $x =~ /^(#+)\s+(.*?)$/) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
@@ -377,7 +368,7 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# list block
 		#---------------------------------------------------------------
-		if ($x =~ /^ ? ? ?(\*|\+|\-|\d+\.) /) {
+		if ($x =~ /^ ? ? ?(\-|\d+\.) /) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			my $ulol = length($1)<2 ? 'ul' : 'ol';
 			my $mark = $self->{strict_list} ? $1 : undef;
@@ -394,7 +385,9 @@ sub parse_block {
 					push(@list, $x);
 					next;
 				}
-				if ($blank && $x !~ /^ ? ?(\*|\+|\-|\d+\.) |^ /) { last; }
+				# 記号でも字下げでもない行でリストを終える（字下げしない継続行は、リストの外の文章）。
+				# 項目の直後のコメントだけの行は出力から消えるので、リストを終えない（空行の後なら終える）
+				if ($x ne '' && $x !~ /^ ? ?(\-|\d+\.) |^ / && ($blank || $x !~ /^(?:\x04\d+\x04\s*)+$/)) { last; }
 				if ($blank && $1 && $mark) {	# リストの開始文字判定
 					my $m = $1;
 					$m = ($m =~ /^\d+\./) ? '0' : $m;
@@ -418,7 +411,7 @@ sub parse_block {
 			my %li_indent;
 			while(@list) {
 				$x = shift(@list);
-				if ($x =~ /^( ? ?)(\*|\+|\-|\d+\.)( +)(.*)$/
+				if ($x =~ /^( ? ?)(\-|\d+\.)( +)(.*)$/
 				 && ($ul_indent == -1 || length($1) == $ul_indent)) {
 					if (@$li) {
 						push(@ul, $li);
@@ -497,44 +490,22 @@ sub parse_block {
 			push(@ary, '<blockquote>');
 			my $p = 0;
 			my @block;
-			while(@$lines && $x ne '') {
+			# >で始まる行だけを引用にする（>の無い継続行は、引用の外の文章）。
+			# コメントだけの行は出力から消えるので、引用を終えない
+			while(@$lines && ($x =~ /^ ? ? ?>/ || $x =~ /^\s*(?:\x04\d+\x04\s*)+$/)) {
 				$x =~ s/^ ? ? ?>\s?(.*)$/$1/;	# [M] '>'後の除去するスペースは1つまで
 				if ($x ne '' || $block[$#block] ne '') {
 					push(@block, $x);
 				}
 				$x = shift(@$lines);
 			}
+			if ($x ne '') { unshift(@$lines, $x); }
 			# [M] 入れ子処理する
 			$self->{in_quote}++;
 			my $blk = $self->parse_nest_block( \@block );
 			$self->{in_quote}--;
 			push(@ary, @$blk);
 			push(@ary, '</blockquote>');
-			next;
-		}
-
-		#---------------------------------------------------------------
-		# [M] コードブロック
-		#---------------------------------------------------------------
-		if ($blank && $x =~ /^    (.*)/) {
-			$self->p_block_end(\@ary, \@p_block, $pmode);
-			my @code = ($x);
-			while(@$lines && (substr($lines->[0],0,4) eq '    ' || $lines->[0] =~ /^\s*$/)) {
-				push(@code, shift(@$lines));
-			}
-			# 最後の空行を無視
-			while (@code && $code[$#code] =~ /^\s*$/) {
-				unshift(@$lines, pop(@code));
-			}
-			foreach(@code) {
-				$x = substr($_, 4);
-				$self->escape_in_code($x);
-				$_ = "$x\x02";
-			}
-			my $first = shift(@code);
-			push(@ary, "<pre><code>$first\x02");
-			push(@ary, @code);
-			push(@ary, "</code></pre>\x02");
 			next;
 		}
 
@@ -618,7 +589,7 @@ TEXT
 		#---------------------------------------------------------------
 		my $y = $x;
 		$y =~ s/\s//g;
-		if ($y =~ /^\*\*\*\**$|^----*$|^____*$/) {
+		if ($y =~ /^----*$/) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			push(@ary, "<hr />\x01");
 			next;
@@ -658,7 +629,7 @@ TEXT
 		#---------------------------------------------------------------
 		# 通常文字
 		#---------------------------------------------------------------
-		$x =~ s/^ ? ? ?//;	# [M] 手前スペース3つまで削除
+		$x =~ s/^ +//;		# 行頭の空白は除く（字下げしてもコードブロックにならない）
 		push(@p_block, $x);	# 段落ブロック
 
 	}
@@ -692,16 +663,16 @@ sub is_loose_item {
 		my $x = $lines->[$i];
 		# [GFM] コードフェンス（判定はparse_blockと同じ）
 		if (defined $fence) {
-			if (substr($x,0,length($fence)) eq $fence && $x =~ /^[`~]+\s*$/) { undef $fence; }
+			if (substr($x,0,length($fence)) eq $fence && $x =~ /^`+\s*$/) { undef $fence; }
 			next;
 		}
-		if ($self->{gfm_ext} && $x =~ /^(```+|~~~+)([^`]*?)\s*$/) {
+		if ($self->{gfm_ext} && $x =~ /^(```+)([^`]*?)\s*$/) {
 			$fence   = $1;
 			$in_list = 0;
 			next;
 		}
 		if ($x ne '') {
-			if (!$in_list && $x =~ /^ ? ? ?(\*|\+|\-|\d+\.) /) {
+			if (!$in_list && $x =~ /^ ? ? ?(\-|\d+\.) /) {
 				$in_list = 1;
 				$mark = ($1 =~ /^\d+\./) ? '0' : $1;
 			}
@@ -713,7 +684,7 @@ sub is_loose_item {
 		while($j<=$#$lines && $lines->[$j] eq '') { $j++; }
 		if ($j > $#$lines) { return 1; }
 		# 入れ子のリストの続き（判定はリストの行の収集と同じ）
-		if ($in_list && $lines->[$j] =~ /^ ? ?(\*|\+|\-|\d+\.) |^ /) {
+		if ($in_list && $lines->[$j] =~ /^ ? ?(\-|\d+\.) |^ /) {
 			# リストの開始文字が異なる時は、別のリスト
 			if ($1 && $self->{strict_list}) {
 				my $m = ($1 =~ /^\d+\./) ? '0' : $1;
@@ -835,39 +806,33 @@ sub parse_inline {
 
 		# 直接リンク記法 - [text](<https://example.com/hoge_(fuga)>)を処理できる方式
 		# リンクの文字には対応の取れた[]を含められる（[a [b] c](URL)）
-		$_ =~ s{(!?)\[((?:[^\[\]]++|\[(?2)\])*)\]\(<([^>]+)>(?:\s*("[^\"]*"|'[^\']*')\s*)?\)}
+		$_ =~ s{(!?)\[((?:[^\[\]]++|\[(?2)\])*)\]\(<([^>]+)>\)}
 		{
 			my $is_img= $1;
 			my $text  = $2;
 			my $url   = $3;
-			my $title = substr($4,1);
-			chop($title);
 
-			$self->tag_escape($url, $title);
-			if ($title ne '') { $title = " title=\"$title\""; }
-			$is_img ? "<img src=\"$url\" alt=\"$text\"$title />"
-				: "<a href=\"$url\"$title>$text</a>";
+			$self->tag_escape($url);
+			$is_img ? "<img src=\"$url\" alt=\"$text\" />"
+				: "<a href=\"$url\">$text</a>";
 		}eg;
 
 		# 直接リンク記法 - [text](https://example.com/hoge_\(fuga\))を処理できる方式
 		# リンク先には対応の取れた()を含められる（https://example.com/a_(b_(c))）
-		$_ =~ s{(!?)\[((?:[^\[\]]++|\[(?2)\])*)\]\(((?:[^\(\)\"\']|\((?3)\))*?)(?:\s*("[^\"]*"|'[^\']*')\s*)?\)}
+		$_ =~ s{(!?)\[((?:[^\[\]]++|\[(?2)\])*)\]\(((?:[^\(\)\"\']|\((?3)\))*?)\)}
 		{
 			my $is_img= $1;
 			my $text  = $2;
 			my $url   = $3;
-			my $title = substr($4,1);
-			chop($title);
 
 			# <URL>形式の場合は<>を除去
 			if ($url =~ /<(.+)>/) {
 				$url = $1;
 			}
 
-			$self->tag_escape($url, $title);
-			if ($title ne '') { $title = " title=\"$title\""; }
-			$is_img ? "<img src=\"$url\" alt=\"$text\"$title />"
-				: "<a href=\"$url\"$title>$text</a>";
+			$self->tag_escape($url);
+			$is_img ? "<img src=\"$url\" alt=\"$text\" />"
+				: "<a href=\"$url\">$text</a>";
 		}eg;
 
 		# 自動リンク記法
@@ -918,7 +883,6 @@ sub parse_inline {
 		# 記号の内側が空白で始まる・終わるものは強調にしない（2 * 3 * 4、*.txt と *.md）。
 		# 閉じていない**は文字のまま
 		$_ =~ s|\*\*(?=\S)(.+?)(?<=\S)\*\*|<strong>$1</strong>|g;
-		$_ =~ s|  __(.*?)__  |<strong>$1</strong>|xg;
 		$_ =~ s|(?<!\*)\*(?=[^\s\*])([^\*]*?[^\s\*])\*(?!\*)|<em>$1</em>|g;
 		$_ =~ s|(?<!\*)\*([^\s\*])\*(?!\*)|<em>$1</em>|g;
 
@@ -930,7 +894,7 @@ sub parse_inline {
 			$_ =~ s#(?<![\p{L}\p{N}_])_([^\s_])_(?![\p{L}\p{N}_])#<em>$1</em>#g;
 			if ($decoded) { utf8::encode($_); }
 		} else {
-			$_ =~ s|_( [^_]*)_ |<em>$1</em>|xg;				# [M]
+			$_ =~ s|(?<!_)_([^_]+)_(?!_)|<em>$1</em>|g;			# [M] __は強調にしない
 		}
 
 		# [GFM] Strikethrough
@@ -1177,7 +1141,8 @@ sub generate_link_id {
 # ●識別子の無い見出しに、新しい識別子[#id]を書き足す
 #-------------------------------------------------------------------------------
 # 見出しの文字を変えてもIDが変わらないよう、記事の保存時に呼ぶ。識別子はnew_heading_idで作る。
-# 見出しは行を見て探す（引用とリストとコードフェンスの中は見ない）。
+# 見出しは、行頭が#の行を見て探す（コードフェンスの中は見ない）。
+# 引用とリストは、>や字下げの無い行で終わるので、行頭が#の行はその外にある。
 # 書き足す前と後で、見出しのID以外の変換結果が同じになる時だけ書き足し、違えば元の原文を返す。
 sub add_heading_ids {
 	my $self  = shift;
@@ -1190,34 +1155,19 @@ sub add_heading_ids {
 	my $n = 0;
 	my $added = 0;
 	my $fence;
-	my $quote;
-	my $list;
-	my $blank;
 	my @lines = split(/\n/, $text, -1);
 	foreach(@lines) {
-		# 引用は空行まで続く（>の無い行も引用の中）。
-		# リストは、空行の後に字下げの無い行が来るまで続く（字下げの無い行も、空行の前なら項目の続き）。
-		if ($_ =~ /^\s*$/) {
-			undef $quote;
-			$blank = 1;
-		} else {
-			if (/^ ? ? ?>/) { $quote = 1; }
-			if (/^\s*(?:[\*\+\-]|\d+\.) +/) { $list = 1; }
-			elsif ($blank && /^\S/) { undef $list; }
-			undef $blank;
-		}
-		# 引用の>とリストの記号を除く
+		# 引用の>とリストの記号を除く（引用やリストの中のコードフェンスを見分ける）
 		my $rest = $_;
-		$rest =~ s/^(?: ? ? ?>\s?|\s*(?:[\*\+\-]|\d+\.) +)*\s*//;
+		$rest =~ s/^(?: ? ? ?>\s?|\s*(?:\-|\d+\.) +)*\s*//;
 		if (defined $fence) {
-			if ($rest =~ /^\Q$fence\E[`~]*\s*$/) { undef $fence; }
+			if ($rest =~ /^\Q$fence\E`*\s*$/) { undef $fence; }
 			next;
 		}
-		if ($rest =~ /^(```+|~~~+)/) {
+		if ($rest =~ /^(```+)/) {
 			$fence = $1;
 			next;
 		}
-		if ($quote || $list) { next; }	# 引用とリストの中の#は見出しにならない
 		if ($_ !~ /^#+\s+(.*?)$/) { next; }
 		my $title = $1;
 		$n++;

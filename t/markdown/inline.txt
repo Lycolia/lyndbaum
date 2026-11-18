@@ -224,7 +224,6 @@ a <M> b <x86 Panther Lake> c
 <p><B>a</B></p>
 
 === 非対応: __太字__ は文章
---- todo: 作り直しで対応（非対応の記法を文章として表示）
 --- input
 __太字__
 --- expected
@@ -240,9 +239,26 @@ __太字__
 <p>[id]: https://example.com</p>
 
 === 非対応: タイトル付きリンクは文章
---- todo: 作り直しで対応（非対応の記法を文章として表示）
 --- input
 [文字](https://example.com "タイトル")
 --- expected
 <p>[文字](https://example.com "タイトル")</p>
 
+=== 非対応: タイトル付きの画像は文章
+--- input
+![代替](https://example.com/a.png "t")
+--- expected
+<p>![代替](https://example.com/a.png "t")</p>
+
+=== 非対応: 語の途中の __ も文章
+--- input
+a__b__c と *__c__*
+--- expected
+<p>a__b__c と <em>__c__</em></p>
+
+=== 非対応: gfm_ext を切っても __太字__ は文章
+--- options: gfm_ext=0
+--- input
+__太字__ と _強調_
+--- expected
+<p>__太字__ と <em>強調</em></p>

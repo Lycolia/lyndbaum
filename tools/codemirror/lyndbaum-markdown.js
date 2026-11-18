@@ -4,6 +4,8 @@
 // CodeMirrorのMarkdown（Lezer、CommonMark）は、[…]をすべて参照形式のリンクとして読む。
 // Lyndbaumは参照形式のリンクに対応せず、[…]はさつき記法のタグ（知っている名前のときだけ）
 // なので、docs/markdown-syntax.mdに合わせて読み方を変える。
+// Lyndbaumが対応しない記法（下線の見出し、インデントのコード、~~~、*と+のリスト、***と___の
+// 区切り線、継続行、__太字__、タイトル付きのリンク）も、記法として読まない。
 //
 // lyndbaumMarkdown(tag_names) … CM.markdown()の引数（tag_namesはサーバーのタグ定義のキー）
 // lyndbaumHighlight            … 足した記法の色分け
@@ -33,7 +35,7 @@ export const lyndbaumHighlight = HighlightStyle.define([
 ]);
 
 const C_BACKSLASH = 92, C_OPEN = 91, C_CLOSE = 93, C_PAREN = 40, C_PAREN_CLOSE = 41,
-      C_SPACE = 32, C_TAB = 9, C_COLON = 58;
+      C_SPACE = 32, C_TAB = 9, C_COLON = 58, C_STAR = 42, C_PLUS = 43, C_UNDER = 95, C_TILDE = 126;
 
 //------------------------------------------------------------------------------
 // ●[ から対応する ] の次の位置（無ければ -1）。\[ \] は飛ばす
@@ -136,11 +138,14 @@ function bracket_parser(names) {
 }
 
 //------------------------------------------------------------------------------
-// ●参照形式のリンクにしない
+// ●参照形式のリンク、タイトル付きのリンクにしない
 //------------------------------------------------------------------------------
-// ] の直後が ( でなければ、開いた [ を取り下げて普通の文字にする
+// ] の直後が ( でないとき、(URL "タイトル") のときは、開いた [ を取り下げて普通の文字にする
+// （画像の ![ も同じ）。タイトルは、URLの後ろの空白に続く " か ' で見分ける
+const LINK_TITLE = /^\([ \t]*(?:<[^<>\n]*>|(?:[^\s()\\]|\\.|\((?:[^\s()\\]|\\.)*\))*)[ \t]+["']/;
 function close_bracket(cx, next, pos) {
-	if (next != C_CLOSE || cx.char(pos + 1) == C_PAREN) return -1;
+	if (next != C_CLOSE) return -1;
+	if (cx.char(pos + 1) == C_PAREN && !LINK_TITLE.test(cx.slice(pos + 1, cx.end))) return -1;
 	const a = cx.findOpeningDelimiter(InlineContext.linkStart);
 	const b = cx.findOpeningDelimiter(InlineContext.imageStart);
 	const i = (a == null) ? b : (b == null) ? a : Math.max(a, b);
@@ -190,6 +195,53 @@ const SeeMore = {
 };
 
 //------------------------------------------------------------------------------
+// ●対応しない記法で始まる行は、ブロックにせず文章として読む
+//------------------------------------------------------------------------------
+// ~~~（フェンス）、「* 」「+ 」（リスト）、* か _ だけの行（区切り線）。
+// その行を1つの段落にする（中の太字やリンクなどは読む）
+function is_plain_line(line) {
+	const text = line.text, pos = line.pos, c = line.next;
+	if (c == C_TILDE) return text.charCodeAt(pos + 1) == C_TILDE && text.charCodeAt(pos + 2) == C_TILDE;
+	if (c != C_STAR && c != C_PLUS && c != C_UNDER) return false;
+	if (c != C_UNDER) {
+		const c1 = text.charCodeAt(pos + 1);
+		if (pos + 1 == text.length || c1 == C_SPACE || c1 == C_TAB) return true;
+	}
+	if (c == C_PLUS) return false;
+	let count = 0;
+	for (let i = pos; i < text.length; i++) {
+		const ch = text.charCodeAt(i);
+		if (ch == c) count++;
+		else if (ch != C_SPACE && ch != C_TAB) return false;
+	}
+	return count >= 3;
+}
+const PlainLine = {
+	name: 'LyndbaumPlainLine',
+	before: 'FencedCode',
+	parse(cx, line) {
+		if (!is_plain_line(line)) return false;
+		const from = cx.lineStart + line.pos, to = cx.lineStart + line.text.length;
+		cx.addElement(cx.elt('Paragraph', from, to, cx.parser.parseInline(line.text.slice(line.pos), from)));
+		cx.nextLine();
+		return true;
+	},
+	// 引用の > や、リストの項目の字下げが無い行は、前の段落の続き（継続行）にしない
+	endLeaf(cx, line) { return line.depth < cx.depth; }
+};
+
+//------------------------------------------------------------------------------
+// ●__太字__ にしない
+//------------------------------------------------------------------------------
+// _ が2つ以上続く所は、強調の記号にせず文字として読む（_強調_ は読む）
+function underscore_run(cx, next, pos) {
+	if (next != C_UNDER) return -1;
+	let end = pos + 1;
+	while (cx.char(end) == C_UNDER) end++;
+	return end - pos >= 2 ? end : -1;
+}
+
+//------------------------------------------------------------------------------
 // ●CM.markdown()の引数
 //------------------------------------------------------------------------------
 export function lyndbaumMarkdown(tag_names) {
@@ -206,11 +258,12 @@ export function lyndbaumMarkdown(tag_names) {
 			{ name: 'LyndbaumAnnotation' },
 			{ name: 'LyndbaumAnnotationMark', style: tag.mark  }
 		],
-		parseBlock: [ SeeMore ],
+		parseBlock: [ PlainLine, SeeMore ],
 		parseInline: [
 			{ name: 'LyndbaumBracket',    parse: bracket_parser(names), before: 'Link' },
 			{ name: 'LyndbaumClose',      parse: close_bracket,         before: 'LinkEnd' },
-			{ name: 'LyndbaumAnnotation', parse: annotation_parser,     before: 'Emphasis' }
+			{ name: 'LyndbaumAnnotation', parse: annotation_parser,     before: 'Emphasis' },
+			{ name: 'LyndbaumUnderscore', parse: underscore_run,        before: 'Emphasis' }
 		],
 		remove: [ 'SetextHeading', 'IndentedCode', 'LinkReference', 'HardBreak' ]
 	};
