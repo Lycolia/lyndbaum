@@ -13,7 +13,7 @@ my $a = 1;
 text
 ```
 --- expected
-<pre><code class="language-">text
+<pre><code class="language-none">text
 </code></pre>
 
 === コード内のHTMLはエスケープ
@@ -22,7 +22,7 @@ text
 <b>&amp;</b>
 ```
 --- expected
-<pre><code class="language-">&lt;b&gt;&amp;amp;&lt;/b&gt;
+<pre><code class="language-none">&lt;b&gt;&amp;amp;&lt;/b&gt;
 </code></pre>
 
 === 4つのバッククォートで中に```を含める
@@ -116,3 +116,30 @@ code<br />
 <li><p>a</p>
 <p>深い字下げ</p></li>
 </ul>
+
+=== 言語は最初の語だけを使う
+--- input
+```js title
+code
+```
+--- expected
+<pre><code class="language-js">code
+</code></pre>
+
+=== フェンスと言語の間の空白は無視する
+--- input
+``` js
+code
+```
+--- expected
+<pre><code class="language-js">code
+</code></pre>
+
+=== 非対応: 言語:ファイル名 のファイル名は使わない
+--- input
+```js:a.js
+code
+```
+--- expected
+<pre><code class="language-js">code
+</code></pre>

@@ -346,7 +346,7 @@ q1
 --- expected
 <ul>
 <li>a
-<pre><code class="language-">x
+<pre><code class="language-none">x
 
 y
 </code></pre></li>
@@ -388,12 +388,12 @@ y
 
 === 項目内の段落の間の空行では、その項目だけ<p>で囲む
 --- input
-  - あああ
-    いいい
+- あああ
+  いいい
 
-    続き
-  - b
-  - c
+  続き
+- b
+- c
 --- expected
 <ul>
 <li><p>あああ<br />
@@ -437,7 +437,7 @@ y
 --- expected
 <ol>
 <li>a
-<pre><code class="language-">x
+<pre><code class="language-none">x
 
 
 y
@@ -499,7 +499,7 @@ c
 --- expected
 <ul>
 <li>a
-<pre><code class="language-">code
+<pre><code class="language-none">code
 </code></pre></li>
 </ul>
 <p>後</p>
@@ -538,5 +538,119 @@ code
 <ul>
 <li>a</li>
 </ul>
-<pre><code class="language-">code
+<pre><code class="language-none">code
 </code></pre>
+
+=== 空行なしで種類が変わったら別のリスト
+--- input
+- a
+- b
+1. c
+2. d
+--- expected
+<ul>
+<li>a</li>
+<li>b</li>
+</ul>
+<ol>
+<li>c</li>
+<li>d</li>
+</ol>
+
+=== 番号付きリストの直後の - も別のリスト
+--- input
+1. a
+- b
+--- expected
+<ol>
+<li>a</li>
+</ol>
+<ul>
+<li>b</li>
+</ul>
+
+=== 入れ子の番号付きリストは、親のリストを終えない
+--- input
+- a
+  1. b
+  2. c
+- d
+--- expected
+<ul>
+<li>a
+<ol>
+<li>b</li>
+<li>c</li>
+</ol></li>
+<li>d</li>
+</ul>
+
+=== 非対応: 行頭に空白のあるリストは文章
+# いちばん外側では、行頭に空白のある行をリストにしない（見出しやコードフェンスと同じ）
+--- input
+ - a
+ - b
+
+   - c
+     - d
+--- expected
+<p>- a<br />
+- b</p>
+<p>- c<br />
+- d</p>
+
+=== 非対応: 行頭に空白のある番号付きリストは文章
+--- input
+   1. a
+   2. b
+--- expected
+<p>1. a<br />
+2. b</p>
+
+=== 引用の中では、字下げしたリストもリスト（項目内の段落の間の空行では、その項目だけ<p>で囲む）
+--- input
+>   - あああ
+>     いいい
+>
+>     続き
+>   - b
+>   - c
+--- expected
+<blockquote>
+<ul>
+<li><p>あああ<br />
+いいい</p>
+<p>続き</p></li>
+<li>b</li>
+<li>c</li>
+</ul>
+</blockquote>
+
+=== 項目の直後の、字下げの浅いリストは子のリスト
+--- input
+- a
+ - b
+   - c
+--- expected
+<ul>
+<li>a
+<ul>
+<li>b
+<ul>
+<li>c</li>
+</ul></li>
+</ul></li>
+</ul>
+
+=== 番号付きリストの後に空行を挟んだ - も別のリスト
+--- input
+1. a
+
+- b
+--- expected
+<ol>
+<li>a</li>
+</ol>
+<ul>
+<li>b</li>
+</ul>

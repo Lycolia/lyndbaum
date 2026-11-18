@@ -272,3 +272,57 @@ _ _ _
 <p>前<br />
 ====<br />
 後</p>
+
+=== HTMLブロックの中は、1行目も記法を処理しない
+--- input
+<div>**a** [bf:b]
+**c**
+</div>
+--- expected
+<div>**a** [bf:b]
+**c**
+</div>
+
+=== 1行だけのHTMLブロックも記法を処理しない
+--- input
+<div>**a** [bf:b]</div>
+--- expected
+<div>**a** [bf:b]</div>
+
+=== markdown="1" のHTMLブロックは、1行目も記法を処理する
+--- input
+<div markdown="1">**a**
+**c**
+</div>
+--- expected
+<div><strong>a</strong>
+<strong>c</strong>
+</div>
+
+=== 非対応: 行頭に空白のある --- は文章
+--- input
+ ---
+--- expected
+<p>---</p>
+
+=== 行末に空白のある --- は区切り線
+--- input
+---  
+--- expected
+<hr />
+
+=== HTMLブロックの空行の後でも、行頭に空白のあるリストは文章
+--- input
+<details>
+<summary>題</summary>
+
+  - a
+  - b
+
+</details>
+--- expected
+<details>
+<summary>題</summary>
+<p>- a<br />
+- b</p>
+</details>

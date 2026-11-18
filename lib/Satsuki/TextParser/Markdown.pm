@@ -215,7 +215,8 @@ sub parse_block {
 			}
 			my $first=1;
 			while(@$lines && $x !~ /$tagend/i) {
-				push(@ary, $x . ($first ? "\x01" : $endmark));
+				# markdown="1"の無いブロックは、1行目も記法を処理しない
+				push(@ary, $x . ($first && !$endmark ? "\x01" : $endmark));
 				$first=0;
 				$x = shift(@$lines);
 				if ($x =~ /^\s*$/) {
@@ -237,7 +238,8 @@ sub parse_block {
 		if ($self->{gfm_ext} && $x =~ /^(```+)([^`]*?)\s*$/) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			my $fence = $1;
-			my ($lang,$file) = split(':', $2, 2);
+			# 言語は、フェンスの後ろの最初の語だけを使う（「言語:ファイル名」の:より後ろと、空白より後ろは使わない）
+			my ($lang) = $2 =~ /^\s*([^\s:]*)/;
 			my @code;
 			while(@$lines) {
 				$x = shift(@$lines);
@@ -246,10 +248,9 @@ sub parse_block {
 				push(@code, "$x\x02");
 			}
 
-			$self->tag_escape($lang, $file);
-			if ($file ne '') {
-				$file = " title=\"$file\"";
-			}
+			$self->tag_escape($lang);
+			# 言語が無ければnone（Prismが色分けしない言語。クラスが無いと、テーマのコードの見た目が当たらない）
+			if ($lang eq '') { $lang = 'none'; }
 			my $first = shift(@code);
 			push(@ary, "<pre><code class=\"language-$lang\">$first");
 			push(@ary, @code);
@@ -368,13 +369,15 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# list block
 		#---------------------------------------------------------------
-		if ($x =~ /^ ? ? ?(\-|\d+\.) /) {
+		# いちばん外側では、行頭に空白のある行をリストにしない（見出しやコードフェンスと同じ）
+		if ($nest ? $x =~ /^ ? ? ?(\-|\d+\.) / : $x =~ /^(\-|\d+\.) /) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			my $ulol = length($1)<2 ? 'ul' : 'ol';
 			my $mark = $self->{strict_list} ? $1 : undef;
 			# 番号付きリストは、書いた番号から始める
 			my $start = ($ulol eq 'ol' && $1 != 1) ? ' start="' . ($1+0) . '"' : '';
 			$mark = ($mark =~ /^\d+\./) ? '0' : $mark;
+			my $indent0 = ($x =~ /^( *)/) ? length($1) : 0;
 			my @list=($x);
 			my $blank=0;
 			while(@$lines) {
@@ -388,7 +391,12 @@ sub parse_block {
 				# 記号でも字下げでもない行でリストを終える（字下げしない継続行は、リストの外の文章）。
 				# 項目の直後のコメントだけの行は出力から消えるので、リストを終えない（空行の後なら終える）
 				if ($x ne '' && $x !~ /^ ? ?(\-|\d+\.) |^ / && ($blank || $x !~ /^(?:\x04\d+\x04\s*)+$/)) { last; }
-				if ($blank && $1 && $mark) {	# リストの開始文字判定
+				# 最初の項目と同じ字下げの行で種類（-と番号）が変わったら、空行が無くても別のリスト
+				if (!$blank && defined $mark && $x =~ /^( *)(\-|\d+\.) / && length($1) == $indent0) {
+					my $m = ($2 =~ /^\d+\./) ? '0' : $2;
+					if ($mark ne $m) { last; }
+				}
+				if ($blank && $1 && defined $mark) {	# リストの開始文字判定
 					my $m = $1;
 					$m = ($m =~ /^\d+\./) ? '0' : $m;
 					if ($mark ne $m) { last; }
@@ -411,7 +419,7 @@ sub parse_block {
 			my %li_indent;
 			while(@list) {
 				$x = shift(@list);
-				if ($x =~ /^( ? ?)(\-|\d+\.)( +)(.*)$/
+				if ($x =~ /^( ? ? ?)(\-|\d+\.)( +)(.*)$/
 				 && ($ul_indent == -1 || length($1) == $ul_indent)) {
 					if (@$li) {
 						push(@ul, $li);
@@ -485,14 +493,16 @@ sub parse_block {
 		#---------------------------------------------------------------
 		# [M] blockquote
 		#---------------------------------------------------------------
-		if ($x =~ /^ ? ? ?>/) {
+		# いちばん外側では、行頭に空白のある行を引用にしない
+		my $quote = $nest ? qr/^ ? ? ?>/ : qr/^>/;
+		if ($x =~ $quote) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			push(@ary, '<blockquote>');
 			my $p = 0;
 			my @block;
 			# >で始まる行だけを引用にする（>の無い継続行は、引用の外の文章）。
 			# コメントだけの行は出力から消えるので、引用を終えない
-			while(@$lines && ($x =~ /^ ? ? ?>/ || $x =~ /^\s*(?:\x04\d+\x04\s*)+$/)) {
+			while(@$lines && ($x =~ $quote || $x =~ /^\s*(?:\x04\d+\x04\s*)+$/)) {
 				$x =~ s/^ ? ? ?>\s?(.*)$/$1/;	# [M] '>'後の除去するスペースは1つまで
 				if ($x ne '' || $block[$#block] ne '') {
 					push(@block, $x);
@@ -513,11 +523,12 @@ sub parse_block {
 		# [GFM] テーブル
 		#---------------------------------------------------------------
 		# [GFM] 段落の途中からでも始められる（リスト項目内のテキストの直後など）。
-		# その場合は誤検出を避けるため、2行目が区切り行（|-|:-:|など）であることを厳密に確認する
+		# 2行目が区切り行（|-|:-:|など）のときだけ表にする。区切り行も|で始める
+		# いちばん外側では、行頭に空白のある行を表にしない
 		if ($self->{gfm_ext}
-		 && $x =~ /^\s*\|/
-		 && $lines->[0] =~ /^\s*|(?:\s*:?\-{3,}:?\s*\|)+\s*$/
-		 && ($blank || $lines->[0] =~ /^\s*\|?\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/)
+		 && ($nest ? $x =~ /^\s*\|/ : $x =~ /^\|/)
+		 && $lines->[0] =~ /^\s*\|\s*:?-+:?\s*(?:\|\s*:?-+:?\s*)*\|?\s*$/
+		 && ($nest || $lines->[0] =~ /^\|/)
 		) {
 			my @buf = ($x);
 			while(@$lines && $lines->[0] =~ /\|/) {
@@ -589,7 +600,8 @@ TEXT
 		#---------------------------------------------------------------
 		my $y = $x;
 		$y =~ s/\s//g;
-		if ($y =~ /^----*$/) {
+		# いちばん外側では、行頭に空白のある行を区切り線にしない
+		if ($y =~ /^----*$/ && ($nest || $x !~ /^\s/)) {
 			$self->p_block_end(\@ary, \@p_block, $pmode);
 			push(@ary, "<hr />\x01");
 			next;
@@ -804,6 +816,19 @@ sub parse_inline {
 			$_ =~ s/\(\(((?:[^()]++|\([^()]*\))*)\)\)/ $self->satsuki_footnote_ref($satsuki->footnote($1, \@footnote, \%note_hash)) /eg;
 		}
 
+		# リンクの文字の中の画像（[![代替](画像)](URL)）を<img>にする
+		my $inner_img = sub {
+			my $t = shift;
+			$t =~ s{!\[((?:[^\[\]]++|\[(?1)\])*)\]\((?:<([^>]+)>|((?:[^\(\)\"\']|\((?3)\))*?))\)}
+			{
+				my $alt = $1;
+				my $src = defined $2 ? $2 : $3;
+				$self->tag_escape($src);
+				"<img src=\"$src\" alt=\"$alt\" />";
+			}eg;
+			return $t;
+		};
+
 		# 直接リンク記法 - [text](<https://example.com/hoge_(fuga)>)を処理できる方式
 		# リンクの文字には対応の取れた[]を含められる（[a [b] c](URL)）
 		$_ =~ s{(!?)\[((?:[^\[\]]++|\[(?2)\])*)\]\(<([^>]+)>\)}
@@ -811,6 +836,7 @@ sub parse_inline {
 			my $is_img= $1;
 			my $text  = $2;
 			my $url   = $3;
+			if (!$is_img) { $text = &$inner_img($text); }
 
 			$self->tag_escape($url);
 			$is_img ? "<img src=\"$url\" alt=\"$text\" />"
@@ -824,6 +850,7 @@ sub parse_inline {
 			my $is_img= $1;
 			my $text  = $2;
 			my $url   = $3;
+			if (!$is_img) { $text = &$inner_img($text); }
 
 			# <URL>形式の場合は<>を除去
 			if ($url =~ /<(.+)>/) {
@@ -881,8 +908,10 @@ sub parse_inline {
 
 		# 強調
 		# 記号の内側が空白で始まる・終わるものは強調にしない（2 * 3 * 4、*.txt と *.md）。
-		# 閉じていない**は文字のまま
-		$_ =~ s|\*\*(?=\S)(.+?)(?<=\S)\*\*|<strong>$1</strong>|g;
+		# 閉じていない**は文字のまま。太字の中身に**は含めない（**a ** と ** a**は太字にしない）。
+		# ***文字***は太字と強調の両方。*が4つ以上続く所は記号にしない
+		$_ =~ s|(?<!\*)\*\*\*(?=[^\s\*])((?:(?!\*\*).)+?)(?<=[^\s\*])\*\*\*(?!\*)|<em><strong>$1</strong></em>|g;
+		$_ =~ s|(?<!\*)\*\*(?=[^\s\*])((?:(?!\*\*).)+?)(?<=\S)\*\*|<strong>$1</strong>|g;
 		$_ =~ s|(?<!\*)\*(?=[^\s\*])([^\*]*?[^\s\*])\*(?!\*)|<em>$1</em>|g;
 		$_ =~ s|(?<!\*)\*([^\s\*])\*(?!\*)|<em>$1</em>|g;
 
@@ -1143,6 +1172,9 @@ sub generate_link_id {
 # 見出しの文字を変えてもIDが変わらないよう、記事の保存時に呼ぶ。識別子はnew_heading_idで作る。
 # 見出しは、行頭が#の行を見て探す（コードフェンスの中は見ない）。
 # 引用とリストは、>や字下げの無い行で終わるので、行頭が#の行はその外にある。
+# コードフェンスは、パーサーと同じ所で数える。
+# ・いちばん外側では、行頭に空白の無い行だけ（字下げした```は文章）
+# ・リストの項目と引用の中では、記号と字下げを除いて見る。そのリストや引用が終われば、フェンスも終わる
 # 書き足す前と後で、見出しのID以外の変換結果が同じになる時だけ書き足し、違えば元の原文を返す。
 sub add_heading_ids {
 	my $self  = shift;
@@ -1155,17 +1187,45 @@ sub add_heading_ids {
 	my $n = 0;
 	my $added = 0;
 	my $fence;
+	my $fence_in;	# フェンスを開いた場所（top, list, quote）
+	my $in_list;	# リストの中（行頭が記号の行から、行頭に空白の無い記号でない行の手前まで）
 	my @lines = split(/\n/, $text, -1);
 	foreach(@lines) {
-		# 引用の>とリストの記号を除く（引用やリストの中のコードフェンスを見分ける）
-		my $rest = $_;
-		$rest =~ s/^(?: ? ? ?>\s?|\s*(?:\-|\d+\.) +)*\s*//;
-		if (defined $fence) {
-			if ($rest =~ /^\Q$fence\E`*\s*$/) { undef $fence; }
+		# いちばん外側のフェンスの中は、行頭の```で閉じるまで全部コード
+		if (defined $fence && $fence_in eq 'top') {
+			if ($_ =~ /^\Q$fence\E`*\s*$/) { undef $fence; }
 			next;
 		}
-		if ($rest =~ /^(```+)/) {
-			$fence = $1;
+		# その行がある場所と、記号と字下げを除いた残り
+		my $in   = 'top';
+		my $rest = $_;
+		if ($_ =~ /^>/) {
+			$in = 'quote';
+			undef $in_list;
+			$rest =~ s/^(?: ? ? ?>\s?|\s*(?:\-|\d+\.) +)*\s*//;
+		} elsif ($_ =~ /^(?:\-|\d+\.) /) {
+			$in = 'list';
+			$in_list = 1;
+			if (defined $fence && $fence_in eq 'list') { undef $fence; }	# 次の項目
+			$rest =~ s/^(?:\s*(?:\-|\d+\.) +)*\s*//;
+		} elsif ($_ =~ /^\s*$/ || $_ =~ /^\s/) {
+			if ($in_list) {
+				$in = 'list';
+				$rest =~ s/^(?:\s*(?:\-|\d+\.) +)*\s*//;
+			}
+		} else {
+			undef $in_list;
+		}
+		if (defined $fence) {
+			if ($fence_in eq $in) {
+				if ($rest =~ /^\Q$fence\E`*\s*$/) { undef $fence; }
+				next;
+			}
+			undef $fence;	# フェンスを開いたリストや引用が終わった
+		}
+		if ($rest =~ /^(```+)[^`]*$/) {
+			$fence    = $1;
+			$fence_in = $in;
 			next;
 		}
 		if ($_ !~ /^#+\s+(.*?)$/) { next; }

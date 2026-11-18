@@ -5,7 +5,9 @@
 // Lyndbaumは参照形式のリンクに対応せず、[…]はさつき記法のタグ（知っている名前のときだけ）
 // なので、docs/markdown-syntax.mdに合わせて読み方を変える。
 // Lyndbaumが対応しない記法（下線の見出し、インデントのコード、~~~、*と+のリスト、***と___の
-// 区切り線、継続行、__太字__、タイトル付きのリンク）も、記法として読まない。
+// 区切り線、継続行、__太字__、タイトル付きのリンク、いちばん外側の行頭に空白のあるブロック）も、
+// 記法として読まない。
+// * の太字と強調、表、「- - -」、字下げした引用の行も、Markdown.pmと同じ決まりで読む。
 //
 // lyndbaumMarkdown(tag_names) … CM.markdown()の引数（tag_namesはサーバーのタグ定義のキー）
 // lyndbaumHighlight            … 足した記法の色分け
@@ -35,7 +37,8 @@ export const lyndbaumHighlight = HighlightStyle.define([
 ]);
 
 const C_BACKSLASH = 92, C_OPEN = 91, C_CLOSE = 93, C_PAREN = 40, C_PAREN_CLOSE = 41,
-      C_SPACE = 32, C_TAB = 9, C_COLON = 58, C_STAR = 42, C_PLUS = 43, C_UNDER = 95, C_TILDE = 126;
+      C_SPACE = 32, C_TAB = 9, C_COLON = 58, C_STAR = 42, C_PLUS = 43, C_UNDER = 95, C_TILDE = 126,
+      C_DASH = 45, C_PIPE = 124, C_HASH = 35, C_BACKQUOTE = 96;
 
 //------------------------------------------------------------------------------
 // ●[ から対応する ] の次の位置（無ければ -1）。\[ \] は飛ばす
@@ -197,11 +200,14 @@ const SeeMore = {
 //------------------------------------------------------------------------------
 // ●対応しない記法で始まる行は、ブロックにせず文章として読む
 //------------------------------------------------------------------------------
-// ~~~（フェンス）、「* 」「+ 」（リスト）、* か _ だけの行（区切り線）。
+// ~~~（フェンス）、「* 」「+ 」「1) 」（リスト）、* か _ だけの行（区切り線）。
+// いちばん外側（リストや引用の中でない所）の、行頭に空白のある行（見出し、フェンス、リスト、
+// 引用、区切り線、表のどれにもしない）。
 // その行を1つの段落にする（中の太字やリンクなどは読む）
 function is_plain_line(line) {
 	const text = line.text, pos = line.pos, c = line.next;
 	if (c == C_TILDE) return text.charCodeAt(pos + 1) == C_TILDE && text.charCodeAt(pos + 2) == C_TILDE;
+	if (c >= 48 && c <= 57) return /^\d+\)(?:[ \t]|$)/.test(text.slice(pos));
 	if (c != C_STAR && c != C_PLUS && c != C_UNDER) return false;
 	if (c != C_UNDER) {
 		const c1 = text.charCodeAt(pos + 1);
@@ -216,11 +222,76 @@ function is_plain_line(line) {
 	}
 	return count >= 3;
 }
+// 引用とリストが次の行に続くかどうかを、Markdown.pmに合わせる。
+// ・いちばん外側の引用の途中の、行頭に空白のある > の行は、引用の続きにしない（引用の外の文章）
+// ・リストの項目は、内容の開始位置に届かない浅い字下げ（空白1つなど）の行でも続く。
+//   その行は項目の中身として読む（「- a」の次の行の「 - b」は子のリスト）
+// 続くかどうかはLezerの中の関数（skipContextMarkup）が決めていて、設定では変えられないので、
+// パーサーごとに1回、その関数を包む。最初のブロックを読む前に呼ぶ
+const context_patched = new WeakSet();
+function type_id(parser, name) {
+	const type = parser.nodeSet.types.find(function(t){ return t.name == name });
+	return type ? type.id : -1;
+}
+// 項目の内容の開始位置に届かない字下げの行か。そのリストの記号と同じ位置の記号の行は、次の項目なので除く
+function shallow_indent(line, list, item) {
+	const rel = line.indent - line.baseIndent;
+	if (line.pos >= line.text.length || rel <= 0 || rel >= item.value) return false;
+	const first = list.children.length ? list.children[0] : item;
+	const mark = first.positions && first.positions.length ? first.positions[0] : 0;
+	return !(rel == mark && /^(?:-|\d+\.)(?:[ \t]|$)/.test(line.text.slice(line.pos)));
+}
+function patch_contexts(parser) {
+	if (context_patched.has(parser)) return;
+	context_patched.add(parser);
+	const skip = parser.skipContextMarkup;
+	if (!skip) return;
+	const wrap = function(name, make) {
+		const id = type_id(parser, name), orig = skip[id];
+		if (orig) skip[id] = make(orig);
+	};
+	wrap('Blockquote', function(orig){ return function(bl, cx, line) {
+		if (cx.stack[1] === bl && /^[ \t]/.test(line.text)) return false;
+		return orig(bl, cx, line);
+	} });
+	const item_id = type_id(parser, 'ListItem');
+	for (const name of ['BulletList', 'OrderedList']) {
+		wrap(name, function(orig){ return function(bl, cx, line) {
+			const item = cx.stack[line.depth + 1];
+			if (item && item.type == item_id && shallow_indent(line, bl, item)) return true;
+			return orig(bl, cx, line);
+		} });
+	}
+	wrap('ListItem', function(orig){ return function(bl, cx, line) {
+		const list = cx.stack[line.depth - 1];
+		if (list && shallow_indent(line, list, bl)) { line.moveBaseColumn(line.indent); return true; }
+		return orig(bl, cx, line);
+	} });
+}
+function in_list(cx) {
+	const item_id = type_id(cx.parser, 'ListItem');
+	return cx.stack.some(function(b){ return b.type == item_id });
+}
+// リストの項目と引用の中で、文章として読む行
+// ・リストの中の # の行（リストの中では見出しにしない）
+// ・内容の開始位置より深く字下げした # と ``` の行（見出しとフェンスは、中でも字下げを許さない）
+function is_plain_nested(cx, line) {
+	if (cx.depth == 1) return false;
+	const c = line.next;
+	const deep = line.indent > line.baseIndent;
+	if (c == C_HASH) {
+		if (!/^#+(?:[ \t]|$)/.test(line.text.slice(line.pos))) return false;
+		return deep || in_list(cx);
+	}
+	return deep && c == C_BACKQUOTE && line.text.charCodeAt(line.pos + 1) == C_BACKQUOTE && line.text.charCodeAt(line.pos + 2) == C_BACKQUOTE;
+}
 const PlainLine = {
 	name: 'LyndbaumPlainLine',
 	before: 'FencedCode',
 	parse(cx, line) {
-		if (!is_plain_line(line)) return false;
+		patch_contexts(cx.parser);
+		const indented = cx.depth == 1 && line.pos > 0;
+		if (!indented && !is_plain_line(line) && !is_plain_nested(cx, line)) return false;
 		const from = cx.lineStart + line.pos, to = cx.lineStart + line.text.length;
 		cx.addElement(cx.elt('Paragraph', from, to, cx.parser.parseInline(line.text.slice(line.pos), from)));
 		cx.nextLine();
@@ -229,6 +300,134 @@ const PlainLine = {
 	// 引用の > や、リストの項目の字下げが無い行は、前の段落の続き（継続行）にしない
 	endLeaf(cx, line) { return line.depth < cx.depth; }
 };
+
+//------------------------------------------------------------------------------
+// ●区切り線（--- だけ）
+//------------------------------------------------------------------------------
+// 標準の区切り線はリストより先に読むので、「- - -」が区切り線になる。Markdown.pmはリストを
+// 先に読む（項目が「- -」のリスト）ので、標準のものを外し、リストの後で読む
+const Rule = {
+	name: 'LyndbaumRule',
+	after: 'BulletList',
+	parse(cx, line) {
+		if (line.next != C_DASH) return false;
+		let count = 0;
+		for (let i = line.pos; i < line.text.length; i++) {
+			const ch = line.text.charCodeAt(i);
+			if (ch == C_DASH) count++;
+			else if (ch != C_SPACE && ch != C_TAB) return false;
+		}
+		if (count < 3) return false;
+		cx.addElement(cx.elt('HorizontalRule', cx.lineStart + line.pos, cx.lineStart + line.text.length));
+		cx.nextLine();
+		return true;
+	}
+};
+
+//------------------------------------------------------------------------------
+// ●表は、見出しの行も区切り行も | で始まるものだけ
+//------------------------------------------------------------------------------
+const table_leaf = Table.parseBlock[0].leaf;
+const PipeTable = {
+	name: 'Table',	// 標準の表の読み方を置き換える
+	leaf(cx, leaf) {
+		if (leaf.content.charCodeAt(0) != C_PIPE) return null;
+		const parser = table_leaf(cx, leaf);
+		if (!parser) return null;
+		const next_line = parser.nextLine;
+		let second = true;
+		parser.nextLine = function(cx, line, leaf) {
+			if (second) {
+				second = false;
+				if (line.next != C_PIPE) { this.rows = false; return false; }
+			}
+			return next_line.call(this, cx, line, leaf);
+		};
+		return parser;
+	}
+};
+
+//------------------------------------------------------------------------------
+// ●* の太字と強調
+//------------------------------------------------------------------------------
+// 標準の読み方（CommonMark）でなく、Markdown.pmのparse_inlineと同じ順で、行ごとに探す。
+//   1. ***文字***  2. **文字**（中に ** を含めない）  3. *文字*（中に * を含めない）
+// 記号の内側が空白のもの、* が4つ以上続く所、閉じていないものは文字のまま。
+// エスケープ、コードスパン、リンク先、HTMLタグの中の * は数えない
+const STAR_SKIP = /\\[\\`'*_\[\]()>#+\-.~!]|(`+)(?:[^`]|[^`][^]*?[^`])\1(?!`)|\]\((?:<[^<>]*>|[^()\s]*(?:\([^()]*\)[^()\s]*)*)\)|<[^<>]*>/g;
+function is_space(c) { return c == ' ' || c == '\t'; }
+function star_spans(text) {
+	const w = text.replace(STAR_SKIP, function(m){ return 'x'.repeat(m.length) }).split('');
+	const spans = [];
+	const used = function(from, to) { for (let i = from; i < to; i++) w[i] = 'x'; };
+	// 1. ***文字***、2. **文字**
+	for (const n of [3, 2]) {
+		for (let i = 0; i < w.length; i++) {
+			if (w[i] != '*' || (i > 0 && w[i - 1] == '*')) continue;
+			let run = 1;
+			while (w[i + run] == '*') run++;
+			const c = w[i + n];
+			if (run < n || c === undefined || is_space(c) || c == '*') { i += run - 1; continue; }
+			let j = i + n + 1;
+			while (j < w.length && !(w[j] == '*' && w[j + 1] == '*')) j++;
+			if (j >= w.length) { i += run - 1; continue; }
+			const prev = w[j - 1];
+			const ok = n == 2 ? !is_space(prev)
+				: w[j + 2] == '*' && w[j + 3] != '*' && !is_space(prev) && prev != '*';
+			if (!ok) { i += run - 1; continue; }
+			spans.push({ from: i, to: j + n, mark: n });
+			used(i, i + n);
+			used(j, j + n);
+			i = j + n - 1;
+		}
+	}
+	// 3. *文字*
+	for (let i = 0; i < w.length; i++) {
+		if (w[i] != '*' || (i > 0 && w[i - 1] == '*')) continue;
+		const c = w[i + 1];
+		if (c === undefined || is_space(c) || c == '*') continue;
+		let j = i + 2;
+		while (j < w.length && w[j] != '*') j++;
+		if (j >= w.length || is_space(w[j - 1]) || w[j + 1] == '*') continue;
+		// 太字の途中から始まって外で終わるものは、入れ子にならないので読まない
+		const cross = spans.some(function(s){ return (s.from < i && i < s.to && s.to < j + 1) || (i < s.from && s.from < j + 1 && j + 1 < s.to) });
+		if (!cross) spans.push({ from: i, to: j + 1, mark: 1 });
+		i = j;
+	}
+	return spans;
+}
+const star_cache = new WeakMap();
+function star_parser(cx, next, pos) {
+	if (next != C_STAR) return -1;
+	let lines = star_cache.get(cx);
+	if (!lines) {
+		lines = [];
+		let from = cx.offset;
+		for (const text of cx.slice(cx.offset, cx.end).split("\n")) {
+			lines.push({ from: from, to: from + text.length, text: text, spans: null });
+			from += text.length + 1;
+		}
+		star_cache.set(cx, lines);
+	}
+	const line = lines.find(function(l){ return l.from <= pos && pos <= l.to });
+	if (!line) return pos + 1;
+	if (!line.spans) line.spans = star_spans(line.text);
+	// 同じ位置から始まるものは無い。外側のものから読み、内側は中身として読み直す
+	const span = line.spans.filter(function(s){ return line.from + s.from == pos })
+		.sort(function(a, b){ return b.to - a.to })[0];
+	if (!span) return pos + 1;	// 記号にならない * は文字
+	const from = pos, to = line.from + span.to;
+	const mark = function(a, b) { return cx.elt('EmphasisMark', a, b) };
+	const inner = function(a, b) { return cx.parser.parseInline(cx.slice(a, b), a) };
+	if (span.mark == 3) {
+		const strong = cx.elt('StrongEmphasis', from + 1, to - 1,
+			[ mark(from + 1, from + 3) ].concat(inner(from + 3, to - 3), [ mark(to - 3, to - 1) ]));
+		return cx.addElement(cx.elt('Emphasis', from, to, [ mark(from, from + 1), strong, mark(to - 1, to) ]));
+	}
+	const n = span.mark;
+	return cx.addElement(cx.elt(n == 2 ? 'StrongEmphasis' : 'Emphasis', from, to,
+		[ mark(from, from + n) ].concat(inner(from + n, to - n), [ mark(to - n, to) ])));
+}
 
 //------------------------------------------------------------------------------
 // ●__太字__ にしない
@@ -258,14 +457,15 @@ export function lyndbaumMarkdown(tag_names) {
 			{ name: 'LyndbaumAnnotation' },
 			{ name: 'LyndbaumAnnotationMark', style: tag.mark  }
 		],
-		parseBlock: [ PlainLine, SeeMore ],
+		parseBlock: [ PlainLine, SeeMore, Rule, PipeTable ],
 		parseInline: [
 			{ name: 'LyndbaumBracket',    parse: bracket_parser(names), before: 'Link' },
 			{ name: 'LyndbaumClose',      parse: close_bracket,         before: 'LinkEnd' },
 			{ name: 'LyndbaumAnnotation', parse: annotation_parser,     before: 'Emphasis' },
-			{ name: 'LyndbaumUnderscore', parse: underscore_run,        before: 'Emphasis' }
+			{ name: 'LyndbaumUnderscore', parse: underscore_run,        before: 'Emphasis' },
+			{ name: 'LyndbaumStar',       parse: star_parser,           before: 'Emphasis' }
 		],
-		remove: [ 'SetextHeading', 'IndentedCode', 'LinkReference', 'HardBreak' ]
+		remove: [ 'SetextHeading', 'IndentedCode', 'LinkReference', 'HardBreak', 'HorizontalRule' ]
 	};
 	return {
 		extensions: [ Table, Strikethrough, TaskList, config ],

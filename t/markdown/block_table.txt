@@ -218,3 +218,67 @@ A | B
 </tr>
 </tbody>
 </table></div>
+
+=== 空行の後でも、区切り行が無いものは文章
+--- input
+| A | B |
+| 1 | 2 |
+| 3 | 4 |
+--- expected
+<p>| A | B |<br />
+| 1 | 2 |<br />
+| 3 | 4 |</p>
+
+=== 非対応: 区切り行が | で始まらないものは文章
+--- input
+| A | B |
+--- | ---
+| 1 | 2 |
+--- expected
+<p>| A | B |<br />
+--- | ---<br />
+| 1 | 2 |</p>
+
+=== | で始まる行の次の --- は区切り線
+--- input
+| A |
+---
+--- expected
+<p>| A |</p>
+<hr />
+
+=== 1列のテーブル
+--- input
+| A |
+|---|
+| 1 |
+--- expected
+<div class="body_table"><table><thead><tr>
+<th>A</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>1</td>
+</tr>
+</tbody>
+</table></div>
+
+=== 非対応: 行頭に空白のあるテーブルは文章
+--- input
+ | A |
+ |---|
+ | 1 |
+--- expected
+<p>| A |<br />
+|---|<br />
+| 1 |</p>
+
+=== 非対応: 区切り行だけ行頭に空白のあるテーブルは文章
+--- input
+| A |
+ |---|
+| 1 |
+--- expected
+<p>| A |<br />
+|---|<br />
+| 1 |</p>
