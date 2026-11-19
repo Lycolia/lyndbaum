@@ -689,4 +689,34 @@ subtest '検索画面の絞り込みの並び' => sub {
 	like($b, qr{順の記事C.*順の記事B}s, '記事も新しい順に出る');
 };
 
+#-------------------------------------------------------------------------------
+# はてなスター。HatenaStar.jsはDOMContentLoadedのときに一度だけHatena.Star.SiteConfigを読む。
+# ログイン中は<script-defer>がその後に動くので、設定は普通の<script>で出す
+#-------------------------------------------------------------------------------
+subtest 'dem_hatena-starの設定のスクリプト' => sub {
+	my $r = $app->post('admin', '', { action => 'design/edit', main_a_ary => 'dem_hatena-star' });
+	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
+
+	my $check = sub {
+		my ($b, $name) = @_;
+		like($b, qr{<script defer src="https://s\.hatena\.ne\.jp/js/HatenaStar\.js"></script>}, "$name：HatenaStar.jsを読む");
+		like($b, qr{<script>\nvar Hatena;\n.*?Hatena\.Star\.SiteConfig = \{.*?</script>}s, "$name：設定を普通の<script>で出す");
+		unlike($b, qr{<script-defer>(?:(?!</script-defer>).)*Hatena}s, "$name：<script-defer>では出さない");
+		unlike($b, qr{Hatena\.Star\.Token}, "$name：トークンは出さない");
+		like($b, qr{<article[^>]* class="article[ "][^>]*>\s*<h1[^>]*>.*?<a href="[^"]*" class="title">}s, "$name：設定のセレクタ（article.article h1 a.title）に合う記事がある");
+	};
+	foreach my $user (qw(guest admin)) {
+		my $b = body($app->get($user, ''));
+		$check->($b, "${user}のトップ");
+		# 画面が出した記事のリンクを辿る
+		my ($href) = $b =~ m{<article[^>]*>\s*<h1[^>]*>.*?<a href="([^"]*)" class="title">}s;
+		ok($href, "${user}：記事のリンクがある");
+		$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+		my $a = $app->get($user, $href);
+		is($a->{status}, 200, "${user}：記事のリンク（$href）を開ける");
+		$check->(body($a), "${user}の記事のページ");
+	}
+	ok(!-e "$FindBin::Bin/../plugin/dem_hatena-star/setting.html", '設定の画面はない');
+};
+
 done_testing();

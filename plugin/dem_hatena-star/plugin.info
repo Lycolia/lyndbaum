@@ -1,6 +1,6 @@
 ######################################################################
 title=はてなスター
-version=1.01
+version=1.02
 #					(C)2016 nabe
 ######################################################################
 author=nabe@abk
@@ -27,11 +27,10 @@ HTML
 記事タイトル部にはてなスターを表示
 <@ifexec(!art_sample_mode, begin)>
 <$v.regist_post_html(exec(begin))>
-<script-defer><!--
+<script>
 var Hatena;
 if (!Hatena) Hatena = {};
 if (!Hatena.Star) Hatena.Star = {};
-Hatena.Star.Token = '<@v.load_plgset('<@this>', 'token')>';
 Hatena.Star.SiteConfig = {
 	entryNodes: {
 		'article.article': {
@@ -41,7 +40,7 @@ Hatena.Star.SiteConfig = {
 		}
 	}
 };
---></script-defer>
+</script>
 <$end>
 <$end>
 </div>
