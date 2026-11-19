@@ -322,3 +322,57 @@ __太字__ と _強調_
 **_a_** と _**b**_ と *a **b***
 --- expected
 <p><strong><em>a</em></strong> と <em><strong>b</strong></em> と <em>a <strong>b</strong></em></p>
+
+=== ASCIIの記号はすべてエスケープできる（CommonMark と同じ）
+--- input
+\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~
+--- expected
+<p>!&quot;#$%&amp;'()*+,-./:;&lt;=&gt;?@[\]^_`{|}~</p>
+
+=== 記号でない文字の前のバックスラッシュは文字のまま
+--- input
+\a \1 \あ \ x C:\Users\a
+--- expected
+<p>\a \1 \あ \ x C:\Users\a</p>
+
+=== \< でタグを文字にする
+--- input
+\<h1> \<b>x\</b> \<script>alert(1)\</script> \<foo>
+--- expected
+<p>&lt;h1&gt; &lt;b&gt;x&lt;/b&gt; &lt;script&gt;alert(1)&lt;/script&gt; &lt;foo&gt;</p>
+
+=== リンクの文字の中の \< と \>
+--- input
+[\<h1>–\<h6> 要素](https://example.com/) [<h1\>–<h6\> 要素](https://example.com/)
+--- expected
+<p><a href="https://example.com/">&lt;h1&gt;–&lt;h6&gt; 要素</a> <a href="https://example.com/">&lt;h1&gt;–&lt;h6&gt; 要素</a></p>
+
+=== \< で自動リンクを文字にする
+--- input
+\<https://example.com/>
+--- expected
+<p>&lt;https://example.com/&gt;</p>
+
+=== \& で文字参照を文字にする
+--- input
+\&amp; \&copy; AT\&T
+--- expected
+<p>&amp;amp; &amp;copy; AT&amp;T</p>
+
+=== URLと代替テキストの中の \" は属性を壊さない
+--- input
+[a](https://example.com/a\"b) ![x\"y\<z](https://example.com/i.png)
+--- expected
+<p><a href="https://example.com/a&quot;b">a</a> <img src="https://example.com/i.png" alt="x&quot;y&lt;z" /></p>
+
+=== タグの引数の中のエスケープ
+--- input
+[bf:\<h1>] [bf:a\:b] [bf:a\&b]
+--- expected
+<p><strong>&lt;h1&gt;</strong> <strong>a:b</strong> <strong>a&amp;b</strong></p>
+
+=== コードスパンの中の \{ \< \& は文字のまま
+--- input
+`REG\hoge\{aa-bb-cc}` `a\<b` `\&`
+--- expected
+<p><code>REG\hoge\{aa-bb-cc}</code> <code>a\&lt;b</code> <code>\&amp;</code></p>

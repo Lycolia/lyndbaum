@@ -294,6 +294,7 @@ sub parse_block {
 				$id =~ s/"/&quot;/g;
 				my $h  = $self->{section_hnum} + $level -1;
 				if (6 < $h) { $h=6; }
+				$self->keep_tail_backslash($title);
 				push(@ary, "$self->{indent}<h$h id=\"$id\"><a href=\"$self->{thisurl}#$id\">$title</a></h$h>\x01");
 				push(@ary,'');
 				next;
@@ -343,6 +344,7 @@ sub parse_block {
 			# output html
 			my $h  = $self->{section_hnum} + $level -1;
 			if (6 < $h) { $h=6; }
+			$self->keep_tail_backslash($title);
 			push(@ary, "$self->{indent}<h$h id=\"$id_attr\"><a href=\"$self->{thisurl}#$id_attr\">$title</a></h$h>\x01");
 			push(@ary,'');
 			next;
@@ -461,9 +463,13 @@ sub parse_block {
 					# [GFM] [ ] / [x] / [X] の後に空白が必要。チェックボックスの記号は表示しない
 					if ($li->[0] =~ /^\[([ xX])\](?: +(.*)|$)/) {
 						my $checked = $1 ne ' ';
+						my $label   = $2;
+						# 行末の\は、続きの行があれば強制改行、無ければ文字
+						if ($#$li) { $self->chop_hard_break($label); }
+						$self->keep_tail_backslash($label);
 						$li->[0] = '<label><input type="checkbox"'
 							 . ($checked ? ' checked>' : '>')
-							 . $2 . '</label>';
+							 . $label . '</label>';
 						$task{$li} = 1;
 					}
 				}
@@ -474,6 +480,7 @@ sub parse_block {
 				my $li_tag = $task{$li} ? '<li class="task-list-item">' : '<li>';
 				# 先頭が>の項目は、1行でも引用としてブロック処理する
 				if ($#$li == 0 && $li->[0] !~ /^ ? ? ?>/) {
+					$self->keep_tail_backslash($li->[0]);
 					push(@ary, $p{$li} ? "$li_tag<p>$li->[0]</p></li>" : "$li_tag$li->[0]</li>");
 					next;
 				}
@@ -732,7 +739,10 @@ sub split_table_row {
 		if ($1 =~ /\S/) { $sep = 0; }
 	}
 	if ($sep) { pop(@cells); }
-	foreach(@cells) { $_ =~ s/^\s+|\s+$//g; }
+	foreach(@cells) {
+		$_ =~ s/^\s+|\s+$//g;
+		$self->keep_tail_backslash($_);
+	}
 	return @cells;
 }
 
@@ -763,6 +773,27 @@ sub split_block_in_paragraph {
 	}seg;
 }
 
+#-------------------------------------------------------------------------------
+# [M] 行末の\（強制改行）を除く
+#-------------------------------------------------------------------------------
+# 改行はもともと<br />にするので、\を除くだけ。\\で終わる行（文字の\）はそのまま。
+# 段落の最後の行には呼ばない（最後の行の\は文字のまま出す）
+sub chop_hard_break {
+	my $self = shift;
+	if ($_[0] =~ /(\\+)$/ && length($1) % 2) { chop($_[0]); }
+}
+
+#-------------------------------------------------------------------------------
+# [M] 文字の最後の\を、文字として残す
+#-------------------------------------------------------------------------------
+# この後ろに閉じタグ（</p>、</li>、</td>など）を足す所で呼ぶ。
+# そのままだと、インラインの処理が「\<」をエスケープとして読み、閉じタグが文字になる。
+# \\で終わるもの（エスケープした\）はそのまま
+sub keep_tail_backslash {
+	my $self = shift;
+	if ($_[0] =~ /(\\+)$/ && length($1) % 2) { substr($_[0], -1) = "\x0392\x03"; }
+}
+
 sub p_block_end {
 	my $self = shift;
 	my $ary  = shift;
@@ -773,11 +804,13 @@ sub p_block_end {
 	my $line = ($pmode ? '<p>' : '') . shift(@$blk);
 	foreach my $x (@$blk) {
 		# 改行はbr変換する
+		$self->chop_hard_break($line);
 		push(@$ary, $line . '<br />');
 		$line = $x;
 	}
 	# \> によるエスケープ
 	$line =~ s/\\>/&gt;/g;
+	$self->keep_tail_backslash($line);
 
 	push(@$ary, $line . ($pmode ? '</p>' : ''));
 	@$blk = ();
@@ -828,8 +861,9 @@ sub parse_inline {
 		}
 
 		# エスケープ処理
+		# [M] ASCIIの記号はすべてエスケープできる（CommonMarkと同じ）。記号でない文字の前の\は文字のまま
 		# [M] コードスパンの中のバックスラッシュは文字のまま（コードスパンは次で処理する）
-		$_ =~ s{((?<!`)(`+)(?!`).+?(?<!`)\2(?!`))|\\([\\`'\*_\[\]\(\)>#\+\-\.\~!])}{
+		$_ =~ s{((?<!`)(`+)(?!`).+?(?<!`)\2(?!`))|\\([!-/:-\@\[-`\{-~])}{
 			defined $1 ? $1 : "\x03" . ord($3) . "\x03"
 		}eg;
 
@@ -1023,10 +1057,12 @@ sub satsuki_footnote_ref {
 }
 
 # エスケープを戻す
+# \<、\&、\"は文字参照にして戻す（文字のまま戻すと、タグ、文字参照、属性の区切りとして働くため）
+my %UN_ESCAPE_ENTITY = (60 => '&lt;', 38 => '&amp;', 34 => '&quot;');
 sub un_escape {
 	my $self = shift;
 	foreach(@_) {
-		$_ =~ s/\x03(\d+)\x03/chr($1)/eg;
+		$_ =~ s/\x03(\d+)\x03/$UN_ESCAPE_ENTITY{$1} || chr($1)/eg;
 	}
 	return $_[0];
 }
@@ -1150,7 +1186,9 @@ sub output_markdown_footnotes {
 				push(@$parsed, $backref);
 			}
 		} else {
-			$parsed = $self->parse_inline([ split(/\n/, $content) ]);
+			my @fn_lines = split(/\n/, $content);
+			$self->chop_hard_break($_) foreach @fn_lines[0 .. $#fn_lines-1];
+			$parsed = $self->parse_inline(\@fn_lines);
 			# 本文の段落と同じく、改行はbr変換する
 			$_ .= '<br />' foreach @$parsed[0 .. $#$parsed-1];
 			$parsed->[$#$parsed] .= " $backref";

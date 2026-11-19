@@ -326,3 +326,97 @@ _ _ _
 <p>- a<br />
 - b</p>
 </details>
+
+=== 行末の \ は改行（\ は出さない）。\\ で終わる行は \ を出す
+--- input
+a\
+b\\
+c\\\
+d
+--- expected
+<p>a<br />
+b\<br />
+c\<br />
+d</p>
+
+=== 段落の最後の行の \ は文字のまま
+--- input
+a\
+C:\Users\
+--- expected
+<p>a<br />
+C:\Users\</p>
+
+=== リストの項目の行末の \
+--- input
+- a\
+  b\
+- c\
+- [ ] t\
+- [x] u\
+  v
+--- expected
+<ul>
+<li>a<br />
+b\</li>
+<li>c\</li>
+<li class="task-list-item"><label><input type="checkbox">t\</label></li>
+<li class="task-list-item"><label><input type="checkbox" checked>u</label><br />
+v</li>
+</ul>
+
+=== 見出し、引用、表のセルの最後の \ は文字のまま
+--- input
+# h\
+
+> a\
+> b\
+
+| a\ | b |
+|---|---|
+| C:\ | d\\ |
+--- expected
+<h2 id="h-"><a href="/0001#h-">h\</a></h2>
+<blockquote>
+a<br />
+b\
+</blockquote>
+<div class="body_table"><table><thead><tr>
+<th>a\</th>
+<th>b</th>
+</tr></thead>
+<tbody>
+<tr>
+<td>C:\</td>
+<td>d\</td>
+</tr>
+</tbody>
+</table></div>
+
+=== 脚注の中の行末の \
+--- input
+x[^1]
+
+[^1]: a\
+    b\
+--- expected
+<p>x<sup id="fnref-1"><a href="/0001#fn-1">[1]</a></sup></p>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn-1">a<br />
+b\ <a href="/0001#fnref-1">&#8617;</a></li>
+</ol>
+</div>
+
+=== 行頭の \< \= \| はブロックの記法にしない
+--- input
+\<div>a</div>
+
+\====
+
+\| a | b |
+--- expected
+<p>&lt;div&gt;a</div></p>
+<p>====</p>
+<p>| a | b |</p>
