@@ -186,6 +186,62 @@ adiary.ready(function(){
 		});
 	}
 
+	// 「全選択」「切り取り」「コピー」「貼り付け」ボタン。指で操作する端末でだけ出す。
+	// Android Chrome/Edgeでは、全選択するとOSのメニューが消えて、次の操作ができないため。
+	// 貼り付けはpasteイベントを通らないので、文字だけを貼る（画像の貼り付けや、URLをリンクにする動きは働かない）
+	const clip_box = document.getElementById('edit-clip');
+	if (clip_box && window.matchMedia('(pointer: coarse)').matches) {
+		const clip_error = function() { adiary.show_error('#msg-clipboard'); };
+		const clip_btn = function(id, func) {
+			const btn = document.getElementById(id);
+			if (!btn) return;
+			btn.style.display = '';
+			// 編集欄からフォーカスを外さない（選択とキーボードを保つ）
+			btn.addEventListener('mousedown', function(evt){ evt.preventDefault(); });
+			btn.addEventListener('click', function(){
+				func();
+				view.focus();
+			});
+		};
+		const selected = function() {
+			const sel = view.state.selection.main;
+			return view.state.sliceDoc(sel.from, sel.to);
+		};
+		const replace = function(text, user_event) {
+			if (view.state.readOnly) return;
+			view.dispatch(view.state.replaceSelection(text), {
+				userEvent: user_event,
+				scrollIntoView: true
+			});
+		};
+
+		clip_box.style.display = '';
+		clip_btn('edit-select-all', function(){
+			view.dispatch({ selection: { anchor: 0, head: view.state.doc.length } });
+		});
+		// クリップボードを使えないページ（httpなど）では、全選択だけを出す
+		if (navigator.clipboard) {
+			clip_btn('edit-copy', function(){
+				const text = selected();
+				if (text === '') return;
+				navigator.clipboard.writeText(text).catch(clip_error);
+			});
+			clip_btn('edit-cut', function(){
+				const text = selected();
+				if (text === '' || view.state.readOnly) return;
+				navigator.clipboard.writeText(text).then(function(){
+					replace('', 'delete.cut');
+				}, clip_error);
+			});
+			clip_btn('edit-paste', function(){
+				if (view.state.readOnly) return;
+				navigator.clipboard.readText().then(function(text){
+					if (text !== '') replace(text.replace(/\r\n?/g, "\n"), 'input.paste');
+				}, clip_error);
+			});
+		}
+	}
+
 	if (parsel) parsel.addEventListener('change', function(){
 		view.dispatch({ effects: lang.reconfigure( lang_ext() ) });
 	});

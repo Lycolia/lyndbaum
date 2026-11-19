@@ -82,6 +82,15 @@ subtest '直前の保存' => sub {
 	is($app->post('admin', '', { action => 'ajax_revision', last => 99999 })->{status}, 404, '無い記事は404');
 };
 
+subtest '編集画面に、全選択・切り取り・コピー・貼り付けのボタンを出力する' => sub {
+	my $app  = AppTest->new()->setup()->seed();
+	my $html = body($app->get('admin', '/01?edit'));
+	# 画面のJS（edit-cm.js）が、指で操作する端末のときだけ出す。それまでは段ごと隠しておく
+	like($html, qr{<button type="button" id="edit-search" style="display: none">検索</button>\s*</div>\s*<div id="edit-clip" style="display: none">\s*<button type="button" id="edit-select-all">全選択</button>\s*<button type="button" id="edit-cut" style="display: none">切り取り</button>\s*<button type="button" id="edit-copy" style="display: none">コピー</button>\s*<button type="button" id="edit-paste" style="display: none">貼り付け</button>\s*</div>\s*</div>\s*<textarea name="body_txt" id="editarea"},
+		'記法の選択の段の下、道具の段（#edit-toolbar）の末尾に、隠して出力する');
+	like($html, qr{<span id="msg-clipboard">[^<]+</span>}, 'クリップボードを使えなかったときの文言がある');
+};
+
 subtest 'ほかの画面で先に保存されていたら保存しない' => sub {
 	my $app = AppTest->new()->setup()->seed();
 	my $digest = sub { (body($app->get('admin', '/01?edit')) =~ m{<input type="hidden" name="edit_digest" value="([0-9a-f]+)" id="edit-digest">})[0] // '' };

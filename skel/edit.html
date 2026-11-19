@@ -179,6 +179,14 @@
 	<@> 本文の検索・置換（CodeMirrorのときだけedit-cm.jsが出す。スマホにはCtrl+Fがないため）
 	<button type="button" id="edit-search" style="display: none">検索</button>
 	</div>
+	<@> 全選択・切り取り・コピー・貼り付けの段（指で操作する端末で、CodeMirrorのときだけedit-cm.jsが出す。
+	<@> Android Chrome/Edgeでは、全選択するとOSのメニューが消えて、次の操作ができないため）
+	<div id="edit-clip" style="display: none">
+	<button type="button" id="edit-select-all">全選択</button>
+	<button type="button" id="edit-cut" style="display: none">切り取り</button>
+	<button type="button" id="edit-copy" style="display: none">コピー</button>
+	<button type="button" id="edit-paste" style="display: none">貼り付け</button>
+	</div>
 	</div>
 
 	<@> さつき記法のタグの名前（Markdownの色分けで、知っている名前だけをタグにする。edit-cm.js）
@@ -309,6 +317,7 @@
 <span id="new-tag-close">閉じる</span>
 <span id="new-tag-create">「%t」を新規タグとして追加</span>
 <span id="msg-multiline">複数行を一度に処理できません。</span>
+<span id="msg-clipboard">クリップボードを使えませんでした。ブラウザの設定で、このサイトにクリップボードの使用を許可してください。</span>
 <span id="msg-upload-error">アップロードに失敗しました。</span>
 <span id="msg-upload-fail">%n 個中 %f 個のアップロードに失敗しました。</span>
 <span id="image-dir"><@v.blogimg_dir()></span>

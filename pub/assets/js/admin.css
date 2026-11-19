@@ -614,7 +614,8 @@ button:disabled:hover {
 	cursor:			default;
 }
 #edit-helper button,
-#edit-tools button {
+#edit-tools button,
+#edit-clip button {
 	padding:		0.15em 0.5em;
 	min-height:		0;
 }
@@ -689,6 +690,7 @@ article#edit > div.body {
 	margin-bottom:		0.4rem;
 }
 /* 記法の補助（上の段）と、記法の選択、アップロード、履歴（下の段）。どちらも左に寄せる。
+   指で操作する端末では、その下に全選択・切り取り・コピー・貼り付けの段（#edit-clip）をedit-cm.jsが出す。
    本文が長くても押せるように上に止める */
 #edit-toolbar {
 	position:		sticky;
@@ -701,7 +703,8 @@ article#edit > div.body {
 	padding:		0.2rem 0;
 	background-color:	var(--admin-bg);
 }
-#edit-tools {
+#edit-tools,
+#edit-clip {
 	display:		flex;
 	flex-wrap:		wrap;
 	align-items:		center;
@@ -710,7 +713,8 @@ article#edit > div.body {
 #edit-tools .element {
 	margin-right:		0;
 }
-#edit-tools button + button {
+#edit-tools button + button,
+#edit-clip button + button {
 	margin-left:		0;
 }
 /* 横に広げると右の列に重なるので、大きさは縦だけ変えられるようにする */
