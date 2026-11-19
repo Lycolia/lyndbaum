@@ -644,7 +644,17 @@ subtest 'パスワードを忘れたときの復旧' => sub {
 	like(body($kept->get('again', 'artlist')), qr{editorの記事}, '記事はそのまま');
 };
 
-subtest '操作の記録' => sub {
+subtest '監査の記録' => sub {
+	# 管理画面のメニューのリンクを辿る。メニューでは短い名前、画面では長い名前
+	{
+		my ($link) = body($app->get('admin', 'menu')) =~ m{<a href="[^"?]*\?([^"]*)">監査の記録</a>};
+		is($link, 'user/log', 'メニューに「監査の記録」のリンクがある');
+		my $b = body($app->get('admin', $link));
+		like($b, qr{<h1>監査の記録</h1>}, '見出しは「監査の記録」');
+		like($b, qr{<title>監査の記録}, 'タイトルも同じ');
+		like($b, qr{<li class="current"><a href="[^"]*\?user/log">監査の記録</a>}, 'メニューの今の画面の印が付く');
+	}
+
 	# 無いIDでの失敗を12件。タグになる文字を混ぜて、エスケープとURLのエンコードも確かめる
 	{
 		local $app->{env} = { REMOTE_ADDR => '10.1.0.4' };	# 同じIPの回数制限に当たらないように
@@ -665,6 +675,47 @@ subtest '操作の記録' => sub {
 	$b = body($app->get('admin', $link));
 	is($rows->($b), 2, '2ページ目に残りの2件が出る');
 	like($b, qr{全12件}, '2ページ目でも絞り込みが引き継がれる');
+
+	# 種類：名前の変更とパスワードの変更は、別の種類で記録する
+	$app->insert_user('logtype');
+	$app->login('logtype');
+	ok(json_ok($app->post('logtype', '', { action => '_ajax_self_change_name', name => '記録の名前' })), '名前を変える');
+	ok(json_ok($app->post('logtype', '', { action => '_ajax_self_change_pass', now_pass => $AppTest::PASS, pass => 'log-pass-5678', pass2 => 'log-pass-5678' })), 'パスワードを変える');
+	# 種類を分ける前の記録（update）
+	{
+		require Satsuki::Base;
+		my $ROBJ = Satsuki::Base->new();	# DBが使うので、変数に持っておく
+		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+		$DB->begin();
+		$DB->insert('_users_log', { id => 'logtype', type => 'update', tm => time() });
+		if ($DB->commit()) { die 'insert _users_log failed'; }
+	}
+
+	# 絞り込みの選択肢は、画面が出したものを使う
+	$b = body($app->get('admin', 'user/log&id=logtype'));
+	my %opt = $b =~ m{<option value="(\w+)">([^<]+)</option>}g;
+	my $count = sub {
+		my ($b, $name) = @_;
+		my @r = ($b =~ m{<td>logtype</td>\s*<td>\Q$name\E</td>\s*<td>成功</td>}g);
+		return scalar(@r);
+	};
+	my @names = ('アカウント名変更', 'パスワード変更', '名前・パスワード変更');
+	is($count->($b, $_), 1, "「$_」の記録が1件出る") foreach (@names);
+	foreach my $type (qw(update_name update_pass update)) {
+		my $name = $opt{$type};
+		ok($name, "種類の選択肢に $type がある") or next;
+		my $f = body($app->get('admin', "user/log&id=logtype&type=$type"));
+		like($f, qr{全1件}, "$type で絞り込むと1件");
+		is($count->($f, $name), 1, "$type の行は「$name」と出る");
+		like($f, qr{<option value="$type" selected>\Q$name\E</option>}, "$type の選択肢が選ばれている");
+	}
+	is_deeply([ map { $opt{$_} } qw(update_name update_pass update) ], \@names, '種類の表示名');
+
+	# 初期セットアップで作った管理者
+	is($opt{regist}, '管理者の作成', '種類の選択肢に「管理者の作成」がある');
+	$b = body($app->get('admin', 'user/log&id=admin&type=regist'));
+	like($b, qr{<td>admin</td>\s*<td>管理者の作成</td>\s*<td>成功</td>}, '初期セットアップの記録は「管理者の作成」と出る');
+	like($b, qr{全1件}, '管理者の作成の記録は1件');
 };
 
 #-------------------------------------------------------------------------------

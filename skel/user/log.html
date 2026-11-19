@@ -3,7 +3,7 @@
 
 <!--=========================================================================-->
 <@> システムモード
-<$v.system_mode("操作の記録")>
+<$v.system_mode("監査の記録")>
 
 <@> 階層ツリー、権限チェック、エラー表示
 <@call("_sub/menu_tree")>
@@ -12,10 +12,12 @@
 <@> 検索、条件指定ロジック
 <@>-----------------------------------------------
 <$types = begin_hash>
-	login  = ログイン
-	logout = ログアウト
-	regist = 追加
-	update = 変更
+	login       = ログイン
+	logout      = ログアウト
+	regist      = 管理者の作成
+	update_name = アカウント名変更
+	update_pass = パスワード変更
+	update      = 名前・パスワード変更
 <$end>
 
 <$page  = int(Query.page)  || 1>
@@ -100,10 +102,10 @@
 
 	<@ifexec(pages>1, begin)>
 	<nav class="page-nav">
-		<@if(1<page, #'<a href="<@url>page=' . (page-1) . '">&lt;</a>', '<a>&lt;</a>')> 
+		<@if(1<page, #'<a href="<@url>page=' . (page-1) . '">&lt;</a>', '<a>&lt;</a>')>
 		<@foreach_num(x, page_max-page_offset, begin)>
 			<$t = page_offset + x>
-			<@if(t!=page, #'<a href="<@url>page=<@t>"><@t></a>', "<strong><@t></strong>")> 
+			<@if(t!=page, #'<a href="<@url>page=<@t>"><@t></a>', "<strong><@t></strong>")>
 		<$end>
 		<@if(page<pages, #'<a href="<@url>page=' . (page+1) . '">&gt;</a>', '<a>&gt;</a>')>
 	</nav>
