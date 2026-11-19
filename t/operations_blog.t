@@ -758,4 +758,108 @@ subtest 'dem_hatena-starの設定のスクリプト' => sub {
 	unlike(body($app->get('guest', '')), qr{hatena-star-box}, '戻すと星を入れるdivを作らない');
 };
 
+#-------------------------------------------------------------------------------
+# テーマの色の調整
+#-------------------------------------------------------------------------------
+# テーマのCSSの「$c=名前」の印が付いた行だけを抜き出し、色を差し替えたものを pub/custom/theme.css に作る。
+# lyndbaum系は、色をテンプレートの直下の共通のCSS（lyndbaum/lyndbaum.css）の :root の変数で持つ
+subtest 'テーマの色の調整（lyndbaum系）' => sub {
+	my $css_file = "$dir/pub/custom/theme.css";
+	my $colors   = sub { $app->get('admin', "design/theme_colors&name=$_[0]")->{json} };
+	my $save     = sub { $app->post('admin', 'design/theme', { action => 'design/theme', @_ }) };
+	# 公開画面が出した<link>
+	my $links = sub {
+		my $b = body($app->get('guest', ''));
+		return map { [ $_ =~ /id="([\w-]+)"/, $_ =~ /href="([^"]*)"/ ] } ($b =~ m{<link rel="stylesheet"[^>]*id="theme-[\w-]+"[^>]*>}g);
+	};
+
+	# デザインの画面が出したリンクから、テーマ選択の画面を開く
+	my ($href) = body($app->get('admin', 'design/')) =~ m{<li><a href="([^"]*)">テーマ選択（配色）</a>};
+	ok($href, 'デザインの画面に、テーマ選択へのリンクがある');
+	$href =~ s{^/lyndbaum\.cgi\?}{};
+	my $b = body($app->get('admin', $href));
+	like($b, qr{<option value="lyndbaum/lyndbaum" data-readme="1" selected>}, 'テーマ選択の画面で、今のテーマが選ばれている');
+	foreach my $t (qw(lyndbaum lyndbaum-2col-left lyndbaum-2col-right)) {
+		like($b, qr{<option value="lyndbaum/$t" }, "$t：選択肢にある");
+	}
+
+	# 抜き出したCSS。3つのテーマで同じ色が拾える
+	my %default = (
+		fixfont => '#222222', fixmutedfont => '#666666', link => '#0a58ca', fixborder => '#dddddd', fixbg => '#ffffff',
+		fixcodebg => '#f6f8fa', fixbasebg => '#f0f0f1', accent => '#4450c8', accentsoft => '#e9ebfd', strong => '#cc3300',
+	);
+	my $extract = <<'CSS';
+:root {
+	--text: #222222;	/* $c=fixfont */
+	--muted: #666666;	/* $c=fixmutedfont */
+	--link: #0a58ca;	/* $c=link */
+	--border: #dddddd;	/* $c=fixborder */
+	--bg: #ffffff;	/* $c=fixbg */
+	--code-bg: #f6f8fa;	/* $c=fixcodebg */
+	--page-bg: #f0f0f1;	/* $c=fixbasebg */
+	--accent: #4450c8;	/* $c=accent */
+	--accent-soft: #e9ebfd;	/* $c=accentsoft = auto:accent */
+	--strong: #cc3300;	/* $c=strong */
+}
+#ui-icon-autoload { background-color: #0a58ca; /* $c=link */ }
+CSS
+	foreach my $t (qw(lyndbaum lyndbaum-2col-left lyndbaum-2col-right)) {
+		my $c = $colors->("lyndbaum/$t");
+		is($c->{_css_text}, "/* \$theme=lyndbaum/$t */\n$extract", "$t：印の付いた行だけを抜き出す（変数の名前は変えない）");
+		is($c->{'accentsoft-rel'}, 'auto:accent', "$t：連動の指定");
+		is_deeply({ map { $_ => $c->{$_} } keys(%default) }, \%default, "$t：色の初期値");
+		is(scalar(grep { !/^_|-rel$/ } keys(%$c)), scalar(keys(%default)), "$t：ほかの色やエラーは無い");
+	}
+	# 共通のCSSの無いテンプレートは、今までどおり
+	like($colors->('satsuki2/satsuki2')->{_css_text}, qr{^\tborder-bottom-color:\t#6b75b8;\t/\* \$c=border \*/$}m, 'satsuki2：borderは色だけの指定に直す');
+
+	# 色を変えずに保存しても、CSSは作らない
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $default{$_}) } keys(%default))), '初期値のまま保存できる');
+	ok(!-e $css_file, '初期値のままなら、色のCSSを作らない');
+	is_deeply([ map { $_->[0] } $links->() ], [ 'theme-common-css', 'theme-css' ], '公開画面は、色のCSSを読まない');
+
+	# 色を変えて保存する
+	my %new = (%default, link => '#aa0000', accent => '#006644', accentsoft => '#e0f0e8', fixbg => '#fffff0');
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $new{$_}) } keys(%new))), '色を変えて保存できる');
+	my $want = "/* \$theme=lyndbaum/lyndbaum */\n$extract";
+	$want =~ s/#0a58ca/#aa0000/g;
+	$want =~ s/#4450c8/#006644/;
+	$want =~ s/#e9ebfd/#e0f0e8/;
+	$want =~ s/#ffffff/#fffff0/;
+	is(read_file($css_file), $want, '色のCSSは、変数の上書きとアイコンの色だけ');
+
+	# 公開画面が出した<link>を辿る。色のCSSは、テーマのCSSの後
+	my @l = $links->();
+	is_deeply([ map { $_->[0] } @l ], [ 'theme-common-css', 'theme-css', 'theme-custom-css' ], '公開画面は、共通のCSS、テーマのCSS、色のCSSの順に読む');
+	like($l[2]->[1], qr{^/pub/custom/theme\.css\?\d+$}, '色のCSSのURL（更新日時が付く）');
+	foreach (@l) {
+		(my $f = $_->[1]) =~ s/\?\d+$//;
+		ok(-s "$dir$f", "$_->[0]：リンク先のファイルがある");
+	}
+
+	# 画面を開き直すと、保存した色が欄に入る（-cst）
+	my $c = $colors->('lyndbaum/lyndbaum');
+	is_deeply({ map { $_ => $c->{"$_-cst"} } keys(%new) }, \%new, '保存した色を返す');
+	is($c->{link}, '#0a58ca', 'テーマの初期値はそのまま');
+
+	# 作り直し（システムのアップデートなど）
+	unlink($css_file);
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/remake_custom_css' })), 'カスタムCSS再生成');
+	is(read_file($css_file), $want, '同じ中身で作り直す');
+
+	# 色はテーマごとに持つ。ほかのテーマにすると色のCSSは消え、戻して保存すると元の色になる
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum-2col-left')), '2カラムにする');
+	ok(!-e $css_file, 'テーマを変えると、色のCSSを消す');
+	is_deeply([ map { $_->[0] } $links->() ], [ 'theme-common-css', 'theme-css' ], '2カラムでは、色のCSSを読まない');
+	is($colors->('lyndbaum/lyndbaum-2col-left')->{'link-cst'}, undef, '2カラムには、3カラムの色を引き継がない');
+	$c = $colors->('lyndbaum/lyndbaum');
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $c->{"$_-cst"}) } keys(%new))), '3カラムに戻す');
+	is(read_file($css_file), $want, '前に保存した色で作り直す');
+
+	# 初期値に戻して保存すると、色のCSSは無くなる
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $default{$_}) } keys(%default))), '初期値に戻す');
+	ok(!-e $css_file, '初期値に戻すと、色のCSSを消す');
+	is($colors->('lyndbaum/lyndbaum')->{'link-cst'}, undef, '保存した色も消す');
+};
+
 done_testing();

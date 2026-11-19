@@ -9,21 +9,25 @@
    このファイルは、テーマごとのCSSの前にskel/_frame.htmlが<link>で読み込む（load_themeが、テンプレートの直下の
    <テンプレート名>.cssを見つけて覚える）。テーマごとのCSSから@importすると、表示が遅れるので使わない。
    静的なHTMLへのエクスポートでは、テンプレートの直下のファイルも写すので、共通のものはここに置く */
+/* 色は、管理画面のテーマ選択で変えられる。行の後ろのコメント（$cと=に続けて色の名前を書く）が印で、印の付いた行の色が、その名前の色の欄になる
+   （load_theme_colors。印の付いた行だけを抜き出して色を差し替えたものが、このファイルの後に読み込まれる）。
+   名前がfixで始まる色は、色調整（H、S、V）では動かさない。「= auto:別の名前」は、別の色に合わせて動かす。
+   color-mix()で作る色は、元の変数を通じて変わる */
 :root {
-	--text: #222;
-	--muted: #666;
-	--link: #0a58ca;
-	--border: #ddd;
-	--bg: #fff;
-	--code-bg: #f6f8fa;
+	--text: #222;	/* $c=fixfont */
+	--muted: #666;	/* $c=fixmutedfont */
+	--link: #0a58ca;	/* $c=link */
+	--border: #ddd;	/* $c=fixborder */
+	--bg: #fff;	/* $c=fixbg */
+	--code-bg: #f6f8fa;	/* $c=fixcodebg */
 	/* 一覧の偶数行の背景。文字の色を少し混ぜる */
 	--row-alt: color-mix(in srgb, var(--text) 5%, var(--bg));
 	/* ページの地の色。記事やサイドバーの枠（--bg）と見分けられるよう、少し沈める */
-	--page-bg: #f0f0f1;
+	--page-bg: #f0f0f1;	/* $c=fixbasebg */
 	/* 本文の見出しや表の見出しに使う色 */
-	--accent: #4450c8;
-	--accent-soft: #e9ebfd;
-	--strong: #c30;
+	--accent: #4450c8;	/* $c=accent */
+	--accent-soft: #e9ebfd;	/* $c=accentsoft = auto:accent */
+	--strong: #c30;	/* $c=strong */
 	/* ページの外側の余白。引き出しのボタンも、この分だけ画面の角から離して、ヘッダーの枠の角に重ねる */
 	--page-pad: 1rem;
 }
@@ -378,7 +382,8 @@ button {
 button:hover { border-color: var(--link); color: var(--link); }
 button:disabled { color: var(--muted); border-color: var(--border); cursor: default; }
 
-#ui-icon-autoload { background-color: #0a58ca; }
+/* アイコンの色（adiary.jsが、この色でアイコンを作る）。リンクの色と一緒に変える */
+#ui-icon-autoload { background-color: #0a58ca; /* $c=link */ }
 
 .ui-dialog {
 	background: var(--bg);

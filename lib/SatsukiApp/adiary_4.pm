@@ -1694,6 +1694,13 @@ sub load_theme_colors {
 		$template = $1;
 		$theme = $2;
 		$lines = $ROBJ->fread_lines( "$self->{theme_dir}$template/$theme/$theme.css" );
+
+		# テンプレートの直下の共通のCSS（lyndbaum/lyndbaum.cssなど。load_themeを参照）に書いた色も拾う。
+		# _frame.htmlが読み込む順に合わせて、テーマのCSSの前につなぐ
+		my $common = "$self->{theme_dir}$template/$template.css";
+		if (-r $common) {
+			$lines = [ @{ $ROBJ->fread_lines($common) }, @$lines ];
+		}
 	}
 
 	my %col;
@@ -1821,7 +1828,8 @@ sub load_theme_colors {
 	my $css = join('',@ary);
 	# border:	1px solid #ffffff; → border-color: #ffffff
 	# border-left:	1px solid #ffffff; → border-left-color: #ffffff
-	$css =~ s/(border[\w\-]*?)(?:-color)?[\s\r\n]*?:[^;}]*?(#[0-9A-Fa-f]+[^\n]*\$c=)/$1-color:\t$2/ig;
+	# 名前にborderを含む変数（--border: #dddddd;）は、名前が変わってしまうので除く
+	$css =~ s/(?<![\w\-])(border[\w\-]*?)(?:-color)?[\s\r\n]*?:[^;}]*?(#[0-9A-Fa-f]+[^\n]*\$c=)/$1-color:\t$2/ig;
 
 	return (\%col, \%opt, $css);
 }
