@@ -716,7 +716,46 @@ subtest 'dem_hatena-starの設定のスクリプト' => sub {
 		is($a->{status}, 200, "${user}：記事のリンク（$href）を開ける");
 		$check->(body($a), "${user}の記事のページ");
 	}
-	ok(!-e "$FindBin::Bin/../plugin/dem_hatena-star/setting.html", '設定の画面はない');
+
+	# 表示位置。既定は記事タイトルの後ろ
+	my $top = body($app->get('guest', ''));
+	like($top, qr{var container = 'h1';\n\s*Hatena\.Star\.SiteConfig}, '既定では記事タイトル（h1）に出す');
+	like($top, qr{container: container\n}, 'containerは変数で渡す');
+	unlike($top, qr{hatena-star-box}, '既定では星を入れるdivを作らない');
+
+	# 設定の画面が出した欄を使って保存する
+	my $set = body($app->get('admin', 'plugin/plugin_setting&name=dem_hatena-star'));
+	like($set, qr{name="position" value="title"  ?checked}, '設定の画面：既定は記事タイトルの後ろ');
+	my ($v) = $set =~ m{name="position" value="(footer)"};
+	ok($v, '設定の画面に「記事の下」がある');
+	unlike($set, qr{name="token"}, '設定の画面にトークンの欄はない');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => 'x' });
+	unlike($r->{body}, qr/^ret=0$/m, '決まった値のほかは保存できない');
+	unlike(body($app->get('guest', '')), qr{hatena-star-box}, '保存できなかったので、既定のまま');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => $v });
+	like($r->{body}, qr/^ret=0$/m, '記事の下にできる');
+	like(body($app->get('admin', 'plugin/plugin_setting&name=dem_hatena-star')), qr{name="position" value="footer"  ?checked}, '設定の画面に保存した値が出る');
+
+	my $check_footer = sub {
+		my ($b, $name) = @_;
+		$check->($b, $name);
+		like($b, qr{container = '\.hatena-star-box';}, "$name：星を入れるdivをcontainerにする");
+		like($b, qr{querySelector\('\.social-buttons'\)}, "$name：共有ボタンの前にdivを作る");
+		like($b, qr{<div class="body-footer">}, "$name：共有ボタンが無いときの入れ先（div.body-footer）がある");
+	};
+	foreach my $user (qw(guest admin)) {
+		my $b = body($app->get($user, ''));
+		$check_footer->($b, "${user}のトップ（記事の下）");
+		my ($href) = $b =~ m{<article[^>]*>\s*<h1[^>]*>.*?<a href="([^"]*)" class="title">}s;
+		$href =~ s{^/lyndbaum\.cgi}{};
+		$check_footer->(body($app->get($user, $href)), "${user}の記事のページ（記事の下）");
+	}
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => 'title' });
+	like($r->{body}, qr/^ret=0$/m, '記事タイトルの後ろに戻せる');
+	unlike(body($app->get('guest', '')), qr{hatena-star-box}, '戻すと星を入れるdivを作らない');
 };
 
 done_testing();
