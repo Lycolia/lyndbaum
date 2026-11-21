@@ -41,7 +41,7 @@
 
 <!--reload msg===============================================================-->
 <article class="system message">
-<h2>処理結果<@if(Auth.isadmin && action_return != 0, "(<@action_return>)")></h2>
+<h1>処理結果<@if(Auth.isadmin && action_return != 0, "(<@action_return>)")></h1>
 <div class="body">
 	<div class="messages"><@join("\n", Message)></div>
 	<@ifexec(argv#1, begin)>

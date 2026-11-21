@@ -245,7 +245,7 @@ css_init(function(){
 	}
 
 	// generate ui-icon.png（pub/assets/dist/ui-icon/ui-icon.png。2色のパレットのPNGで、0番の色をテーマの色に差し替える）
-	let png = atob( 'iVBORw0KGgoAAAANSUhEUgAAAGAAAAAgAQMAAADXDu8XAAAABlBMVEUAAP/8/PzLviUMAAAAAnRSTlP/AOW3MEoAAADbSURBVHjafc4xbsQgEAVQrC0oXMwROAoHyVFSzEo5wF4JawuX6y5NFJBSuAwrN0SgmcxgS0mKDZWfvvl8w7+O+QMCdvqxrsmathImy3y93jbztTWMdbtNL7GaWtvze71fkl3GA8Vl2JPTW22+OEnkjl2eFJLktcAy6m+SJLjzMmqBJDN/CI7qC79yrMejkT9ZF/Q5j1c/RrCRGQlJkWBmwuYJOyZuWBx5QXYBC2Ygt8PlIdkzCIoPkIZwOtsdLg3NdzQMmBXQMXHRai0gnqVa4Puc+PNoH6X4d/U3pK0vLpvA9u4AAAAASUVORK5CYII=')
+	let png = atob( 'iVBORw0KGgoAAAANSUhEUgAAAGAAAAAgAQMAAADXDu8XAAAABlBMVEUAAP/8/PzLviUMAAAAAnRSTlP/AOW3MEoAAADySURBVHjafc8xTsMwFAZgRx08IPQOwOCDdPBZOEeHVwkJxh6gl+jGwOKoQ8ayQVUgRh0yIVxlMYr1Hs9OVUAgMkT69Du//yj+9qj8unk9goDN6py567xWqSO8fWNerze9+ugTXl/2m/qqHdQwpNnL7LDw+v6s4GkaTYAxmTzfJRuNJPKNfrzIkCR0EbbLfEwSDwfe7XKBJA3vZcGxesEPfLq05Xc+zfkx9Ncv/A2nW2YkpAwPDRMmS1hQc8JoyAqCcRgxAJkRJlRez0EQrQNfuclcjzC+SrYgocOQAQU1x1ydC4gbqRbYMqf9urSMyvh39SerlixzjsFrgQAAAABJRU5ErkJggg==')
 
 	// exchange png color
 	{
@@ -595,7 +595,7 @@ adiary.word_highlight = function(id) {
 	}
 	if (!words.length) return;
 
-	const target = document.querySelectorAll("#articles article h2 .title, #articles article div.body div.body-main, #articles span.tags");
+	const target = document.querySelectorAll("#articles article h1 .title, #articles article div.body div.body-main, #articles span.tags");
 	let h_cnt = 0;
 	rec_childnodes(target);
 

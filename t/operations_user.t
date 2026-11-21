@@ -487,6 +487,120 @@ subtest '同時編集の確認の残りを消すアップデート（4.43）' =>
 	$app->restore($snap);
 };
 
+subtest '見出しの段を上げるアップデート（4.45）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $snap = $app->snapshot();
+	my $edit = sub {	# ファイルの中身を書き換える
+		my ($file, $func) = @_;
+		local $_ = read_file($file);
+		my $n = $func->();
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $_;
+		close($fh);
+		return $n;
+	};
+
+	ok(AppTest::is_reload($app->post('admin', '', { %ART, title => '見出しの段の記事', body_txt => "# 大見出し\n\n本文\n\n## 小見出し\n" })), '見出しのある記事を書く');
+	my ($key) = body($app->get('admin', '')) =~ m{/(\d+)"[^>]*>見出しの段の記事<};
+	ok($key, '記事のURL');
+	my $h2 = qr{<h2 id="[^"]+"><a [^>]*>大見出し</a></h2>};
+	my $h3 = qr{<h3 id="[^"]+"><a [^>]*>小見出し</a></h3>};
+	my $title = qr{<h1[^>]*>(?:(?!</h1>).)*見出しの段の記事}s;
+	my $b = body($app->get('guest', "/$key"));
+	like($b, $h2, '新しく書いた記事は、本文の見出しがh2から始まる');
+	like($b, $h3, '次の段はh3');
+	like($b, $title, '記事のタイトルはh1');
+	unlike($b, qr{<h1[^>]*id="page-title"}, 'サイトのタイトルはh1にしない');
+	like($b, qr{<div id="page-title" class="site-title"}, 'サイトのタイトルはdiv');
+
+	# デザインの編集画面と同じく、保存する場所（save_ary）を送らずに保存すると、_articleと_mainも作る
+	ok(AppTest::is_reload($app->post('admin', 'design/edit', [ action => 'design/edit',
+		header_ary => 'deh_login', header_ary => 'deh_title', art_h_ary => 'dea_art-info', side_a_ary => 'des_searchbox' ])), 'デザインを保存する');
+	my @skel = grep { -f $_ } glob("$dir/data/blog/{skel,skel_theme/*}/{_article,_main}.html");
+	is(scalar(@skel), 4, '保存したデザインのスケルトン（標準とlyndbaumの_article、_main）がある');
+	like(body($app->get('guest', "/$key")), $title, '保存したデザインでも、記事のタイトルはh1');
+
+	# 4.44までの形にする。DBの本文はh3から、保存したデザインのスケルトンは記事のタイトルがh2
+	my $af = sprintf("$dir/data/db/art/%05d.dat", int($key));
+	ok($edit->($af, sub { s{<(/?)h([23])\b}{"<$1h" . ($2+1)}ge }), '本文の見出しをh3からにする');
+	foreach my $f (@skel) {
+		ok($edit->($f, sub { s{<(/?)h1\b}{<$1h2}g }), '記事のタイトルをh2にする');
+	}
+	$b = body($app->get('guest', "/$key"));
+	like($b, qr{<h3 id="[^"]+"><a [^>]*>大見出し</a></h3>}, '作った状態の確認：本文の見出しがh3から');
+	unlike($b, $title, '作った状態の確認：記事のタイトルがh1でない');
+	unlike(body($app->get('guest', '/')), $title, '作った状態の確認：一覧でも記事のタイトルがh1でない');
+
+	$edit->($sys, sub { s/^VERSION=.*$/VERSION=4.44/m });
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+
+	$b = body($app->get('guest', "/$key"));
+	like($b, $h2, '記事を作り直して、本文の見出しがh2からになる');
+	like($b, $h3, '次の段はh3になる');
+	like($b, $title, 'デザインを作り直して、記事のタイトルがh1になる');
+	like(body($app->get('guest', '/')), $title, '一覧でも記事のタイトルがh1になる');
+	$app->restore($snap);
+};
+
+subtest 'サイドバーのクラスからhatenaを外すアップデート（4.45）' => sub {
+	my $sys  = "$dir/data/system_config.dat";
+	my $set  = "$dir/data/blog/setting.dat";
+	my $snap = $app->snapshot();
+	my $edit = sub {	# ファイルの中身を書き換える
+		my ($file, $func) = @_;
+		local $_ = read_file($file);
+		my $n = $func->();
+		open(my $fh, '>:utf8', $file) || die "$file: $!";
+		print $fh $_;
+		close($fh);
+		return $n;
+	};
+	my $old = qr/hatena-(?:module|section|body)/;
+	my @mods = qw(des_freetext des_artlist des_comlist des_monthlist des_taglist des_contents_list des_searchbox);
+
+	ok(AppTest::is_reload($app->post('admin', 'design/edit', [ action => 'design/edit',
+		header_ary => 'deh_login', header_ary => 'deh_title', art_h_ary => 'dea_art-info', map { (side_a_ary => $_) } @mods ])), 'サイドバーにモジュールを置く');
+	my $r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'des_freetext', title => 'フリー', class => 'side-module my-box', free_txt => '中身' });
+	like($r->{body}, qr/^ret=0$/m, 'フリー入力のクラスを保存できる');
+	my $b = body($app->get('guest', '/'));
+	like($b, qr{<div id="columns">}, '外枠のidはcolumns');
+	like($b, qr{<div class="side-module my-box"[^>]*>\s*<div class="side-module-title">フリー</div>\s*<div class="side-module-body">}, 'フリー入力のモジュールが新しいクラスで出る');
+	like($b, qr{<ul class="side-module-list">}, '一覧のモジュールが新しいクラスで出る');
+	unlike($b, $old, '古いクラス、idは出ない');
+
+	# 4.44までの形にする。保存したデザインのスケルトン、プラグインの雛形の写し、設定（生成した一覧のHTML、フリー入力のクラス）を古い名前にする
+	my @files = grep { -f $_ } ($set, glob("$dir/data/blog/{skel,skel_theme/*}/{*.html,_format/*.html}"));
+	my $n = 0;
+	foreach my $f (@files) {
+		$n += $edit->($f, sub {
+			my $c = 0;
+			$c += s/side-module-title/hatena-moduletitle/g;
+			$c += s/side-module-body/hatena-modulebody/g;
+			$c += s/side-module-list/hatena-section/g;
+			$c += s/side-module/hatena-module/g;
+			return $c;
+		});
+	}
+	cmp_ok($n, '>', 0, '保存したファイルを古い名前にする');
+	like(read_file($set), qr/^p:des_freetext(?:,\d+)?:class=hatena-module my-box$/m, '作った状態の確認：フリー入力のクラスが古い名前');
+	like(body($app->get('guest', '/')), qr{<div class="hatena-module my-box"}, '作った状態の確認：古いクラスが出る');
+
+	$edit->($sys, sub { s/^VERSION=.*$/VERSION=4.44/m });
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/update' })), 'アップデート処理を行える');
+	like(read_file($sys), qr/^VERSION=\Q$DATA_VERSION\E$/m, '版が上がる');
+
+	like(read_file($set), qr/^p:des_freetext(?:,\d+)?:class=side-module my-box$/m, 'フリー入力のクラスを新しい名前に移す');
+	foreach my $f (grep { -f $_ } ($set, glob("$dir/data/blog/{skel,skel_theme/*}/{*.html,_format/*.html}"))) {
+		unlike(read_file($f), $old, substr($f, length($dir) + 1) . 'に古い名前が残らない');
+	}
+	$b = body($app->get('guest', '/'));
+	like($b, qr{<div class="side-module my-box"[^>]*>\s*<div class="side-module-title">フリー</div>}, 'フリー入力のモジュールが新しいクラスで出る');
+	like($b, qr{<ul class="side-module-list">}, '一覧のモジュールが新しいクラスで出る');
+	unlike($b, $old, '古いクラス、idは出ない');
+	$app->restore($snap);
+};
+
 subtest 'RSSと書き出しの投稿者は管理者の表示名' => sub {
 	my $snap = $app->snapshot();
 	ok(json_ok($app->post('admin', '', { action => '_ajax_self_change_name', name => 'A&B 管理者' })), '管理者の名前を変える');
@@ -530,7 +644,17 @@ subtest 'パスワードを忘れたときの復旧' => sub {
 	like(body($kept->get('again', 'artlist')), qr{editorの記事}, '記事はそのまま');
 };
 
-subtest '操作の記録' => sub {
+subtest '監査の記録' => sub {
+	# 管理画面のメニューのリンクを辿る。メニューでは短い名前、画面では長い名前
+	{
+		my ($link) = body($app->get('admin', 'menu')) =~ m{<a href="[^"?]*\?([^"]*)">監査の記録</a>};
+		is($link, 'user/log', 'メニューに「監査の記録」のリンクがある');
+		my $b = body($app->get('admin', $link));
+		like($b, qr{<h1>監査の記録</h1>}, '見出しは「監査の記録」');
+		like($b, qr{<title>監査の記録}, 'タイトルも同じ');
+		like($b, qr{<li class="current"><a href="[^"]*\?user/log">監査の記録</a>}, 'メニューの今の画面の印が付く');
+	}
+
 	# 無いIDでの失敗を12件。タグになる文字を混ぜて、エスケープとURLのエンコードも確かめる
 	{
 		local $app->{env} = { REMOTE_ADDR => '10.1.0.4' };	# 同じIPの回数制限に当たらないように
@@ -548,9 +672,56 @@ subtest '操作の記録' => sub {
 	ok($link, '2ページ目へのリンクがある');
 	$link =~ s/&amp;/&/g;
 	unlike($link, qr{<|>}, 'リンクにテンプレートの書きかけが残っていない');
+
+	# ページ番号の間隔はHTMLの空白だけで決まる（管理画面のCSSに間隔の指定がない）
+	my ($nav) = $b =~ m{<nav class="page-nav">(.*?)</nav>}s;
+	ok($nav, 'ページ送りが出る');
+	unlike($nav, qr{</(?:a|strong)><(?:a|strong)\b}, 'ページ番号どうしがくっついていない');
+	like($nav, qr{^\s*<a>&lt;</a> \n<strong>1</strong> \n<a href="[^"]*page=2">2</a> \n<a href="[^"]*page=2">&gt;</a>\s*$}, 'ページ送りの並びと空白が記事一覧と同じ');
 	$b = body($app->get('admin', $link));
 	is($rows->($b), 2, '2ページ目に残りの2件が出る');
 	like($b, qr{全12件}, '2ページ目でも絞り込みが引き継がれる');
+
+	# 種類：名前の変更とパスワードの変更は、別の種類で記録する
+	$app->insert_user('logtype');
+	$app->login('logtype');
+	ok(json_ok($app->post('logtype', '', { action => '_ajax_self_change_name', name => '記録の名前' })), '名前を変える');
+	ok(json_ok($app->post('logtype', '', { action => '_ajax_self_change_pass', now_pass => $AppTest::PASS, pass => 'log-pass-5678', pass2 => 'log-pass-5678' })), 'パスワードを変える');
+	# 種類を分ける前の記録（update）
+	{
+		require Satsuki::Base;
+		my $ROBJ = Satsuki::Base->new();	# DBが使うので、変数に持っておく
+		my $DB   = $ROBJ->loadpm('DB_text', "$dir/data/db/");
+		$DB->begin();
+		$DB->insert('_users_log', { id => 'logtype', type => 'update', tm => time() });
+		if ($DB->commit()) { die 'insert _users_log failed'; }
+	}
+
+	# 絞り込みの選択肢は、画面が出したものを使う
+	$b = body($app->get('admin', 'user/log&id=logtype'));
+	my %opt = $b =~ m{<option value="(\w+)">([^<]+)</option>}g;
+	my $count = sub {
+		my ($b, $name) = @_;
+		my @r = ($b =~ m{<td>logtype</td>\s*<td>\Q$name\E</td>\s*<td>成功</td>}g);
+		return scalar(@r);
+	};
+	my @names = ('アカウント名変更', 'パスワード変更', '名前・パスワード変更');
+	is($count->($b, $_), 1, "「$_」の記録が1件出る") foreach (@names);
+	foreach my $type (qw(update_name update_pass update)) {
+		my $name = $opt{$type};
+		ok($name, "種類の選択肢に $type がある") or next;
+		my $f = body($app->get('admin', "user/log&id=logtype&type=$type"));
+		like($f, qr{全1件}, "$type で絞り込むと1件");
+		is($count->($f, $name), 1, "$type の行は「$name」と出る");
+		like($f, qr{<option value="$type" selected>\Q$name\E</option>}, "$type の選択肢が選ばれている");
+	}
+	is_deeply([ map { $opt{$_} } qw(update_name update_pass update) ], \@names, '種類の表示名');
+
+	# 初期セットアップで作った管理者
+	is($opt{regist}, '管理者の作成', '種類の選択肢に「管理者の作成」がある');
+	$b = body($app->get('admin', 'user/log&id=admin&type=regist'));
+	like($b, qr{<td>admin</td>\s*<td>管理者の作成</td>\s*<td>成功</td>}, '初期セットアップの記録は「管理者の作成」と出る');
+	like($b, qr{全1件}, '管理者の作成の記録は1件');
 };
 
 #-------------------------------------------------------------------------------
@@ -565,8 +736,8 @@ subtest 'ディレクトリ使用量' => sub {
 	# 画面の表を { 見出し => { 行の名前 => ファイル数（表示のまま） } } にする
 	my $tables = sub {
 		my %t;
-		foreach (split(m{<h3>}, shift)) {
-			my ($h) = m{^([^<]*)</h3>} or next;
+		foreach (split(m{<h2>}, shift)) {
+			my ($h) = m{^([^<]*)</h2>} or next;
 			$t{$h}{$1} = $2 while (m{<td>([^<]*)</td><td class="r">[^<]*</td><td class="r">([^<]*)</td>}g);
 		}
 		return \%t;

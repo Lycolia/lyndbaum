@@ -4,6 +4,7 @@
 <$id = argv#1>
 <@>
 <@> サイトのタイトル。HTMLはここだけに書く（docs/仕様/スケルトン.md）
+<@>	見出し（h1）にはしない。h1は記事のタイトルと、記事のない画面の名前に使う
 <@>	呼び出し元：plugin/deh_title/plugin.info
 <@>	           雛形の既定の中身（skel/ と、テーマの _skel/ の同じ名前のスケルトン）
 <@>	テーマで変えたいときは、テーマの _skel/_sub/ に同じ名前で置く
@@ -11,6 +12,6 @@
 <@>	argv#0	モジュール名（data-module-name。設定もこの名前で読む）
 <@>	argv#1	要素のid
 <@>
-<h1 id="<@id>" data-module-name="<@name>">
+<div id="<@id>" class="site-title" data-module-name="<@name>">
 	<a href="<@v.myself>"><@if(v.title_h1, v.title_h1, v.title)></a>
-</h1>
+</div>

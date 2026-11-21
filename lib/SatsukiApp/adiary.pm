@@ -11,11 +11,11 @@ our $SYSTEM_NAME = 'Lyndbaum';
 our $REPOSITORY_URL = 'https://github.com/Lycolia/lyndbaum';
 our $SYSTEM_DESCRIPTION = 'The ultimate lightweight self-hosted Knowledge Base Management System for Japanese';
 # データ管理上数値しか解釈できないので文字列にしてはならない
-our $VERSION    = 4.44;
+our $VERSION    = 4.45;
 # -fix2, dev3, -nightlyみたいなのを入れる想定
 our $BRANCH_VERSION = '';
 our $OUTVERSION = sprintf('%.2f', $VERSION) . $BRANCH_VERSION;	# 数値のままだと4.30が4.3になる
-our $DATA_VERSION = 4.43;
+our $DATA_VERSION = 4.45;
 ################################################################################
 # ■システム内部イベント
 ################################################################################
@@ -1010,11 +1010,11 @@ sub load_articles {
 			my %ymd = %year ? %year : %mon;
 			if (%tags)  {
 				$ret{narrow_tags}     = \%tags;
-				$ret{narrow_tag_tree} = $self->make_narrow_tag_tree(\%tags);
-				$tags {_order} = [ sort(keys(%tags )) ];
+				($ret{narrow_tag_tree}, $tags{_order}) = $self->make_narrow_tag_tree(\%tags, $taglist);
 			}
 			if (%ctype) { $ret{narrow_ctype} = \%ctype; $ctype{_order} = [ sort(keys(%ctype)) ]; }
-			if (%ymd)   { $ret{narrow_ymd}   = \%ymd;   $ymd  {_order} = [ sort(keys(%ymd  )) ]; }
+			# 日付は新しい順（記事の並びと同じ向き）。0（スケルトンが「固定ページ」として出す）は先頭のまま
+			if (%ymd)   { $ret{narrow_ymd}   = \%ymd;   $ymd  {_order} = [ sort { !$a <=> !$b || $b <=> $a } keys(%ymd) ]; }
 		}
 
 		# 該当ページのデータだけ取り出す
@@ -1113,17 +1113,33 @@ sub load_articles {
 #-------------------------------------------------------------------------------
 # ●絞り込みのタグを木にする
 #-------------------------------------------------------------------------------
-# 節は { name, sname, qt, children }。名前順に並べる。
+# 節は { name, sname, qt, children }。タグの編集画面の表示順（タグの木を上から辿った順）に並べる。
 # 親が除かれている（全件に付いている）ときは、残っているいちばん近い先祖の下に付け、
 # なければ根に付ける。snameはその先祖からの残りの部分。
+# 戻り値は、木と、木を上から辿った順のタグ名の並び。
+#	$taglist	load_tag_cache()の結果
 sub make_narrow_tag_tree {
 	my $self = shift;
-	my $tags = shift;
+	my ($tags, $taglist) = @_;
+	my $name2pkey = $taglist->[0] || {};
 	my @root;
 	my %node;
+	# 先祖を子より先に作るため、節は名前順に作る
 	foreach my $name (sort(keys(%$tags))) {
 		if ($name eq '_order') { next; }
 		my $n = { name => $name, sname => $name, qt => $tags->{$name}, children => [] };
+
+		# 並べ替えのキー。階層ごとの(priority, pkey)の列で、タグの木（load_tag_tree）と同じ順になる。
+		# 「タグなし」（名前が空）は先頭、キャッシュにないタグは後ろに名前順で置く
+		my @key;
+		my $path;
+		foreach(split('::', $name)) {
+			$path = defined $path ? "$path\::$_" : $_;
+			my $pkey = $name2pkey->{$path};
+			my $t = $pkey && $taglist->[$pkey];
+			push(@key, $t ? [0, $t->{priority}, $pkey] : [1, 0, 0]);
+		}
+		$n->{_key} = \@key;
 		$node{$name} = $n;
 
 		my $parent;
@@ -1137,7 +1153,30 @@ sub make_narrow_tag_tree {
 		}
 		push(@{ $parent ? $parent->{children} : \@root }, $n);
 	}
-	return \@root;
+
+	my $cmp = sub {
+		my ($x, $y) = ($a->{_key}, $b->{_key});
+		for(my $i=0; $i<@$x && $i<@$y; $i++) {
+			my $r = $x->[$i]->[0] <=> $y->[$i]->[0]
+			     || $x->[$i]->[1] <=> $y->[$i]->[1]
+			     || $x->[$i]->[2] <=> $y->[$i]->[2];
+			if ($r) { return $r; }
+		}
+		return @$x <=> @$y || $a->{name} cmp $b->{name};
+	};
+	my @order;
+	my $sort; $sort = sub {
+		my $ary = shift;
+		@$ary = sort $cmp @$ary;
+		foreach(@$ary) {
+			push(@order, $_->{name});
+			$sort->($_->{children});
+		}
+	};
+	$sort->(\@root);
+	undef $sort;	# 循環参照を切る
+	foreach(values(%node)) { delete $_->{_key}; }
+	return (\@root, \@order);
 }
 
 #-------------------------------------------------------------------------------

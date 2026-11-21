@@ -1,6 +1,6 @@
 ######################################################################
 title=はてなスター
-version=1.00
+version=1.03
 #					(C)2016 nabe
 ######################################################################
 author=nabe@abk
@@ -18,30 +18,46 @@ EVENTS
 
 *sample_html=<<HTML
 <div id="<@id>">
-記事タイトル部にはてなスターを表示
+記事にはてなスターを表示
 </div>
 HTML
 
 *module_html=<<HTML
 <div class="display-none" id="<@id>" data-module-name="<@this>">
-記事タイトル部にはてなスターを表示
+記事にはてなスターを表示
 <@ifexec(!art_sample_mode, begin)>
 <$v.regist_post_html(exec(begin))>
-<script-defer><!--
+<script>
 var Hatena;
 if (!Hatena) Hatena = {};
 if (!Hatena.Star) Hatena.Star = {};
-Hatena.Star.Token = '<@v.load_plgset('<@this>', 'token')>';
+(function() {
+var container = 'h1';
+<@ifexec(v.load_plgset('<@this>', 'position') eq 'footer', begin)>
+// 記事の下に出す。星を入れるdivを、共有ボタンがあればその前、無ければ記事の下の末尾に作る
+container = '.hatena-star-box';
+document.querySelectorAll('article.article').forEach(function(art) {
+	var box = document.createElement('div');
+	box.className = 'hatena-star-box';
+	var sb = art.querySelector('.social-buttons');
+	if (sb) {
+		sb.parentNode.insertBefore(box, sb);
+	} else {
+		(art.querySelector('div.body-footer') || art).appendChild(box);
+	}
+});
+<$end>
 Hatena.Star.SiteConfig = {
 	entryNodes: {
 		'article.article': {
-			uri: 'h2 a.title',
-			title: 'h2 a.title',
-			container: 'h2'
+			uri: 'h1 a.title',
+			title: 'h1 a.title',
+			container: container
 		}
 	}
 };
---></script-defer>
+})();
+</script>
 <$end>
 <$end>
 </div>

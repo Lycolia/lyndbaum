@@ -64,6 +64,9 @@ sub adiary_link {
 sub adiary_this {
 	my ($pobj, $tag, $cmd, $ary) = @_;
 
+	# 引数が無ければ、リンクにせず文字のまま（リンク先も文字も無い）
+	if (!@$ary) { return '[this]'; }
+
 	my $url  = $pobj->{thisurl};
 	return &adiary_link_base($pobj, $tag, $url, '', $ary);
 }

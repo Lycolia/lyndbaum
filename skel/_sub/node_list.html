@@ -16,7 +16,7 @@
 <$ps = v.load_plgset(name)>
 <div data-module-name="<@name>">
 <@ifexec(node.children, begin)>
-<h3>記事リスト</h3>
+<h2>記事リスト</h2>
 <ul class="art-list art-children">
 <@forexec(t2, node.children, begin)>
 	<li><a href="<@v.myself2><@t2.elink_key>"><@t2.title></a></li>
@@ -24,7 +24,7 @@
 </ul>
 <$end>
 <@ifexec(!node.children && node.family, begin)>
-<h3>関連記事</h3>
+<h2>関連記事</h2>
 <ul class="art-list art-family">
 <@forexec(t2, v.load_from_ary(node.family, ps.displays || 5), begin)>
 	<li><a href="<@v.myself2><@t2.elink_key>"><@t2.title></a></li>

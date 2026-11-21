@@ -18,6 +18,12 @@
 		</td>
 	</tr>
 	<tr>
+		<th>センタリング</th>
+		<td>
+			<label><input type="checkbox" name="text_centering" value="1"<@if(ps.text_centering,' checked')>>テキストをセンタリングする</label>
+		</td>
+	</tr>
+	<tr>
 		<td colspan="2">
 			<$txt = ps.free_txt><$ifexec(ps.lf2br, begin)><$replace_dest(txt, '<br>', "\n")><$end>
 			<textarea class="w512" rows="5" name="free_txt"><@esc(txt)></textarea>

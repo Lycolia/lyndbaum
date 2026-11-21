@@ -16,16 +16,16 @@ sub {
 
 	$modules{_header} = <<HTML;
 <!--Information==========================================-->
-<div class="hatena-module" id="$id" data-module-name="$name">
-<div class="hatena-moduletitle$hidden">$title</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module" id="$id" data-module-name="$name">
+<div class="side-module-title$hidden">$title</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 HTML
 
 	$modules{_footer} = <<'HTML';
 </ul>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 HTML
 
 	$modules{description} = <<'HTML';

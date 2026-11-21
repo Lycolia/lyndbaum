@@ -3,9 +3,9 @@
 <$year = if(art_year, art_year, v.now.year)>
 <$mon  = if(art_year, art_mon,  v.now.mon) || '01'>
 <$day  = if(art_year, art_day,  v.now.day)>
-<div class="hatena-module" id="<@id>" data-module-name="<@this>">
-<div class="hatena-moduletitle">カレンダー</div>
-<div class="hatena-modulebody">
+<div class="side-module" id="<@id>" data-module-name="<@this>">
+<div class="side-module-title">カレンダー</div>
+<div class="side-module-body">
 <table class="calendar">
 <thead>
 <tr class="calendar-month">
@@ -28,5 +28,5 @@
 </thead><tbody>
 <@cal.generate_calendar(year, mon, day)>
 </tbody></table>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->

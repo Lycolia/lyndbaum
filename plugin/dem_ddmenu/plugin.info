@@ -62,7 +62,7 @@ HTML
 *module_html=<<HTML
 <!--ドロップダウンメニュー=====================================-->
 <$ps = v.load_plgset('<@this>')>
-<div class="ddmenu<@if(!ps.no_centering, ' dd-centering')>" data-module-name="<@this>" id="<@id>">
+<div class="ddmenu dd-centering" data-module-name="<@this>" id="<@id>">
 <@ps.html>
 </div>
 HTML

@@ -12,10 +12,10 @@ module_type=sidebar
 load_module_html_in_edit=1
 
 *sample_html=<<HTML
-<div class="hatena-module side-link-list">
-<div class="hatena-moduletitle">リンク</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module side-link-list">
+<div class="side-module-title">リンク</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 <li><a href="http://adiary.org/">adiary公式サイト</a></li>
 <li><a href="https://adiary.blog.abk.nu/">adiary開発日誌</a></li>
 <li><a href="https://github.com/nabe-abk/adiary">GitHubリポジトリ</a></li>

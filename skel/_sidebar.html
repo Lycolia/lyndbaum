@@ -10,8 +10,8 @@
 
 <@ifexec(!v.special_sidebar_module && Auth.ok && v.system_mode && !v.design_edit, begin)>
 <!--現在のサイト情報=====================================-->
-<div class="hatena-module" id="side-login-information">
-<div class="hatena-modulebody">
+<div class="side-module" id="side-login-information">
+<div class="side-module-body">
 <table><tbody>
 <tr>
 <td>UserID</td><td<@if(Auth.isadmin, ' title="あなたは管理者です"')>><@Auth.id><@if(Auth.isadmin, '(*)')></td>	
@@ -32,21 +32,21 @@
 </tr>
 
 </tbody></table>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 <$end>
 <@>$HEADER:END$----------------------------------------------------------------
 
 
 <!--Information==========================================-->
-<div class="hatena-module" id="side-information" data-module-name="des_information-ja">
-<div class="hatena-moduletitle">Information</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module" id="side-information" data-module-name="des_information-ja">
+<div class="side-module-title">Information</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 <@if(s.description_txt, #'<li class="description"><@s.description_txt></li>\n')>
 </ul>
-</div> <!-- hatena-modulebody -->
-</div> <!-- hatena-module -->
+</div> <!-- side-module-body -->
+</div> <!-- side-module -->
 
 <@>$SEPARATOR$----------------------------------------------------------------
 </div> <!-- End of side-a -->

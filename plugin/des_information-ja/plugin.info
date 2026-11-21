@@ -14,10 +14,10 @@ load_module_html_in_edit=1
 module_id=side-information
 
 *sample_html=<<HTML
-<div class="hatena-module" id="<@id>">
-<div class="hatena-moduletitle">Information</div>
-<div class="hatena-modulebody">
-<ul class="hatena-section">
+<div class="side-module" id="<@id>">
+<div class="side-module-title">Information</div>
+<div class="side-module-body">
+<ul class="side-module-list">
 <li class="description">このサイトの説明</li>
 </ul>
 </div>

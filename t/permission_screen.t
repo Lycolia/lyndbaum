@@ -83,7 +83,7 @@ my @SCREENS = (
 	[ 'mainte/export'       , 'admin' , '記事のエクスポート' ],
 
 	# ユーザーとシステム
-	[ 'user/log'            , 'admin' , '操作の記録' ],
+	[ 'user/log'            , 'admin' , '監査の記録' ],
 	[ 'system/setting'      , 'admin' , 'システム設定' ],
 	[ 'system/update'       , 'admin' , 'アップデート処理設定' ],
 	[ 'system/check'        , 'admin' , 'システムチェック' ],

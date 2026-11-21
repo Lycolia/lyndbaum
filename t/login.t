@@ -193,7 +193,7 @@ subtest '止めた試行の記録' => sub {
 	$app->login('logview');
 	my $b = $app->get('logview', 'user/log&result=fail&id=logged')->{body};
 	utf8::decode($b);
-	like($b, qr{<strong class="warning">失敗（同じIPの回数制限）</strong></td>\s*<td>\Q$ip\E</td>}, '操作の記録の画面に表示名とIPが出る');
+	like($b, qr{<strong class="warning">失敗（同じIPの回数制限）</strong></td>\s*<td>\Q$ip\E</td>}, '監査の記録の画面に表示名とIPが出る');
 };
 
 #-------------------------------------------------------------------------------

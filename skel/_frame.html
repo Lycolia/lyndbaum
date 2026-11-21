@@ -72,7 +72,7 @@
 <@if(canonical_url, #'<link rel="canonical" href="<@canonical_url>">\n')>
 <@>
 <@forexec(t, v.load_rss_files(), begin)>
-<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.pub_dir><@t>" />
+<link rel="alternate" type="application/rss+xml" title="RSS 2.0" href="<@Basepath><@v.pub_dir><@t>">
 <$end>
 <@> ショートカットアイコン
 <link rel="icon" href="<@Basepath><@if(s.iconfile, s.iconfile, #'<@v.pubdist_dir>default-icon.png')>">
@@ -152,7 +152,7 @@
 <@> main
 <@>-----------------------------------------------------------------------------
 <!--Start of body============================================================-->
-<div id="hatena-body"><div>
+<div id="columns"><div>
 
 <!--内容=====================================================================-->
 <main class="main" id="main-first">
@@ -167,7 +167,7 @@
 <@call( if(v.sidebar, v.sidebar, '_sidebar') )>
 
 <@ifcall(Develop && (@Error || @Warning || @Debug) || ENV_print, '_sub/debug')>
-</div></div> <!-- End of #hatena-body -->
+</div></div> <!-- End of #columns -->
 <!--End of body==============================================================-->
 
 <$ps = v.load_plgset('def_footer')>

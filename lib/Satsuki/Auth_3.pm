@@ -351,7 +351,11 @@ sub update_user_data {
 		$DB->delete_match($self->{table} . '_sid', 'id', $id);
 	}
 
-	$self->log_save($id, 'update');
+	# 何を変えたのかが記録から分かるように、種類を分ける。名前もパスワードも無いときは'update'
+	my @types = grep { exists($update->{$_}) } qw(name pass);
+	foreach(@types ? (map { "update_$_" } @types) : ('update')) {
+		$self->log_save($id, $_);
+	}
 	return { ret => 0 };
 }
 

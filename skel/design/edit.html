@@ -100,7 +100,6 @@ input[type="checkbox"] {
  data-module-name="<@t.name>"
  data-type="<@t.module_type>"
  data-setting="<@if(t.module_setting,1)>"
- data-css-setting="<@if(t.css_setting,1)>"
  data-load-module-html="<@t.load_module_html_in_edit>"
  data-readme="<@if(t.readme,1)>"
  data-readme-url="<@myself>?plugin/plugin_readme&amp;name=<@t.name>"
@@ -140,10 +139,8 @@ input[type="checkbox"] {
 <span id="msg-append-module-select">（追加モジュール選択）</span>
 <span id="msg-delete-confirm">「%n」を削除しますか？</span>
 <span id="msg-duplicate-id">「%n」は既に存在します（１つしか追加できません）</span>
-<span id="btn-css-setting">デザイン設定</span>
 <span id="btn-view-html">HTML表示</span>
 <span id="msg-html-source">HTMLソース</span>
 <span id="msg-reset-confirm">このモジュールに関するすべての設定がリセットされます。よろしいですか？</span>
 <span id="msg-reset-error">リセットに失敗しました</span>
-<span id="user-css-url" data-url="<@Basepath><@v.dynamic_css_url_file()>"></span>
 </div>

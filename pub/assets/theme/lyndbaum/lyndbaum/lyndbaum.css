@@ -12,7 +12,7 @@
    AとBの包み（#sidebars）は2カラムのテーマのためのもの。ここでは消して、AとBをGridに直に並べる */
 .site-sidebars { display: contents; }
 @media (min-width: 48rem) {
-	#hatena-body > div {
+	#columns > div {
 		grid-template-columns: minmax(0, 1fr) 16rem;
 		grid-template-rows: auto 1fr;
 		grid-template-areas: "main left" "main right";
@@ -23,7 +23,7 @@
 	.sidebar-right { grid-area: right; }
 }
 @media (min-width: 72rem) {
-	#hatena-body > div {
+	#columns > div {
 		grid-template-columns: 20rem minmax(0, 1fr) 22.5rem;
 		grid-template-rows: auto;
 		grid-template-areas: "left main right";
@@ -50,7 +50,7 @@
 }
 @media (min-width: 48rem) and (max-width: 71.99rem) {
 	/* 2カラム：Aは引き出しなので、本文の右にはBだけを置く */
-	.has-drawer #hatena-body > div { grid-template-rows: auto; grid-template-areas: "main right"; }
+	.has-drawer #columns > div { grid-template-rows: auto; grid-template-areas: "main right"; }
 }
 @media (max-width: 47.99rem) {
 	.has-drawer .site-header { padding-right: 3.25rem; }

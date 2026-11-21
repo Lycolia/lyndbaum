@@ -43,31 +43,14 @@ sub http {
 	$cmd =~ s/\W//g;
 	my $url = $url2;
 	if (substr($url2,0,2) eq '//') { $url = $cmd . ':' . $url2; }
-	# サムネイル表示？ (image プラグインあり）
-	my $tags = $pobj->{tags};
-	if ($ary->[0] eq 'image' && $tags->{"$cmd:image"} && $tags->{'&image'}) {
-		# 第１引数にURLを納める
-		$ary->[0] = substr($url2, 2);	# //xxx.dom.jp → xxx.dom.jp
-		$cmd .= ':image';
-		$tag  = $tags->{$cmd};
-		my $image = $pobj->load_tag('&image');
-		return &$image($pobj, $tag, $cmd, $ary, 'http');
-	}
 	# 属性/リンク名
 	my $attr = $pobj->make_attr($ary, $tag);
-	my $bookmark='';
-	if ($ary->[0] eq 'bookmark') {
-		shift(@$ary);
-		my $url2 = $url;
-		$url2 =~ s|^\w+://||;
-		$bookmark = "<a href=\"http://b.hatena.ne.jp/entry/$url2\"><img src=\"http://b.hatena.ne.jp/entry/image/$url\" class=\"http-bookmark\"></a>";
-	}
 	my $name = $pobj->make_name($ary, $url);
 
 	# 中の a を取り除く
 	$name =~ s!<a(?:\s+[\w\-]+\s*=\s*"[^\"]*"|\s+[\w\-])*\s*>(.*)</a>!$1!i;
 
-	return "<a href=\"$url\"$attr>$name$bookmark</a>";
+	return "<a href=\"$url\"$attr>$name</a>";
 }
 #---------------------------------------------------------------------
 # ●mailto記法

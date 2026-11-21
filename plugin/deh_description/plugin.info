@@ -21,7 +21,10 @@ HTML
 
 
 *module_html=<<HTML
+<@> サイトの説明の改行（<br>）は、設定「改行」にチェックが無ければ出さない
+<$txt = s.description_txt>
+<$ifexec(!v.load_plgset('<@this>', 'br'), begin)><$replace_dest(txt, '(?i)<br\b[^>]*>', '')><$end>
 <div class="dem-module" data-module-name="<@this>" id="<@id>">
-<@s.description_txt || '（サイトの説明が設定されていません。）'>
+<@txt || '（サイトの説明が設定されていません。）'>
 </div> <!-- End of module -->
 HTML

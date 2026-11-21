@@ -10,10 +10,12 @@
 <@>	argv#0	モジュール名（data-module-name。設定もこの名前で読む）
 <@>
 <@>	ログイン中は、画面の上の管理バー（_sub/admin_bar。_frame.html が出す）にメニューがあるので、何も出さない
-<@>	デザインの編集（システムモード）では、モジュールを動かせるよう、ログイン中でも出す
+<@>	デザイン編集の見本（art_sample_mode。システムモードではない）と、システムモードの画面では、
+<@>	モジュールを動かしたり外したりできるよう、ログイン中でも出す
+<@>	固定（data-fix）にはしない。デザイン編集で外すと、ログアウト中にログインのリンクが出なくなる（?login で入る）
 <@>
-<@ifexec(!Auth.ok || v.system_mode, begin.nav)>
-<nav id="nav-header" data-module-name="<@name>" data-fix="1">
+<@ifexec(!Auth.ok || v.system_mode || art_sample_mode, begin.nav)>
+<nav id="nav-header" data-module-name="<@name>">
 	<@ifexec(Auth.ok, begin)><span class="welcome"><a href="<@myself>" class="welcome-prefix">ようこそ</a><a href="<@myself>" class="welcome-name"><@Auth.name></a><span class="welcome-postfix">さん</span></span><$end>
 
 	<span class="admin-links">

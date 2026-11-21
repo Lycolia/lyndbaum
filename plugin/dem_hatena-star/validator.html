@@ -1,9 +1,8 @@
 <@40.is_function>
 <@local(h)>
 <$h = validator(begin_hash, argv#0)>
-	token = トークン
-	token:filter0 = reg_del:[^\w\-]
-	token:filter1 = trim
+	position = 表示位置
+	position:enum = title, footer
 <$end>
 
 <$ifbreak(form_error())>

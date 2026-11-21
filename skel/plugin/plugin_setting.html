@@ -2,14 +2,10 @@
 <$ifredirect(!v.blog_admin, v.myself)>
 <$v.frame_skeleton=''>
 <$name = Query.name>
-<$mode = Query.mode>
 <$replace_dest(name, '[^\w\-,]', '')>
 
 
 <$set = v.load_plgset(name)>
 <$n = v.plugin_name_check(name)>
 <@>
-<$file = 'setting'>
-<$ifset(mode eq 'css', file, 'css_setting')>
-<@>
-<@_call("<@v.plugin_dir><@n>/<@file>.html", set, name)>
+<@_call("<@v.plugin_dir><@n>/setting.html", set, name)>
