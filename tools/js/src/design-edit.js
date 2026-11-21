@@ -690,7 +690,7 @@ btn_save.addEventListener('click', function(evt){
 
 	form_append('side_a_ary', children(side_a, module_selector));
  	form_append('side_b_ary', children(side_b, module_selector));
- 	form_append('header_ary', find_all(f_head, module_selector), 'deh_login');
+ 	form_append('header_ary', find_all(f_head, module_selector));
 
 	var main_a_ary = [];
 	var main_b_ary = [];

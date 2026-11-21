@@ -229,6 +229,49 @@ subtest '設定のリセット' => sub {
 };
 
 #-------------------------------------------------------------------------------
+# ログインヘッダーは普通のモジュール。デザイン編集の見本に出て、外せる
+#-------------------------------------------------------------------------------
+subtest 'ログインヘッダーを外せる' => sub {
+	my $nav = qr{<nav id="nav-header" data-module-name="deh_login">};
+
+	# デザイン編集の見本には、ログイン中でも出す。固定（data-fix）の印は無い
+	my $sample = body($app->get('admin', 'design/art_sample'));
+	like($sample, $nav, '見本に出る（固定の印が無い）');
+	like($sample, qr{<a class="adminmenu logout" href="[^"]*\?logout">ログアウト</a>}, '見本には、ログイン中の中身を出す');
+	my ($info) = body($app->get('admin', 'design/edit')) =~ m{(<div title="ログインヘッダー"\s+data-module-name="deh_login".*?</div>)}s;
+	like($info // '', qr{<nav id="nav-header" data-module-name="deh_login">}, '追加の一覧から置くHTMLにも、固定の印が無い');
+	unlike(read_file("$ROOT/tools/js/src/design-edit.js"), qr/deh_login/, '保存のときに、JSがログインヘッダーを足さない');
+
+	# 公開画面。ログイン中は出さない（管理バーがある）
+	unlike(body($app->get('admin', '')), qr/id="nav-header"/, 'ログイン中の公開画面には出さない');
+	like(body($app->get('admin', '')), qr/<nav id="admin-bar"/, 'ログイン中の公開画面には管理バーがある');
+	like(body($app->get('guest', '')), $nav, 'ログアウト中の公開画面には出す');
+
+	# 外して保存する
+	place($app, header_ary => 'deh_title', side_a_ary => 'des_searchbox');
+	my $r = $app->get('guest', '');
+	is($r->{status}, 200, '外した後も、公開画面を開ける');
+	unlike(body($r), qr/nav-header|\?login"/, '外すと、ログアウト中にログインのリンクを出さない');
+	like(body($r), qr{<div id="page-title" class="site-title" data-module-name="deh_title">}, 'ほかのヘッダーのモジュールは出る');
+	$r = $app->get('admin', 'design/art_sample');
+	is($r->{status}, 200, '外した後も、見本を開ける');
+	unlike(body($r), qr/id="nav-header"/, '外した後の見本には出ない');
+	like(body($app->get('admin', '')), qr/<nav id="admin-bar"/, '外しても、ログイン中の管理バーは出る');
+	is($app->get('guest', 'login')->{status}, 200, '?loginでログインの画面を開ける');
+
+	# 置き直す。画面が出したログインのリンクを辿る
+	place($app, header_ary => 'deh_login', header_ary => 'deh_title', side_a_ary => 'des_searchbox');
+	my ($href) = body($app->get('guest', '')) =~ m{<nav id="nav-header" data-module-name="deh_login">.*?<a class="adminmenu login" href="([^"]*)"}s;
+	ok($href, '置き直すと、ログインのリンクが出る');
+	is($app->get('guest', query_of($href))->{status}, 200, 'ログインのリンクを開ける');
+
+	# デザインを保存していないサイトでは、雛形の既定の中身が出す
+	my $fresh = AppTest->new()->setup();
+	like(body($fresh->get('guest', '')), $nav, '保存していないサイトでも、ログアウト中に出る');
+	like(body($fresh->get('admin', 'design/art_sample')), $nav, '保存していないサイトの見本にも出る');
+};
+
+#-------------------------------------------------------------------------------
 # 前の版のデータからのアップデート
 #-------------------------------------------------------------------------------
 subtest '前の版のデータを片付ける' => sub {
