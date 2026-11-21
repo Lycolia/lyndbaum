@@ -23,7 +23,7 @@ HTML
 
 *module_html=<<HTML
 <$ps = v.load_plgset('<@this>')>
-<div class="<@if(ps.class eq '', 'side-module', ps.class)>" data-title="<@ps.title>" data-module-name="<@this>" id="<@id>">
+<div class="<@if(ps.class eq '', 'side-module', ps.class)><@if(ps.text_centering, ' center')>" data-title="<@ps.title>" data-module-name="<@this>" id="<@id>">
 <@ifexec(!ps.title_none, begin)>
 <div class="side-module-title"><@if(ps.title ne '',ps.title ,'テキストを入力できます。')></div>
 <$end>

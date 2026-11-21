@@ -23,13 +23,13 @@ HTML
 <@ifexec(art_sample_mode || ((!ps.no_page || !ret.pagemode || ret.page==1) && (!ps.no_search || ret.mode ne 'search') && (!ps.no_article || ret.pagemode)), begin.module)>
 <$txt = if(ps.free_txt ne '', ps.free_txt, 'テキストを入力できます。')>
 <@ifexec(ps.title, begin, begin)>
-<article class="system message" data-module-name="<@this>" id="<@id>">
+<article class="system message<@if(ps.text_centering, ' center')>" data-module-name="<@this>" id="<@id>">
 <h1><@ps.title></h1>
 <div class="body">
 <@txt>
 </div></article>
 <$else>
-<div class="dem-module" data-module-name="<@this>" id="<@id>">
+<div class="dem-module<@if(ps.text_centering, ' center')>" data-module-name="<@this>" id="<@id>">
 <@txt>
 </div> <!-- End of module -->
 <$end>

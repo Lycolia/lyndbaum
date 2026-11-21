@@ -156,20 +156,9 @@ sub update_dynamic_css {
 }
 
 #-------------------------------------------------------------------------------
-# ●動的CSSの存在確認
-#-------------------------------------------------------------------------------
-sub check_dynamic_css {
-	my $self = shift;
-	my $name = shift;
-	my $ROBJ = $self->{ROBJ};
-	my $file = $self->dynamic_css_file( $name );
-	return (-r $file) ? 1 : 0;
-}
-
-#-------------------------------------------------------------------------------
 # ●動的CSS保管領域
 #-------------------------------------------------------------------------------
-# モジュールのCSSの断片と、ユーザーCSSの原本（_usercss）。dynamic.css の材料なので公開しない
+# プラグインが置くCSSの断片（plugin.infoのfilesのcss.d/）と、ユーザーCSSの原本（_usercss）。dynamic.cssの材料なので公開しない
 sub dynamic_css_dir {
 	my $self = shift;
 	return $self->{blog_dir} . 'css.d/';
@@ -335,8 +324,6 @@ sub load_plugin_info {
 
 	# setting.html
 	$h->{module_setting} = -r "$dir$n/setting.html";
-	# デザイン設定ファイル
-	$h->{css_setting}    = -r "$dir$n/css_setting.html";
 
 	#---------------------------------------------------
 	# 表示用イベント情報
@@ -344,16 +331,6 @@ sub load_plugin_info {
 	$h->{events_display} = $h->{events};
 	if ($h->{events} ne '' ) {
 		$h->{events}  =~ s/\r?\n?$/\n/;
-	}
-
-	# 動的CSSファイル
-	my $dcss = $h->{module_dcss} = -r "$dir$n/module-d.css";
-	if ($dcss) {
-		$h->{events} .= <<DCSS_EVENT;
-INSTALL=skel/_sub/module_css_generate
-SETTING=skel/_sub/module_css_generate
-UNINSTALL=skel/_sub/module_css_delete
-DCSS_EVENT
 	}
 
 	# イベントの末尾改行除去
@@ -651,7 +628,7 @@ sub plugin_uninstall {
 		$err++;
 		$ROBJ->error("[plugin:%s] File delete failed : %s", $name, $file);
 	}
-	if ($cssd && !$plugin->{module_dcss}) {
+	if ($cssd) {
 		$self->update_dynamic_css();
 	}
 	if ($err) { return $err; }
@@ -785,21 +762,17 @@ sub save_plugin_setting {
 	my $ROBJ = $self->{ROBJ};
 	my $name = $form->{module_name};
 
-	my $mode = $form->{setting_mode};
-	if ($mode ne 'css') { $mode = ''; }
-	if ($mode ne '') { $mode .= '_'; }
-
 	my $n = $self->plugin_name_check($name);	# $n = プラグイン名
 	if (!$n) { return 1; }
 
 	my $dir = $self->{plugin_dir} . $n;
 	my $ret;
-	my $pm = "$dir/${mode}validator.pm";
+	my $pm = "$dir/validator.pm";
 	if (-r $pm) {
 		my $func = $self->load_plugin_function( $pm, $pm );
 		$ret = &$func($self, $form, $name);
 	} else {
-		$ret = $ROBJ->_call("$dir/${mode}validator.html", $form, $name);
+		$ret = $ROBJ->_call("$dir/validator.html", $form, $name);
 	}
 	if (ref($ret) ne 'HASH') { return; }
 
@@ -1400,41 +1373,6 @@ sub delete_design_skeleton {
 	$ROBJ->dir_delete($self->{blog_dir} . 'skel_theme/');
 }
 
-
-################################################################################
-# ■プラグインの動的CSS処理
-################################################################################
-#-------------------------------------------------------------------------------
-# ●モジュールCSSの生成
-#-------------------------------------------------------------------------------
-sub generate_module_css {
-	my $self = shift;
-	my $name = shift;
-	my $ROBJ = $self->{ROBJ};
-
-	my $dir = $self->plugin_name_dir( $name );
-	my $css = $dir . "module-d.css";
-	if (! -r $css) { return; }
-
-	# 動的生成CSSがある？
-	my $id = $self->plugin_name_id( $name );
-	return $ROBJ->_call($css, $name, $id);
-}
-
-#-------------------------------------------------------------------------------
-# ●モジュールCSSの保存
-#-------------------------------------------------------------------------------
-sub generate_and_save_module_css {
-	my $self = shift;
-	my $name = shift;
-	my $css  = $self->generate_module_css( $name );
-	return $self->save_dynamic_css($name, $css);
-}
-
-# 削除
-sub delete_module_css {
-	&delete_dynamic_css(@_);
-}
 
 ################################################################################
 # ■テーマ選択

@@ -7,9 +7,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 // ●モジュール情報のロード
 ////////////////////////////////////////////////////////////////////////////////
-// プラグインのCSS設定画面（css_setting.html）が使う。iframeの中の文書（下のframe_find()など）
-var frame_doc;
-var loading_css_flag;
 adiary.ready(function(){
 	var iframe = document.getElementById('iframe');
 	var module_data_id   = '#design-modules-data';
@@ -19,7 +16,6 @@ adiary.ready(function(){
 	var btn_save = document.getElementById('save-btn');
 	var btn_close_title   = text_of('btn-close')   || 'delete';
 	var btn_setting_title = text_of('btn-setting') || 'setting';
-	var btn_cssset_title  = text_of('btn-css-setting') || 'design setting';
 
 	//----------------------------------------------------------------------
 	// サブルーチン
@@ -156,7 +152,6 @@ function on_iframe_load(){
 	iframe_onload = true;
 	var if_cw = iframe.contentWindow;
 	var doc   = iframe.contentDocument;
-	frame_doc = doc;		// global（プラグインのCSS設定画面が使う）
 	// iframeの中で探す
 	function F(sel) {
 		return Array.from(doc.querySelectorAll(sel));
@@ -459,15 +454,6 @@ function init_module(obj) {
 		div.appendChild(set);
 	}
 
-	if (mdata(obj, 'css-setting')) {
-		var set2 = create('span', 'ui-icon ui-icon-image ui-button ui-button-icon-only', doc);
-		set2.setAttribute('title', btn_cssset_title);
-		set2.addEventListener('click', function(){
-			module_setting(obj, 'css');
-		});
-		div.appendChild(set2);
-	}
-
 	if (!mdata(obj, 'fix')) {
 		var close = create('span', 'ui-icon ui-icon-close ui-button ui-button-icon-only', doc);
 		close.setAttribute('title', btn_close_title);
@@ -533,14 +519,13 @@ function form_params(form) {	// jQuery の .serialize() と同じく、ファイ
 		if (typeof(v) === 'string') data.append(k, v);
 	return data;
 }
-function module_setting(obj, mode) {
+function module_setting(obj) {
 	var name = mdata(obj, 'module-name');
 
 	var formdiv = create('div');
 	formdiv.setAttribute('id', 'popup-dialog');
 	var form = adiary.secure('#setting-form').cloneNode(true);
 	var url  = String(jq_value(form.dataset.url)) + name;
-	if (mode) url += '&mode=' + mode;
 	form.removeAttribute('id');
 	function hidden(n, v) {
 		const inp = create('input');
@@ -550,7 +535,6 @@ function module_setting(obj, mode) {
 		form.appendChild(inp);
 	}
 	hidden('module_name',  name);
-	hidden('setting_mode', mode);
 	var body = create('div');
 	body.setAttribute('id', 'js-form-body');
 	form.appendChild( body );
@@ -573,10 +557,7 @@ function module_setting(obj, mode) {
 		} else {
 			//成功
 			dialog.close();
-			if (mode == 'css')
-				load_module_css ( obj, load_module_html );
-			else
-				load_module_html( obj );
+			load_module_html( obj );
 			return;
 		}
 		errmsg.setAttribute('title', data);
@@ -648,7 +629,7 @@ function module_setting(obj, mode) {
 		const scripts = adiary.take_scripts(body);	// 開いた後に動かす（asys.js）
 
 		// if (id) body.prepend( $('<div>').text('id = #' + id).addClass('plugin-setting-id') );
-		if (1 || mode == 'css') {	// HTMLソースを表示
+		{	// HTMLソースを表示
 			var vbtn = create('button');
 			vbtn.setAttribute('type','button');
 			vbtn.textContent = text_of('btn-view-html');
@@ -771,64 +752,6 @@ function load_module_html(obj) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// ●CSSをロードして置き換える
-////////////////////////////////////////////////////////////////////////////////
-function load_module_css(obj, call) {
-	var callback = function(){
-		if (!call) return;
-		call(obj);
-	};
-
-	var name = String(mdata(obj, 'module-name'));
-	if (!mdata(obj, 'css-setting')) return callback();
-
-	var form = adiary.secure('#load-module-form');
-	document.getElementById('js-load-module-name').value = name;
-	var data = form_params(form);
-	data.append('mode', 'css');
-
-	fetch(action_of(form), { method: 'POST', body: data }).then(function(res){
-		if (!res.ok) throw res.status;
-		return res.text();
-	}).then(function(data){
-		// モジュールのstyleを削除
-		F(module_selector).forEach(function(x){ x.removeAttribute('style') });
-		if (data.match(/^\s*reload=1\s*$/)) {
-			if (!doc.getElementById('user-css')) {	// usercssが読み込まれてない
-				var style = create('link', '', doc);
-				style.setAttribute('id',   'user-css');
-				style.setAttribute('rel',  'stylesheet');
-				style.setAttribute('href', String(jq_value((adiary.secure('#user-css-url') || {dataset:{}}).dataset.url)));
-				doc.head.appendChild(style);
-				return ;
-			}
-			// インストール済の時は、CSS強制リロード
-			var link = doc.getElementById('user-css');
-			var url  = link.getAttribute('href');
-			if (!url || !url.length) {
-				// error
-			} else {
-				url = url.replace(/\?.*/, '');	// ?より後ろを除去
-				url += '?' + Math.random().toString().replace('.', '');
-				link.setAttribute('href', url);
-				console.log('reload user css:', url);
-				return;
-			}
-		}
-
-		// CSSテキストを適用
-		var id = 'js-css-' + name.replace(/[_,]/g, '-');
-		const old = doc.getElementById(id);
-		if (old) old.remove();
-		var css = create('style', '', doc);
-		css.setAttribute('id',   id);
-		css.setAttribute('type', 'text/css');
-		css.textContent = data;
-		doc.head.appendChild(css);
-	}, function(){}).then(callback);
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // ●モジュールの背景色を変えて表示
 ////////////////////////////////////////////////////////////////////////////////
 var disp_modules = document.getElementById('display-modules');
@@ -887,159 +810,3 @@ if (!iframe_onload && iframe && iframe.contentDocument
 	setTimeout(on_iframe_load, 200);
 //------------------------------------------------------------------------------
 });
-
-//##############################################################################
-// 設定画面用のサブルーチン
-//##############################################################################
-// プラグインのCSS設定画面（css_setting.html）から呼ぶ。objはiframeの中の要素（frame_find()で探したもの）
-//	frame_find(sel)		iframeの中の要素（無ければnull）
-//	css(obj, 'margin-top')	計算された値（jQueryの.css()と同じ）
-//	width(obj)、height(obj)、outer_width(obj)、outer_height(obj)、position(obj)
-//				jQuery 3.6の.width()、.height()、.outerWidth()、.outerHeight()、.position()と同じ値
-//	set_value('#id', 値)	ダイアログの欄に値を入れる（jQueryの.val(値)と同じ）
-// objがnullのときは、jQueryの空の集まりと同じく、undefinedを返す
-function frame_find(sel) {
-	return frame_doc ? frame_doc.querySelector(sel) : null;
-}
-function styles_of(obj) {
-	return obj.ownerDocument.defaultView.getComputedStyle(obj);
-}
-function css(obj, prop) {
-	if (!obj) return undefined;
-	return styles_of(obj).getPropertyValue(prop);
-}
-function css_num(obj, prop) {	// jQuery.css(elem, prop, true)
-	return parseFloat(css(obj, prop)) || 0;
-}
-// jQuery 3.6のgetWidthOrHeight()とboxModelAdjustment()を写した
-function jq_size(obj, dim, box) {
-	if (!obj) return undefined;
-	const cs = styles_of(obj);
-	// 隠れている要素は、jQueryと同じく、一時的に出して測る
-	if (/^(none|table(?!-c[ea]).+)/.test(cs.display) && (!obj.getClientRects().length || !obj.getBoundingClientRect().width)) {
-		const st  = obj.style;
-		const old = { position: st.position, visibility: st.visibility, display: st.display };
-		st.position = 'absolute'; st.visibility = 'hidden'; st.display = 'block';
-		const ret = jq_size_main(obj, dim, box);
-		st.position = old.position; st.visibility = old.visibility; st.display = old.display;
-		return ret;
-	}
-	return jq_size_main(obj, dim, box);
-}
-function jq_size_main(obj, dim, box) {
-	const cs  = styles_of(obj);
-	const D   = dim === 'width' ? 'Width' : 'Height';
-	const isBorderBox = cs.boxSizing === 'border-box';
-	let valueIsBorderBox = isBorderBox;
-	let val = cs[dim];
-	if ((val === 'auto' || !parseFloat(val) && cs.display === 'inline') && obj.getClientRects().length) {
-		valueIsBorderBox = true;
-		val = obj['offset' + D];
-	}
-	val = parseFloat(val) || 0;
-
-	let delta = 0;
-	if (box !== (valueIsBorderBox ? 'border' : 'content')) {
-		const sides = dim === 'width' ? ['Right', 'Left'] : ['Top', 'Bottom'];
-		for(const s of sides) {
-			if (!valueIsBorderBox) {
-				delta += css_num(obj, 'padding-' + s.toLowerCase());
-				delta += css_num(obj, 'border-' + s.toLowerCase() + '-width');
-			} else {
-				if (box === 'content') delta -= css_num(obj, 'padding-' + s.toLowerCase());
-				delta -= css_num(obj, 'border-' + s.toLowerCase() + '-width');
-			}
-		}
-		if (!valueIsBorderBox && val >= 0)	// スクロールバーの分
-			delta += Math.max(0, Math.ceil(obj['offset' + D] - val - delta - 0.5)) || 0;
-	}
-	return val + delta;
-}
-function width(obj)        { return jq_size(obj, 'width',  'content') }
-function height(obj)       { return jq_size(obj, 'height', 'content') }
-function outer_width(obj)  { return jq_size(obj, 'width',  'border')  }
-function outer_height(obj) { return jq_size(obj, 'height', 'border')  }
-function position(obj) {
-	if (!obj) return undefined;
-	const doc = obj.ownerDocument;
-	const win = doc.defaultView;
-	const offset_of = function(el) {
-		if (!el.getClientRects().length) return { top: 0, left: 0 };
-		const r = el.getBoundingClientRect();
-		return { top: r.top + win.pageYOffset, left: r.left + win.pageXOffset };
-	};
-	let offset;
-	let po = { top: 0, left: 0 };
-	if (css(obj, 'position') === 'fixed') {
-		offset = obj.getBoundingClientRect();
-	} else {
-		offset = offset_of(obj);
-		let op = obj.offsetParent || doc.documentElement;
-		while(op && (op === doc.body || op === doc.documentElement) && css(op, 'position') === 'static')
-			op = op.parentNode;
-		if (op && op !== obj && op.nodeType === 1) {
-			po = offset_of(op);
-			po.top  += css_num(op, 'border-top-width');
-			po.left += css_num(op, 'border-left-width');
-		}
-	}
-	return {
-		top:  offset.top  - po.top  - css_num(obj, 'margin-top'),
-		left: offset.left - po.left - css_num(obj, 'margin-left')
-	};
-}
-function set_value(sel, val) {
-	const v = (val === null || val === undefined) ? '' : String(val);
-	document.querySelectorAll(sel).forEach(function(x){ x.value = v });
-}
-// FX : rgb(200,200,200), tranparent
-// GC : rgb(200,200,200), rgb(0, 0, 0, 0)
-function parse_color(col) {
-	if (col == '') return '';
-	col = col.toLowerCase();
-	if (col == 'transparent') return '';
-	if (col.match(/^#[0-9a-f]{6}$/)) return col;
-
-	var ma = col.match(/rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/);
-	if (ma) {
-		var c1 = Number(ma[1]).toString(16);
-		var c2 = Number(ma[2]).toString(16);
-		var c3 = Number(ma[3]).toString(16);
-		if (c1.length == 1) c1 = '0' + c1;
-		if (c2.length == 1) c2 = '0' + c2;
-		if (c3.length == 1) c3 = '0' + c3;
-		return '#' + c1 + c2 + c3;
-	}
-	return '';	// unknown type
-}
-
-function parse_px(m) {
-	return Math.round( parse_px_float(m) );
-}
-function parse_px_float(m) {
-	var ma = m && m.match(/^(-?\d+(?:\.\d+)?)\s*(?:px)$/);
-	if (ma) return ma[1];
-	return 0;
-}
-
-function get_border_color(obj) {
-	return parse_color(
-		css(obj, 'border-color')
-		|| css(obj, 'border-bottom-color')
-		|| css(obj, 'border-top-color')
-		|| css(obj, 'border-right-color')
-		|| css(obj, 'border-left-color')
-	);
-}
-
-function delay_color_setting(target, obj, style, func) {
-	setTimeout( function(){
-		var col = parse_color(css(obj, 'background-color'));
-		const sel = document.getElementById('select-bg');
-		if (col && sel) sel.value = col;
-		if (func) {
-			if (typeof(func) == 'function')	return func(obj);
-			obj.classList.remove(func);
-		}
-	}, 500);
-}

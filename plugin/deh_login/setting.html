@@ -1,0 +1,14 @@
+<@7>
+<@local(ps)>
+<$ps=argv#0>
+	<table class="blog-setting">
+	<tbody>
+	<tr>
+		<th>ログイン表示の消去</th>
+		<td>
+			<label><input type="checkbox" name="erase_login" value="1"<@if(ps.erase_login,' checked')>>「ログイン」を見えなくする</label>
+			<span class="help-text">ログアウト中に出るログインのリンクを見えなくします。見えないだけ（空白文字になるだけ）でリンク自体は残ります。</span>
+		</td>
+	</tr>
+	</tbody>
+	</table>

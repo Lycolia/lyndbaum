@@ -12,6 +12,12 @@
 		<td><input type="text" class="w300" name="class" value="<@if(ps.class eq '', 'side-module', ps.class)>"><span class="help-text">モジュール全体に出力するクラスを指定します。スペース区切り。</span></td>
 	</tr>
 	<tr>
+		<th>センタリング</th>
+		<td>
+			<label><input type="checkbox" name="text_centering" value="1"<@if(ps.text_centering,' checked')>>テキストをセンタリングする</label>
+		</td>
+	</tr>
+	<tr>
 		<th>タイトル出力</th>
 		<td>
 			<label><input type="checkbox" name="title_none" value="1"<@if(ps.title_none,' checked')>>出力しない</label>
