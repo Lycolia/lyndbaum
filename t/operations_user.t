@@ -672,6 +672,12 @@ subtest '監査の記録' => sub {
 	ok($link, '2ページ目へのリンクがある');
 	$link =~ s/&amp;/&/g;
 	unlike($link, qr{<|>}, 'リンクにテンプレートの書きかけが残っていない');
+
+	# ページ番号の間隔はHTMLの空白だけで決まる（管理画面のCSSに間隔の指定がない）
+	my ($nav) = $b =~ m{<nav class="page-nav">(.*?)</nav>}s;
+	ok($nav, 'ページ送りが出る');
+	unlike($nav, qr{</(?:a|strong)><(?:a|strong)\b}, 'ページ番号どうしがくっついていない');
+	like($nav, qr{^\s*<a>&lt;</a> \n<strong>1</strong> \n<a href="[^"]*page=2">2</a> \n<a href="[^"]*page=2">&gt;</a>\s*$}, 'ページ送りの並びと空白が記事一覧と同じ');
 	$b = body($app->get('admin', $link));
 	is($rows->($b), 2, '2ページ目に残りの2件が出る');
 	like($b, qr{全12件}, '2ページ目でも絞り込みが引き継がれる');
