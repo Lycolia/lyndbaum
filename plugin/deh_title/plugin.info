@@ -1,6 +1,6 @@
 ######################################################################
 title=ページタイトル（標準）
-version=1.03
+version=1.04
 #					(C)2015 nabe@abk
 ######################################################################
 author=nabe@abk
@@ -11,6 +11,8 @@ adiary_version=4.16
 module_type=header
 
 module_id=page-title
+
+load_module_html_in_edit=1
 
 *sample_html=<<HTML
 <div id="<@id>" class="site-title" data-module-name="<@this>">

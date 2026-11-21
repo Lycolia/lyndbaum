@@ -8,6 +8,8 @@
 <$art_sample_mode=1>
 
 <$s = v.blog>
+<@> タイトル（deh_title）はv.titleを出す。見本の画面と同じく、サイト名を入れる（見本の画面では_article.htmlが入れる）
+<$v.title = s.blog_name>
 <@> 記事のモジュール（記事ヘッダなど）は記事を使うので、見本の画面（design/art_sample）と同じ記事を渡す
 <$sample = call('design/_sub/sample_article')>
 <$t = sample.t>

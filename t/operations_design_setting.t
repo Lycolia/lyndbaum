@@ -91,7 +91,7 @@ subtest 'デザイン編集から設定の画面を辿る' => sub {
 	like(body($app->get('admin', query_of($url) . 'deh_login&mode=css')), qr/name="erase_login"/, '&mode=cssを付けても普通の設定の画面');
 
 	# ページタイトルは、デザイン設定を消したので、設定を持たない
-	like($b, qr/data-module-name="deh_title"\s+data-type="header"\s+data-setting=""\s+data-load-module-html=""/, 'deh_title：設定のボタンを出す印が無い');
+	like($b, qr/data-module-name="deh_title"\s+data-type="header"\s+data-setting=""\s/, 'deh_title：設定のボタンを出す印が無い');
 	ok(!-e "$ROOT/plugin/deh_title/setting.html", 'deh_title：設定の画面のファイルが無い');
 
 	# デザイン設定の項目は残っていない
@@ -184,6 +184,30 @@ subtest 'サイトの説明の改行' => sub {
 subtest 'ページタイトルのHTMLは前と同じ' => sub {
 	my ($t) = body($app->get('guest', '')) =~ m{(<div id="page-title".*?</div>)}s;
 	is($t, qq|<div id="page-title" class="site-title" data-module-name="deh_title">\n\t<a href="/lyndbaum.cgi">テストのサイト</a>\n</div>|, 'タイトルのHTML');
+};
+
+#-------------------------------------------------------------------------------
+# デザイン編集でページタイトルを追加すると、サイト名に差し替わる
+#-------------------------------------------------------------------------------
+subtest 'ページタイトルを追加するとサイト名が出る' => sub {
+	my $title = qr{(<div id="page-title".*?</div>)}s;
+	my ($pub) = body($app->get('guest', '')) =~ $title;
+
+	# 追加の一覧から置くのは見本のHTML。取り直す印があるものだけ、design-edit.jsがdesign/load_moduleで差し替える
+	like(body($app->get('admin', 'design/edit')), qr/data-module-name="deh_title"\s+data-type="header"\s+data-setting=""\s+data-load-module-html="1"/, 'デザイナで取り直す対象になる');
+
+	my $r = $app->post('admin', '', { action => 'design/load_module', module_name => 'deh_title' });
+	is($r->{status}, 200, '取り直せる');
+	my ($load) = body($r) =~ $title;
+	is($load, $pub, '取り直したHTMLは、公開画面と同じ（サイト名が出る）');
+	like($load, qr{>テストのサイト</a>}, 'サイト名が入っている');
+
+	my ($sample) = body($app->get('admin', 'design/art_sample')) =~ $title;
+	is($sample, $pub, '見本の画面とも同じ');
+
+	# 画面が出したリンクを辿る
+	my ($href) = $load =~ m{<a href="([^"]*)"};
+	is($app->get('guest', query_of($href))->{status}, 200, 'タイトルのリンクを開ける');
 };
 
 #-------------------------------------------------------------------------------
