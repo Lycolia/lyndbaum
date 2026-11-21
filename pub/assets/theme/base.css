@@ -599,10 +599,25 @@ span.highlight4	{ background-color: #f6f; }
 	outline-offset:	1px;
 }
 
-/* 絞り込み項目 */
-.search div.narrow {
-	font-size:	9pt;
+/* 絞り込み項目。字は本文と同じ大きさ。リンクは余白を付けて離し、押せる範囲を広げる
+   リンクの間は余白だけで決める。HTMLの改行やタブが幅を取らないよう、flexで並べる（折り返す） */
+.search div.narrow,
+.narrow-tag-panel {
+	display:	flex;
+	flex-wrap:	wrap;
+	align-items:	center;
 	line-height:	150%;
+}
+.search div.narrow a {
+	padding:	3px 6px;
+}
+/* タグの並びの包みは箱にせず、中のリンクを絞り込みの行（子の枠の中では、その枠）にじかに並べる */
+.narrow-tag-row {
+	display:	contents;
+}
+/* 子のあるタグは、開くボタン（右に2pxの余白がある）とタグ名を離しすぎない */
+.search div.narrow .narrow-tag-node a {
+	padding-left:	2px;
 }
 /* タグは階層ごとに横に並べ、子のあるタグの子は並びの下の枠に出す（adiary.init_narrow_tag） */
 .search div.narrow-tag a {
@@ -642,7 +657,9 @@ span.highlight4	{ background-color: #f6f; }
 	outline:	2px solid #36c;
 	outline-offset:	1px;
 }
+/* 子の枠と、その見出しは、1行を使う */
 .narrow-tag-panel {
+	flex:		1 1 100%;
 	margin:		4px 0 4px 1em;
 	padding:	4px 8px;
 	border:		1px solid #ccc;
@@ -650,7 +667,7 @@ span.highlight4	{ background-color: #f6f; }
 	background-color: rgba(128,128,128,0.06);
 }
 .narrow-tag-panel-title {
-	display:	block;
+	flex:		0 0 100%;
 	font-weight:	bold;
 }
 /* JavaScriptが使えるときは、開いた枠だけを出す。使えないときは、ボタンを出さず、枠をすべて出す */
