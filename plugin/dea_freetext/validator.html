@@ -2,6 +2,7 @@
 <@local(h)>
 <$h = validator(begin_hash, argv#0)>
 	lf2br = flag
+	text_centering = flag
 	free_txt = 入力テキスト
 	free_txt:filter0     = file:<@v.allow_tags_head>usertext.txt
 	free_txt:filter0_opt = <@v.trust_mode>

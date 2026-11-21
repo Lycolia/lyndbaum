@@ -73,7 +73,7 @@ Helpers.push({
 Helpers.push({
 	regexp:	/^(?:simple|html)/i,
 	escape:	false,
-	head:	{ func: 'block',	tag:  '<h3>$0</h3>',	form_type: 'text' },
+	head:	{ func: 'block',	tag:  '<h2>$0</h2>',	form_type: 'text' },
 	strong:	{ func: 'inline',	tag: '<strong>$0</strong>' },
 	link:	{ func: 'inline',	tag: '<a href="$0">$1</a>' },
 	anno:	null,

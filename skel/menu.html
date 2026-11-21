@@ -20,7 +20,7 @@
 <$need_info = Auth.isadmin && (v.sys.myself ne myself || v.sys.myself2 ne myself2)>
 <@ifexec(need_info || v.blog.newcom_flag, begin)>
 <article class="system">
-<h2>お知らせ</h2>
+<h1>お知らせ</h1>
 <div class="body">
 	<@ifexec(need_info, begin)>
 		<p><a href="<@v.myself>?system/update">付加情報の再生成</a>が必要です。</p>
@@ -59,7 +59,7 @@
 	<@ifexec(v.blog_admin, begin)>
 	<$trash = v.load_trash_list()>
 	<article class="system">
-	<h2>概要</h2>
+	<h1>概要</h1>
 	<div class="body">
 	<ul class="dashboard-glance">
 		<@exec(glance_arts, 'art',  'draft', '記事の下書き')>
@@ -76,7 +76,7 @@
 	</article>
 
 	<article class="system">
-	<h2>記事作成</h2>
+	<h1>記事作成</h1>
 	<div class="body">
 	<p><a class="button-primary" href="<@v.myself>?edit">新しく書く</a></p>
 	</div>
@@ -86,7 +86,7 @@
 
 <@ifexec(Auth.isadmin && !mod_rewrite && ENV.SERVER_SOFTWARE eq 'Apache' && 0<index(myself2, '.cgi'), begin)>
 <article class="system adiary-hint">
-<h2>利用のヒント</h2>
+<h1>利用のヒント</h1>
 <div class="body">
 <p>URLに含まれる「<strong><@cgi = substr(CMD, rindex(CMD,'/')+1)></strong>」を消すことができます。</p>
 

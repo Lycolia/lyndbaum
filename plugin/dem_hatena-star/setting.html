@@ -4,8 +4,11 @@
 	<table class="blog-setting">
 	<tbody>
 	<tr>
-		<th>はてなスタートークン</th>
-		<td><input type="text" name="token" value="<@ps.token>" class="w240"></td>
+		<th>表示位置</th>
+		<td>
+			<label><input type="radio" name="position" value="title" <@if(ps.position ne 'footer',' checked')>>記事タイトルの後ろ</label>
+			<label><input type="radio" name="position" value="footer" <@if(ps.position eq 'footer',' checked')>>記事の下</label><span class="help-text">共有ボタン（ソーシャルボタン）がある記事では、その上に出します</span>
+		</td>
 	</tr>
 	</tbody>
 	</table>

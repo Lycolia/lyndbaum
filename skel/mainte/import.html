@@ -11,7 +11,7 @@
 
 <!--=========================================================================-->
 <article class="system setting">
-<h2><@v.title></h2>
+<h1><@v.title></h1>
 <div class="body">
 	<p>ファイルから記事データをインポートします。</p>
 
@@ -70,7 +70,7 @@ let bar;
 	prog0.removeAttribute('id');
 	log0 .removeAttribute('id');
 	// 今までのjQueryの.append()と同じく、最後のもの以外には写しを入れ、最後のものには元を動かす
-	const divs = Array.from( document.querySelectorAll('#accordion > h3 + div') );
+	const divs = Array.from( document.querySelectorAll('#accordion > h2 + div') );
 	for(const x of [prog0, log0])
 		divs.forEach(function(div, i){
 			div.appendChild( i == divs.length-1 ? x : x.cloneNode(true) );

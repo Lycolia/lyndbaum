@@ -51,7 +51,7 @@
 	<$end>
 	<li<@if(cur.personal, ' class="current"')>><a href="<@v.myself>?personal/">アカウント設定</a></li>
 	<@ifexec(Auth.isadmin, begin)>
-		<li<@if(cur.user,     ' class="current"')>><a href="<@v.myself>?user/log">操作の記録</a></li>
+		<li<@if(cur.user,     ' class="current"')>><a href="<@v.myself>?user/log">監査の記録</a></li>
 		<li<@if(cur.system,   ' class="current"')>><a href="<@v.myself>?system/">システム管理</a></li>
 	<$end>
 	</ul>

@@ -8,5 +8,9 @@
   },
   "markdown.copyFiles.destination": {
     "*": "${documentDirName}/assets/${fileName}"
+  },
+  "search.exclude":{
+    "__cache": true,
+    ".vscode/perl-lang": true
   }
 }

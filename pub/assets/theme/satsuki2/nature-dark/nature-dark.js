@@ -10,16 +10,16 @@
 	else func();
 })(function() {
 	document.querySelectorAll('#main-first article.article').forEach(function(art){
-		const h2   = art.querySelector('h2');
+		const h1   = art.querySelector('h1');
 		const head = art.querySelector('div.body-header');
-		if (h2 && head) {
-			const date = h2.querySelector('a.date');
-			if (date) h2.appendChild(date);
-			h2.appendChild(head);
+		if (h1 && head) {
+			const date = h1.querySelector('a.date');
+			if (date) h1.appendChild(date);
+			h1.appendChild(head);
 		}
-		const bookmark = h2 && h2.querySelector('a.http-bookmark');
+		const bookmark = h1 && h1.querySelector('a.http-bookmark');
 		if (bookmark) {
-			h2.appendChild(bookmark);
+			h1.appendChild(bookmark);
 		}
 	});
 });

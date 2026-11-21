@@ -16,7 +16,7 @@
    右サイドバーの選択肢より優先させるため、セレクタに body を付ける。
    これより狭い画面では、satsuki2テーマの2カラムと1列のまま */
 @media screen and (min-width: 920px) {
-	body #hatena-body > div {
+	body #columns > div {
 		grid-template-columns:	18% minmax(0, 1fr) 18%;
 		grid-template-areas:	"side-a main side-b";
 		column-gap:		1%;

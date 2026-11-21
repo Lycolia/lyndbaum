@@ -290,7 +290,7 @@ ul.dynatree-container a {
 }
 
 /* メディア管理のタイトル */
-#media h2 * {
+#media h1 * {
 	vertical-align:		middle;
 }
 #current-folder {
@@ -389,7 +389,7 @@ ul.dynatree-container a {
 ●システム画面UI
 --------------------------------------------------------------------*/
 /* import/export画面等 */
-.js-accordion h3 {
+.js-accordion h2 {
 	cursor:			pointer;
 }
 

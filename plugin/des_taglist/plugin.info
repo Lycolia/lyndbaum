@@ -15,10 +15,10 @@ load_module_html_in_edit=1
 # module_id=side-tag-list
 
 *sample_html=<<HTML
-<div class="hatena-module side-tag-list">
-<div class="hatena-moduletitle">タグ</div>
-<div class="hatena-modulebody">
-<ul id="sidetag-root" class="hatena-section">
+<div class="side-module side-tag-list">
+<div class="side-module-title">タグ</div>
+<div class="side-module-body">
+<ul id="sidetag-root" class="side-module-list">
 	<li><details open><summary><a href="#">日記</a> <span class="qt">(<span>414</span>)</span></summary>
 	<ul id="sidetag-314">
 		<li><a href="#">日常</a> <span class="qt">(<span>88</span>)</span></li>
@@ -36,9 +36,9 @@ HTML
 
 *module_html=<<HTML
 <!--タグリスト=====================================-->
-<div class="hatena-module side-tag-list" data-module-name="<@this>">
+<div class="side-module side-tag-list" data-module-name="<@this>">
 <@v.load_plgset('<@this>', 'html')>
-</div> <!-- hatena-module -->
+</div> <!-- side-module -->
 HTML
 
 *files=<<FILES

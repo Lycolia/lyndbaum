@@ -224,7 +224,6 @@ a <M> b <x86 Panther Lake> c
 <p><B>a</B></p>
 
 === 非対応: __太字__ は文章
---- todo: 作り直しで対応（非対応の記法を文章として表示）
 --- input
 __太字__
 --- expected
@@ -240,9 +239,140 @@ __太字__
 <p>[id]: https://example.com</p>
 
 === 非対応: タイトル付きリンクは文章
---- todo: 作り直しで対応（非対応の記法を文章として表示）
 --- input
 [文字](https://example.com "タイトル")
 --- expected
 <p>[文字](https://example.com "タイトル")</p>
 
+=== 非対応: タイトル付きの画像は文章
+--- input
+![代替](https://example.com/a.png "t")
+--- expected
+<p>![代替](https://example.com/a.png "t")</p>
+
+=== 非対応: 語の途中の __ も文章
+--- input
+a__b__c と *__c__*
+--- expected
+<p>a__b__c と <em>__c__</em></p>
+
+=== 非対応: gfm_ext を切っても __太字__ は文章
+--- options: gfm_ext=0
+--- input
+__太字__ と _強調_
+--- expected
+<p>__太字__ と <em>強調</em></p>
+
+=== リンクの文字の中の画像
+--- input
+[![代替](https://example.com/a.png)](https://example.com/)
+--- expected
+<p><a href="https://example.com/"><img src="https://example.com/a.png" alt="代替" /></a></p>
+
+=== リンクの文字の中の、文字と画像
+--- input
+[前 ![a_b_c](a_b_c.png) 後](https://example.com/x_y_z)
+--- expected
+<p><a href="https://example.com/x_y_z">前 <img src="a_b_c.png" alt="a_b_c" /> 後</a></p>
+
+=== 画像の代替テキストの中のリンクは文字のまま
+--- input
+![[a](b)](c.png)
+--- expected
+<p><img src="c.png" alt="[a](b)" /></p>
+
+=== ***太字斜体*** は em の中に strong
+--- input
+***太字斜体*** と ***a b***
+--- expected
+<p><em><strong>太字斜体</strong></em> と <em><strong>a b</strong></em></p>
+
+=== 内側が空白で始まる・終わる *** は文字のまま
+--- input
+*** a *** と ***a ***
+--- expected
+<p>*** a *** と ***a ***</p>
+
+=== * が4つ以上続く所は記号にしない
+--- input
+****a**** と *****
+--- expected
+<p>****a**** と *****</p>
+
+=== 太字は離れた ** どうしを結ばない
+--- input
+**a ** と ** a**
+--- expected
+<p>**a ** と ** a**</p>
+
+=== 閉じていない ** の後ろの太字
+--- input
+**a と **b**
+--- expected
+<p>**a と <strong>b</strong></p>
+
+=== 太字の中の強調と * 、隣り合う太字
+--- input
+**a *b* c** と **a*b** と **a**b**c**
+--- expected
+<p><strong>a <em>b</em> c</strong> と <strong>a*b</strong> と <strong>a</strong>b<strong>c</strong></p>
+
+=== 太字と強調の入れ子
+--- input
+**_a_** と _**b**_ と *a **b***
+--- expected
+<p><strong><em>a</em></strong> と <em><strong>b</strong></em> と <em>a <strong>b</strong></em></p>
+
+=== ASCIIの記号はすべてエスケープできる（CommonMark と同じ）
+--- input
+\!\"\#\$\%\&\'\(\)\*\+\,\-\.\/\:\;\<\=\>\?\@\[\\\]\^\_\`\{\|\}\~
+--- expected
+<p>!&quot;#$%&amp;'()*+,-./:;&lt;=&gt;?@[\]^_`{|}~</p>
+
+=== 記号でない文字の前のバックスラッシュは文字のまま
+--- input
+\a \1 \あ \ x C:\Users\a
+--- expected
+<p>\a \1 \あ \ x C:\Users\a</p>
+
+=== \< でタグを文字にする
+--- input
+\<h1> \<b>x\</b> \<script>alert(1)\</script> \<foo>
+--- expected
+<p>&lt;h1&gt; &lt;b&gt;x&lt;/b&gt; &lt;script&gt;alert(1)&lt;/script&gt; &lt;foo&gt;</p>
+
+=== リンクの文字の中の \< と \>
+--- input
+[\<h1>–\<h6> 要素](https://example.com/) [<h1\>–<h6\> 要素](https://example.com/)
+--- expected
+<p><a href="https://example.com/">&lt;h1&gt;–&lt;h6&gt; 要素</a> <a href="https://example.com/">&lt;h1&gt;–&lt;h6&gt; 要素</a></p>
+
+=== \< で自動リンクを文字にする
+--- input
+\<https://example.com/>
+--- expected
+<p>&lt;https://example.com/&gt;</p>
+
+=== \& で文字参照を文字にする
+--- input
+\&amp; \&copy; AT\&T
+--- expected
+<p>&amp;amp; &amp;copy; AT&amp;T</p>
+
+=== URLと代替テキストの中の \" は属性を壊さない
+--- input
+[a](https://example.com/a\"b) ![x\"y\<z](https://example.com/i.png)
+--- expected
+<p><a href="https://example.com/a&quot;b">a</a> <img src="https://example.com/i.png" alt="x&quot;y&lt;z" /></p>
+
+=== タグの引数の中のエスケープ
+--- input
+[bf:\<h1>] [bf:a\:b] [bf:a\&b]
+--- expected
+<p><strong>&lt;h1&gt;</strong> <strong>a:b</strong> <strong>a&amp;b</strong></p>
+
+=== コードスパンの中の \{ \< \& は文字のまま
+--- input
+`REG\hoge\{aa-bb-cc}` `a\<b` `\&`
+--- expected
+<p><code>REG\hoge\{aa-bb-cc}</code> <code>a\&lt;b</code> <code>\&amp;</code></p>

@@ -519,7 +519,7 @@ subtest 'des_searchboxの検索タイプの選択' => sub {
 	my $r = $app->post('admin', '', { action => 'design/edit', side_a_ary => 'des_searchbox' });
 	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
 
-	my $side = sub { (body($_[0]) =~ m{(<div class="hatena-module" id="side-search".*?</form>)}s)[0] // '' };
+	my $side = sub { (body($_[0]) =~ m{(<div class="side-module" id="side-search".*?</form>)}s)[0] // '' };
 	$r = $app->get('guest', '?q=x');
 	like($side->($r), qr/class="search-radio"/, '既定ではラジオを出す');
 	like($side->($r), qr{</button><br>\n<span class="search-radio">}, '既定のHTMLは今までどおり');
@@ -624,6 +624,242 @@ subtest '検索画面のタグの絞り込みの木' => sub {
 	like($b, qr{全<span>1</span>件}, "リンク（$href）を辿ると1件に絞られる");
 	like($b, qr{木の記事A}, '絞った記事が出る');
 	unlike($b, qr{木の記事B}, 'ほかの記事は出ない');
+};
+
+#-------------------------------------------------------------------------------
+# 検索画面の絞り込みの並び。タグはタグの編集画面の表示順、日付は新しい順
+#-------------------------------------------------------------------------------
+subtest '検索画面の絞り込みの並び' => sub {
+	my %art = (parser => 'markdown', enable => 1, com_ok => 1);
+	my @arts = (
+		[ '順の記事A', '2024-03-05', 'YB', 'YP::k2' ],
+		[ '順の記事B', '2025-02-01', 'YA', 'YP::k1' ],
+		[ '順の記事C', '2025-07-01', 'YA' ],
+	);
+	foreach (@arts) {
+		my ($title, $ymd, @tags) = @$_;
+		my $r = $app->post('admin', '', [ %art, action => 'edit', ymd => $ymd, title => $title, body_txt => "本文\n", map { (tag_ary => $_) } @tags ]);
+		ok(AppTest::is_reload($r), "$title を書ける");
+	}
+	my $q = '?q=' . AppTest::_uri_escape('順の記事');
+	# 絞り込みの欄のリンクの文字を、出た順に取り出す
+	my $names = sub {
+		my ($b, $class) = @_;
+		my ($div) = $b =~ m{<div class="narrow \Q$class\E"[^>]*>(.*?)\n\t<div class="(?:narrow |hits)}s;
+		return join(' ', ($div // '') =~ m{>([^<>]+)\(\d+\)</a>}g);
+	};
+
+	# タグ。表示順を決めていない間は、作った順（名前順ではない）
+	is($names->(body($app->get('guest', $q)), 'narrow-tag'), 'YB YP YA k2 k1', '表示順を決める前は、作った順に出る');
+
+	# タグの編集で表示順を決める（pkeyは、タグのキャッシュの行の番号）
+	my %pkey;
+	{
+		open(my $fh, '<:utf8', $app->dir . '/data/blog/tag_cache.txt') || die;
+		my $i = 0;
+		while (my $line = <$fh>) {
+			chomp($line);
+			my @a = split("\t", $line);
+			if (defined $a[6]) { $pkey{$a[6]} = $i; }
+			$i++;
+		}
+		close($fh);
+	}
+	ok($pkey{YA} && $pkey{YB} && $pkey{YP} && $pkey{'YP::k1'} && $pkey{'YP::k2'}, 'タグのpkeyが分かる');
+	my $r = $app->post('admin', 'tag_edit', [ action => 'tag_edit',
+		tag_ary => "$pkey{YA},0,1,YA",
+		tag_ary => "$pkey{YP},0,2,YP",
+		tag_ary => "$pkey{YB},0,3,YB",
+		tag_ary => "$pkey{'YP::k1'},$pkey{YP},1,k1",
+		tag_ary => "$pkey{'YP::k2'},$pkey{YP},2,k2",
+	]);
+	ok(AppTest::is_reload($r), 'タグの表示順を変えられる');
+	my $b = body($app->get('guest', $q));
+	is($names->($b, 'narrow-tag'), 'YA YP YB k1 k2', 'タグの編集で決めた順に出る（子も）');
+
+	# 日付。年も月も新しい順
+	is($names->($b, 'narrow-ymd'), '2025年 2024年', '年は新しい順に出る');
+	my ($href) = $b =~ m{<a href="([^"]*)">2025年\(2\)</a>};
+	ok($href, '2025年のリンクがある');
+	$href =~ s/&amp;/&/g;
+	$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+	$b = body($app->get('guest', $href));
+	like($b, qr{全<span>2</span>件}, "リンク（$href）を辿ると2件に絞られる");
+	is($names->($b, 'narrow-ymd'), '7月 2月', '月は新しい順に出る');
+	like($b, qr{順の記事C.*順の記事B}s, '記事も新しい順に出る');
+};
+
+#-------------------------------------------------------------------------------
+# はてなスター。HatenaStar.jsはDOMContentLoadedのときに一度だけHatena.Star.SiteConfigを読む。
+# ログイン中は<script-defer>がその後に動くので、設定は普通の<script>で出す
+#-------------------------------------------------------------------------------
+subtest 'dem_hatena-starの設定のスクリプト' => sub {
+	my $r = $app->post('admin', '', { action => 'design/edit', main_a_ary => 'dem_hatena-star' });
+	cmp_ok($r->{status}, '<', 400, 'モジュールを置ける');
+
+	my $check = sub {
+		my ($b, $name) = @_;
+		like($b, qr{<script defer src="https://s\.hatena\.ne\.jp/js/HatenaStar\.js"></script>}, "$name：HatenaStar.jsを読む");
+		like($b, qr{<script>\nvar Hatena;\n.*?Hatena\.Star\.SiteConfig = \{.*?</script>}s, "$name：設定を普通の<script>で出す");
+		unlike($b, qr{<script-defer>(?:(?!</script-defer>).)*Hatena}s, "$name：<script-defer>では出さない");
+		unlike($b, qr{Hatena\.Star\.Token}, "$name：トークンは出さない");
+		like($b, qr{<article[^>]* class="article[ "][^>]*>\s*<h1[^>]*>.*?<a href="[^"]*" class="title">}s, "$name：設定のセレクタ（article.article h1 a.title）に合う記事がある");
+	};
+	foreach my $user (qw(guest admin)) {
+		my $b = body($app->get($user, ''));
+		$check->($b, "${user}のトップ");
+		# 画面が出した記事のリンクを辿る
+		my ($href) = $b =~ m{<article[^>]*>\s*<h1[^>]*>.*?<a href="([^"]*)" class="title">}s;
+		ok($href, "${user}：記事のリンクがある");
+		$href =~ s{^/lyndbaum\.cgi}{};	# AppTestはSCRIPT_NAMEを足して呼ぶ
+		my $a = $app->get($user, $href);
+		is($a->{status}, 200, "${user}：記事のリンク（$href）を開ける");
+		$check->(body($a), "${user}の記事のページ");
+	}
+
+	# 表示位置。既定は記事タイトルの後ろ
+	my $top = body($app->get('guest', ''));
+	like($top, qr{var container = 'h1';\n\s*Hatena\.Star\.SiteConfig}, '既定では記事タイトル（h1）に出す');
+	like($top, qr{container: container\n}, 'containerは変数で渡す');
+	unlike($top, qr{hatena-star-box}, '既定では星を入れるdivを作らない');
+
+	# 設定の画面が出した欄を使って保存する
+	my $set = body($app->get('admin', 'plugin/plugin_setting&name=dem_hatena-star'));
+	like($set, qr{name="position" value="title"  ?checked}, '設定の画面：既定は記事タイトルの後ろ');
+	my ($v) = $set =~ m{name="position" value="(footer)"};
+	ok($v, '設定の画面に「記事の下」がある');
+	unlike($set, qr{name="token"}, '設定の画面にトークンの欄はない');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => 'x' });
+	unlike($r->{body}, qr/^ret=0$/m, '決まった値のほかは保存できない');
+	unlike(body($app->get('guest', '')), qr{hatena-star-box}, '保存できなかったので、既定のまま');
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => $v });
+	like($r->{body}, qr/^ret=0$/m, '記事の下にできる');
+	like(body($app->get('admin', 'plugin/plugin_setting&name=dem_hatena-star')), qr{name="position" value="footer"  ?checked}, '設定の画面に保存した値が出る');
+
+	my $check_footer = sub {
+		my ($b, $name) = @_;
+		$check->($b, $name);
+		like($b, qr{container = '\.hatena-star-box';}, "$name：星を入れるdivをcontainerにする");
+		like($b, qr{querySelector\('\.social-buttons'\)}, "$name：共有ボタンの前にdivを作る");
+		like($b, qr{<div class="body-footer">}, "$name：共有ボタンが無いときの入れ先（div.body-footer）がある");
+	};
+	foreach my $user (qw(guest admin)) {
+		my $b = body($app->get($user, ''));
+		$check_footer->($b, "${user}のトップ（記事の下）");
+		my ($href) = $b =~ m{<article[^>]*>\s*<h1[^>]*>.*?<a href="([^"]*)" class="title">}s;
+		$href =~ s{^/lyndbaum\.cgi}{};
+		$check_footer->(body($app->get($user, $href)), "${user}の記事のページ（記事の下）");
+	}
+
+	$r = $app->post('admin', '', { action => 'plugin/plugin_setting', module_name => 'dem_hatena-star', position => 'title' });
+	like($r->{body}, qr/^ret=0$/m, '記事タイトルの後ろに戻せる');
+	unlike(body($app->get('guest', '')), qr{hatena-star-box}, '戻すと星を入れるdivを作らない');
+};
+
+#-------------------------------------------------------------------------------
+# テーマの色の調整
+#-------------------------------------------------------------------------------
+# テーマのCSSの「$c=名前」の印が付いた行だけを抜き出し、色を差し替えたものを pub/custom/theme.css に作る。
+# lyndbaum系は、色をテンプレートの直下の共通のCSS（lyndbaum/lyndbaum.css）の :root の変数で持つ
+subtest 'テーマの色の調整（lyndbaum系）' => sub {
+	my $css_file = "$dir/pub/custom/theme.css";
+	my $colors   = sub { $app->get('admin', "design/theme_colors&name=$_[0]")->{json} };
+	my $save     = sub { $app->post('admin', 'design/theme', { action => 'design/theme', @_ }) };
+	# 公開画面が出した<link>
+	my $links = sub {
+		my $b = body($app->get('guest', ''));
+		return map { [ $_ =~ /id="([\w-]+)"/, $_ =~ /href="([^"]*)"/ ] } ($b =~ m{<link rel="stylesheet"[^>]*id="theme-[\w-]+"[^>]*>}g);
+	};
+
+	# デザインの画面が出したリンクから、テーマ選択の画面を開く
+	my ($href) = body($app->get('admin', 'design/')) =~ m{<li><a href="([^"]*)">テーマ選択（配色）</a>};
+	ok($href, 'デザインの画面に、テーマ選択へのリンクがある');
+	$href =~ s{^/lyndbaum\.cgi\?}{};
+	my $b = body($app->get('admin', $href));
+	like($b, qr{<option value="lyndbaum/lyndbaum" data-readme="1" selected>}, 'テーマ選択の画面で、今のテーマが選ばれている');
+	foreach my $t (qw(lyndbaum lyndbaum-2col-left lyndbaum-2col-right)) {
+		like($b, qr{<option value="lyndbaum/$t" }, "$t：選択肢にある");
+	}
+
+	# 抜き出したCSS。3つのテーマで同じ色が拾える
+	my %default = (
+		fixfont => '#222222', fixmutedfont => '#666666', link => '#0a58ca', fixborder => '#dddddd', fixbg => '#ffffff',
+		fixcodebg => '#f6f8fa', fixbasebg => '#f0f0f1', accent => '#4450c8', accentsoft => '#e9ebfd', strong => '#cc3300',
+	);
+	my $extract = <<'CSS';
+:root {
+	--text: #222222;	/* $c=fixfont */
+	--muted: #666666;	/* $c=fixmutedfont */
+	--link: #0a58ca;	/* $c=link */
+	--border: #dddddd;	/* $c=fixborder */
+	--bg: #ffffff;	/* $c=fixbg */
+	--code-bg: #f6f8fa;	/* $c=fixcodebg */
+	--page-bg: #f0f0f1;	/* $c=fixbasebg */
+	--accent: #4450c8;	/* $c=accent */
+	--accent-soft: #e9ebfd;	/* $c=accentsoft = auto:accent */
+	--strong: #cc3300;	/* $c=strong */
+}
+#ui-icon-autoload { background-color: #0a58ca; /* $c=link */ }
+CSS
+	foreach my $t (qw(lyndbaum lyndbaum-2col-left lyndbaum-2col-right)) {
+		my $c = $colors->("lyndbaum/$t");
+		is($c->{_css_text}, "/* \$theme=lyndbaum/$t */\n$extract", "$t：印の付いた行だけを抜き出す（変数の名前は変えない）");
+		is($c->{'accentsoft-rel'}, 'auto:accent', "$t：連動の指定");
+		is_deeply({ map { $_ => $c->{$_} } keys(%default) }, \%default, "$t：色の初期値");
+		is(scalar(grep { !/^_|-rel$/ } keys(%$c)), scalar(keys(%default)), "$t：ほかの色やエラーは無い");
+	}
+	# 共通のCSSの無いテンプレートは、今までどおり
+	like($colors->('satsuki2/satsuki2')->{_css_text}, qr{^\tborder-bottom-color:\t#6b75b8;\t/\* \$c=border \*/$}m, 'satsuki2：borderは色だけの指定に直す');
+
+	# 色を変えずに保存しても、CSSは作らない
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $default{$_}) } keys(%default))), '初期値のまま保存できる');
+	ok(!-e $css_file, '初期値のままなら、色のCSSを作らない');
+	is_deeply([ map { $_->[0] } $links->() ], [ 'theme-common-css', 'theme-css' ], '公開画面は、色のCSSを読まない');
+
+	# 色を変えて保存する
+	my %new = (%default, link => '#aa0000', accent => '#006644', accentsoft => '#e0f0e8', fixbg => '#fffff0');
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $new{$_}) } keys(%new))), '色を変えて保存できる');
+	my $want = "/* \$theme=lyndbaum/lyndbaum */\n$extract";
+	$want =~ s/#0a58ca/#aa0000/g;
+	$want =~ s/#4450c8/#006644/;
+	$want =~ s/#e9ebfd/#e0f0e8/;
+	$want =~ s/#ffffff/#fffff0/;
+	is(read_file($css_file), $want, '色のCSSは、変数の上書きとアイコンの色だけ');
+
+	# 公開画面が出した<link>を辿る。色のCSSは、テーマのCSSの後
+	my @l = $links->();
+	is_deeply([ map { $_->[0] } @l ], [ 'theme-common-css', 'theme-css', 'theme-custom-css' ], '公開画面は、共通のCSS、テーマのCSS、色のCSSの順に読む');
+	like($l[2]->[1], qr{^/pub/custom/theme\.css\?\d+$}, '色のCSSのURL（更新日時が付く）');
+	foreach (@l) {
+		(my $f = $_->[1]) =~ s/\?\d+$//;
+		ok(-s "$dir$f", "$_->[0]：リンク先のファイルがある");
+	}
+
+	# 画面を開き直すと、保存した色が欄に入る（-cst）
+	my $c = $colors->('lyndbaum/lyndbaum');
+	is_deeply({ map { $_ => $c->{"$_-cst"} } keys(%new) }, \%new, '保存した色を返す');
+	is($c->{link}, '#0a58ca', 'テーマの初期値はそのまま');
+
+	# 作り直し（システムのアップデートなど）
+	unlink($css_file);
+	ok(AppTest::is_reload($app->post('admin', 'system/update', { action => 'system/remake_custom_css' })), 'カスタムCSS再生成');
+	is(read_file($css_file), $want, '同じ中身で作り直す');
+
+	# 色はテーマごとに持つ。ほかのテーマにすると色のCSSは消え、戻して保存すると元の色になる
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum-2col-left')), '2カラムにする');
+	ok(!-e $css_file, 'テーマを変えると、色のCSSを消す');
+	is_deeply([ map { $_->[0] } $links->() ], [ 'theme-common-css', 'theme-css' ], '2カラムでは、色のCSSを読まない');
+	is($colors->('lyndbaum/lyndbaum-2col-left')->{'link-cst'}, undef, '2カラムには、3カラムの色を引き継がない');
+	$c = $colors->('lyndbaum/lyndbaum');
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $c->{"$_-cst"}) } keys(%new))), '3カラムに戻す');
+	is(read_file($css_file), $want, '前に保存した色で作り直す');
+
+	# 初期値に戻して保存すると、色のCSSは無くなる
+	ok(AppTest::is_reload($save->(theme => 'lyndbaum/lyndbaum', custom => 1, map { ("c_$_" => $default{$_}) } keys(%default))), '初期値に戻す');
+	ok(!-e $css_file, '初期値に戻すと、色のCSSを消す');
+	is($colors->('lyndbaum/lyndbaum')->{'link-cst'}, undef, '保存した色も消す');
 };
 
 done_testing();

@@ -44,7 +44,9 @@ sub calc {
 		return join(' ', @a);
 	}
 	# 式の評価
-	my $r = &evaluate_poland( $ROBJ, $pobj->{vars}, \@str_buf, $r );
+	# 変数は、タグの内部の変数（$pobj->{vars}。imageやmyself）とは別に持つ。
+	# 記事ごとに空にする（Markdown.pmのparse）
+	my $r = &evaluate_poland( $ROBJ, $pobj->{calc_vars} ||= {}, \@str_buf, $r );
 	$exp =~ s/\"//g;
 	$exp =~ s/\(/&#40;/g;
 	return "<span class=\"calc\" title=\"$exp\">$r</span>";
@@ -183,7 +185,7 @@ $functions{'localtime'} = sub {
 #--- 文字列関数 ------------------------
 $functions{'substr'} = sub { substr($_[0], $_[1], $_[2]) };
 $functions{'ord'}    = sub { ord(@_) };
-$functions{'length'} = sub { length(@_) };
+$functions{'length'} = sub { length($_[0]) };
 $functions{'index'}  = sub { index ($_[0], $_[1], $_[2]) };
 $functions{'rindex'} = sub { rindex($_[0], $_[1], $_[2]) };
 $functions{'chop'}   = sub { chop (@_) };

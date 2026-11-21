@@ -292,11 +292,12 @@ Ret:
 $ary = $self->load_logs(\%query)
 ($ary, $hits) = $self->load_logs(\%query)
 
-　ログイン、ログアウト、ユーザーの追加・変更の記録を読む。新しい順。
+　ログイン、ログアウト、ユーザーの追加・変更の記録を読む。変更の記録は、名前を変えたときはupdate_name、
+パスワードを変えたときはupdate_pass、どちらも変えていないときはupdate。新しい順。
 管理者のみ実行可能。
 
 	$query->{id}	ユーザーID（保存時にタグをエスケープしているので、そろえて渡す）
-	$query->{type}	login, logout, regist, update
+	$query->{type}	login, logout, regist, update_name, update_pass, update
 	$query->{result}	ok（msgが空）, fail（msgが空でない）
 	$query->{year}	年
 	$query->{mon}	月（yearと一緒に）

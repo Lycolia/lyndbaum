@@ -16,7 +16,7 @@
    右サイドバーの選択肢より優先させるため、セレクタに body を付ける。
    狭い画面（640px以下）では、bigblueテーマと同じく1列 */
 @media screen and (min-width: 641px) {
-	body #hatena-body > div {
+	body #columns > div {
 		grid-template-columns:	160px minmax(0, 1fr) 160px;
 		grid-template-areas:	"side-a main side-b";
 		column-gap:		10px;

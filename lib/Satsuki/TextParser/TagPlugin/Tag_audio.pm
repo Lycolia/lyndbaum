@@ -77,9 +77,10 @@ sub audio_video {
 		if ($url eq 'http' || $url eq 'https') {
 			$url .= ':' . shift(@$ary);
 		}
+		# 大きさの指定（w320、h180）は、動画や音声のURLにしない
+		if ($url =~ /^w(\d+)$/) { $width =$1; next; }
+		if ($url =~ /^h(\d+)$/) { $height=$1; next; }
 		$url0 ||= $url;
-		if ($url =~ /^w(\d+)$/) { $width =$1; }
-		if ($url =~ /^h(\d+)$/) { $height=$1; }
 
 		my $mime='';
 		my $url2 = $url;
@@ -98,11 +99,15 @@ sub audio_video {
 		if ($thumb ne '') { return $thumb; }
 	}
 
-	$width  = $width  ?  " width=\"$width\""  : ' width="480"';
-	$height = $height ? " height=\"$height\"" : ' height="270"';
+	# 幅と高さは動画だけ（<audio>には無い属性）
+	my $size = '';
+	if ($tname eq 'video') {
+		$size = ($width  ?  " width=\"$width\""  : ' width="480"')
+		      . ($height ? " height=\"$height\"" : ' height="270"');
+	}
 
 	# 再生するまで読み込まない（ページを開いただけで動画を全部読み込まないように）
-	return "<$tname$width$height controls preload=\"none\">$src(Browser not support $tname tag) <a class=\"$tname\" href=\"$url0\">$url0</a></$tname>";
+	return "<$tname$size controls preload=\"none\">$src(Browser not support $tname tag) <a class=\"$tname\" href=\"$url0\">$url0</a></$tname>";
 }
 
 #-------------------------------------------------------------------------------

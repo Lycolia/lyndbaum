@@ -95,7 +95,7 @@ subtest '更新日時が空の記事' => sub {
 # デザイナで設定を保存すると、design-edit.jsがdesign/load_moduleでモジュールを取り直して置き換える
 subtest 'デザイナで設定を保存した後の作り直し' => sub {
 	my $load = sub { body($app->post('admin', '', { action => 'design/load_module', module_name => 'dea_art-info' })) };
-	like(body($app->get('admin', 'design/edit')), qr/data-module-name="dea_art-info"\s+data-type="article"\s+data-setting="1"\s+data-css-setting=""\s+data-load-module-html="1"/, 'デザイナで取り直す対象になる');
+	like(body($app->get('admin', 'design/edit')), qr/data-module-name="dea_art-info"\s+data-type="article"\s+data-setting="1"\s+data-load-module-html="1"/, 'デザイナで取り直す対象になる');
 
 	# 見本の記事は、フロントページが無ければ最新の記事。ここでは固定ページ（pkey=2）
 	setting(page_upd => 1);
